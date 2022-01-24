@@ -3,7 +3,7 @@
 
 #include "doctest/doctest.h"
 
-TEST_CASE("Basic"){
+TEST_CASE("Basic") {
     int a = 1;
     CHECK(a == a);
 }
