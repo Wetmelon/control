@@ -26,15 +26,15 @@ class ss : public LTI {
 TEST_SUITE("LTI") {
 #include <iostream>
     TEST_CASE("Create ss") {
-        Eigen::MatrixXd A{{1.0, 0.0}, {0.0, 0.0}};
-        Eigen::MatrixXd B{{1.0}};
-        Eigen::MatrixXd C{{1.0}};
-        Eigen::MatrixXd D{{0.0}};
+        Eigen::MatrixXd A = {{1, 0.0}, {0.0, 0.0}};
+        Eigen::MatrixXd B = {{1.0}};
+        Eigen::MatrixXd C = {{1.0}};
+        Eigen::MatrixXd D = {{0.0}};
 
         control::ss{A, B, C, D};
         control::ss{{{1.0, 0.0}, {0.0, 1.0}}, {{1.0}, {0.0}}, {{1.0}}, {{0.0}}};
         control::ss{{{1.0}}, B, C, D};
-        control::ss{{{-1.0}}, {{1.0}}, C, {{0.0}}};
+        control::ss{{{-1}}, {{1.0}}, C, {{0}}};
         control::ss{{{1.0, 0.0}, {0.0, 1.0}}, B, {{1.0}}, D};
     }
 }
