@@ -3,6 +3,8 @@
 
 #include "doctest/doctest.h"
 
+#include "control/LTI.hpp"
+
 TEST_CASE("Basic") {
     int a = 1;
     CHECK(a == a);
