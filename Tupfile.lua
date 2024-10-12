@@ -1,4 +1,5 @@
 
-test_objs = tup.foreach_rule('test/*.cpp', 'g++ -I. -O3 -std=c++20 -c %f -o %o', 'test/build/obj/%B.o')
-test_runner = tup.rule(test_objs, 'g++ %f -o %o', 'test/build/test_runner.exe')
-tup.rule(test_runner, './%f')
+INCLUDES = "-I. -Isource -IEigen"
+test_objs = tup.foreach_rule('source/*.cpp', '^j^g++ '..INCLUDES..' -O3 -std=c++23 -c %f -o %o', 'build/obj/%B.o')
+test_runner = tup.rule(test_objs, 'g++ %f -o %o', 'build/test_runner.exe')
+tup.frule{inputs = test_objs, command = 'objdump -dSC %f > %o', outputs = 'build/asm/%B.asm'}

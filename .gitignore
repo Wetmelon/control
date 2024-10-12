@@ -2,3 +2,5 @@
 .tup/
 
 test/build/
+.cache/
+build/
