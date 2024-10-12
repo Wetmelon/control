@@ -5,12 +5,11 @@
 #include <ostream>
 
 #include "Eigen/Dense"
-#include "Eigen/src/Core/util/Meta.h"
 
 namespace control {
-using mat = Eigen::MatrixXd;
+using Matrix = Eigen::MatrixXd;
 
-enum class DiscretizationMethod {
+enum class Method {
     ZOH,
     FOH,
     Bilinear,
@@ -22,16 +21,16 @@ struct TransferFunction {
 };
 
 struct StateSpace {
-    StateSpace(const mat& A, const mat& B, const mat& C, const mat& D, const std::optional<double>& Ts = std::nullopt,
-               const std::optional<DiscretizationMethod>& method = std::nullopt, const std::optional<double>& prewarp = std::nullopt)
+    StateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, const std::optional<double>& Ts = std::nullopt,
+               const std::optional<Method>& method = std::nullopt, const std::optional<double>& prewarp = std::nullopt)
         : A(A), B(B), C(C), D(D), Ts(Ts), method(method), prewarp(prewarp){};
 
-    StateSpace c2d(const double Ts, const DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
+    StateSpace c2d(const double Ts, const Method method = Method::ZOH, std::optional<double> prewarp = std::nullopt) const;
 
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 
     const std::optional<double>               Ts      = std::nullopt;
-    const std::optional<DiscretizationMethod> method  = std::nullopt;
+    const std::optional<Method> method  = std::nullopt;
     const std::optional<double>               prewarp = std::nullopt;
 
     friend std::ostream& operator<<(std::ostream& os, const StateSpace& sys) {

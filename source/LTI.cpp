@@ -3,7 +3,7 @@
 #include "unsupported/Eigen/MatrixFunctions"
 
 namespace control {
-StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, const std::optional<double> prewarp) const {
+StateSpace StateSpace::c2d(const double Ts, const Method method, const std::optional<double> prewarp) const {
     if (this->Ts.has_value()) {
         return *this;
     }
@@ -15,7 +15,7 @@ StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, c
     const auto I2   = Ainv * (E * Ts - I1);
 
     switch (method) {
-        case DiscretizationMethod::ZOH: {
+        case Method::ZOH: {
             return StateSpace{
                 E,       // A
                 I1 * B,  // B
@@ -24,7 +24,7 @@ StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, c
                 Ts,      // Ts
             };
         }
-        case DiscretizationMethod::FOH: {
+        case Method::FOH: {
             const auto Q = I1 - (I2 / Ts);
             const auto P = I1 - Q;
             return StateSpace{
@@ -35,8 +35,8 @@ StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, c
                 Ts,                 // Ts
             };
         }
-        case DiscretizationMethod::Tustin:  // Fallthrough
-        case DiscretizationMethod::Bilinear: {
+        case Method::Tustin:  // Fallthrough
+        case Method::Bilinear: {
             double k = 2.0 / Ts;
             if (prewarp.has_value()) {
                 k = prewarp.value() / std::tan(prewarp.value() * Ts / 2.0);
