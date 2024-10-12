@@ -3,7 +3,7 @@
 #include <cmath>
 #include <optional>
 
-#include "Eigen"
+#include "Eigen/Dense"
 
 namespace control {
 using mat = Eigen::MatrixXd;

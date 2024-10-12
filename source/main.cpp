@@ -9,10 +9,10 @@ int main() {
     constexpr double k = 40.0;   // spring constant
     constexpr double b = 60.0;   // damping constant
 
-    control::mat A = {{0, 1.0}, {-k / m, -b / m}};
-    control::mat B = {{0}, {1.0 / m}};
-    control::mat C = {{1.0, 0}};
-    control::mat D = {{0.0}};
+    control::mat A{{0, 1.0}, {-k / m, -b / m}};
+    control::mat B{{0}, {1.0 / m}};
+    control::mat C{{1.0, 0}};
+    control::mat D{{0.0}};
 
     const control::StateSpace sys = {A, B, C, D};
 

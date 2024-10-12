@@ -1,5 +1,5 @@
 
-INCLUDES = "-I. -Isource -IEigen"
+INCLUDES = "-I. -Isource -Ieigen"
 WARNINGS = '-Wall -Wextra'
 
 -- Compile all objects
