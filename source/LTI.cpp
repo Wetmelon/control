@@ -16,7 +16,7 @@ StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, c
 
     switch (method) {
         case DiscretizationMethod::ZOH: {
-            return {
+            return StateSpace{
                 E,       // A
                 I1 * B,  // B
                 C,       // C
@@ -27,7 +27,7 @@ StateSpace StateSpace::c2d(const double Ts, const DiscretizationMethod method, c
         case DiscretizationMethod::FOH: {
             const auto Q = I1 - (I2 / Ts);
             const auto P = I1 - Q;
-            return {
+            return StateSpace{
                 E,                  // A
                 (P + (E * Q)) * B,  // B
                 C,                  // C

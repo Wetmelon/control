@@ -17,18 +17,12 @@ int main() {
     const control::StateSpace sys = {A, B, C, D};
 
     std::cout << "Continuous time matrix sys: \n";
-    std::cout << "A = \n" << sys.A << '\n';
-    std::cout << "B = \n" << sys.B << '\n';
-    std::cout << "C = \n" << sys.C << '\n';
-    std::cout << "D = \n" << sys.D << '\n';
+    std::cout << sys;
 
     const auto sysd = sys.c2d(0.01, control::DiscretizationMethod::Tustin);
 
     std::cout << "Discrete time matrix sysd: \n";
-    std::cout << "A = \n" << sysd.A << '\n';
-    std::cout << "B = \n" << sysd.B << '\n';
-    std::cout << "C = \n" << sysd.C << '\n';
-    std::cout << "D = \n" << sysd.D << '\n';
+    std::cout << sysd;
 
     return 0;
 }
