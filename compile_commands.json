@@ -1,7 +1,0 @@
-[
-{
-    "directory": "C:\\Users\\pfgue\\Documents\\Github\\control\\",
-    "command": "g++ -I. -Isource -IEigen -O3 -std=c++23 -c source/main.cpp -o build/obj/main.o",
-    "file": "source/main.cpp"
-}
-]

@@ -9,12 +9,12 @@ int main() {
     constexpr double k = 40.0;   // spring constant
     constexpr double b = 60.0;   // damping constant
 
-    const control::StateSpace sys = {
-        .A = {{0, 1.0}, {-k / m, -b / m}},
-        .B = {{0}, {1.0 / m}},
-        .C = {{1.0, 0}},
-        .D = {{0.0}},
-    };
+    control::mat A = {{0, 1.0}, {-k / m, -b / m}};
+    control::mat B = {{0}, {1.0 / m}};
+    control::mat C = {{1.0, 0}};
+    control::mat D = {{0.0}};
+
+    const control::StateSpace sys = {A, B, C, D};
 
     std::cout << "Continuous time matrix sys: \n";
     std::cout << "A = \n" << sys.A << '\n';
@@ -22,7 +22,7 @@ int main() {
     std::cout << "C = \n" << sys.C << '\n';
     std::cout << "D = \n" << sys.D << '\n';
 
-    const auto sysd = control::c2d(sys, 0.01, control::DiscretizationMethod::Tustin, 100.0);
+    const auto sysd = sys.c2d(0.01, control::DiscretizationMethod::Tustin);
 
     std::cout << "Discrete time matrix sysd: \n";
     std::cout << "A = \n" << sysd.A << '\n';

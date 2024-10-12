@@ -1,3 +1,7 @@
 BasedOnStyle: Google
 IndentWidth: 4
 ColumnLimit: 180
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignTrailingComments: true
+AlignConsecutiveMacros: true
