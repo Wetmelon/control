@@ -1,7 +1,10 @@
-BasedOnStyle: Google
+BasedOnStyle: LLVM
 IndentWidth: 4
-ColumnLimit: 180
+ColumnLimit: 0
 AlignConsecutiveDeclarations: true
 AlignConsecutiveAssignments: true
 AlignTrailingComments: true
 AlignConsecutiveMacros: true
+AlignAfterOpenBracket: true
+AlignEscapedNewlines: true
+AlignOperands: true
