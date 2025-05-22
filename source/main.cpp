@@ -1,4 +1,5 @@
-#include <iostream>
+
+#include <print>
 
 #include "LTI.hpp"
 
@@ -53,12 +54,10 @@ int main() {
     const auto D = Matrix{{0.0}};
 
     const auto sys = StateSpace{A, B, C, D, 0.01, Method::Tustin};
-    std::cout << "Continuous time matrix sys:\n"
-              << sys << '\n';
+    std::println("Continuous time matrix sys: \n{}", sys);
 
     const auto sysd = sys.c2d(0.01, Method::Tustin);
-    std::cout << "Discrete time matrix sysd:\n"
-              << sysd << '\n';
+    std::println("Discrete time matrix sysd: \n{}", sysd);
 
     // Simulate step response
     const auto simTime   = 10.0; // 10 seconds simulation

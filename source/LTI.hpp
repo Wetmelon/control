@@ -1,8 +1,9 @@
 #pragma once
 
 #include <cmath>
+#include <format>
 #include <optional>
-#include <ostream>
+#include <sstream>
 
 #include "Eigen/Dense"
 
@@ -10,44 +11,65 @@ namespace control {
 using Matrix = Eigen::MatrixXd;
 
 enum class Method {
-  ZOH,
-  FOH,
-  Bilinear,
-  Tustin,
+    ZOH,
+    FOH,
+    Bilinear,
+    Tustin,
 };
 
 struct TransferFunction {
-  Eigen::MatrixXd num, den;
+    Eigen::MatrixXd num, den;
 };
 
 struct StateSpace {
-  StateSpace(const Matrix &A, const Matrix &B, const Matrix &C, const Matrix &D,
-             const std::optional<double> &Ts = std::nullopt,
-             const std::optional<Method> &method = std::nullopt,
-             const std::optional<double> &prewarp = std::nullopt)
-      : A(A), B(B), C(C), D(D), Ts(Ts), method(method), prewarp(prewarp) {};
+    StateSpace(const Matrix &A, const Matrix &B, const Matrix &C, const Matrix &D,
+               const std::optional<double> &Ts      = std::nullopt,
+               const std::optional<Method> &method  = std::nullopt,
+               const std::optional<double> &prewarp = std::nullopt)
+        : A(A), B(B), C(C), D(D), Ts(Ts), method(method), prewarp(prewarp) {};
 
-  Matrix step(const Matrix &x, const Matrix &u) const { return A * x + B * u; }
+    Matrix step(const Matrix &x, const Matrix &u) const { return A * x + B * u; }
+    Matrix output(const Matrix &x, const Matrix &u) const { return C * x + D * u; }
 
-  Matrix output(const Matrix &x, const Matrix &u) const { return C * x + D * u; }
+    StateSpace c2d(const double Ts, const Method method = Method::ZOH,
+                   std::optional<double> prewarp = std::nullopt) const;
 
-  StateSpace c2d(const double Ts, const Method method = Method::ZOH,
-                 std::optional<double> prewarp = std::nullopt) const;
+    const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 
-  const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
+    const std::optional<double> Ts      = std::nullopt;
+    const std::optional<Method> method  = std::nullopt;
+    const std::optional<double> prewarp = std::nullopt;
 
-  const std::optional<double> Ts = std::nullopt;
-  const std::optional<Method> method = std::nullopt;
-  const std::optional<double> prewarp = std::nullopt;
+  private:
+    friend std::ostream &operator<<(std::ostream &os, const StateSpace &sys) {
+        os << "A = \n"
+           << sys.A << '\n'
+           << '\n';
+        os << "B = \n"
+           << sys.B << '\n'
+           << '\n';
+        os << "C = \n"
+           << sys.C << '\n'
+           << '\n';
+        os << "D = \n"
+           << sys.D << '\n'
+           << '\n';
 
-  friend std::ostream &operator<<(std::ostream &os, const StateSpace &sys) {
-    os << "A = \n" << sys.A << '\n' << '\n';
-    os << "B = \n" << sys.B << '\n' << '\n';
-    os << "C = \n" << sys.C << '\n' << '\n';
-    os << "D = \n" << sys.D << '\n' << '\n';
-
-    return os;
-  }
+        return os;
+    }
 };
 
 }; // namespace control
+
+template <>
+struct std::formatter<control::StateSpace> {
+    constexpr auto parse(std::format_parse_context &ctx) {
+        return ctx.begin();
+    }
+
+    auto format(const control::StateSpace &sys, std::format_context &ctx) const {
+        std::stringstream ss;
+        ss << sys;
+        return std::format_to(ctx.out(), "{}", ss.str());
+    }
+};
