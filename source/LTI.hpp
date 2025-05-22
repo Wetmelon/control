@@ -34,6 +34,40 @@ struct StateSpace {
     StateSpace c2d(const double Ts, const Method method = Method::ZOH,
                    std::optional<double> prewarp = std::nullopt) const;
 
+    auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const {
+        struct FrequencyResponse {
+            std::vector<double> freq;      // Frequency in Hz
+            std::vector<double> magnitude; // Magnitude in dB
+            std::vector<double> phase;     // Phase in degrees
+        };
+
+        auto response = FrequencyResponse{
+            .freq      = std::vector<double>(numFreq),
+            .magnitude = std::vector<double>(numFreq),
+            .phase     = std::vector<double>(numFreq)};
+
+        // Generate logarithmically spaced frequencies
+        const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
+        const auto logStep            = (logEnd - logStart) / (numFreq - 1);
+
+        for (int i = 0; i < numFreq; ++i) {
+            response.freq[i] = std::pow(10.0, logStart + i * logStep);      // Hz
+            const auto w     = 2.0 * std::numbers::pi * response.freq[i]; // Convert to rad/s for calculations
+
+            const auto s = std::complex<double>(0, w); // s = jω
+
+            // Calculate transfer function H(s) = C(sI - A)^(-1)B + D
+            const auto I = control::Matrix::Identity(A.rows(), A.cols());
+            const auto H = (C * (((s * I) - A).inverse()) * B) + D;
+
+            // Store magnitude in dB and phase in degrees
+            response.magnitude[i] = 20.0 * std::log10(std::abs(H(0, 0)));
+            response.phase[i]     = std::arg(H(0, 0)) * 180.0 / std::numbers::pi;
+        }
+
+        return response;
+    }
+
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 
     const std::optional<double> Ts      = std::nullopt;
@@ -58,7 +92,6 @@ struct StateSpace {
         return os;
     }
 };
-
 }; // namespace control
 
 template <>

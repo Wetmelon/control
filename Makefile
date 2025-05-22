@@ -1,4 +1,4 @@
 all:
 	@tup --quiet compiledb
-	@tup --quiet
+	@tup
 	@./build/test_runner.exe
