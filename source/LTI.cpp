@@ -25,6 +25,14 @@ Matrix ContinuousStateSpace::evolveTrapezoidal(const Matrix& x, const Matrix& u,
     return lhs.colPivHouseholderQr().solve(rhs);
 }
 
+Matrix ContinuousStateSpace::evolveRK4(const Matrix& x, const Matrix& u, double h) const {
+    Matrix k1 = A * x + B * u;
+    Matrix k2 = A * (x + h / 2.0 * k1) + B * u;
+    Matrix k3 = A * (x + h / 2.0 * k2) + B * u;
+    Matrix k4 = A * (x + h * k3) + B * u;
+    return x + h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+}
+
 Matrix ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const {
     switch (method) {
         case IntegrationMethod::ForwardEuler:
@@ -33,6 +41,8 @@ Matrix ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, 
             return evolveBackwardEuler(x, u, h);
         case IntegrationMethod::Trapezoidal:
             return evolveTrapezoidal(x, u, h);
+        case IntegrationMethod::RK4:
+            return evolveRK4(x, u, h);
         default:
             return x;  // No change
     }

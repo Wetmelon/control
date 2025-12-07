@@ -20,6 +20,7 @@ enum class IntegrationMethod {
     ForwardEuler,
     BackwardEuler,
     Trapezoidal,
+    RK4,
 };
 
 enum class SystemType {
@@ -56,7 +57,7 @@ class StateSpaceBase {
     auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const -> FrequencyResponse;
     auto generateStepResponse(double tStart = 0.0, double tEnd = 10.0, int numPoints = 1000,
                               Matrix x0 = Matrix(), Matrix uStep = Matrix(),
-                              IntegrationMethod method = IntegrationMethod::Trapezoidal) const -> StepResponse;
+                              IntegrationMethod method = IntegrationMethod::RK4) const -> StepResponse;
 
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 };
@@ -75,6 +76,7 @@ class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
     Matrix evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
     Matrix evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
     Matrix evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const;
+    Matrix evolveRK4(const Matrix& x, const Matrix& u, double h) const;
 };
 
 class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
