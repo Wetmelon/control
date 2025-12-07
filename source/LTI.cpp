@@ -1,6 +1,5 @@
 #include "LTI.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -9,25 +8,29 @@
 
 namespace control {
 
-IntegrationResult ContinuousStateSpace::evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult Solver::evolveDiscrete(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u) const {
+    return {A * x + B * u, 0.0};
+}
+
+IntegrationResult Solver::evolveForwardEuler(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     return {x + h * (A * x + B * u), 0.0};
 }
 
-IntegrationResult ContinuousStateSpace::evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult Solver::evolveBackwardEuler(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     const auto I   = Matrix::Identity(A.rows(), A.cols());
     const auto lhs = I - h * A;
     const auto rhs = x + h * B * u;
     return {lhs.colPivHouseholderQr().solve(rhs), 0.0};
 }
 
-IntegrationResult ContinuousStateSpace::evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult Solver::evolveTrapezoidal(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     const auto I   = Matrix::Identity(A.rows(), A.cols());
     const auto lhs = I - (h / 2.0) * A;
     const auto rhs = (I + (h / 2.0) * A) * x + (h / 2.0) * B * u;
     return {lhs.colPivHouseholderQr().solve(rhs), 0.0};
 }
 
-IntegrationResult ContinuousStateSpace::evolveRK4(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult Solver::evolveRK4(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     Matrix k1 = A * x + B * u;
     Matrix k2 = A * (x + h / 2.0 * k1) + B * u;
     Matrix k3 = A * (x + h / 2.0 * k2) + B * u;
@@ -35,7 +38,7 @@ IntegrationResult ContinuousStateSpace::evolveRK4(const Matrix& x, const Matrix&
     return {x + h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4), 0.0};
 }
 
-IntegrationResult ContinuousStateSpace::evolveRK45(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult Solver::evolveRK45(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     auto f = [&](const Matrix& x) { return A * x + B * u; };
 
     Matrix k1 = f(x);
@@ -52,20 +55,45 @@ IntegrationResult ContinuousStateSpace::evolveRK45(const Matrix& x, const Matrix
     return {x5, error};
 }
 
-IntegrationResult ContinuousStateSpace::evolveImpl(const Matrix& x, const Matrix& u, double h) const {
-    switch (integrationMethod) {
+IntegrationResult Solver::evolveFixedTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
+    switch (method_) {
         case IntegrationMethod::ForwardEuler:
-            return evolveForwardEuler(x, u, h);
+            return evolveForwardEuler(A, B, x, u, h);
         case IntegrationMethod::BackwardEuler:
-            return evolveBackwardEuler(x, u, h);
+            return evolveBackwardEuler(A, B, x, u, h);
         case IntegrationMethod::Trapezoidal:
-            return evolveTrapezoidal(x, u, h);
+            return evolveTrapezoidal(A, B, x, u, h);
         case IntegrationMethod::RK4:
-            return evolveRK4(x, u, h);
+            return evolveRK4(A, B, x, u, h);
         case IntegrationMethod::RK45:
-            return evolveRK45(x, u, h);
+            return evolveRK45(A, B, x, u, h);
         default:
             return {x, 0.0};  // No change
+    }
+}
+
+AdaptiveIntegrationResult Solver::evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double hInitial, double tol) {
+    double h        = h_prev_;
+    Matrix xCurrent = x;
+    while (true) {
+        auto res1 = evolveFixedTimestep(A, B, xCurrent, u, h);
+        auto res2 = evolveFixedTimestep(A, B, xCurrent, u, h / 2.0);
+        res2      = evolveFixedTimestep(A, B, res2.x, u, h / 2.0);
+
+        double error = (res1.x - res2.x).norm();
+
+        if (error < tol) {
+            // Accept step
+            h_prev_ = h * 1.5;
+            return {.result = res2, .hNext = h_prev_};
+        } else {
+            // Reduce step size
+            h *= 0.5;
+            if (h < 1e-10) {
+                // Prevent excessively small step sizes
+                h = 1e-10;
+            }
+        }
     }
 }
 
@@ -135,7 +163,7 @@ FrequencyResponse ContinuousStateSpace::bodeImpl(double fStart, double fEnd, siz
     const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
     const auto logStep            = (logEnd - logStart) / (numFreq - 1);
 
-    for (int i = 0; i < numFreq; ++i) {
+    for (size_t i = 0; i < numFreq; ++i) {
         response.freq[i] = std::pow(10.0, logStart + i * logStep);     // Hz
         const auto w     = 2.0 * std::numbers::pi * response.freq[i];  // Convert to rad/s for calculations
 
@@ -164,10 +192,10 @@ FrequencyResponse DiscreteStateSpace::bodeImpl(double fStart, double fEnd, size_
     const auto logStep            = (logEnd - logStart) / (numFreq - 1);
 
     for (size_t i = 0; i < numFreq; ++i) {
-        response.freq[i] = std::pow(10.0, logStart + i * logStep);  // Hz
-        const auto f     = response.freq[i];
+        response.freq[i] = std::pow(10.0, logStart + (i * logStep));  // Hz
+
         // Discrete system: z = exp(j * 2π * f * Ts)
-        double omega_d = 2.0 * std::numbers::pi * f * Ts;
+        double omega_d = 2.0 * std::numbers::pi * response.freq[i] * Ts;
         auto   z       = std::exp(std::complex<double>(0, omega_d));
 
         // Calculate transfer function H(z) = C(zI - A)^(-1)B + D
@@ -182,68 +210,55 @@ FrequencyResponse DiscreteStateSpace::bodeImpl(double fStart, double fEnd, size_
     return response;
 }
 
-StepResponse DiscreteStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
-    StepResponse response;
+StepResponse ContinuousStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
+    Solver solver{IntegrationMethod::RK45, std::nullopt};
 
-    const size_t actualNumPoints = static_cast<size_t>((tEnd - tStart) / Ts) + 1ULL;
-    response.time.resize(actualNumPoints);
-    response.output.resize(actualNumPoints);
-    Matrix x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
-    for (size_t i = 0; i < actualNumPoints; ++i) {
-        response.time[i]   = tStart + i * Ts;
-        response.output[i] = output(x, uStep)(0, 0);
-        auto res           = evolveImpl(x, uStep, Ts);
-        x                  = res.x;
+    const double dt        = solver.getTimestep().value_or(0.01);  // Use configured timestep or default 10ms steps
+    size_t       numPoints = static_cast<size_t>((tEnd - tStart) / dt) + 1;
+
+    StepResponse response;
+    Matrix       x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
+    if (!solver.getTimestep().has_value()) {
+        // Adaptive timestepping for RK45 when no fixed timestep is set
+        std::vector<AdaptiveIntegrationResult> integration_data;
+
+        double time = tStart;
+        while (time < tEnd) {
+            auto res = solver.evolveAdaptiveTimestep(A, B, x, uStep, dt, 1e-6);
+            x        = res.result.x;
+
+            time += res.hNext;
+            response.time.push_back(time);
+            response.output.push_back(output(x, uStep)(0, 0));
+        }
+
+    } else {
+        // Fixed timestep if set
+        for (size_t i = 0; i < numPoints; ++i) {
+            response.time.push_back(tStart + i * dt);
+            response.output.push_back(output(x, uStep)(0, 0));
+
+            x = solver.evolveFixedTimestep(A, B, x, uStep, dt).x;
+        }
     }
     return response;
 }
 
-IntegrationResult DiscreteStateSpace::evolveImpl(const Matrix& x, const Matrix& u, double /*h*/) const {
-    return {A * x + B * u, 0.0};
-}
+StepResponse DiscreteStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
+    Solver solver{IntegrationMethod::RK45, Ts};
 
-StepResponse ContinuousStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
+    // Number of discrete time points
+    size_t numPoints = static_cast<size_t>((tEnd - tStart) / Ts) + 1;
+
     StepResponse response;
-    const double dt = timestep.value_or(0.01);  // Use configured timestep or default 10ms steps
-
-    size_t numPoints = static_cast<size_t>((tEnd - tStart) / dt) + 1;
     response.time.resize(numPoints);
     response.output.resize(numPoints);
     Matrix x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
-    if (integrationMethod == IntegrationMethod::RK45 && !timestep.has_value()) {
-        // Adaptive timestepping for RK45 when no fixed timestep is set
-        const double tol = 1e-6;
-        double       h   = 0.01;
-        double       t   = tStart;
-        for (size_t i = 0; i < numPoints; ++i) {
-            double target_t = tStart + i * dt;
-            while (t < target_t) {
-                double remaining = target_t - t;
-                double step_h    = std::min(h, remaining);
-
-                const auto res = evolveImpl(x, uStep, step_h);
-
-                double error  = res.error;
-                double factor = std::pow(tol / (error + 1e-16), 0.2);
-                if (error <= tol) {
-                    x = res.x;
-                    t += step_h;
-                    h = std::clamp(h * factor, 1e-6, 1.0);
-                } else {
-                    h = std::clamp(h * std::max(0.1, factor), 1e-6, 1.0);
-                }
-            }
-            response.time[i]   = target_t;
-            response.output[i] = output(x, uStep)(0, 0);
-        }
-    } else {
-        // Fixed timestep for other methods or when timestep is set
-        for (size_t i = 0; i < numPoints; ++i) {
-            response.time[i]   = tStart + i * dt;
-            response.output[i] = output(x, uStep)(0, 0);
-            auto res           = evolveImpl(x, uStep, dt);
-            x                  = res.x;
-        }
+    for (size_t i = 0; i < numPoints; ++i) {
+        response.time[i]   = tStart + i * Ts;
+        response.output[i] = (C * x + D * uStep)(0, 0);
+        auto res           = solver.evolveDiscrete(A, B, x, uStep);
+        x                  = res.x;
     }
     return response;
 }

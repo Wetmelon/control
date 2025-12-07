@@ -8,14 +8,14 @@
 
 namespace plt = matplot;
 
-void plotStepResponse(const std::vector<double>& time, const std::vector<std::vector<double>>& responses,
+void plotStepResponse(const std::vector<std::vector<double>>& times, const std::vector<std::vector<double>>& responses,
                       const std::vector<std::string>& labels, const std::string& title = "Step Response") {
     auto fig = plt::figure(true);
     fig->size(800, 600);
     plt::hold(plt::on);
 
     for (size_t i = 0; i < responses.size(); ++i) {
-        plt::plot(time, responses[i])->display_name(labels[i]);
+        plt::plot(times[i], responses[i])->display_name(labels[i]);
     }
     plt::xlabel("Time (s)");
     plt::ylabel("Output");
@@ -76,6 +76,7 @@ int main() {
     std::vector<double> time;
 
     // Simulate for each damping ratio
+    std::vector<std::vector<double>>        times;
     std::vector<std::vector<double>>        stepResponses;
     std::vector<control::FrequencyResponse> freqResponses;
 
@@ -98,17 +99,14 @@ int main() {
         auto stepResp = sys.step(t_start, t_end);
 
         // Store time vector from the first response
-        if (stepResponses.empty()) {
-            time = stepResp.time;
-        }
-
+        times.push_back(stepResp.time);
         stepResponses.push_back(stepResp.output);
         labels.push_back(std::format("ζ = {:.1f}", zeta));
         freqResponses.push_back(sys.bode());
     }
 
     // Plot all step responses and Bode plots
-    plotStepResponse(time, stepResponses, labels, "Step Response for Different Damping Ratios");
+    plotStepResponse(times, stepResponses, labels, "Step Response for Different Damping Ratios");
     // plotBodePlot(freqResponses, labels, "Bode Plot for Different Damping Ratios");
 
     return 0;

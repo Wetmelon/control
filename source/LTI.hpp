@@ -49,9 +49,43 @@ struct IntegrationResult {
     double error;
 };
 
+struct AdaptiveIntegrationResult {
+    IntegrationResult result;
+
+    double hNext;
+};
+
 class DiscreteStateSpace;    // Forward declaration
 class ContinuousStateSpace;  // Forward declaration
 using StateSpace = ContinuousStateSpace;
+
+class Solver {
+   public:
+    Solver(IntegrationMethod method = IntegrationMethod::RK45, std::optional<double> timestep = std::nullopt)
+        : method_(method), timestep_(timestep) {}
+
+    void setIntegrationMethod(IntegrationMethod method) { method_ = method; }
+    void setTimestep(std::optional<double> timestep) { timestep_ = timestep; }
+
+    IntegrationMethod     getIntegrationMethod() const { return method_; }
+    std::optional<double> getTimestep() const { return timestep_; }
+
+    IntegrationResult         evolveFixedTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult         evolveDiscrete(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u) const;
+    AdaptiveIntegrationResult evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double hInitial, double tol);
+
+   private:
+    IntegrationResult evolveForwardEuler(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveBackwardEuler(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveTrapezoidal(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK4(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK45(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+
+    IntegrationMethod     method_;
+    std::optional<double> timestep_;
+
+    double h_prev_ = 0.01;
+};
 
 template <typename Derived>
 class StateSpaceBase {
@@ -74,17 +108,13 @@ class StateSpaceBase {
         return static_cast<const Derived*>(this)->bodeImpl(fStart, fEnd, numFreq);
     }
 
-    IntegrationResult evolve(const Matrix& x, const Matrix& u, double h) const {
-        return static_cast<const Derived*>(this)->evolveImpl(x, u, h);
-    }
-
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 };
 
 class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
    public:
     ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
-        : StateSpaceBase(A, B, C, D), integrationMethod(IntegrationMethod::RK45), timestep(std::nullopt) {}
+        : StateSpaceBase(A, B, C, D) {}
 
     // Convert to discrete-time state space using specified method
     DiscreteStateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
@@ -94,16 +124,6 @@ class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
 
     StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
     FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
-    IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
-
-    IntegrationResult evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveRK4(const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveRK45(const Matrix& x, const Matrix& u, double h) const;
-
-    IntegrationMethod     integrationMethod;
-    std::optional<double> timestep;
 };
 
 class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
@@ -116,33 +136,8 @@ class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
 
     StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
     FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
-    IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
 
     const double Ts;
-};
-
-class Solver {
-   public:
-    Solver(IntegrationMethod method = IntegrationMethod::RK45, std::optional<double> timestep = std::nullopt)
-        : method_(method), timestep_(timestep) {}
-
-    void setIntegrationMethod(IntegrationMethod method) { method_ = method; }
-    void setTimestep(std::optional<double> timestep) { timestep_ = timestep; }
-
-    IntegrationMethod     getIntegrationMethod() const { return method_; }
-    std::optional<double> getTimestep() const { return timestep_; }
-
-    IntegrationResult evolve(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-
-   private:
-    IntegrationResult evolveForwardEuler(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveBackwardEuler(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveTrapezoidal(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveRK4(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult evolveRK45(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
-
-    IntegrationMethod     method_;
-    std::optional<double> timestep_;
 };
 
 template <class Derived>
