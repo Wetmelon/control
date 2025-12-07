@@ -1,7 +1,7 @@
 INCLUDES = "-I. -Isource -Ilibs -Ilibs/eigen -Ilibs/matplotplusplus/source -Ibuild/libs/matplotplusplus"
 WARNINGS = '-Wall -Wextra'
 
-COMMON_FLAGS = '-O3'
+COMMON_FLAGS = '-O3 -ffunction-sections -fdata-sections -march=native -mtune=native -fno-omit-frame-pointer'
 CCFLAGS = '-std=c17'
 CXXFLAGS = '-std=c++23'
 LDFLAGS = '-Wl,--gc-sections -static'
@@ -55,7 +55,6 @@ matplot_cpp_files = {
 
     'util/colors.cpp',
     'util/common.cpp',
-    'util/concepts.h',
     'util/contourc.cpp',
     'util/popen.cpp',
     'util/world_cities.cpp',
@@ -93,7 +92,6 @@ matplot_objs = tup.foreach_rule(matplot_cpp_files, '^j^'..CC_PATH..'g++ '..MATPL
 matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -D_USE_MATH_DEFINES -c %f -o %o', 'build/libs/matplotplusplus/obj/matplot/%B.o')
 
 -- Link matplot library (combine matplot objects and nodesoup objects into one library)
--- Ensure exports_h is generated before building the library
 matplot_lib = tup.rule(
     matplot_objs,
     'ar rcs %o %f',
@@ -101,11 +99,12 @@ matplot_lib = tup.rule(
 )
 
 -- -- Compile all objects
--- objs = tup.foreach_rule({'source/*.c', extra_inputs = 'matplot/detail/exports.h'}, '^j^'..CC_PATH..'gcc '..INCLUDES..' '..COMMON_FLAGS..' '..CCFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
--- objs = tup.foreach_rule({'source/*.cpp', extra_inputs = 'matplot/detail/exports.h'}, '^j^'..CC_PATH..'g++ '..INCLUDES..' '..COMMON_FLAGS..' '..CXXFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
+objs = tup.foreach_rule('source/*.c', '^j^'..CC_PATH..'gcc '..INCLUDES..' '..COMMON_FLAGS..' '..CCFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
+objs += tup.foreach_rule('source/*.cpp', '^j^'..CC_PATH..'g++ '..INCLUDES..' '..COMMON_FLAGS..' '..CXXFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
+objs += matplot_lib
 
 -- -- Generate assembly for each object
--- tup.foreach_rule(objs, CC_PATH..'objdump -dC %f > %o', 'build/asm/%B.asm')
+tup.foreach_rule(objs, CC_PATH..'objdump -dC %f > %o', 'build/asm/%B.asm')
 
 -- -- Generate test executable
--- test_runner = tup.rule(objs, 'g++ '..LDFLAGS..' %f -lstdc++exp -o %o', 'build/test_runner.exe')
+test_runner = tup.rule(objs, 'g++ '..LDFLAGS..' %f -lstdc++exp -lgdi32 -o %o', 'build/test_runner.exe')
