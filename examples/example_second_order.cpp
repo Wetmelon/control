@@ -91,14 +91,19 @@ int main() {
         const auto D = Matrix{{0.0}};
 
         // Create continuous-time system
-        const auto sys = StateSpace{A, B, C, D};
+        auto sys = StateSpace{A, B, C, D};
 
         // Generate step response
-        auto stepResp = sys.generateStepResponse(t_start, t_end);
-        if (stepResponses.empty()) time = stepResp.time;
+        auto stepResp = sys.step(t_start, t_end);
+
+        // Store time vector from the first response
+        if (stepResponses.empty()) {
+            time = stepResp.time;
+        }
+
         stepResponses.push_back(stepResp.output);
         labels.push_back(std::format("ζ = {:.1f}", zeta));
-        freqResponses.push_back(sys.generateFrequencyResponse());
+        freqResponses.push_back(sys.bode());
     }
 
     // Plot all step responses and Bode plots

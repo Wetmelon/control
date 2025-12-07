@@ -49,7 +49,8 @@ struct IntegrationResult {
     double error;
 };
 
-class DiscreteStateSpace;  // Forward declaration
+class DiscreteStateSpace;    // Forward declaration
+class ContinuousStateSpace;  // Forward declaration
 
 template <typename Derived>
 class StateSpaceBase {
@@ -60,33 +61,42 @@ class StateSpaceBase {
    public:
     Matrix output(const Matrix& x, const Matrix& u) const { return C * x + D * u; }
 
-    auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const -> FrequencyResponse;
-    auto generateStepResponse(double tStart = 0.0, double tEnd = 10.0,
-                              Matrix x0 = Matrix(), Matrix uStep = Matrix(),
-                              IntegrationMethod method = IntegrationMethod::RK45) const -> StepResponse;
+    FrequencyResponse bode(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const;
+    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, Matrix uStep = Matrix()) const;
+
+    IntegrationResult evolve(const Matrix& x, const Matrix& u, double h) const {
+        return static_cast<const Derived*>(this)->evolveImpl(x, u, h);
+    }
 
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 };
 
 class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
    public:
-    ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
-        : StateSpaceBase(A, B, C, D) {}
+    ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D,
+                         IntegrationMethod method = IntegrationMethod::RK45, std::optional<double> timestep = std::nullopt)
+        : StateSpaceBase(A, B, C, D), integrationMethod(method), timestep(timestep) {}
 
-    // Integration methods for evolving the state
-    IntegrationResult evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const;
+    void setIntegrationMethod(IntegrationMethod method) { integrationMethod = method; }
+    void setTimestep(std::optional<double> timestep) { this->timestep = timestep; }
 
     // Convert to discrete-time state space using specified method
-    DiscreteStateSpace c2d(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
-
-    StepResponse generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const;
+    DiscreteStateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
 
    private:
+    friend class StateSpaceBase<ContinuousStateSpace>;
+
+    StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
+    IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
+
     IntegrationResult evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveRK4(const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveRK45(const Matrix& x, const Matrix& u, double h) const;
+
+    IntegrationMethod     integrationMethod;
+    std::optional<double> timestep;
 };
 
 class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
@@ -94,9 +104,11 @@ class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
     DiscreteStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, double Ts)
         : StateSpaceBase(A, B, C, D), Ts(Ts) {}
 
-    Matrix step(const Matrix& x, const Matrix& u) const { return A * x + B * u; }
+   private:
+    friend class StateSpaceBase<DiscreteStateSpace>;
 
-    StepResponse generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const;
+    StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
+    IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
 
     const double Ts;
 };

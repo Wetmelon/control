@@ -5,11 +5,10 @@
 #include <cmath>
 #include <cstddef>
 
-#include "unsupported/Eigen/MatrixFunctions"  //IWYU pragma: keep
+#include "unsupported/Eigen/MatrixFunctions"  // IWYU pragma: keep
 
 namespace control {
 
-// Integration methods for evolving the state
 IntegrationResult ContinuousStateSpace::evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const {
     return {x + h * (A * x + B * u), 0.0};
 }
@@ -53,8 +52,8 @@ IntegrationResult ContinuousStateSpace::evolveRK45(const Matrix& x, const Matrix
     return {x5, error};
 }
 
-IntegrationResult ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const {
-    switch (method) {
+IntegrationResult ContinuousStateSpace::evolveImpl(const Matrix& x, const Matrix& u, double h) const {
+    switch (integrationMethod) {
         case IntegrationMethod::ForwardEuler:
             return evolveForwardEuler(x, u, h);
         case IntegrationMethod::BackwardEuler:
@@ -70,7 +69,7 @@ IntegrationResult ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u,
     }
 }
 
-DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
+DiscreteStateSpace ContinuousStateSpace::discretize(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
     const auto I    = decltype(A)::Identity(A.rows(), A.cols());
     const auto E    = (A * Ts).exp();
     const auto Ainv = A.inverse();
@@ -127,7 +126,7 @@ DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, DiscretizationMethod met
 }
 
 template <typename Derived>
-FrequencyResponse StateSpaceBase<Derived>::generateFrequencyResponse(double fStart, double fEnd, int numFreq) const {
+FrequencyResponse StateSpaceBase<Derived>::bode(double fStart, double fEnd, int numFreq) const {
     auto response = FrequencyResponse{
         .freq      = std::vector<double>(numFreq),
         .magnitude = std::vector<double>(numFreq),
@@ -156,38 +155,42 @@ FrequencyResponse StateSpaceBase<Derived>::generateFrequencyResponse(double fSta
 }
 
 template <typename Derived>
-StepResponse StateSpaceBase<Derived>::generateStepResponse(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const {
-    if (x0.size() == 0) x0 = Matrix::Zero(A.rows(), 1);
+StepResponse StateSpaceBase<Derived>::step(double tStart, double tEnd, Matrix uStep) const {
     if (uStep.size() == 0) uStep = Matrix::Ones(B.cols(), 1);
 
-    return static_cast<const Derived*>(this)->generateStepResponseImpl(tStart, tEnd, x0, uStep, method);
+    return static_cast<const Derived*>(this)->stepImpl(tStart, tEnd, uStep);
 }
 
-StepResponse DiscreteStateSpace::generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod /*method*/) const {
+StepResponse DiscreteStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
     StepResponse response;
 
     const size_t actualNumPoints = static_cast<size_t>((tEnd - tStart) / Ts) + 1ULL;
     response.time.resize(actualNumPoints);
     response.output.resize(actualNumPoints);
-    Matrix x = x0;
+    Matrix x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
     for (size_t i = 0; i < actualNumPoints; ++i) {
         response.time[i]   = tStart + i * Ts;
         response.output[i] = output(x, uStep)(0, 0);
-        x                  = step(x, uStep);
+        auto res           = evolveImpl(x, uStep, Ts);
+        x                  = res.x;
     }
     return response;
 }
 
-StepResponse ContinuousStateSpace::generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const {
+IntegrationResult DiscreteStateSpace::evolveImpl(const Matrix& x, const Matrix& u, double /*h*/) const {
+    return {A * x + B * u, 0.0};
+}
+
+StepResponse ContinuousStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
     StepResponse response;
-    const double dt = 0.01;  // 10ms steps
+    const double dt = timestep.value_or(0.01);  // Use configured timestep or default 10ms steps
 
     size_t numPoints = static_cast<size_t>((tEnd - tStart) / dt) + 1;
     response.time.resize(numPoints);
     response.output.resize(numPoints);
-    Matrix x = x0;
-    if (method == IntegrationMethod::RK45) {
-        // Adaptive timestepping for RK45
+    Matrix x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
+    if (integrationMethod == IntegrationMethod::RK45 && !timestep.has_value()) {
+        // Adaptive timestepping for RK45 when no fixed timestep is set
         const double tol = 1e-6;
         double       h   = 0.01;
         double       t   = tStart;
@@ -197,7 +200,7 @@ StepResponse ContinuousStateSpace::generateStepResponseImpl(double tStart, doubl
                 double remaining = target_t - t;
                 double step_h    = std::min(h, remaining);
 
-                const auto res = evolve(x, uStep, step_h, IntegrationMethod::RK45);
+                const auto res = evolveImpl(x, uStep, step_h);
 
                 double error  = res.error;
                 double factor = std::pow(tol / (error + 1e-16), 0.2);
@@ -213,11 +216,11 @@ StepResponse ContinuousStateSpace::generateStepResponseImpl(double tStart, doubl
             response.output[i] = output(x, uStep)(0, 0);
         }
     } else {
-        // Fixed timestep for other methods
+        // Fixed timestep for other methods or when timestep is set
         for (size_t i = 0; i < numPoints; ++i) {
             response.time[i]   = tStart + i * dt;
             response.output[i] = output(x, uStep)(0, 0);
-            auto res           = evolve(x, uStep, dt, method);
+            auto res           = evolveImpl(x, uStep, dt);
             x                  = res.x;
         }
     }
