@@ -84,7 +84,7 @@ class StateSpaceBase {
 class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
    public:
     ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
-        : StateSpaceBase(A, B, C, D) {}
+        : StateSpaceBase(A, B, C, D), integrationMethod(IntegrationMethod::RK45), timestep(std::nullopt) {}
 
     // Convert to discrete-time state space using specified method
     DiscreteStateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
