@@ -2,38 +2,55 @@
 
 #include <cassert>
 
-#include "unsupported/Eigen/MatrixFunctions"
+#include "unsupported/Eigen/MatrixFunctions" //IWYU pragma: keep
 
 namespace control {
 
 // Integration methods for evolving the state
-Matrix ContinuousStateSpace::evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const {
-    return x + h * (A * x + B * u);
+IntegrationResult ContinuousStateSpace::evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const {
+    return {x + h * (A * x + B * u), 0.0};
 }
 
-Matrix ContinuousStateSpace::evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult ContinuousStateSpace::evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const {
     const auto I   = Matrix::Identity(A.rows(), A.cols());
     const auto lhs = I - h * A;
     const auto rhs = x + h * B * u;
-    return lhs.colPivHouseholderQr().solve(rhs);
+    return {lhs.colPivHouseholderQr().solve(rhs), 0.0};
 }
 
-Matrix ContinuousStateSpace::evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult ContinuousStateSpace::evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const {
     const auto I   = Matrix::Identity(A.rows(), A.cols());
     const auto lhs = I - (h / 2.0) * A;
     const auto rhs = (I + (h / 2.0) * A) * x + (h / 2.0) * B * u;
-    return lhs.colPivHouseholderQr().solve(rhs);
+    return {lhs.colPivHouseholderQr().solve(rhs), 0.0};
 }
 
-Matrix ContinuousStateSpace::evolveRK4(const Matrix& x, const Matrix& u, double h) const {
+IntegrationResult ContinuousStateSpace::evolveRK4(const Matrix& x, const Matrix& u, double h) const {
     Matrix k1 = A * x + B * u;
     Matrix k2 = A * (x + h / 2.0 * k1) + B * u;
     Matrix k3 = A * (x + h / 2.0 * k2) + B * u;
     Matrix k4 = A * (x + h * k3) + B * u;
-    return x + h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4);
+    return {x + h / 6.0 * (k1 + 2.0 * k2 + 2.0 * k3 + k4), 0.0};
 }
 
-Matrix ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const {
+IntegrationResult ContinuousStateSpace::evolveRK45(const Matrix& x, const Matrix& u, double h) const {
+    auto f = [&](const Matrix& x) { return A * x + B * u; };
+
+    Matrix k1 = f(x);
+    Matrix k2 = f(x + h * (1.0 / 4.0) * k1);
+    Matrix k3 = f(x + h * (3.0 / 32.0 * k1 + 9.0 / 32.0 * k2));
+    Matrix k4 = f(x + h * (1932.0 / 2197.0 * k1 - 7200.0 / 2197.0 * k2 + 7296.0 / 2197.0 * k3));
+    Matrix k5 = f(x + h * (439.0 / 216.0 * k1 - 8.0 * k2 + 3680.0 / 513.0 * k3 - 845.0 / 4104.0 * k4));
+    Matrix k6 = f(x + h * (-8.0 / 27.0 * k1 + 2.0 * k2 - 3544.0 / 2565.0 * k3 + 1859.0 / 4104.0 * k4 - 11.0 / 40.0 * k5));
+
+    Matrix x4 = x + h * (25.0 / 216.0 * k1 + 1408.0 / 2565.0 * k3 + 2197.0 / 4104.0 * k4 - 1.0 / 5.0 * k5);
+    Matrix x5 = x + h * (16.0 / 135.0 * k1 + 6656.0 / 12825.0 * k3 + 28561.0 / 56430.0 * k4 - 9.0 / 50.0 * k5 + 2.0 / 55.0 * k6);
+
+    double error = (x5 - x4).norm();
+    return {x5, error};
+}
+
+IntegrationResult ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const {
     switch (method) {
         case IntegrationMethod::ForwardEuler:
             return evolveForwardEuler(x, u, h);
@@ -43,12 +60,14 @@ Matrix ContinuousStateSpace::evolve(const Matrix& x, const Matrix& u, double h, 
             return evolveTrapezoidal(x, u, h);
         case IntegrationMethod::RK4:
             return evolveRK4(x, u, h);
+        case IntegrationMethod::RK45:
+            return evolveRK45(x, u, h);
         default:
-            return x;  // No change
+            return {x, 0.0};  // No change
     }
 }
 
-DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, Method method, std::optional<double> prewarp) const {
+DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
     const auto I    = decltype(A)::Identity(A.rows(), A.cols());
     const auto E    = (A * Ts).exp();
     const auto Ainv = A.inverse();
@@ -56,7 +75,7 @@ DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, Method method, std::opti
     const auto I2   = Ainv * (E * Ts - I1);
 
     switch (method) {
-        case Method::ZOH: {
+        case DiscretizationMethod::ZOH: {
             return DiscreteStateSpace{
                 E,       // A
                 I1 * B,  // B
@@ -65,7 +84,7 @@ DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, Method method, std::opti
                 Ts       // Ts
             };
         }
-        case Method::FOH: {
+        case DiscretizationMethod::FOH: {
             const auto Q = I1 - (I2 / Ts);
             const auto P = I1 - Q;
             return DiscreteStateSpace{
@@ -76,8 +95,8 @@ DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, Method method, std::opti
                 Ts                  // Ts
             };
         }
-        case Method::Tustin:  // Fallthrough
-        case Method::Bilinear: {
+        case DiscretizationMethod::Tustin:  // Fallthrough
+        case DiscretizationMethod::Bilinear: {
             double k = 2.0 / Ts;
             if (prewarp.has_value()) {
                 k = prewarp.value() / std::tan(prewarp.value() * Ts / 2.0);
@@ -158,7 +177,8 @@ StepResponse StateSpaceBase<Derived>::generateStepResponse(double tStart, double
         for (int i = 0; i < numPoints; ++i) {
             response.time[i]   = tStart + i * dt;
             response.output[i] = output(x, uStep)(0, 0);
-            x                  = static_cast<const Derived*>(this)->evolve(x, uStep, dt, method);
+            auto res           = static_cast<const Derived*>(this)->evolve(x, uStep, dt, method);
+            x                  = res.x;
         }
     }
     return response;

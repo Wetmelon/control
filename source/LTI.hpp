@@ -9,7 +9,7 @@
 namespace control {
 using Matrix = Eigen::MatrixXd;
 
-enum class Method {
+enum class DiscretizationMethod {
     ZOH,
     FOH,
     Bilinear,
@@ -21,6 +21,7 @@ enum class IntegrationMethod {
     BackwardEuler,
     Trapezoidal,
     RK4,
+    RK45
 };
 
 enum class SystemType {
@@ -43,6 +44,11 @@ struct StepResponse {
     std::vector<double> output;
 };
 
+struct IntegrationResult {
+    Matrix x;
+    double error;
+};
+
 class DiscreteStateSpace;  // Forward declaration
 
 template <typename Derived>
@@ -57,7 +63,7 @@ class StateSpaceBase {
     auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const -> FrequencyResponse;
     auto generateStepResponse(double tStart = 0.0, double tEnd = 10.0, int numPoints = 1000,
                               Matrix x0 = Matrix(), Matrix uStep = Matrix(),
-                              IntegrationMethod method = IntegrationMethod::RK4) const -> StepResponse;
+                              IntegrationMethod method = IntegrationMethod::RK45) const -> StepResponse;
 
     const Eigen::MatrixXd A = {}, B = {}, C = {}, D = {};
 };
@@ -68,15 +74,17 @@ class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
         : StateSpaceBase(A, B, C, D) {}
 
     // Integration methods for evolving the state
-    Matrix evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const;
+    IntegrationResult evolve(const Matrix& x, const Matrix& u, double h, IntegrationMethod method) const;
 
-    DiscreteStateSpace c2d(double Ts, Method method = Method::ZOH, std::optional<double> prewarp = std::nullopt) const;
+    // Convert to discrete-time state space using specified method
+    DiscreteStateSpace c2d(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
 
    private:
-    Matrix evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
-    Matrix evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
-    Matrix evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const;
-    Matrix evolveRK4(const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveTrapezoidal(const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK4(const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK45(const Matrix& x, const Matrix& u, double h) const;
 };
 
 class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
