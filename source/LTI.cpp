@@ -94,4 +94,68 @@ DiscreteStateSpace ContinuousStateSpace::c2d(double Ts, Method method, std::opti
     }
 }
 
+template <typename Derived>
+FrequencyResponse StateSpaceBase<Derived>::generateFrequencyResponse(double fStart, double fEnd, int numFreq) const {
+    auto response = FrequencyResponse{
+        .freq      = std::vector<double>(numFreq),
+        .magnitude = std::vector<double>(numFreq),
+        .phase     = std::vector<double>(numFreq)};
+
+    // Generate logarithmically spaced frequencies
+    const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
+    const auto logStep            = (logEnd - logStart) / (numFreq - 1);
+
+    for (int i = 0; i < numFreq; ++i) {
+        response.freq[i] = std::pow(10.0, logStart + i * logStep);     // Hz
+        const auto w     = 2.0 * std::numbers::pi * response.freq[i];  // Convert to rad/s for calculations
+
+        const auto s = std::complex<double>(0, w);  // s = jω
+
+        // Calculate transfer function H(s) = C(sI - A)^(-1)B + D
+        const auto I = control::Matrix::Identity(A.rows(), A.cols());
+        const auto H = (C * (((s * I) - A).inverse()) * B) + D;
+
+        // Store magnitude in dB and phase in degrees
+        response.magnitude[i] = 20.0 * std::log10(std::abs(H(0, 0)));
+        response.phase[i]     = std::arg(H(0, 0)) * 180.0 / std::numbers::pi;
+    }
+
+    return response;
+}
+
+template <typename Derived>
+StepResponse StateSpaceBase<Derived>::generateStepResponse(double tStart, double tEnd, int numPoints, Matrix x0, Matrix uStep, IntegrationMethod method) const {
+    if (x0.size() == 0) x0 = Matrix::Zero(A.rows(), 1);
+    if (uStep.size() == 0) uStep = Matrix::Ones(B.cols(), 1);
+
+    StepResponse response;
+    if constexpr (std::is_same_v<Derived, DiscreteStateSpace>) {
+        const double Ts              = static_cast<const Derived*>(this)->Ts;
+        int          actualNumPoints = static_cast<int>((tEnd - tStart) / Ts) + 1;
+        response.time.resize(actualNumPoints);
+        response.output.resize(actualNumPoints);
+        Matrix x = x0;
+        for (int i = 0; i < actualNumPoints; ++i) {
+            response.time[i]   = tStart + i * Ts;
+            response.output[i] = output(x, uStep)(0, 0);
+            x                  = static_cast<const Derived*>(this)->step(x, uStep);
+        }
+    } else {
+        response.time.resize(numPoints);
+        response.output.resize(numPoints);
+        double dt = (tEnd - tStart) / (numPoints - 1);
+        Matrix x  = x0;
+        for (int i = 0; i < numPoints; ++i) {
+            response.time[i]   = tStart + i * dt;
+            response.output[i] = output(x, uStep)(0, 0);
+            x                  = static_cast<const Derived*>(this)->evolve(x, uStep, dt, method);
+        }
+    }
+    return response;
+}
+
+// Explicit instantiations
+template class StateSpaceBase<ContinuousStateSpace>;
+template class StateSpaceBase<DiscreteStateSpace>;
+
 }  // namespace control
