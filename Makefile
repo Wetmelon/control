@@ -4,4 +4,4 @@ all:
 	@tup --quiet compiledb
 	@tup
 
-	@./build/test_runner.exe
+	@./examples/build/example_critical_damping.exe

@@ -1,4 +1,3 @@
-
 #include <print>
 #include <vector>
 
@@ -8,43 +7,15 @@
 namespace control {
 
 void plotStepResponse(const std::vector<double> &time, const std::vector<double> &response,
-                      const std::string &plot_title = "Step Response") {
+                      const std::string &title = "Step Response") {
     using namespace matplot;
 
     auto fig = figure();
     plot(time, response);
     xlabel("Time (s)");
     ylabel("Output");
-    title(plot_title.c_str());
+    matplot::title(title);
     grid(on);
-    show();
-}
-
-void plotBodePlot(const FrequencyResponse &response, const std::string &plot_title = "Bode Plot") {
-    using namespace matplot;
-
-    // Create a tiled layout with 2 rows: magnitude and phase
-    auto fig = figure();
-    tiledlayout(2, 1);
-
-    // Plot magnitude (top subplot)
-    auto ax1 = nexttile();
-    semilogx(ax1, response.freq, response.magnitude);
-    ax1->xlabel("Frequency (Hz)");
-    ax1->ylabel("Magnitude (dB)");
-    ax1->title("Magnitude");
-    ax1->grid(on);
-
-    // Plot phase (bottom subplot)
-    auto ax2 = nexttile();
-    semilogx(ax2, response.freq, response.phase);
-    ax2->xlabel("Frequency (Hz)");
-    ax2->ylabel("Phase (degrees)");
-    ax2->title("Phase");
-    ax2->grid(on);
-
-    // Set overall figure title
-    sgtitle(plot_title.c_str());
     show();
 }
 
@@ -104,10 +75,6 @@ int main() {
 
     // Plot the step response
     plotStepResponse(time, response, "2nd Order Critically Damped System - Step Response");
-
-    // Generate and plot frequency response (Bode plot)
-    const auto freq_response = sys.generateFrequencyResponse(0.1, 100.0, 1000);
-    plotBodePlot(freq_response, "2nd Order Critically Damped System - Bode Plot");
 
     return 0;
 }

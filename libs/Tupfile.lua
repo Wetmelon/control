@@ -1,28 +1,10 @@
-INCLUDES = "-I. -Isource -Ilibs -Ilibs/eigen -Ilibs/matplotplusplus/source -Ibuild/libs/matplotplusplus"
-WARNINGS = '-Wall -Wextra'
-
-COMMON_FLAGS = '-O3 -ffunction-sections -fdata-sections -march=native -mtune=native -fno-omit-frame-pointer'
-CCFLAGS = '-std=c17'
-CXXFLAGS = '-std=c++23'
-LDFLAGS = '-Wl,--gc-sections -static'
-
-CC_PATH = tup.getconfig("COMPILER_PATH")
-if CC_PATH ~= "" then
-    print("Compiler Path: "..CC_PATH)
-end
-
-if tup.getconfig('LTO') == 'true' then
-    COMMON_FLAGS += ' -flto'
-    LDFLAGS += ' -flto'
-end
-
 -- ============================================================================
 -- Matplot++ Build Configuration
 -- ============================================================================
 
 -- Matplot++ compiler flags (C++17, Windows-specific defines)
 -- Include nodesoup include directory for nodesoup.hpp
-MATPLOT_INCLUDES = '-I. -Isource -Ilibs -Ilibs/eigen -Ilibs/matplotplusplus/source -Ilibs/matplotplusplus/source/3rd_party/nodesoup/include -Ilibs/matplotplusplus/source/3rd_party/cimg -Ibuild/libs/matplotplusplus'
+MATPLOT_INCLUDES = '-I. -I./eigen -I./matplotplusplus/source -I./matplotplusplus/source/3rd_party/nodesoup/include -I./matplotplusplus/source/3rd_party/cimg -I./matplotplusplus'
 MATPLOT_CXXFLAGS = '-std=c++17 -Wall -Wextra -pedantic -Werror -Wno-error=class-memaccess -Wno-class-memaccess  -Wno-char-subscripts -Wno-misleading-indentation'
 MATPLOT_DEFINES = '-Dcimg_display=2 -DMATPLOT_EXPORTS='
 MATPLOT_FLAGS = MATPLOT_INCLUDES..' '..COMMON_FLAGS..' '..MATPLOT_CXXFLAGS..' '..MATPLOT_DEFINES..' '..WARNINGS
@@ -36,7 +18,7 @@ nodesoup_cpp_files = {
 }
 
 for i, f in ipairs(nodesoup_cpp_files) do
-    nodesoup_cpp_files[i] = 'libs/matplotplusplus/source/' .. f
+    nodesoup_cpp_files[i] = 'matplotplusplus/source/' .. f
 end
 
 -- List of all Matplot++ source files
@@ -85,26 +67,15 @@ matplot_cpp_files = {
 }
 
 for i, f in ipairs(matplot_cpp_files) do
-    matplot_cpp_files[i] = 'libs/matplotplusplus/source/matplot/' .. f
+    matplot_cpp_files[i] = 'matplotplusplus/source/matplot/' .. f
 end
 
-matplot_objs = tup.foreach_rule(matplot_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -c %f -o %o', 'build/libs/matplotplusplus/obj/matplot/%B.o')
-matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -D_USE_MATH_DEFINES -c %f -o %o', 'build/libs/matplotplusplus/obj/matplot/%B.o')
+matplot_objs = tup.foreach_rule(matplot_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -c %f -o %o', BUILD_DIR..'matplotplusplus/obj/%B.o')
+matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -D_USE_MATH_DEFINES -c %f -o %o', BUILD_DIR..'matplotplusplus/obj/%B.o')
 
 -- Link matplot library (combine matplot objects and nodesoup objects into one library)
 matplot_lib = tup.rule(
     matplot_objs,
     'ar rcs %o %f',
-    'build/libs/matplotplusplus/lib/libmatplot.a'
+    'libmatplot.a'
 )
-
--- -- Compile all objects
-objs = tup.foreach_rule('source/*.c', '^j^'..CC_PATH..'gcc '..INCLUDES..' '..COMMON_FLAGS..' '..CCFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
-objs += tup.foreach_rule('source/*.cpp', '^j^'..CC_PATH..'g++ '..INCLUDES..' '..COMMON_FLAGS..' '..CXXFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
-objs += matplot_lib
-
--- -- Generate assembly for each object
-tup.foreach_rule(objs, CC_PATH..'objdump -dC %f > %o', 'build/asm/%B.asm')
-
--- -- Generate test executable
-test_runner = tup.rule(objs, 'g++ '..LDFLAGS..' %f -lstdc++exp -lgdi32 -o %o', 'build/test_runner.exe')
