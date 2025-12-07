@@ -61,7 +61,7 @@ class StateSpaceBase {
     Matrix output(const Matrix& x, const Matrix& u) const { return C * x + D * u; }
 
     auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const -> FrequencyResponse;
-    auto generateStepResponse(double tStart = 0.0, double tEnd = 10.0, int numPoints = 1000,
+    auto generateStepResponse(double tStart = 0.0, double tEnd = 10.0,
                               Matrix x0 = Matrix(), Matrix uStep = Matrix(),
                               IntegrationMethod method = IntegrationMethod::RK45) const -> StepResponse;
 
@@ -79,6 +79,8 @@ class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
     // Convert to discrete-time state space using specified method
     DiscreteStateSpace c2d(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
 
+    StepResponse generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const;
+
    private:
     IntegrationResult evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveBackwardEuler(const Matrix& x, const Matrix& u, double h) const;
@@ -93,6 +95,8 @@ class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
         : StateSpaceBase(A, B, C, D), Ts(Ts) {}
 
     Matrix step(const Matrix& x, const Matrix& u) const { return A * x + B * u; }
+
+    StepResponse generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const;
 
     const double Ts;
 };

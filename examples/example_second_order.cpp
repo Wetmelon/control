@@ -68,10 +68,8 @@ int main() {
     double min_zeta = *std::min_element(zetas.begin(), zetas.end());
 
     // Simulation parameters
-    const double t_start   = 0.0;
-    const double t_end     = 1.5 * 5.0 / (min_zeta * omega_n);  // Settling time for smallest zeta
-    const double dt        = t_end / 1000.0;                    // Time step for ~1000 simulation points
-    const int    num_steps = static_cast<int>((t_end - t_start) / dt) + 1;
+    const double t_start = 0.0;
+    const double t_end   = 1.5 * 5.0 / (min_zeta * omega_n);  // Settling time for smallest zeta
 
     // Initialize time vector (will be set from generateStepResponse)
     std::vector<double> time;
@@ -96,7 +94,7 @@ int main() {
         const auto sys = StateSpace{A, B, C, D};
 
         // Generate step response
-        auto stepResp = sys.generateStepResponse(t_start, t_end, num_steps);
+        auto stepResp = sys.generateStepResponse(t_start, t_end);
         if (stepResponses.empty()) time = stepResp.time;
         stepResponses.push_back(stepResp.output);
         labels.push_back(std::format("ζ = {:.1f}", zeta));

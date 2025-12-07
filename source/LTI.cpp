@@ -1,8 +1,11 @@
 #include "LTI.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <cmath>
+#include <cstddef>
 
-#include "unsupported/Eigen/MatrixFunctions" //IWYU pragma: keep
+#include "unsupported/Eigen/MatrixFunctions"  //IWYU pragma: keep
 
 namespace control {
 
@@ -153,31 +156,68 @@ FrequencyResponse StateSpaceBase<Derived>::generateFrequencyResponse(double fSta
 }
 
 template <typename Derived>
-StepResponse StateSpaceBase<Derived>::generateStepResponse(double tStart, double tEnd, int numPoints, Matrix x0, Matrix uStep, IntegrationMethod method) const {
+StepResponse StateSpaceBase<Derived>::generateStepResponse(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const {
     if (x0.size() == 0) x0 = Matrix::Zero(A.rows(), 1);
     if (uStep.size() == 0) uStep = Matrix::Ones(B.cols(), 1);
 
+    return static_cast<const Derived*>(this)->generateStepResponseImpl(tStart, tEnd, x0, uStep, method);
+}
+
+StepResponse DiscreteStateSpace::generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod /*method*/) const {
     StepResponse response;
-    if constexpr (std::is_same_v<Derived, DiscreteStateSpace>) {
-        const double Ts              = static_cast<const Derived*>(this)->Ts;
-        int          actualNumPoints = static_cast<int>((tEnd - tStart) / Ts) + 1;
-        response.time.resize(actualNumPoints);
-        response.output.resize(actualNumPoints);
-        Matrix x = x0;
-        for (int i = 0; i < actualNumPoints; ++i) {
-            response.time[i]   = tStart + i * Ts;
+
+    const size_t actualNumPoints = static_cast<size_t>((tEnd - tStart) / Ts) + 1ULL;
+    response.time.resize(actualNumPoints);
+    response.output.resize(actualNumPoints);
+    Matrix x = x0;
+    for (size_t i = 0; i < actualNumPoints; ++i) {
+        response.time[i]   = tStart + i * Ts;
+        response.output[i] = output(x, uStep)(0, 0);
+        x                  = step(x, uStep);
+    }
+    return response;
+}
+
+StepResponse ContinuousStateSpace::generateStepResponseImpl(double tStart, double tEnd, Matrix x0, Matrix uStep, IntegrationMethod method) const {
+    StepResponse response;
+    const double dt = 0.01;  // 10ms steps
+
+    size_t numPoints = static_cast<size_t>((tEnd - tStart) / dt) + 1;
+    response.time.resize(numPoints);
+    response.output.resize(numPoints);
+    Matrix x = x0;
+    if (method == IntegrationMethod::RK45) {
+        // Adaptive timestepping for RK45
+        const double tol = 1e-6;
+        double       h   = 0.01;
+        double       t   = tStart;
+        for (size_t i = 0; i < numPoints; ++i) {
+            double target_t = tStart + i * dt;
+            while (t < target_t) {
+                double remaining = target_t - t;
+                double step_h    = std::min(h, remaining);
+
+                const auto res = evolve(x, uStep, step_h, IntegrationMethod::RK45);
+
+                double error  = res.error;
+                double factor = std::pow(tol / (error + 1e-16), 0.2);
+                if (error <= tol) {
+                    x = res.x;
+                    t += step_h;
+                    h = std::clamp(h * factor, 1e-6, 1.0);
+                } else {
+                    h = std::clamp(h * std::max(0.1, factor), 1e-6, 1.0);
+                }
+            }
+            response.time[i]   = target_t;
             response.output[i] = output(x, uStep)(0, 0);
-            x                  = static_cast<const Derived*>(this)->step(x, uStep);
         }
     } else {
-        response.time.resize(numPoints);
-        response.output.resize(numPoints);
-        double dt = (tEnd - tStart) / (numPoints - 1);
-        Matrix x  = x0;
-        for (int i = 0; i < numPoints; ++i) {
+        // Fixed timestep for other methods
+        for (size_t i = 0; i < numPoints; ++i) {
             response.time[i]   = tStart + i * dt;
             response.output[i] = output(x, uStep)(0, 0);
-            auto res           = static_cast<const Derived*>(this)->evolve(x, uStep, dt, method);
+            auto res           = evolve(x, uStep, dt, method);
             x                  = res.x;
         }
     }
