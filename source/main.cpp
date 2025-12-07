@@ -46,6 +46,9 @@ int main() {
     }
 
     const auto freqResp = sys.generateFrequencyResponse();
+    
+    // Plot the frequency response
+    plotFrequencyResponse(freqResp);
 
     return 0;
 }

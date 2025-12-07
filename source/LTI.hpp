@@ -21,6 +21,15 @@ struct TransferFunction {
     Eigen::MatrixXd num, den;
 };
 
+struct FrequencyResponse {
+    std::vector<double> freq;      // Frequency in Hz
+    std::vector<double> magnitude; // Magnitude in dB
+    std::vector<double> phase;     // Phase in degrees
+};
+
+// Plot frequency response using matplotplusplus
+void plotFrequencyResponse(const FrequencyResponse &response);
+
 struct StateSpace {
     StateSpace(const Matrix &A, const Matrix &B, const Matrix &C, const Matrix &D,
                const std::optional<double> &Ts      = std::nullopt,
@@ -34,13 +43,7 @@ struct StateSpace {
     StateSpace c2d(const double Ts, const Method method = Method::ZOH,
                    std::optional<double> prewarp = std::nullopt) const;
 
-    auto generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const {
-        struct FrequencyResponse {
-            std::vector<double> freq;      // Frequency in Hz
-            std::vector<double> magnitude; // Magnitude in dB
-            std::vector<double> phase;     // Phase in degrees
-        };
-
+    FrequencyResponse generateFrequencyResponse(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const {
         auto response = FrequencyResponse{
             .freq      = std::vector<double>(numFreq),
             .magnitude = std::vector<double>(numFreq),
