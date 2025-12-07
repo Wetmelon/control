@@ -1,7 +1,6 @@
 #include <matplot/matplot.h>
 
 #include <numbers>
-#include <print>
 #include <vector>
 
 #include "LTI.hpp"
@@ -24,6 +23,7 @@ void plotStepResponse(const std::vector<double>& time, const std::vector<std::ve
     plt::grid(plt::on);
     plt::legend()->font_size(10);
     plt::hold(plt::off);
+
     plt::show();
 }
 
@@ -53,6 +53,7 @@ void plotBodePlot(const std::vector<control::FrequencyResponse>& responses, cons
     plt::grid(plt::on);
     plt::legend()->location(plt::legend::general_alignment::bottomleft);
     plt::hold(plt::off);
+
     plt::show();
 }
 
@@ -108,7 +109,7 @@ int main() {
 
     // Plot all step responses and Bode plots
     plotStepResponse(time, stepResponses, labels, "Step Response for Different Damping Ratios");
-    plotBodePlot(freqResponses, labels, "Bode Plot for Different Damping Ratios");
+    // plotBodePlot(freqResponses, labels, "Bode Plot for Different Damping Ratios");
 
     return 0;
 }

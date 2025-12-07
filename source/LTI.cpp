@@ -125,8 +125,7 @@ DiscreteStateSpace ContinuousStateSpace::discretize(double Ts, DiscretizationMet
     }
 }
 
-template <typename Derived>
-FrequencyResponse StateSpaceBase<Derived>::bode(double fStart, double fEnd, int numFreq) const {
+FrequencyResponse ContinuousStateSpace::bodeImpl(double fStart, double fEnd, size_t numFreq) const {
     auto response = FrequencyResponse{
         .freq      = std::vector<double>(numFreq),
         .magnitude = std::vector<double>(numFreq),
@@ -154,11 +153,33 @@ FrequencyResponse StateSpaceBase<Derived>::bode(double fStart, double fEnd, int 
     return response;
 }
 
-template <typename Derived>
-StepResponse StateSpaceBase<Derived>::step(double tStart, double tEnd, Matrix uStep) const {
-    if (uStep.size() == 0) uStep = Matrix::Ones(B.cols(), 1);
+FrequencyResponse DiscreteStateSpace::bodeImpl(double fStart, double fEnd, size_t numFreq) const {
+    auto response = FrequencyResponse{
+        .freq      = std::vector<double>(numFreq),
+        .magnitude = std::vector<double>(numFreq),
+        .phase     = std::vector<double>(numFreq)};
 
-    return static_cast<const Derived*>(this)->stepImpl(tStart, tEnd, uStep);
+    // Generate logarithmically spaced frequencies
+    const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
+    const auto logStep            = (logEnd - logStart) / (numFreq - 1);
+
+    for (size_t i = 0; i < numFreq; ++i) {
+        response.freq[i] = std::pow(10.0, logStart + i * logStep);  // Hz
+        const auto f     = response.freq[i];
+        // Discrete system: z = exp(j * 2π * f * Ts)
+        double omega_d = 2.0 * std::numbers::pi * f * Ts;
+        auto   z       = std::exp(std::complex<double>(0, omega_d));
+
+        // Calculate transfer function H(z) = C(zI - A)^(-1)B + D
+        const auto I = control::Matrix::Identity(A.rows(), A.cols());
+        const auto H = (C * ((z * I) - A).inverse() * B) + D;
+
+        // Store magnitude in dB and phase in degrees
+        response.magnitude[i] = 20.0 * std::log10(std::abs(H(0, 0)));
+        response.phase[i]     = std::arg(H(0, 0)) * 180.0 / std::numbers::pi;
+    }
+
+    return response;
 }
 
 StepResponse DiscreteStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {

@@ -51,6 +51,7 @@ struct IntegrationResult {
 
 class DiscreteStateSpace;    // Forward declaration
 class ContinuousStateSpace;  // Forward declaration
+using StateSpace = ContinuousStateSpace;
 
 template <typename Derived>
 class StateSpaceBase {
@@ -61,8 +62,17 @@ class StateSpaceBase {
    public:
     Matrix output(const Matrix& x, const Matrix& u) const { return C * x + D * u; }
 
-    FrequencyResponse bode(double fStart = 0.1, double fEnd = 100.0, int numFreq = 1000) const;
-    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, Matrix uStep = Matrix()) const;
+    StepResponse step(double tStart = 0.0, double tEnd = 10.0, Matrix uStep = Matrix()) const {
+        if (uStep.size() == 0) {
+            uStep = Matrix::Ones(B.cols(), 1);
+        }
+
+        return static_cast<const Derived*>(this)->stepImpl(tStart, tEnd, uStep);
+    };
+
+    FrequencyResponse bode(double fStart = 0.1, double fEnd = 1.0e4, size_t numFreq = 1000) const {
+        return static_cast<const Derived*>(this)->bodeImpl(fStart, fEnd, numFreq);
+    }
 
     IntegrationResult evolve(const Matrix& x, const Matrix& u, double h) const {
         return static_cast<const Derived*>(this)->evolveImpl(x, u, h);
@@ -73,12 +83,8 @@ class StateSpaceBase {
 
 class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
    public:
-    ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D,
-                         IntegrationMethod method = IntegrationMethod::RK45, std::optional<double> timestep = std::nullopt)
-        : StateSpaceBase(A, B, C, D), integrationMethod(method), timestep(timestep) {}
-
-    void setIntegrationMethod(IntegrationMethod method) { integrationMethod = method; }
-    void setTimestep(std::optional<double> timestep) { this->timestep = timestep; }
+    ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
+        : StateSpaceBase(A, B, C, D) {}
 
     // Convert to discrete-time state space using specified method
     DiscreteStateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
@@ -87,6 +93,7 @@ class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
     friend class StateSpaceBase<ContinuousStateSpace>;
 
     StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
+    FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
     IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
 
     IntegrationResult evolveForwardEuler(const Matrix& x, const Matrix& u, double h) const;
@@ -108,13 +115,84 @@ class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
     friend class StateSpaceBase<DiscreteStateSpace>;
 
     StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
+    FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
     IntegrationResult evolveImpl(const Matrix& x, const Matrix& u, double h) const;
 
     const double Ts;
 };
 
-// Backward compatibility typedef
-using StateSpace = ContinuousStateSpace;
+class Solver {
+   public:
+    Solver(IntegrationMethod method = IntegrationMethod::RK45, std::optional<double> timestep = std::nullopt)
+        : method_(method), timestep_(timestep) {}
+
+    void setIntegrationMethod(IntegrationMethod method) { method_ = method; }
+    void setTimestep(std::optional<double> timestep) { timestep_ = timestep; }
+
+    IntegrationMethod     getIntegrationMethod() const { return method_; }
+    std::optional<double> getTimestep() const { return timestep_; }
+
+    IntegrationResult evolve(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+
+   private:
+    IntegrationResult evolveForwardEuler(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveBackwardEuler(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveTrapezoidal(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK4(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveRK45(const StateSpace& system, const Matrix& x, const Matrix& u, double h) const;
+
+    IntegrationMethod     method_;
+    std::optional<double> timestep_;
+};
+
+template <class Derived>
+Derived ss(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, std::optional<double> Ts = std::nullopt) {
+    if (Ts.has_value()) {
+        return Derived{A, B, C, D, Ts.value()};
+    } else {
+        return Derived{A, B, C, D};
+    }
+}
+
+template <class Derived>
+Derived ss(const TransferFunction& tf) {
+    // Convert transfer function to state space using controllable canonical form
+    const int n = tf.den.cols() - 1;  // Order of the system
+    const int m = tf.num.cols() - 1;  // Order of the numerator
+
+    Matrix A = Matrix::Zero(n, n);
+    Matrix B = Matrix::Zero(n, 1);
+    Matrix C = Matrix::Zero(1, n);
+    Matrix D = Matrix::Zero(1, 1);
+
+    // Fill A matrix
+    for (int i = 0; i < n - 1; ++i) {
+        A(i, i + 1) = 1.0;
+    }
+    for (int i = 0; i < n; ++i) {
+        A(n - 1, i) = -tf.den(0, i) / tf.den(0, n);
+    }
+
+    // Fill B matrix
+    B(n - 1, 0) = 1.0;
+
+    // Fill C and D matrices
+    for (int i = 0; i <= m; ++i) {
+        C(0, i) = tf.num(0, i) / tf.den(0, n);
+    }
+    if (m < n) {
+        D(0, 0) = 0.0;
+    } else {
+        D(0, 0) = tf.num(0, m) / tf.den(0, n);
+    }
+
+    return ss<Derived>(A, B, C, D);
+}
+
+template <typename SystemType>
+auto c2d(const SystemType& sys, double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) {
+    return sys.discretize(Ts, method, prewarp);
+}
 
 template <typename SystemType>
 std::string formatStateSpaceMatrices(const SystemType& sys) {
