@@ -46,34 +46,41 @@ int main() {
     const auto C = Matrix{{1.0, 0}};
     const auto D = Matrix{{0.0}};
 
-    const auto sys = StateSpace{A, B, C, D, 0.01, Method::Tustin};
+    const auto sys = ContinuousStateSpace{A, B, C, D}; // Continuous time system
     std::println("Continuous time matrix sys: \n{}", sys);
+
+    // Test integration methods on continuous system
+    Matrix       x0 = Matrix::Zero(2, 1); // initial state
+    Matrix       u  = Matrix::Ones(1, 1); // constant input
+    const double h  = 0.01;               // time step
+
+    auto x_fe  = sys.evolve(x0, u, h, IntegrationMethod::ForwardEuler);
+    auto x_be  = sys.evolve(x0, u, h, IntegrationMethod::BackwardEuler);
+    auto x_tr  = sys.evolve(x0, u, h, IntegrationMethod::Trapezoidal);
+    auto x_gen = sys.evolve(x0, u, h, IntegrationMethod::Trapezoidal);
+
+    std::println("Initial state:");
+    std::cout << x0.transpose() << std::endl;
+    std::println("Forward Euler after {}s:", h);
+    std::cout << x_fe.transpose() << std::endl;
+    std::println("Backward Euler after {}s:", h);
+    std::cout << x_be.transpose() << std::endl;
+    std::println("Trapezoidal after {}s:", h);
+    std::cout << x_tr.transpose() << std::endl;
+    std::println("General evolve (Trapezoidal) after {}s:", h);
+    std::cout << x_gen.transpose() << std::endl;
 
     const auto sysd = sys.c2d(0.01, Method::Tustin);
     std::println("Discrete time matrix sysd: \n{}", sysd);
 
-    // Simulate step response
-    const auto simTime   = 10.0; // 10 seconds simulation
-    const auto numPoints = static_cast<int>(simTime / sys.Ts.value()) + 1;
+    // Test step method on discrete system
+    Matrix x0_d = Matrix::Zero(2, 1); // initial state for discrete system
+    Matrix u_d  = Matrix::Ones(1, 1); // input for discrete system
 
-    auto time     = std::vector<double>(numPoints);
-    auto response = std::vector<double>(numPoints);
-
-    // Initialize step input and state
-    Matrix input = Matrix::Ones(1, 1); // unit step
-    Matrix state = Matrix::Zero(2, 1); // initial conditions [0; 0]
-
-    // Simulate system
-    for (int i = 0; i < numPoints; ++i) {
-        time[i]     = i * sys.Ts.value();
-        response[i] = sys.output(state, input)(0, 0); // get scalar output
-        state       = sys.step(state, input);
-    }
-
-    const auto freqResp = sys.generateFrequencyResponse();
-
-    // Plot the frequency response
-    plotFrequencyResponse(freqResp);
+    auto x_next_d = sysd.step(x0_d, u_d);
+    std::println("Discrete system step:");
+    std::cout << "Initial state: " << x0_d.transpose() << std::endl;
+    std::cout << "Next state: " << x_next_d.transpose() << std::endl;
 
     return 0;
 }
