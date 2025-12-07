@@ -72,26 +72,21 @@ IntegrationResult Solver::evolveFixedTimestep(const Matrix& A, const Matrix& B, 
     }
 }
 
-AdaptiveIntegrationResult Solver::evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double hInitial, double tol) {
-    double h        = h_prev_;
-    Matrix xCurrent = x;
+AdaptiveStepResult Solver::evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double time, double tol) {
     while (true) {
-        auto res1 = evolveFixedTimestep(A, B, xCurrent, u, h);
-        auto res2 = evolveFixedTimestep(A, B, xCurrent, u, h / 2.0);
-        res2      = evolveFixedTimestep(A, B, res2.x, u, h / 2.0);
+        auto res = evolveRK45(A, B, x, u, h_);
 
-        double error = (res1.x - res2.x).norm();
-
-        if (error < tol) {
+        if (res.error < tol) {
             // Accept step
-            h_prev_ = h * 1.5;
-            return {.result = res2, .hNext = h_prev_};
+            double step_used = h_;
+            h_ *= 1.1;
+            return {.x = res.x, .step_size = step_used};
         } else {
             // Reduce step size
-            h *= 0.5;
-            if (h < 1e-10) {
+            h_ *= 0.5;
+            if (h_ < 1e-10) {
                 // Prevent excessively small step sizes
-                h = 1e-10;
+                h_ = 1e-10;
             }
         }
     }
@@ -220,14 +215,14 @@ StepResponse ContinuousStateSpace::stepImpl(double tStart, double tEnd, Matrix u
     Matrix       x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
     if (!solver.getTimestep().has_value()) {
         // Adaptive timestepping for RK45 when no fixed timestep is set
-        std::vector<AdaptiveIntegrationResult> integration_data;
+        std::vector<AdaptiveStepResult> integration_data;
 
         double time = tStart;
         while (time < tEnd) {
             auto res = solver.evolveAdaptiveTimestep(A, B, x, uStep, dt, 1e-6);
-            x        = res.result.x;
+            x        = res.x;
 
-            time += res.hNext;
+            time += res.step_size;
             response.time.push_back(time);
             response.output.push_back(output(x, uStep)(0, 0));
         }

@@ -49,10 +49,9 @@ struct IntegrationResult {
     double error;
 };
 
-struct AdaptiveIntegrationResult {
-    IntegrationResult result;
-
-    double hNext;
+struct AdaptiveStepResult {
+    Matrix x;
+    double step_size;
 };
 
 class DiscreteStateSpace;    // Forward declaration
@@ -70,9 +69,9 @@ class Solver {
     IntegrationMethod     getIntegrationMethod() const { return method_; }
     std::optional<double> getTimestep() const { return timestep_; }
 
-    IntegrationResult         evolveFixedTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
-    IntegrationResult         evolveDiscrete(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u) const;
-    AdaptiveIntegrationResult evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double hInitial, double tol);
+    IntegrationResult  evolveFixedTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult  evolveDiscrete(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u) const;
+    AdaptiveStepResult evolveAdaptiveTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double hInitial, double tol);
 
    private:
     IntegrationResult evolveForwardEuler(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
@@ -84,7 +83,7 @@ class Solver {
     IntegrationMethod     method_;
     std::optional<double> timestep_;
 
-    double h_prev_ = 0.01;
+    double h_ = 0.01;
 };
 
 template <typename Derived>
