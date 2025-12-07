@@ -27,9 +27,6 @@ struct FrequencyResponse {
     std::vector<double> phase;     // Phase in degrees
 };
 
-// Plot frequency response using matplotplusplus
-void plotFrequencyResponse(const FrequencyResponse &response);
-
 struct StateSpace {
     StateSpace(const Matrix &A, const Matrix &B, const Matrix &C, const Matrix &D,
                const std::optional<double> &Ts      = std::nullopt,

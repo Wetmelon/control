@@ -2,9 +2,34 @@
 #include <print>
 
 #include "LTI.hpp"
+#include <matplot/matplot.h>
 
 namespace control {
 
+void plotFrequencyResponse(const FrequencyResponse &response) {
+    using namespace matplot;
+
+    // Create a tiled layout with 2 rows: magnitude and phase
+    tiledlayout(2, 1);
+
+    // Plot magnitude (top subplot)
+    auto ax1 = nexttile();
+    semilogx(ax1, response.freq, response.magnitude);
+    ax1->xlabel("Frequency (Hz)");
+    ax1->ylabel("Magnitude (dB)");
+    ax1->title("Frequency Response - Magnitude");
+    ax1->grid(on);
+
+    // Plot phase (bottom subplot)
+    auto ax2 = nexttile();
+    semilogx(ax2, response.freq, response.phase);
+    ax2->xlabel("Frequency (Hz)");
+    ax2->ylabel("Phase (degrees)");
+    ax2->title("Frequency Response - Phase");
+    ax2->grid(on);
+
+    show();
+}
 } // namespace control
 
 int main() {
@@ -46,7 +71,7 @@ int main() {
     }
 
     const auto freqResp = sys.generateFrequencyResponse();
-    
+
     // Plot the frequency response
     plotFrequencyResponse(freqResp);
 
