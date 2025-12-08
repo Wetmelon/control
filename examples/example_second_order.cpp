@@ -1,10 +1,8 @@
-#include <matplot/matplot.h>
-
 #include <numbers>
 #include <vector>
 
-#include "LTI.hpp"
-#include "matplot/freestanding/axes_functions.h"
+#include "control.hpp"
+#include "matplot/matplot.h"
 
 namespace plt = matplot;
 

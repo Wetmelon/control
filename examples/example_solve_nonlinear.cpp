@@ -1,10 +1,7 @@
-#include <matplot/matplot.h>
-
-#include <iostream>
-#include <string>
 #include <vector>
 
-#include "LTI.hpp"
+#include "control.hpp"
+#include "matplot/matplot.h"
 
 namespace plt = matplot;
 
