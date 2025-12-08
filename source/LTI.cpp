@@ -214,9 +214,7 @@ SolveResult Solver::solveLTI(const Matrix&                    A,
                              double                           atol,
                              double                           rtol,
                              double                           max_step,
-                             double                           first_step,
-                             std::optional<Matrix>            C,
-                             std::optional<Matrix>            D) const {
+                             double                           first_step) const {
     // If Exact requested, compute directly for each requested time
     SolveResult result;
     double      t0 = t_span.first;
@@ -234,22 +232,7 @@ SolveResult Solver::solveLTI(const Matrix&                    A,
         if (!haveAinv) {
             // Fallback to numeric integration if A is not invertible
             auto fun = [&](double /*t*/, const Matrix& x) { return A * x + B * u_const; };
-            auto r = solve(fun, x0, t_span, t_eval, IntegrationMethod::RK45, atol, rtol, max_step, first_step, false);
-            // populate outputs if C or D provided
-            if ((C.has_value() || D.has_value()) && !r.x.empty()) {
-                size_t n = r.x.size();
-                r.y.reserve(n);
-                for (size_t i = 0; i < n; ++i) {
-                    size_t outRows = 0;
-                    if (C.has_value()) outRows = C->rows();
-                    else if (D.has_value()) outRows = D->rows();
-                    Matrix yout = Matrix::Zero(outRows, 1);
-                    if (C.has_value()) yout += (*C) * r.x[i];
-                    if (D.has_value()) yout += (*D) * u_const;
-                    r.y.push_back(yout);
-                }
-            }
-            return r;
+            return solve(fun, x0, t_span, t_eval, IntegrationMethod::RK45, atol, rtol, max_step, first_step, false);
         }
 
         auto compute = [&](double t) -> Matrix {
@@ -263,29 +246,11 @@ SolveResult Solver::solveLTI(const Matrix&                    A,
             double tf = t_span.second;
             result.t.push_back(tf);
             result.x.push_back(compute(tf));
-            if (C.has_value() || D.has_value()) {
-                size_t outRows = 0;
-                if (C.has_value()) outRows = C->rows();
-                else if (D.has_value()) outRows = D->rows();
-                Matrix yout = Matrix::Zero(outRows, 1);
-                if (C.has_value()) yout += (*C) * result.x.back();
-                if (D.has_value()) yout += (*D) * u_const;
-                result.y.push_back(yout);
-            }
         } else {
             for (double tt : t_eval) {
                 if (tt < t0) continue;
                 result.t.push_back(tt);
                 result.x.push_back(compute(tt));
-                if (C.has_value() || D.has_value()) {
-                    size_t outRows = 0;
-                    if (C.has_value()) outRows = C->rows();
-                    else if (D.has_value()) outRows = D->rows();
-                    Matrix yout = Matrix::Zero(outRows, 1);
-                    if (C.has_value()) yout += (*C) * result.x.back();
-                    if (D.has_value()) yout += (*D) * u_const;
-                    result.y.push_back(yout);
-                }
             }
         }
         return result;
@@ -293,21 +258,7 @@ SolveResult Solver::solveLTI(const Matrix&                    A,
 
     // Otherwise, use generic solver with fun(t,x) = A*x + B*u_const
     auto fun = [&](double /*t*/, const Matrix& x) { return A * x + B * u_const; };
-    auto r = solve(fun, x0, t_span, t_eval, method, atol, rtol, max_step, first_step, false);
-    if ((C.has_value() || D.has_value()) && !r.x.empty()) {
-        size_t n = r.x.size();
-        r.y.reserve(n);
-        for (size_t i = 0; i < n; ++i) {
-            size_t outRows = 0;
-            if (C.has_value()) outRows = C->rows();
-            else if (D.has_value()) outRows = D->rows();
-            Matrix yout = Matrix::Zero(outRows, 1);
-            if (C.has_value()) yout += (*C) * r.x[i];
-            if (D.has_value()) yout += (*D) * u_const;
-            r.y.push_back(yout);
-        }
-    }
-    return r;
+    return solve(fun, x0, t_span, t_eval, method, atol, rtol, max_step, first_step, false);
 }
 
 SolveResult Solver::solveLTI(const Matrix&                        A,
@@ -320,26 +271,10 @@ SolveResult Solver::solveLTI(const Matrix&                        A,
                              double                               atol,
                              double                               rtol,
                              double                               max_step,
-                             double                               first_step,
-                             std::optional<Matrix>                C,
-                             std::optional<Matrix>                D) const {
+                             double                               first_step) const {
     // Generic case: build fun(t,x) that queries u_func
     auto fun = [&](double t, const Matrix& x) { return A * x + B * u_func(t); };
-    auto r = solve(fun, x0, t_span, t_eval, method, atol, rtol, max_step, first_step, false);
-    if ((C.has_value() || D.has_value()) && !r.x.empty()) {
-        size_t n = r.x.size();
-        r.y.reserve(n);
-        for (size_t i = 0; i < n; ++i) {
-            size_t outRows = 0;
-            if (C.has_value()) outRows = C->rows();
-            else if (D.has_value()) outRows = D->rows();
-            Matrix yout = Matrix::Zero(outRows, 1);
-            if (C.has_value()) yout += (*C) * r.x[i];
-            if (D.has_value()) yout += (*D) * u_func(r.t[i]);
-            r.y.push_back(yout);
-        }
-    }
-    return r;
+    return solve(fun, x0, t_span, t_eval, method, atol, rtol, max_step, first_step, false);
 }
 
 DiscreteStateSpace ContinuousStateSpace::discretize(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {

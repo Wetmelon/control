@@ -58,9 +58,8 @@ struct AdaptiveStepResult {
 };
 
 struct SolveResult {
-    std::vector<double> t;          // time points
-    std::vector<Matrix> x;          // states (x) at each time point
-    std::vector<Matrix> y;          // outputs (y = Cx + Du) at each time point (may be empty)
+    std::vector<double> t;  // time points
+    std::vector<Matrix> x;  // states (x) at each time point
     bool                success = true;
     std::string         message;
     size_t              nfev = 0;  // number of function evaluations
@@ -99,16 +98,16 @@ class Solver {
 
     // Templated wrapper: accept any callable (function pointer, lambda, functor)
     template <typename Fun>
-    SolveResult solve(const Fun& fun,
-                      const Matrix& x0,
+    SolveResult solve(const Fun&                       fun,
+                      const Matrix&                    x0,
                       const std::pair<double, double>& t_span,
-                      const std::vector<double>& t_eval = {},
-                      IntegrationMethod method = IntegrationMethod::RK45,
-                      double atol = 1e-6,
-                      double rtol = 1e-3,
-                      double max_step = 0.0,
-                      double first_step = 0.0,
-                      bool dense_output = false) const {
+                      const std::vector<double>&       t_eval       = {},
+                      IntegrationMethod                method       = IntegrationMethod::RK45,
+                      double                           atol         = 1e-6,
+                      double                           rtol         = 1e-3,
+                      double                           max_step     = 0.0,
+                      double                           first_step   = 0.0,
+                      bool                             dense_output = false) const {
         return solve(std::function<Matrix(double, const Matrix&)>(fun), x0, t_span, t_eval, method, atol, rtol, max_step, first_step, dense_output);
     }
 
@@ -137,7 +136,7 @@ class Solver {
      * @param rtol Relative tolerance for adaptive solvers.
      * @param max_step Maximum allowed step size for numeric integrators (<=0 disables).
      * @param first_step Initial step size suggestion for adaptive integrators (<=0 lets solver pick).
-    * @return SolveResult containing `t` (time points), `x` (state vectors) and optionally `y` (outputs).
+     * @return SolveResult containing `t` (time points) and `x` (state vectors).
      */
     /**
      * @param C Optional output matrix C. If provided, `SolveResult::y` will be
@@ -155,9 +154,7 @@ class Solver {
                          double                           atol       = 1e-6,
                          double                           rtol       = 1e-3,
                          double                           max_step   = 0.0,
-                         double                           first_step = 0.0,
-                         std::optional<Matrix>            C          = std::nullopt,
-                         std::optional<Matrix>            D          = std::nullopt) const;
+                         double                           first_step = 0.0) const;
 
     /**
      * @brief Solve a linear time-invariant (LTI) state-space system with a time-varying input.
@@ -178,13 +175,7 @@ class Solver {
      * @param rtol Relative tolerance for adaptive solvers.
      * @param max_step Maximum allowed step size for integrator (<=0 disables).
      * @param first_step Initial step size suggestion for adaptive integrators (<=0 lets solver pick).
-    * @return SolveResult containing `t` (time points), `x` (state vectors) and optionally `y` (outputs).
-     */
-    /**
-     * @param C Optional output matrix C. If provided, `SolveResult::y` will be
-     *          populated with y = Cx + Du(t) (where available).
-     * @param D Optional feedthrough matrix D. If provided, `SolveResult::y` will be
-     *          populated with y = Cx + Du(t) (where available).
+     * @return SolveResult containing `t` (time points) and `x` (state vectors).
      */
     SolveResult solveLTI(const Matrix&                        A,
                          const Matrix&                        B,
@@ -196,26 +187,22 @@ class Solver {
                          double                               atol       = 1e-6,
                          double                               rtol       = 1e-3,
                          double                               max_step   = 0.0,
-                         double                               first_step = 0.0,
-                         std::optional<Matrix>                C          = std::nullopt,
-                         std::optional<Matrix>                D          = std::nullopt) const;
+                         double                               first_step = 0.0) const;
 
     // Templated wrapper: accept any callable for u_func (function pointer, lambda, functor)
     template <typename UFunc>
-    SolveResult solveLTI(const Matrix& A,
-                         const Matrix& B,
-                         const Matrix& x0,
-                         const UFunc&  u_func,
+    SolveResult solveLTI(const Matrix&                    A,
+                         const Matrix&                    B,
+                         const Matrix&                    x0,
+                         const UFunc&                     u_func,
                          const std::pair<double, double>& t_span,
-                         const std::vector<double>& t_eval = {},
-                         const IntegrationMethod method = IntegrationMethod::RK45,
-                         double atol = 1e-6,
-                         double rtol = 1e-3,
-                         double max_step = 0.0,
-                         double first_step = 0.0,
-                         std::optional<Matrix> C = std::nullopt,
-                         std::optional<Matrix> D = std::nullopt) const {
-        return solveLTI(A, B, x0, std::function<Matrix(double)>(u_func), t_span, t_eval, method, atol, rtol, max_step, first_step, C, D);
+                         const std::vector<double>&       t_eval     = {},
+                         const IntegrationMethod          method     = IntegrationMethod::RK45,
+                         double                           atol       = 1e-6,
+                         double                           rtol       = 1e-3,
+                         double                           max_step   = 0.0,
+                         double                           first_step = 0.0) const {
+        return solveLTI(A, B, x0, std::function<Matrix(double)>(u_func), t_span, t_eval, method, atol, rtol, max_step, first_step);
     }
 
    private:
