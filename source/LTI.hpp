@@ -96,21 +96,6 @@ class Solver {
                       double                                              first_step   = 0.0,
                       bool                                                dense_output = false) const;
 
-    // Templated wrapper: accept any callable (function pointer, lambda, functor)
-    template <typename Fun>
-    SolveResult solve(const Fun&                       fun,
-                      const Matrix&                    x0,
-                      const std::pair<double, double>& t_span,
-                      const std::vector<double>&       t_eval       = {},
-                      IntegrationMethod                method       = IntegrationMethod::RK45,
-                      double                           atol         = 1e-6,
-                      double                           rtol         = 1e-3,
-                      double                           max_step     = 0.0,
-                      double                           first_step   = 0.0,
-                      bool                             dense_output = false) const {
-        return solve(std::function<Matrix(double, const Matrix&)>(fun), x0, t_span, t_eval, method, atol, rtol, max_step, first_step, dense_output);
-    }
-
     /**
      * @brief Solve a linear time-invariant (LTI) state-space system with a constant input.
      *
