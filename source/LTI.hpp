@@ -21,7 +21,8 @@ enum class IntegrationMethod {
     BackwardEuler,
     Trapezoidal,
     RK4,
-    RK45
+    RK45,
+    Exact,
 };
 
 enum class SystemType {
@@ -79,6 +80,7 @@ class Solver {
     IntegrationResult evolveTrapezoidal(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveRK4(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
     IntegrationResult evolveRK45(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const;
+    IntegrationResult evolveExact(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double final_t) const;
 
     IntegrationMethod     method_;
     std::optional<double> timestep_;

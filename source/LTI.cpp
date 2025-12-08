@@ -54,6 +54,14 @@ IntegrationResult Solver::evolveRK45(const Matrix& A, const Matrix& B, const Mat
     double error = (x5 - x4).norm();
     return {x5, error};
 }
+IntegrationResult Solver::evolveExact(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double final_t) const {
+    // Exact solution of LTI system from t=0 to t=final_t
+    const auto I        = Matrix::Identity(A.rows(), A.cols());
+    const auto E        = (A * final_t).exp();
+    const auto Ainv     = A.inverse();
+    const auto integral = Ainv * (E - I) * B * u;
+    return {E * x + integral, 0.0};
+}
 
 IntegrationResult Solver::evolveFixedTimestep(const Matrix& A, const Matrix& B, const Matrix& x, const Matrix& u, double h) const {
     switch (method_) {
@@ -67,6 +75,8 @@ IntegrationResult Solver::evolveFixedTimestep(const Matrix& A, const Matrix& B, 
             return evolveRK4(A, B, x, u, h);
         case IntegrationMethod::RK45:
             return evolveRK45(A, B, x, u, h);
+        case IntegrationMethod::Exact:
+            return evolveExact(A, B, x, u, h);
         default:
             return {x, 0.0};  // No change
     }
