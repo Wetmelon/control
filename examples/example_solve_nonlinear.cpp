@@ -1,8 +1,8 @@
 #include <matplot/matplot.h>
 
-#include <vector>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "LTI.hpp"
 
@@ -11,7 +11,7 @@ namespace plt = matplot;
 int main() {
     using namespace control;
 
-    Solver solver; // default RK45
+    Solver solver;  // default RK45
 
     // Van der Pol oscillator (nonlinear ODE)
     // x1' = x2
@@ -19,22 +19,22 @@ int main() {
     const double mu = 1.0;
 
     Matrix x0 = Matrix::Zero(2, 1);
-    x0(0, 0) = 2.0; // initial x1
-    x0(1, 0) = 0.0; // initial x2
+    x0(0, 0)  = 2.0;  // initial x1
+    x0(1, 0)  = 0.0;  // initial x2
 
     // Define the ODE as a callable: f(t, x) -> dx/dt
     auto fun = [mu](double /*t*/, const Matrix& x) -> Matrix {
         Matrix dx = Matrix::Zero(2, 1);
-        dx(0, 0) = x(1, 0);
-        dx(1, 0) = mu * (1.0 - x(0, 0) * x(0, 0)) * x(1, 0) - x(0, 0);
+        dx(0, 0)  = x(1, 0);
+        dx(1, 0)  = mu * (1.0 - x(0, 0) * x(0, 0)) * x(1, 0) - x(0, 0);
         return dx;
     };
 
     // Integrate from 0 to 20 seconds
-    const double t0 = 0.0;
-    const double tf = 20.0;
+    const double        t0 = 0.0;
+    const double        tf = 20.0;
     std::vector<double> t_eval;
-    const size_t N = 2000;
+    const size_t        N = 2000;
     for (size_t i = 0; i <= N; ++i) {
         t_eval.push_back(t0 + (tf - t0) * (double(i) / double(N)));
     }
@@ -55,8 +55,10 @@ int main() {
     auto fig = plt::figure(true);
     fig->size(1200, 800);
     // Compose a short info string for the figure
-    std::string info = "Van der Pol oscillator (mu=" + std::to_string(mu) + ") — "
-        "Solver: RK45, abs tol=1e-6, rel tol=1e-3, points=" + std::to_string(N);
+    std::string info = "Van der Pol oscillator (mu=" + std::to_string(mu) +
+                       ") — "
+                       "Solver: RK45, abs tol=1e-6, rel tol=1e-3, points=" +
+                       std::to_string(N);
 
     // Use a suptitle (supported by matplot++) and individual subplot titles/labels
     plt::sgtitle(info);
