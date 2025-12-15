@@ -1,12 +1,13 @@
-.PHONY: all format
+.PHONY: all compile format test
 
-all:
+all: format compile test
+
+compile:
 	@tup --quiet compiledb
-	@tup
-
-	@./examples/build/example_second_order.exe
-	@./examples/build/example_solve_lti.exe
-	@./examples/build/example_solve_nonlinear.exe
+	@tup --quiet
 
 format:
 	@clang-format -i source/*.cpp source/*.hpp examples/*.cpp
+
+test:
+	@./test/build/test_lti_operations.exe

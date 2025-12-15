@@ -63,13 +63,13 @@ class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
     DiscreteStateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, double Ts)
         : StateSpaceBase(std::move(A), std::move(B), std::move(C), std::move(D)), Ts(Ts) {}
 
+    const double Ts;
+
    private:
     friend class StateSpaceBase<DiscreteStateSpace>;
 
     StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
     FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
-
-    const double Ts;
 };
 
 template <class Derived>
@@ -212,7 +212,11 @@ Derived1 operator*(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<De
     // Fill D matrix
     D = sys2.D * sys1.D;
 
-    return Derived1{A, B, C, D};
+    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
+    } else {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
+    }
 }
 
 // Parallel connection operator: sys1 + sys2
@@ -254,7 +258,11 @@ Derived1 operator+(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<De
     // Fill D matrix (sum)
     D = sys1.D + sys2.D;
 
-    return Derived1{A, B, C, D};
+    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
+    } else {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
+    }
 }
 
 // Parallel connection operator: sys1 - sys2
@@ -296,7 +304,11 @@ Derived1 operator-(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<De
     // Fill D matrix (difference)
     D = sys1.D - sys2.D;
 
-    return Derived1{A, B, C, D};
+    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
+    } else {
+        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
+    }
 }
 
 // Feedback connection: feedback(sys_forward, sys_feedback, sign)
@@ -360,7 +372,11 @@ Derived1 feedback(const StateSpaceBase<Derived1>& sys_forward, const StateSpaceB
     // Fill D_cl matrix
     D_cl = inv1 * G.D;
 
-    return Derived1{A_cl, B_cl, C_cl, D_cl};
+    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
+        return Derived1{std::move(A_cl), std::move(B_cl), std::move(C_cl), std::move(D_cl), static_cast<const DiscreteStateSpace&>(G).Ts};
+    } else {
+        return Derived1{std::move(A_cl), std::move(B_cl), std::move(C_cl), std::move(D_cl)};
+    }
 }
 };  // namespace control
 

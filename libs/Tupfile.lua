@@ -70,8 +70,8 @@ for i, f in ipairs(matplot_cpp_files) do
     matplot_cpp_files[i] = 'matplotplusplus/source/matplot/' .. f
 end
 
-matplot_objs = tup.foreach_rule(matplot_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -c %f -o %o', BUILD_DIR..'matplotplusplus/obj/%B.o')
-matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -D_USE_MATH_DEFINES -c %f -o %o', BUILD_DIR..'matplotplusplus/obj/%B.o')
+matplot_objs = tup.foreach_rule(matplot_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -c %f -o %o', 'build/matplotplusplus/obj/%B.o')
+matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MATPLOT_FLAGS..' -D_USE_MATH_DEFINES -c %f -o %o', 'build/matplotplusplus/obj/%B.o')
 
 -- Link matplot library (combine matplot objects and nodesoup objects into one library)
 matplot_lib = tup.rule(
