@@ -1,3 +1,5 @@
+#include "zpk.hpp"
+
 #include "LTI.hpp"
 #include "types.hpp"
 
@@ -134,23 +136,13 @@ ControllabilityInfo ZeroPoleGain::controllability() const {
     return ss.controllability();
 }
 
-// Convert to StateSpace (with caching)
+// Build state-space from zeros, poles, and gain
 StateSpace ZeroPoleGain::toStateSpace() const {
-    if (ss_cache_.has_value()) {
-        return ss_cache_.value();
-    }
-
-    // Build state-space from zeros, poles, and gain
-    ss_cache_ = this->toTransferFunction().toStateSpace();
-    return ss_cache_.value();
+    return this->toTransferFunction().toStateSpace();
 }
 
-// Convert to TransferFunction (with caching)
+// Convert to TransferFunction
 TransferFunction ZeroPoleGain::toTransferFunction() const {
-    if (tf_cache_.has_value()) {
-        return tf_cache_.value();
-    }
-
     // Build transfer function from zeros, poles, and gain
     // G(s) = K * (s - z1)(s - z2)... / (s - p1)(s - p2)...
 
@@ -189,8 +181,7 @@ TransferFunction ZeroPoleGain::toTransferFunction() const {
         c *= gain_;
     }
 
-    tf_cache_ = TransferFunction(num_coeffs, den_coeffs, Ts);
-    return tf_cache_.value();
+    return TransferFunction(num_coeffs, den_coeffs, Ts);
 }
 
 StateSpace ZeroPoleGain::discretize(double                Ts,

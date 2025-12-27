@@ -1,6 +1,11 @@
+#include "tf.hpp"
+
 #include <shlobj.h>
 
 #include "LTI.hpp"
+#include "ss.hpp"
+#include "types.hpp"
+#include "zpk.hpp"
 
 namespace control {
 
@@ -42,7 +47,6 @@ TransferFunction::TransferFunction(std::vector<double>   num,
 TransferFunction::TransferFunction(const TransferFunction& other)
     : num(other.num), den(other.den) {
     Ts = other.Ts;
-    // Don't copy cache - let it be regenerated if needed
 }
 
 TransferFunction::TransferFunction(TransferFunction&& other) noexcept
@@ -101,12 +105,8 @@ TransferFunction& TransferFunction::operator=(ZeroPoleGain&& zpk) noexcept {
     return *this;
 }
 
-// Convert to StateSpace (with caching)
+// Convert to StateSpace
 StateSpace TransferFunction::toStateSpace() const {
-    if (ss_cache_.has_value()) {
-        return ss_cache_.value();
-    }
-
     // Uses companion matrix form (controllable canonical form), which is numerically stable
     // for transfer function to state-space conversion
 
@@ -176,8 +176,7 @@ StateSpace TransferFunction::toStateSpace() const {
         }
     }
 
-    ss_cache_ = StateSpace{A, B, C, D, Ts};
-    return ss_cache_.value();
+    return StateSpace{A, B, C, D, Ts};
 }
 
 bool TransferFunction::is_stable() const {

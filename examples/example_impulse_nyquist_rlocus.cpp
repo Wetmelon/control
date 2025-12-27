@@ -1,6 +1,6 @@
 #include <numbers>
 
-#include "LTI.hpp"
+#include "control.hpp"
 #include "fmt/core.h"
 
 using namespace control;

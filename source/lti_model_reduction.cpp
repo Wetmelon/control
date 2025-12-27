@@ -3,6 +3,8 @@
 
 #include "LTI.hpp"
 #include "solver.hpp"
+#include "ss.hpp"
+#include "types.hpp"
 
 namespace control {
 

@@ -3,7 +3,6 @@
 #include <optional>
 
 #include "types.hpp"
-#include "unsupported/Eigen/MatrixFunctions"  // IWYU pragma: keep
 
 namespace control {
 
@@ -92,8 +91,6 @@ enum class GramianType {
     Observability,
 };
 
-template <class T>
-concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 
 /**
  * @brief Abstract base class for all LTI systems (Linear Time-Invariant).
@@ -238,198 +235,6 @@ class LTI {
     std::optional<double> Ts;  // Sampling time; nullopt for continuous, value for discrete
 };
 
-/**
- * @brief Unified state-space LTI system (continuous or discrete).
- *
- * If Ts is set, it's discrete; otherwise, continuous.
- */
-class StateSpace : public LTI {
-   public:
-    Matrix A, B, C, D;
-
-    bool is_stable() const override;
-
-    StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const override;
-
-    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
-    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
-    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
-    MarginInfo        margin() const override;
-    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
-    DampingInfo       damp() const override;
-    StepInfo          stepinfo() const override;
-
-    ObservabilityInfo   observability() const override;
-    ControllabilityInfo controllability() const override;
-
-    std::vector<Pole> poles() const override;
-    std::vector<Zero> zeros() const override;
-
-    StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
-
-    StateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, std::optional<double> Ts = std::nullopt);
-    StateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, std::optional<double> Ts = std::nullopt);
-
-    StateSpace(const StateSpace& other);
-    StateSpace(const TransferFunction& tf);
-    StateSpace(const ZeroPoleGain& zpk);
-
-    StateSpace(StateSpace&& other) noexcept;
-    StateSpace(TransferFunction&& tf) noexcept;
-    StateSpace(ZeroPoleGain&& zpk) noexcept;
-
-    StateSpace& operator=(const StateSpace& other);
-    StateSpace& operator=(const TransferFunction& tf);
-    StateSpace& operator=(const ZeroPoleGain& zpk);
-
-    StateSpace& operator=(StateSpace&& other) noexcept;
-    StateSpace& operator=(TransferFunction&& tf) noexcept;
-    StateSpace& operator=(ZeroPoleGain&& zpk) noexcept;
-
-    // State-space output equation: y = Cx + Du
-    ColVec output(const ColVec& x, const ColVec& u) const { return C * x + D * u; }
-
-    // Equality comparison
-    bool operator==(const StateSpace& other) const {
-        return A.isApprox(other.A) && B.isApprox(other.B) &&
-               C.isApprox(other.C) && D.isApprox(other.D) && Ts == other.Ts;
-    }
-
-   private:
-    Eigen::VectorXcd eigenvalues() const { return A.eigenvalues(); }
-};
-
-/**
- * @brief Unified transfer function LTI system (continuous or discrete).
- *
- * If Ts is set, it's discrete; otherwise, continuous.
- */
-class TransferFunction : public LTI {
-   public:
-    std::vector<double> num, den;
-
-    bool is_stable() const override;
-
-    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
-    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
-    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
-    MarginInfo        margin() const override;
-    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
-
-    ObservabilityInfo   observability() const override;
-    ControllabilityInfo controllability() const override;
-
-    std::vector<Pole> poles() const override;
-    std::vector<Zero> zeros() const override;
-
-    StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const override;
-
-    StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
-
-    // Default constructor - creates a zero transfer function
-    TransferFunction()
-        : num({0.0}), den({1.0}) {}
-
-    TransferFunction(std::vector<double>   num,
-                     std::vector<double>   den,
-                     std::optional<double> Ts = std::nullopt);
-
-    TransferFunction(const TransferFunction& other);
-    TransferFunction(const StateSpace& ss);
-    TransferFunction(const ZeroPoleGain& zpk);
-
-    TransferFunction(TransferFunction&& other) noexcept;
-    TransferFunction(StateSpace&& ss) noexcept;
-    TransferFunction(ZeroPoleGain&& zpk) noexcept;
-
-    // Copy and Move Assignment Operators
-    TransferFunction& operator=(const TransferFunction& other);
-    TransferFunction& operator=(const StateSpace& ss);
-    TransferFunction& operator=(const ZeroPoleGain& zpk);
-
-    TransferFunction& operator=(TransferFunction&& other) noexcept;
-    TransferFunction& operator=(StateSpace&& ss) noexcept;
-    TransferFunction& operator=(ZeroPoleGain&& zpk) noexcept;
-
-    DampingInfo damp() const override;
-    StepInfo    stepinfo() const override;
-
-   private:
-    // Caching of state-space representation to avoid repeated conversions
-    mutable std::optional<StateSpace> ss_cache_;
-};
-
-class ZeroPoleGain : public LTI {
-   public:
-    std::vector<Zero> zeros_;
-    std::vector<Pole> poles_;
-    double            gain_;
-
-    bool is_stable() const override;
-
-    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
-    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
-    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
-    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
-    MarginInfo        margin() const override;
-    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
-    DampingInfo       damp() const override;
-    StepInfo          stepinfo() const override;
-
-    ObservabilityInfo   observability() const override;
-    ControllabilityInfo controllability() const override;
-
-    std::vector<Pole> poles() const override { return poles_; };
-    std::vector<Zero> zeros() const override { return zeros_; };
-    double            gain() const { return gain_; }
-
-    StateSpace discretize(double                Ts,
-                          DiscretizationMethod  method  = DiscretizationMethod::ZOH,
-                          std::optional<double> prewarp = std::nullopt) const override;
-
-    StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
-
-    ZeroPoleGain(const StateSpace& ss);
-    ZeroPoleGain(const TransferFunction& tf);
-
-    ZeroPoleGain(std::vector<Zero>     zeros,
-                 std::vector<Pole>     poles,
-                 double                gain,
-                 std::optional<double> Ts = std::nullopt)
-        : zeros_(std::move(zeros)), poles_(std::move(poles)), gain_(gain) {
-        this->Ts = Ts;
-    }
-
-    ZeroPoleGain(const ZeroPoleGain& other);
-    ZeroPoleGain(ZeroPoleGain&& other) noexcept;
-
-    ZeroPoleGain& operator=(const ZeroPoleGain& other);
-    ZeroPoleGain& operator=(const StateSpace& ss);
-    ZeroPoleGain& operator=(const TransferFunction& tf);
-
-    ZeroPoleGain& operator=(ZeroPoleGain&& other) noexcept;
-    ZeroPoleGain& operator=(StateSpace&& ss) noexcept;
-    ZeroPoleGain& operator=(TransferFunction&& tf) noexcept;
-
-   private:
-    // Caching of state-space representation to avoid repeated conversions
-    mutable std::optional<StateSpace> ss_cache_;
-
-    // Caching of transfer function representation to avoid repeated conversions
-    mutable std::optional<TransferFunction> tf_cache_;
-};
-
 StateSpace ss(Matrix A, Matrix B, Matrix C, Matrix D, std::optional<double> Ts = std::nullopt);
 StateSpace ss(Matrix D);
 StateSpace ss(const TransferFunction& tf);
@@ -455,27 +260,7 @@ ZeroPoleGain zpk(const std::vector<Zero>& zeros,
                  double                   gain,
                  std::optional<double>    Ts = std::nullopt);
 
-// Compute Gramian matrices (continuous-time iterative method)
-Matrix gramian(const StateSpace& sys, GramianType type);
 
-template <SSConvertible T>
-Matrix gramian(const T& t, GramianType type) {
-    return gramian(t.toStateSpace(), type);
-}
-
-// Model reduction utilities (operate on StateSpace representation)
-StateSpace minreal(const StateSpace& sys, double tol = 1e-9);
-StateSpace balred(const StateSpace& sys, size_t r);
-
-template <SSConvertible T>
-StateSpace minreal(const T& t, double tol = 1e-9) {
-    return minreal(t.toStateSpace(), tol);
-}
-
-template <SSConvertible T>
-StateSpace balred(const T& t, size_t r) {
-    return balred(t.toStateSpace(), r);
-}
 
 /**
  * @brief Convert a continuous-time LTI system to discrete-time using specified method.
@@ -541,48 +326,5 @@ ZeroPoleGain     operator-(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 StateSpace       operator/(const StateSpace& sys_forward, const StateSpace& sys_feedback);
 TransferFunction operator/(const TransferFunction& sys_forward, const TransferFunction& sys_feedback);
 ZeroPoleGain     operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback);
-
-// ---------------------------------------------------------------------------
-// LTI operations for mixed types always return StateSpace representation
-// ---------------------------------------------------------------------------
-
-template <SSConvertible A, SSConvertible B>
-StateSpace series(const A& a, const B& b) {
-    return series(a.toStateSpace(), b.toStateSpace());
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace parallel(const A& a, const B& b) {
-    return parallel(a.toStateSpace(), b.toStateSpace());
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace feedback(const A& a, const B& b, int sign = -1) {
-    return feedback(a.toStateSpace(), b.toStateSpace(), sign);
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace operator*(const A& a, const B& b) {
-    return series(a.toStateSpace(), b.toStateSpace());
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace operator+(const A& a, const B& b) {
-    return parallel(a.toStateSpace(), b.toStateSpace());
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace operator-(const A& a, const B& b) {
-    StateSpace neg_b = b.toStateSpace();
-    neg_b.C          = -neg_b.C;
-    neg_b.D          = -neg_b.D;
-
-    return parallel(a.toStateSpace(), neg_b);
-}
-
-template <SSConvertible A, SSConvertible B>
-StateSpace operator/(const A& a, const B& b) {
-    return feedback(a.toStateSpace(), b.toStateSpace(), -1);
-}
 
 };  // namespace control
