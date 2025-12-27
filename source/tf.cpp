@@ -528,6 +528,18 @@ ControllabilityInfo TransferFunction::controllability() const {
     return toStateSpace().controllability();
 }
 
+Matrix TransferFunction::gramian(GramianType type) const {
+    return toStateSpace().gramian(type);
+}
+
+StateSpace TransferFunction::minreal(double tol) const {
+    return toStateSpace().minreal(tol);
+}
+
+StateSpace TransferFunction::balred(size_t r) const {
+    return toStateSpace().balred(r);
+}
+
 StateSpace TransferFunction::discretize(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
     return toStateSpace().discretize(Ts, method, prewarp);
 }

@@ -217,6 +217,10 @@ class LTI {
      */
     virtual ControllabilityInfo controllability() const = 0;
 
+    virtual Matrix     gramian(GramianType type) const  = 0;
+    virtual StateSpace minreal(double tol = 1e-9) const = 0;
+    virtual StateSpace balred(size_t r) const           = 0;
+
     /**
      * @brief  Get the System Type object (Continuous or Discrete)
      *

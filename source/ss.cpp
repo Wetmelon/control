@@ -616,7 +616,6 @@ ObservabilityInfo StateSpace::observability() const {
     size_t rank         = qr.rank();
     bool   isObservable = (rank == static_cast<size_t>(n));
 
-    // Do not compute the gramian here; return empty (zero) gramian to avoid expensive or unstable ops.
     return ObservabilityInfo{.rank = rank, .isObservable = isObservable};
 }
 
@@ -645,14 +644,10 @@ ControllabilityInfo StateSpace::controllability() const {
 }
 
 // Compute Gramian matrices for continuous-time systems using iterative series
-Matrix gramian(const StateSpace& sys, GramianType type) {
-    if (sys.isDiscrete()) {
+Matrix StateSpace::gramian(GramianType type) const {
+    if (isDiscrete()) {
         throw std::runtime_error("gramian: discrete-time systems are not yet supported");
     }
-
-    const Matrix A = sys.A;
-    const Matrix B = sys.B;
-    const Matrix C = sys.C;
 
     const int n = static_cast<int>(A.rows());
     if (n == 0) return Matrix::Zero(0, 0);

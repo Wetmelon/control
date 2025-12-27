@@ -27,6 +27,10 @@ class TransferFunction : public LTI {
     ObservabilityInfo   observability() const override;
     ControllabilityInfo controllability() const override;
 
+    Matrix     gramian(GramianType type) const override;
+    StateSpace minreal(double tol = 1e-9) const override;
+    StateSpace balred(size_t r) const override;
+
     std::vector<Pole> poles() const override;
     std::vector<Zero> zeros() const override;
 

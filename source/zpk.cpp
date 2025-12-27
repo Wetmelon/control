@@ -136,6 +136,21 @@ ControllabilityInfo ZeroPoleGain::controllability() const {
     return ss.controllability();
 }
 
+Matrix ZeroPoleGain::gramian(GramianType type) const {
+    StateSpace ss = this->toStateSpace();
+    return ss.gramian(type);
+}
+
+StateSpace ZeroPoleGain::minreal(double tol) const {
+    StateSpace ss = this->toStateSpace();
+    return ss.minreal(tol);
+}
+
+StateSpace ZeroPoleGain::balred(size_t r) const {
+    StateSpace ss = this->toStateSpace();
+    return ss.balred(r);
+}
+
 // Build state-space from zeros, poles, and gain
 StateSpace ZeroPoleGain::toStateSpace() const {
     return this->toTransferFunction().toStateSpace();

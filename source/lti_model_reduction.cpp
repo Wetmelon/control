@@ -8,23 +8,18 @@
 
 namespace control {
 
-StateSpace balred(const StateSpace& sys, size_t r) {
-    if (sys.isDiscrete()) {
+StateSpace StateSpace::balred(size_t r) const {
+    if (isDiscrete()) {
         throw std::runtime_error("balred: discrete-time systems are not yet supported");
     }
-
-    const Matrix& A = sys.A;
-    const Matrix& B = sys.B;
-    const Matrix& C = sys.C;
-    const Matrix& D = sys.D;
 
     const int n = static_cast<int>(A.rows());
     if (n == 0 || r == 0) {
         // Truncate to a pure D matrix
-        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, sys.Ts);
+        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, Ts);
     }
     if (r >= static_cast<size_t>(n)) {
-        return sys;  // nothing to do
+        return *this;  // nothing to do
     }
 
     // Compute controllability and observability gramians
@@ -100,23 +95,18 @@ StateSpace balred(const StateSpace& sys, size_t r) {
     Matrix C2 = C_bal.rightCols(n - rint);
 
     // Truncated reduced-order model
-    StateSpace red(A11, B1, C1, D, sys.Ts);
+    StateSpace red(A11, B1, C1, D, Ts);
     return red;
 }
 
-StateSpace minreal(const StateSpace& sys, double tol) {
-    if (sys.isDiscrete()) {
+StateSpace StateSpace::minreal(double tol) const {
+    if (isDiscrete()) {
         throw std::runtime_error("minreal: discrete-time systems are not yet supported");
     }
 
-    const Matrix A = sys.A;
-    const Matrix B = sys.B;
-    const Matrix C = sys.C;
-    const Matrix D = sys.D;
-
     const int n = static_cast<int>(A.rows());
     if (n == 0) {
-        return sys;
+        return *this;  // nothing to do
     }
 
     // Helper: compute orthonormal basis for column space of M using SVD
@@ -139,7 +129,7 @@ StateSpace minreal(const StateSpace& sys, double tol) {
     int m = static_cast<int>(B.cols());
     if (m == 0) {
         // no inputs -> no controllable states
-        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, sys.Ts);
+        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, Ts);
     }
     Matrix Ctrb = Matrix::Zero(n, n * m);
     Matrix Ak   = Matrix::Identity(n, n);
@@ -154,7 +144,7 @@ StateSpace minreal(const StateSpace& sys, double tol) {
 
     if (rc == 0) {
         // No controllable dynamics -> return D-only
-        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, sys.Ts);
+        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, Ts);
     }
 
     // Build orthonormal complement of Uc via SVD of (I - Uc*Uc^T)
@@ -195,7 +185,7 @@ StateSpace minreal(const StateSpace& sys, double tol) {
 
     if (ro == 0) {
         // No observable states -> return D-only
-        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, sys.Ts);
+        return StateSpace(Matrix::Zero(0, 0), Matrix::Zero(0, B.cols()), Matrix::Zero(C.rows(), 0), D, Ts);
     }
 
     // Form final transform for controllable subsystem using observable basis
@@ -218,7 +208,7 @@ StateSpace minreal(const StateSpace& sys, double tol) {
     Matrix B_min = B_f.topRows(ro);
     Matrix C_min = C_f.leftCols(ro);
 
-    StateSpace red(A_min, B_min, C_min, D, sys.Ts);
+    StateSpace red(A_min, B_min, C_min, D, Ts);
     return red;
 }
 

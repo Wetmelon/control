@@ -16,18 +16,23 @@ namespace control {
 // ---------------------------------------------------------------------------
 
 // Compute Gramian matrices (continuous-time iterative method)
-Matrix gramian(const StateSpace& sys, GramianType type);
-
-// Model reduction utilities (operate on StateSpace representation)
-StateSpace minreal(const StateSpace& sys, double tol = 1e-9);
-StateSpace balred(const StateSpace& sys, size_t r);
 
 template <class T>
 concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 
 template <SSConvertible T>
-Matrix gramian(const T& t, GramianType type) {
-    return gramian(t.toStateSpace(), type);
+Matrix gramian(const T& sys, GramianType type) {
+    return sys.toStateSpace().gramian(type);
+}
+
+template <SSConvertible T>
+StateSpace minreal(const T& sys, double tol = 1e-9) {
+    return sys.toStateSpace().minreal(tol);
+}
+
+template <SSConvertible T>
+StateSpace balred(const T& sys, size_t r) {
+    return sys.toStateSpace().balred(r);
 }
 
 template <SSConvertible A, SSConvertible B>
@@ -69,15 +74,6 @@ StateSpace operator/(const A& a, const B& b) {
     return feedback(a.toStateSpace(), b.toStateSpace(), -1);
 }
 
-template <SSConvertible T>
-StateSpace minreal(const T& t, double tol = 1e-9) {
-    return minreal(t.toStateSpace(), tol);
-}
-
-template <SSConvertible T>
-StateSpace balred(const T& t, size_t r) {
-    return balred(t.toStateSpace(), r);
-}
 }  // namespace control
 // ============================================================================
 // State-Space Formatting for fmt::format
