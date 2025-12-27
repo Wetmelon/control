@@ -1,5 +1,5 @@
+#include "control.hpp"
 #include "doctest.h"
-#include "utility.hpp"
 
 using namespace control;
 

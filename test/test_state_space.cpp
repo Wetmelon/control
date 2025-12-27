@@ -1,6 +1,4 @@
-#include "../source/LTI.hpp"
-#include "../source/integrator.hpp"
-#include "../source/solver.hpp"
+#include "control.hpp"
 #include "doctest.h"
 
 using namespace control;

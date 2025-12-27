@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "../source/integrator.hpp"
+#include "control.hpp"
 #include "doctest.h"
 
 using namespace control;

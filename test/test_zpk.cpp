@@ -1,4 +1,4 @@
-#include "../source/LTI.hpp"
+#include "control.hpp"
 #include "doctest.h"
 
 using namespace control;
