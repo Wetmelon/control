@@ -91,6 +91,9 @@ enum class GramianType {
     Observability,
 };
 
+struct Input {};
+struct Output {};
+
 /**
  * @brief Abstract base class for all LTI systems (Linear Time-Invariant).
  *
@@ -99,6 +102,9 @@ enum class GramianType {
  */
 class LTI {
    public:
+    // virtual size_t inputs() const;
+    // virtual size_t outputs() const;
+
     virtual ~LTI() = default;
 
     /**
@@ -106,39 +112,39 @@ class LTI {
      *
      * @return MarginInfo  Gain and phase margin information
      */
-    virtual MarginInfo margin() const = 0;
+    virtual MarginInfo margin() const;
 
     /**
      * @brief  Compute damping information of the system.
      *
      * @return DampingInfo  Natural frequency and damping ratio
      */
-    virtual DampingInfo damp() const = 0;
+    virtual DampingInfo damp() const;
 
-    virtual StepInfo stepinfo() const = 0;
+    virtual StepInfo stepinfo() const;
 
-    virtual FrequencyResponse freqresp(const std::vector<double>& frequencies) const = 0;
+    virtual FrequencyResponse freqresp(const std::vector<double>& frequencies) const;
 
     /**
      * @brief  Check if the system is stable.
      *
      * A system is stable if all poles have negative real parts (continuous) or lie inside the unit circle (discrete).
      */
-    virtual bool is_stable() const = 0;
+    virtual bool is_stable() const;
 
     /**
      * @brief  Get the complex poles of the system.
      *
      * @return Eigen::VectorXcd
      */
-    virtual std::vector<Pole> poles() const = 0;
+    virtual std::vector<Pole> poles() const;
 
     /**
      * @brief  Get the complex zeros of the system.
      *
      * @return Eigen::VectorXcd
      */
-    virtual std::vector<Zero> zeros() const = 0;
+    virtual std::vector<Zero> zeros() const;
 
     /**
      * @brief  Compute the step response of the system.
@@ -148,7 +154,7 @@ class LTI {
      * @param uStep           Step input vector (default is ones)
      * @return StepResponse
      */
-    virtual StepResponse step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const = 0;
+    virtual StepResponse step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const;
 
     /**
      * @brief  Compute the impulse response of the system.
@@ -158,7 +164,7 @@ class LTI {
      *
      * @return ImpulseResponse
      */
-    virtual ImpulseResponse impulse(double tStart = 0.0, double tEnd = 10.0) const = 0;
+    virtual ImpulseResponse impulse(double tStart = 0.0, double tEnd = 10.0) const;
 
     /**
      * @brief  Compute the Bode plot data of the system.
@@ -169,7 +175,7 @@ class LTI {
      *
      * @return FrequencyResponse
      */
-    virtual BodeResponse bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const = 0;
+    virtual BodeResponse bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const;
 
     /**
      * @brief  Compute the Nyquist plot data of the system.
@@ -180,7 +186,7 @@ class LTI {
      *
      * @return NyquistResponse
      */
-    virtual NyquistResponse nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const = 0;
+    virtual NyquistResponse nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const;
 
     /**
      * @brief  Compute the Root Locus data of the system.
@@ -191,7 +197,7 @@ class LTI {
      *
      * @return RootLocusResponse
      */
-    virtual RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const = 0;
+    virtual RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const;
 
     /**
      * @brief  Discretize the LTI system
@@ -201,25 +207,25 @@ class LTI {
      * @param prewarp       Prewarp frequency for bilinear/Tustin method (optional)
      * @return StateSpace   Discretized StateSpace system
      */
-    virtual StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const = 0;
+    virtual StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
 
     /**
      * @brief  Get the observability information of the system.
      *
      * @return ObservabilityInfo
      */
-    virtual ObservabilityInfo observability() const = 0;
+    virtual ObservabilityInfo observability() const;
 
     /**
      * @brief  Get the controllability information of the system.
      *
      * @return ControllabilityInfo
      */
-    virtual ControllabilityInfo controllability() const = 0;
+    virtual ControllabilityInfo controllability() const;
 
-    virtual Matrix     gramian(GramianType type) const  = 0;
-    virtual StateSpace minreal(double tol = 1e-9) const = 0;
-    virtual StateSpace balred(size_t r) const           = 0;
+    virtual Matrix     gramian(GramianType type) const;
+    virtual StateSpace minreal(double tol = 1e-9) const;
+    virtual StateSpace balred(size_t r) const;
 
     /**
      * @brief  Get the System Type object (Continuous or Discrete)
