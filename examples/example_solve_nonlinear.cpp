@@ -1,14 +1,13 @@
 #include <vector>
 
 #include "control.hpp"
+#include "integrator.hpp"
 #include "matplot/matplot.h"
-
-namespace plt = matplot;
+#include "solver.hpp"
 
 int main() {
     using namespace control;
-
-    Solver solver;  // default RK45
+    namespace plt = matplot;
 
     // Van der Pol oscillator (nonlinear ODE)
     // x1' = x2
@@ -36,7 +35,7 @@ int main() {
         t_eval.push_back(t0 + (tf - t0) * (double(i) / double(N)));
     }
 
-    auto res = solver.solve(fun, x0, {t0, tf}, t_eval, IntegrationMethod::RK45, 1e-6, 1e-3, 0.0, 0.0);
+    auto res = AdaptiveStepSolver<RK45>{}.solve(fun, x0, {t0, tf}, t_eval);
 
     std::vector<double> t_plot, x1_plot, x2_plot;
     t_plot.reserve(res.t.size());

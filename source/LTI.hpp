@@ -1,158 +1,461 @@
 #pragma once
 
-#include <format>
+#include <optional>
 
-#include "solver.hpp"
 #include "types.hpp"
+#include "unsupported/Eigen/MatrixFunctions"  // IWYU pragma: keep
 
 namespace control {
 
-class DiscreteStateSpace;    // Forward declaration
-class ContinuousStateSpace;  // Forward declaration
-using StateSpace = ContinuousStateSpace;
-template <typename Derived>
-class StateSpaceBase {
-   protected:
-    StateSpaceBase(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
-        : A(A), B(B), C(C), D(D) {}
+// Forward declarations
+class StateSpace;
+class TransferFunction;
+class ZeroPoleGain;
 
-    StateSpaceBase(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D)
-        : A(std::move(A)), B(std::move(B)), C(std::move(C)), D(std::move(D)) {}
-
-   public:
-    Matrix output(const Matrix& x, const Matrix& u) const { return C * x + D * u; }
-
-    StepResponse step(double tStart = 0.0, double tEnd = 10.0, Matrix uStep = Matrix()) const {
-        if (uStep.size() == 0) {
-            uStep = Matrix::Ones(B.cols(), 1);
-        }
-
-        return static_cast<const Derived*>(this)->stepImpl(tStart, tEnd, uStep);
-    };
-
-    FrequencyResponse bode(double fStart = 0.1, double fEnd = 1.0e4, size_t numFreq = 1000) const {
-        return static_cast<const Derived*>(this)->bodeImpl(fStart, fEnd, numFreq);
-    }
-
-    const Matrix A = {}, B = {}, C = {}, D = {};
+// Data structures for frequency and time responses
+struct FrequencyResponse {
+    std::vector<std::complex<double>> response;  // Complex frequency response
+    std::vector<double>               freq;      // Frequency points in Hz
 };
 
-class ContinuousStateSpace : public StateSpaceBase<ContinuousStateSpace> {
+struct BodeResponse {
+    std::vector<double> freq;       // Frequency in Hz
+    std::vector<double> magnitude;  // Magnitude in dB
+    std::vector<double> phase;      // Phase in degrees
+};
+
+struct StepResponse {
+    std::vector<double> time;
+    std::vector<ColVec> output;
+};
+
+struct ImpulseResponse {
+    std::vector<double> time;
+    std::vector<ColVec> output;
+};
+
+struct NyquistResponse {
+    std::vector<std::complex<double>> response;  // Complex frequency response
+    std::vector<double>               freq;      // Frequency points in Hz
+};
+
+struct RootLocusResponse {
+    std::vector<std::vector<std::complex<double>>> branches;  // Each branch is a vector of pole locations
+    std::vector<double>                            gains;     // Corresponding gain values
+};
+
+struct ObservabilityInfo {
+    Matrix gramian;
+    size_t rank;
+    bool   isObservable;
+};
+
+struct ControllabilityInfo {
+    Matrix gramian;
+    size_t rank;
+    bool   isControllable;
+};
+
+struct MarginInfo {
+    double gainMargin;      // Gain margin in dB
+    double phaseMargin;     // Phase margin in degrees
+    double gainCrossover;   // Gain crossover frequency in Hz
+    double phaseCrossover;  // Phase crossover frequency in Hz
+};
+
+struct DampingInfo {
+    double naturalFrequency;  // Natural frequency (rad/s)
+    double dampingRatio;      // Damping ratio
+};
+
+struct StepInfo {
+    double riseTime;          // Time to rise from 10% to 90% of final value
+    double settlingTime;      // Time to settle within 2% of final value
+    double overshoot;         // Percentage overshoot
+    double steadyStateError;  // Steady-state error
+    double peak;              // Peak value of the response
+    double peakTime;          // Time at which peak occurs
+};
+
+enum class DiscretizationMethod {
+    ZOH,
+    FOH,
+    Bilinear,
+    Tustin,
+};
+
+enum class SystemType {
+    Continuous,
+    Discrete,
+};
+
+/**
+ * @brief Abstract base class for all LTI systems (Linear Time-Invariant).
+ *
+ * Provides a common interface for transfer functions and state-space representations,
+ * supporting both continuous and discrete systems.
+ */
+class LTI {
    public:
-    ContinuousStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D)
-        : StateSpaceBase(A, B, C, D) {}
+    virtual ~LTI() = default;
 
-    ContinuousStateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D)
-        : StateSpaceBase(std::move(A), std::move(B), std::move(C), std::move(D)) {}
+    /* TODO:
+        - Implement margin(), stepinfo(), freqresp(), etc. with appropriate return structures
+    */
 
-    // Convert to discrete-time state space using specified method
-    DiscreteStateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const;
+    /**
+     * @brief  Compute gain and phase margins of the system.
+     *
+     * @return MarginInfo  Gain and phase margin information
+     */
+    virtual MarginInfo margin() const = 0;
+
+    /**
+     * @brief  Compute damping information of the system.
+     *
+     * @return DampingInfo  Natural frequency and damping ratio
+     */
+    // virtual DampingInfo damp() const = 0;
+
+    // virtual StepInfo stepinfo() const = 0;
+
+    virtual FrequencyResponse freqresp(const std::vector<double>& frequencies) const = 0;
+
+    /**
+     * @brief  Check if the system is stable.
+     *
+     * A system is stable if all poles have negative real parts (continuous) or lie inside the unit circle (discrete).
+     */
+    virtual bool is_stable() const = 0;
+
+    /**
+     * @brief  Get the complex poles of the system.
+     *
+     * @return Eigen::VectorXcd
+     */
+    virtual std::vector<Pole> poles() const = 0;
+
+    /**
+     * @brief  Get the complex zeros of the system.
+     *
+     * @return Eigen::VectorXcd
+     */
+    virtual std::vector<Zero> zeros() const = 0;
+
+    /**
+     * @brief  Compute the step response of the system.
+     *
+     * @param tStart          Start time
+     * @param tEnd            End time
+     * @param uStep           Step input vector (default is ones)
+     * @return StepResponse
+     */
+    virtual StepResponse step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const = 0;
+
+    /**
+     * @brief  Compute the impulse response of the system.
+     *
+     * @param tStart      Start time
+     * @param tEnd        End time
+     *
+     * @return ImpulseResponse
+     */
+    virtual ImpulseResponse impulse(double tStart = 0.0, double tEnd = 10.0) const = 0;
+
+    /**
+     * @brief  Compute the Bode plot data of the system.
+     *
+     * @param fStart        Start frequency in Hz
+     * @param fEnd          End frequency in Hz
+     * @param maxPoints     Maximum number of frequency points
+     *
+     * @return FrequencyResponse
+     */
+    virtual BodeResponse bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const = 0;
+
+    /**
+     * @brief  Compute the Nyquist plot data of the system.
+     *
+     * @param fStart        Start frequency in Hz
+     * @param fEnd          End frequency in Hz
+     * @param maxPoints     Maximum number of frequency points
+     *
+     * @return NyquistResponse
+     */
+    virtual NyquistResponse nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const = 0;
+
+    /**
+     * @brief  Compute the Root Locus data of the system.
+     *
+     * @param kMin          Minimum gain
+     * @param kMax          Maximum gain
+     * @param numPoints     Number of gain points
+     *
+     * @return RootLocusResponse
+     */
+    virtual RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const = 0;
+
+    /**
+     * @brief  Discretize the LTI system
+     *
+     * @param Ts            Sampling time
+     * @param method        Discretization method (ZOH, FOH, Bilinear, Tustin)
+     * @param prewarp       Prewarp frequency for bilinear/Tustin method (optional)
+     * @return StateSpace   Discretized StateSpace system
+     */
+    virtual StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const = 0;
+
+    /**
+     * @brief  Get the observability information of the system.
+     *
+     * @return ObservabilityInfo
+     */
+    virtual ObservabilityInfo observability() const = 0;
+
+    /**
+     * @brief  Get the controllability information of the system.
+     *
+     * @return ControllabilityInfo
+     */
+    virtual ControllabilityInfo controllability() const = 0;
+
+    /**
+     * @brief  Get the System Type object (Continuous or Discrete)
+     *
+     * @return SystemType
+     */
+    SystemType systemType() const { return Ts.has_value() ? SystemType::Discrete : SystemType::Continuous; }
+
+    virtual StateSpace       toStateSpace() const       = 0;
+    virtual TransferFunction toTransferFunction() const = 0;
+    virtual ZeroPoleGain     toZeroPoleGain() const     = 0;
+
+    bool isDiscrete() const { return Ts.has_value(); }
+    bool isContinuous() const { return !Ts.has_value(); }
+
+    std::optional<double> Ts;  // Sampling time; nullopt for continuous, value for discrete
+};
+
+/**
+ * @brief Unified state-space LTI system (continuous or discrete).
+ *
+ * If Ts is set, it's discrete; otherwise, continuous.
+ */
+class StateSpace : public LTI {
+   public:
+    Matrix A, B, C, D;
+
+    bool is_stable() const override;
+
+    StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const override;
+
+    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
+    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
+    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
+    MarginInfo        margin() const override;
+    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
+
+    ObservabilityInfo   observability() const override;
+    ControllabilityInfo controllability() const override;
+
+    std::vector<Pole> poles() const override;
+    std::vector<Zero> zeros() const override;
+
+    StateSpace       toStateSpace() const override;
+    TransferFunction toTransferFunction() const override;
+    ZeroPoleGain     toZeroPoleGain() const override;
+
+    StateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, std::optional<double> Ts = std::nullopt);
+    StateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, std::optional<double> Ts = std::nullopt);
+
+    StateSpace(const StateSpace& other);
+    StateSpace(const TransferFunction& tf);
+    StateSpace(const ZeroPoleGain& zpk);
+
+    StateSpace(StateSpace&& other) noexcept;
+    StateSpace(TransferFunction&& tf) noexcept;
+    StateSpace(ZeroPoleGain&& zpk) noexcept;
+
+    StateSpace& operator=(const StateSpace& other);
+    StateSpace& operator=(const TransferFunction& tf);
+    StateSpace& operator=(const ZeroPoleGain& zpk);
+
+    StateSpace& operator=(StateSpace&& other) noexcept;
+    StateSpace& operator=(TransferFunction&& tf) noexcept;
+    StateSpace& operator=(ZeroPoleGain&& zpk) noexcept;
+
+    // State-space output equation: y = Cx + Du
+    ColVec output(const ColVec& x, const ColVec& u) const { return C * x + D * u; }
+
+    // Equality comparison
+    bool operator==(const StateSpace& other) const {
+        return A.isApprox(other.A) && B.isApprox(other.B) &&
+               C.isApprox(other.C) && D.isApprox(other.D) && Ts == other.Ts;
+    }
 
    private:
-    friend class StateSpaceBase<ContinuousStateSpace>;
-
-    StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
-    FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
+    Eigen::VectorXcd eigenvalues() const { return A.eigenvalues(); }
 };
 
-class DiscreteStateSpace : public StateSpaceBase<DiscreteStateSpace> {
+/**
+ * @brief Unified transfer function LTI system (continuous or discrete).
+ *
+ * If Ts is set, it's discrete; otherwise, continuous.
+ */
+class TransferFunction : public LTI {
    public:
-    DiscreteStateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, double Ts)
-        : StateSpaceBase(A, B, C, D), Ts(Ts) {}
+    std::vector<double> num, den;
 
-    DiscreteStateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, double Ts)
-        : StateSpaceBase(std::move(A), std::move(B), std::move(C), std::move(D)), Ts(Ts) {}
+    bool is_stable() const override;
 
-    const double Ts;
+    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
+    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
+    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
+    MarginInfo        margin() const override;
+    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
+
+    ObservabilityInfo   observability() const override;
+    ControllabilityInfo controllability() const override;
+
+    std::vector<Pole> poles() const override;
+    std::vector<Zero> zeros() const override;
+
+    StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const override;
+
+    StateSpace       toStateSpace() const override;
+    TransferFunction toTransferFunction() const override;
+    ZeroPoleGain     toZeroPoleGain() const override;
+
+    // Default constructor - creates a zero transfer function
+    TransferFunction()
+        : num({0.0}), den({1.0}) {}
+
+    TransferFunction(std::vector<double>   num,
+                     std::vector<double>   den,
+                     std::optional<double> Ts = std::nullopt);
+
+    TransferFunction(const TransferFunction& other);
+    TransferFunction(const StateSpace& ss);
+    TransferFunction(const ZeroPoleGain& zpk);
+
+    TransferFunction(TransferFunction&& other) noexcept;
+    TransferFunction(StateSpace&& ss) noexcept;
+    TransferFunction(ZeroPoleGain&& zpk) noexcept;
+
+    // Copy and Move Assignment Operators
+    TransferFunction& operator=(const TransferFunction& other);
+    TransferFunction& operator=(const StateSpace& ss);
+    TransferFunction& operator=(const ZeroPoleGain& zpk);
+
+    TransferFunction& operator=(TransferFunction&& other) noexcept;
+    TransferFunction& operator=(StateSpace&& ss) noexcept;
+    TransferFunction& operator=(ZeroPoleGain&& zpk) noexcept;
 
    private:
-    friend class StateSpaceBase<DiscreteStateSpace>;
-
-    StepResponse      stepImpl(double tStart, double tEnd, Matrix uStep) const;
-    FrequencyResponse bodeImpl(double fStart, double fEnd, size_t numFreq) const;
+    // Caching of state-space representation to avoid repeated conversions
+    mutable std::optional<StateSpace> ss_cache_;
 };
 
-template <class Derived>
-Derived ss(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, std::optional<double> Ts = std::nullopt) {
-    if (Ts.has_value()) {
-        return Derived{A, B, C, D, Ts.value()};
-    } else {
-        return Derived{A, B, C, D};
-    }
-}
+class ZeroPoleGain : public LTI {
+   public:
+    std::vector<Zero> zeros_;
+    std::vector<Pole> poles_;
+    double            gain_;
 
-template <class Derived>
-Derived ss(const TransferFunction& tf) {
-    // Convert transfer function to state space using controllable canonical form
-    const int n = tf.den.cols() - 1;  // Order of the system
-    const int m = tf.num.cols() - 1;  // Order of the numerator
+    bool is_stable() const override;
 
-    Matrix A = Matrix::Zero(n, n);
-    Matrix B = Matrix::Zero(n, 1);
-    Matrix C = Matrix::Zero(1, n);
-    Matrix D = Matrix::Zero(1, 1);
+    StepResponse      step(double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1)) const override;
+    ImpulseResponse   impulse(double tStart = 0.0, double tEnd = 10.0) const override;
+    BodeResponse      bode(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    NyquistResponse   nyquist(double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500) const override;
+    RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
+    MarginInfo        margin() const override;
+    FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
 
-    // Fill A matrix
-    for (int i = 0; i < n - 1; ++i) {
-        A(i, i + 1) = 1.0;
-    }
-    for (int i = 0; i < n; ++i) {
-        A(n - 1, i) = -tf.den(0, i) / tf.den(0, n);
+    ObservabilityInfo   observability() const override;
+    ControllabilityInfo controllability() const override;
+
+    std::vector<Pole> poles() const override { return poles_; };
+    std::vector<Zero> zeros() const override { return zeros_; };
+    double            gain() const { return gain_; }
+
+    StateSpace discretize(double                Ts,
+                          DiscretizationMethod  method  = DiscretizationMethod::ZOH,
+                          std::optional<double> prewarp = std::nullopt) const override;
+
+    StateSpace       toStateSpace() const override;
+    TransferFunction toTransferFunction() const override;
+    ZeroPoleGain     toZeroPoleGain() const override;
+
+    ZeroPoleGain(const StateSpace& ss);
+    ZeroPoleGain(const TransferFunction& tf);
+
+    ZeroPoleGain(std::vector<Zero>     zeros,
+                 std::vector<Pole>     poles,
+                 double                gain,
+                 std::optional<double> Ts = std::nullopt)
+        : zeros_(std::move(zeros)), poles_(std::move(poles)), gain_(gain) {
+        this->Ts = Ts;
     }
 
-    // Fill B matrix
-    B(n - 1, 0) = 1.0;
+    ZeroPoleGain(const ZeroPoleGain& other);
+    ZeroPoleGain(ZeroPoleGain&& other) noexcept;
 
-    // Fill C and D matrices
-    for (int i = 0; i <= m; ++i) {
-        C(0, i) = tf.num(0, i) / tf.den(0, n);
-    }
-    if (m < n) {
-        D(0, 0) = 0.0;
-    } else {
-        D(0, 0) = tf.num(0, m) / tf.den(0, n);
-    }
+    ZeroPoleGain& operator=(const ZeroPoleGain& other);
+    ZeroPoleGain& operator=(const StateSpace& ss);
+    ZeroPoleGain& operator=(const TransferFunction& tf);
 
-    return ss<Derived>(A, B, C, D);
-}
+    ZeroPoleGain& operator=(ZeroPoleGain&& other) noexcept;
+    ZeroPoleGain& operator=(StateSpace&& ss) noexcept;
+    ZeroPoleGain& operator=(TransferFunction&& tf) noexcept;
 
-template <typename SystemType>
-auto c2d(const SystemType& sys, double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) {
-    return sys.discretize(Ts, method, prewarp);
-}
+   private:
+    // Caching of state-space representation to avoid repeated conversions
+    mutable std::optional<StateSpace> ss_cache_;
 
-template <typename SystemType>
-std::string formatStateSpaceMatrices(const SystemType& sys) {
-    std::string result = "A = \n";
-    for (int i = 0; i < sys.A.rows(); ++i) {
-        for (int j = 0; j < sys.A.cols(); ++j) {
-            result += std::format("{:>10.4f}", sys.A(i, j));
-        }
-        result += "\n";
-    }
-    result += "\nB = \n";
-    for (int i = 0; i < sys.B.rows(); ++i) {
-        for (int j = 0; j < sys.B.cols(); ++j) {
-            result += std::format("{:>10.4f}", sys.B(i, j));
-        }
-        result += "\n";
-    }
-    result += "\nC = \n";
-    for (int i = 0; i < sys.C.rows(); ++i) {
-        for (int j = 0; j < sys.C.cols(); ++j) {
-            result += std::format("{:>10.4f}", sys.C(i, j));
-        }
-        result += "\n";
-    }
-    result += "\nD = \n";
-    for (int i = 0; i < sys.D.rows(); ++i) {
-        for (int j = 0; j < sys.D.cols(); ++j) {
-            result += std::format("{:>10.4f}", sys.D(i, j));
-        }
-        result += "\n";
-    }
-    return result;
-}
+    // Caching of transfer function representation to avoid repeated conversions
+    mutable std::optional<TransferFunction> tf_cache_;
+};
+
+StateSpace ss(Matrix A, Matrix B, Matrix C, Matrix D, std::optional<double> Ts = std::nullopt);
+StateSpace ss(Matrix D);
+StateSpace ss(const TransferFunction& tf);
+StateSpace ss(TransferFunction&& tf);
+StateSpace ss(const ZeroPoleGain& zpk_sys);
+StateSpace ss(ZeroPoleGain&& zpk_sys);
+
+TransferFunction tf(std::vector<double> num, std::vector<double> den, std::optional<double> Ts = std::nullopt);
+TransferFunction tf(const ZeroPoleGain& zpk_sys);
+TransferFunction tf(ZeroPoleGain&& zpk_sys);
+TransferFunction tf(const StateSpace& sys);
+TransferFunction tf(StateSpace&& sys);
+TransferFunction tf(const StateSpace& sys, int output_idx, int input_idx);
+TransferFunction tf(StateSpace&& sys, int output_idx, int input_idx);
+
+ZeroPoleGain zpk(const StateSpace& sys);
+ZeroPoleGain zpk(StateSpace&& sys);
+ZeroPoleGain zpk(const StateSpace& sys, int output_idx, int input_idx);
+ZeroPoleGain zpk(TransferFunction&& tf);
+ZeroPoleGain zpk(const TransferFunction& tf);
+ZeroPoleGain zpk(const std::vector<Zero>& zeros,
+                 const std::vector<Pole>& poles,
+                 double                   gain,
+                 std::optional<double>    Ts = std::nullopt);
+
+/**
+ * @brief Convert a continuous-time LTI system to discrete-time using specified method.
+ *
+ * @param sys           Continuous-time LTI system
+ * @param Ts            Sampling time
+ * @param method        Discretization method (default: ZOH)
+ * @param prewarp       Optional pre-warp frequency for Tustin method
+ * @return StateSpace   Discrete-time StateSpace system
+ */
+StateSpace c2d(const LTI& sys, double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt);
 
 // ============================================================================
 // LTI System Arithmetic Operations
@@ -161,10 +464,11 @@ std::string formatStateSpaceMatrices(const SystemType& sys) {
 // systems from simple building blocks (controllers, plants, sensors).
 //
 // Usage Examples:
-//   auto open_loop = controller * plant;           // Series connection
-//   auto parallel_sys = sys1 + sys2;               // Parallel (sum)
-//   auto error_sys = reference - measurement;      // Parallel (difference)
-//   auto closed_loop = feedback(fwd_path, fb_path); // Negative feedback
+//   auto open_loop    = controller * plant;          // Series connection
+//   auto parallel_sys = sys1 + sys2;                 // Parallel (sum)
+//   auto error_sys    = reference - measurement;     // Parallel (difference)
+//   auto closed_loop  = feedback(fwd_path, fb_path); // Negative feedback
+//   auto closed_loop  = fwd_path / fb_path;          // Negative feedback (same as above)
 //
 // Control System Construction:
 //   1. Create individual components (Controller C, Plant G, Sensor H)
@@ -172,232 +476,84 @@ std::string formatStateSpaceMatrices(const SystemType& sys) {
 //   3. This creates closed-loop: T(s) = C*G / (1 + C*G*H)
 // ============================================================================
 
-// Series connection operator: sys1 * sys2
-// Connects output of sys1 to input of sys2
-template <typename Derived1, typename Derived2>
-Derived1 operator*(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<Derived2>& sys2) {
-    static_assert(std::is_same_v<Derived1, Derived2>,
-                  "Cannot combine continuous and discrete systems. Use discretize() or c2d() first.");
+// Type-preserving series connections
+StateSpace       series(const StateSpace& sys1, const StateSpace& sys2);
+TransferFunction series(const TransferFunction& sys1, const TransferFunction& sys2);
+ZeroPoleGain     series(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 
-    // Series connection: sys2 follows sys1 (sys1 -> sys2)
-    // State space representation:
-    // x = [x1; x2]
-    // A = [A1,    0  ]    B = [B1]
-    //     [B2*C1, A2 ]        [B2*D1]
-    // C = [D2*C1, C2]    D = [D2*D1]
+// Type-preserving parallel connections
+StateSpace       parallel(const StateSpace& sys1, const StateSpace& sys2);
+TransferFunction parallel(const TransferFunction& sys1, const TransferFunction& sys2);
+ZeroPoleGain     parallel(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 
-    const int n1 = sys1.A.rows();
-    const int n2 = sys2.A.rows();
-    const int m  = sys1.B.cols();
-    const int p  = sys2.C.rows();
+// Type-preserving feedback connections
+StateSpace       feedback(const StateSpace& sys_forward, const StateSpace& sys_feedback, int sign = -1);
+TransferFunction feedback(const TransferFunction& sys_forward, const TransferFunction& sys_feedback, int sign = -1);
+ZeroPoleGain     feedback(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback, int sign = -1);
 
-    Matrix A = Matrix::Zero(n1 + n2, n1 + n2);
-    Matrix B = Matrix::Zero(n1 + n2, m);
-    Matrix C = Matrix::Zero(p, n1 + n2);
-    Matrix D = Matrix::Zero(p, m);
+// Type-preserving series connection operators
+StateSpace       operator*(const StateSpace& sys1, const StateSpace& sys2);
+TransferFunction operator*(const TransferFunction& sys1, const TransferFunction& sys2);
+ZeroPoleGain     operator*(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 
-    // Fill A matrix
-    A.block(0, 0, n1, n1)   = sys1.A;
-    A.block(n1, 0, n2, n1)  = sys2.B * sys1.C;
-    A.block(n1, n1, n2, n2) = sys2.A;
+// Type-preserving parallel connection operators
+StateSpace       operator+(const StateSpace& sys1, const StateSpace& sys2);
+TransferFunction operator+(const TransferFunction& sys1, const TransferFunction& sys2);
+ZeroPoleGain     operator+(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 
-    // Fill B matrix
-    B.block(0, 0, n1, m)  = sys1.B;
-    B.block(n1, 0, n2, m) = sys2.B * sys1.D;
+// Type-preserving difference operators
+StateSpace       operator-(const StateSpace& sys1, const StateSpace& sys2);
+TransferFunction operator-(const TransferFunction& sys1, const TransferFunction& sys2);
+ZeroPoleGain     operator-(const ZeroPoleGain& sys1, const ZeroPoleGain& sys2);
 
-    // Fill C matrix
-    C.block(0, 0, p, n1)  = sys2.D * sys1.C;
-    C.block(0, n1, p, n2) = sys2.C;
+// Feedback connection operators: sys_forward / sys_feedback
+StateSpace       operator/(const StateSpace& sys_forward, const StateSpace& sys_feedback);
+TransferFunction operator/(const TransferFunction& sys_forward, const TransferFunction& sys_feedback);
+ZeroPoleGain     operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback);
 
-    // Fill D matrix
-    D = sys2.D * sys1.D;
+// ---------------------------------------------------------------------------
+// LTI operations for mixed types always return StateSpace representation
+// ---------------------------------------------------------------------------
+template <class T>
+concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 
-    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
-    } else {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
-    }
+template <SSConvertible A, SSConvertible B>
+StateSpace series(const A& a, const B& b) {
+    return series(a.toStateSpace(), b.toStateSpace());
 }
 
-// Parallel connection operator: sys1 + sys2
-// Outputs are summed
-template <typename Derived1, typename Derived2>
-Derived1 operator+(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<Derived2>& sys2) {
-    static_assert(std::is_same_v<Derived1, Derived2>,
-                  "Cannot combine continuous and discrete systems. Use discretize() or c2d() first.");
-
-    // Parallel connection: outputs are added
-    // State space representation:
-    // x = [x1; x2]
-    // A = [A1, 0 ]    B = [B1]
-    //     [0,  A2]        [B2]
-    // C = [C1, C2]    D = [D1 + D2]
-
-    const int n1 = sys1.A.rows();
-    const int n2 = sys2.A.rows();
-    const int m  = sys1.B.cols();
-    const int p  = sys1.C.rows();
-
-    Matrix A = Matrix::Zero(n1 + n2, n1 + n2);
-    Matrix B = Matrix::Zero(n1 + n2, m);
-    Matrix C = Matrix::Zero(p, n1 + n2);
-    Matrix D = Matrix::Zero(p, m);
-
-    // Fill A matrix (block diagonal)
-    A.block(0, 0, n1, n1)   = sys1.A;
-    A.block(n1, n1, n2, n2) = sys2.A;
-
-    // Fill B matrix (stacked)
-    B.block(0, 0, n1, m)  = sys1.B;
-    B.block(n1, 0, n2, m) = sys2.B;
-
-    // Fill C matrix (concatenated)
-    C.block(0, 0, p, n1)  = sys1.C;
-    C.block(0, n1, p, n2) = sys2.C;
-
-    // Fill D matrix (sum)
-    D = sys1.D + sys2.D;
-
-    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
-    } else {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
-    }
+template <SSConvertible A, SSConvertible B>
+StateSpace parallel(const A& a, const B& b) {
+    return parallel(a.toStateSpace(), b.toStateSpace());
 }
 
-// Parallel connection operator: sys1 - sys2
-// Output of sys2 is subtracted from sys1
-template <typename Derived1, typename Derived2>
-Derived1 operator-(const StateSpaceBase<Derived1>& sys1, const StateSpaceBase<Derived2>& sys2) {
-    static_assert(std::is_same_v<Derived1, Derived2>,
-                  "Cannot combine continuous and discrete systems. Use discretize() or c2d() first.");
-
-    // Parallel connection with subtraction: outputs are subtracted
-    // State space representation:
-    // x = [x1; x2]
-    // A = [A1, 0 ]    B = [B1]
-    //     [0,  A2]        [B2]
-    // C = [C1, -C2]   D = [D1 - D2]
-
-    const int n1 = sys1.A.rows();
-    const int n2 = sys2.A.rows();
-    const int m  = sys1.B.cols();
-    const int p  = sys1.C.rows();
-
-    Matrix A = Matrix::Zero(n1 + n2, n1 + n2);
-    Matrix B = Matrix::Zero(n1 + n2, m);
-    Matrix C = Matrix::Zero(p, n1 + n2);
-    Matrix D = Matrix::Zero(p, m);
-
-    // Fill A matrix (block diagonal)
-    A.block(0, 0, n1, n1)   = sys1.A;
-    A.block(n1, n1, n2, n2) = sys2.A;
-
-    // Fill B matrix (stacked)
-    B.block(0, 0, n1, m)  = sys1.B;
-    B.block(n1, 0, n2, m) = sys2.B;
-
-    // Fill C matrix (concatenated with negation)
-    C.block(0, 0, p, n1)  = sys1.C;
-    C.block(0, n1, p, n2) = -sys2.C;
-
-    // Fill D matrix (difference)
-    D = sys1.D - sys2.D;
-
-    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D), static_cast<const DiscreteStateSpace&>(sys1).Ts};
-    } else {
-        return Derived1{std::move(A), std::move(B), std::move(C), std::move(D)};
-    }
+template <SSConvertible A, SSConvertible B>
+StateSpace feedback(const A& a, const B& b, int sign = -1) {
+    return feedback(a.toStateSpace(), b.toStateSpace(), sign);
 }
 
-// Feedback connection: feedback(sys_forward, sys_feedback, sign)
-// Creates closed-loop system with feedback
-// If sign = +1: positive feedback, if sign = -1: negative feedback (default)
-template <typename Derived1, typename Derived2>
-Derived1 feedback(const StateSpaceBase<Derived1>& sys_forward, const StateSpaceBase<Derived2>& sys_feedback, int sign = -1) {
-    static_assert(std::is_same_v<Derived1, Derived2>,
-                  "Cannot combine continuous and discrete systems. Use discretize() or c2d() first.");
-
-    // Feedback connection:
-    // Closed-loop transfer function: G_cl = G / (1 - sign*G*H)
-    // where G is forward path, H is feedback path
-    // sign = -1 for negative feedback (default), +1 for positive feedback
-    //
-    // State space representation:
-    // A_cl = [A_G + sign*B_G*(I - sign*D_H*D_G)^-1*D_H*C_G,  sign*B_G*(I - sign*D_H*D_G)^-1*C_H]
-    //        [B_H*(I - sign*D_G*D_H)^-1*C_G,                   A_H + sign*B_H*(I - sign*D_G*D_H)^-1*D_G*C_H]
-    // B_cl = [B_G*(I - sign*D_H*D_G)^-1]
-    //        [sign*B_H*(I - sign*D_G*D_H)^-1*D_G]
-    // C_cl = [(I - sign*D_H*D_G)^-1*C_G,  sign*(I - sign*D_H*D_G)^-1*D_H*C_H]
-    // D_cl = (I - sign*D_H*D_G)^-1*D_G
-
-    const auto& G = sys_forward;
-    const auto& H = sys_feedback;
-
-    const int nG = G.A.rows();
-    const int nH = H.A.rows();
-    const int m  = G.B.cols();
-    const int p  = G.C.rows();
-
-    // Calculate the inverses we need
-    const auto   I_p = Matrix::Identity(p, p);
-    const auto   I_m = Matrix::Identity(m, m);
-    const double s   = static_cast<double>(sign);
-
-    // (I - sign*D_H*D_G)^-1
-    const auto inv1 = (I_p - s * H.D * G.D).inverse();
-    // (I - sign*D_G*D_H)^-1
-    const auto inv2 = (I_m - s * G.D * H.D).inverse();
-
-    Matrix A_cl = Matrix::Zero(nG + nH, nG + nH);
-    Matrix B_cl = Matrix::Zero(nG + nH, m);
-    Matrix C_cl = Matrix::Zero(p, nG + nH);
-    Matrix D_cl = Matrix::Zero(p, m);
-
-    // Fill A_cl matrix
-    A_cl.block(0, 0, nG, nG)   = G.A + s * G.B * inv1 * H.D * G.C;
-    A_cl.block(0, nG, nG, nH)  = s * G.B * inv1 * H.C;
-    A_cl.block(nG, 0, nH, nG)  = H.B * inv2 * G.C;
-    A_cl.block(nG, nG, nH, nH) = H.A + s * H.B * inv2 * G.D * H.C;
-
-    // Fill B_cl matrix
-    B_cl.block(0, 0, nG, m)  = G.B * inv1;
-    B_cl.block(nG, 0, nH, m) = s * H.B * inv2 * G.D;
-
-    // Fill C_cl matrix
-    C_cl.block(0, 0, p, nG)  = inv1 * G.C;
-    C_cl.block(0, nG, p, nH) = s * inv1 * H.D * H.C;
-
-    // Fill D_cl matrix
-    D_cl = inv1 * G.D;
-
-    if constexpr (std::is_same_v<Derived1, DiscreteStateSpace>) {
-        return Derived1{std::move(A_cl), std::move(B_cl), std::move(C_cl), std::move(D_cl), static_cast<const DiscreteStateSpace&>(G).Ts};
-    } else {
-        return Derived1{std::move(A_cl), std::move(B_cl), std::move(C_cl), std::move(D_cl)};
-    }
+template <SSConvertible A, SSConvertible B>
+StateSpace operator*(const A& a, const B& b) {
+    return series(a.toStateSpace(), b.toStateSpace());
 }
+
+template <SSConvertible A, SSConvertible B>
+StateSpace operator+(const A& a, const B& b) {
+    return parallel(a.toStateSpace(), b.toStateSpace());
+}
+
+template <SSConvertible A, SSConvertible B>
+StateSpace operator-(const A& a, const B& b) {
+    StateSpace neg_b = b.toStateSpace();
+    neg_b.C          = -neg_b.C;
+    neg_b.D          = -neg_b.D;
+
+    return parallel(a.toStateSpace(), neg_b);
+}
+
+template <SSConvertible A, SSConvertible B>
+StateSpace operator/(const A& a, const B& b) {
+    return feedback(a.toStateSpace(), b.toStateSpace(), -1);
+}
+
 };  // namespace control
-
-template <>
-struct std::formatter<control::ContinuousStateSpace> {
-    constexpr auto parse(std::format_parse_context& ctx) {
-        return ctx.begin();
-    }
-
-    auto format(const control::ContinuousStateSpace& sys, std::format_context& ctx) const {
-        return std::format_to(ctx.out(), "{}", control::formatStateSpaceMatrices(sys));
-    }
-};
-
-template <>
-struct std::formatter<control::DiscreteStateSpace> {
-    constexpr auto parse(std::format_parse_context& ctx) {
-        return ctx.begin();
-    }
-
-    auto format(const control::DiscreteStateSpace& sys, std::format_context& ctx) const {
-        return std::format_to(ctx.out(), "{}", control::formatStateSpaceMatrices(sys));
-    }
-};

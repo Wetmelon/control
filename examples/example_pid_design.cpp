@@ -1,7 +1,6 @@
-#include <format>
 #include <iostream>
 
-#include "../source/control.hpp"
+#include "control.hpp"
 #include "matplot/matplot.h"
 
 int main() {
@@ -19,7 +18,7 @@ int main() {
         Matrix::Zero(1, 1)                          // D
     };
     std::cout << "Plant G(s) = 1/(s^2 + 2s + 1):\n"
-              << std::format("{}\n", plant);
+              << fmt::format("{}\n", plant);
 
     // Create PID controller components
     // P: Proportional gain Kp = 10
@@ -50,11 +49,11 @@ int main() {
 
     std::cout << "\n=== PID Controller Components ===\n";
     std::cout << "P (Kp = 10):\n"
-              << std::format("{}\n", P);
+              << fmt::format("{}\n", P);
     std::cout << "I (Ki/s, Ki = 5):\n"
-              << std::format("{}\n", I);
+              << fmt::format("{}\n", I);
     std::cout << "D (Kd*s/(tau*s+1), Kd = 2, tau = 0.01):\n"
-              << std::format("{}\n", D);
+              << fmt::format("{}\n", D);
 
     // Combine PID components: PID = P + I + D
     auto PI  = P + I;
@@ -62,13 +61,13 @@ int main() {
 
     std::cout << "\n=== Combined PID Controller ===\n";
     std::cout << "PID = P + I + D:\n"
-              << std::format("{}\n", PID);
+              << fmt::format("{}\n", PID);
 
     // Create open-loop system: L(s) = PID(s) * G(s)
     auto open_loop = PID * plant;
     std::cout << "\n=== Open-Loop System ===\n";
     std::cout << "L(s) = PID(s) * G(s):\n"
-              << std::format("{}\n", open_loop);
+              << fmt::format("{}\n", open_loop);
 
     // Unity feedback sensor
     StateSpace sensor{
@@ -83,45 +82,47 @@ int main() {
     std::cout << "\n=== Closed-Loop System ===\n";
     std::cout << "T(s) = L(s) / (1 + L(s)):\n";
     std::cout << "System order: " << closed_loop.A.rows() << "\n";
-    std::cout << std::format("{}\n", closed_loop);
+    std::cout << fmt::format("{}\n", closed_loop);
 
     // Test step response
     std::cout << "\n=== Step Response Analysis ===\n";
     auto step_resp = closed_loop.step(0.0, 2.0);
 
     // Find steady-state value and settling time
-    double steady_state       = step_resp.output.back();
-    double settling_threshold = 0.02 * steady_state;  // 2% criterion
-    double settling_time      = 0.0;
-
-    for (size_t i = step_resp.output.size() - 1; i > 0; --i) {
-        if (std::abs(step_resp.output[i] - steady_state) > settling_threshold) {
-            settling_time = step_resp.time[i];
-            break;
+    double steady_state       = step_resp.output.back()(0, 0);
+    double settling_threshold = 0.02 * std::abs(steady_state);  // 2% criterion
+    size_t settling_idx       = 0;
+    for (size_t i = 0; i < step_resp.output.size(); ++i) {
+        if (std::abs(step_resp.output[i](0, 0) - steady_state) > settling_threshold) {
+            settling_idx = i;
         }
     }
+    double settling_time = step_resp.time[settling_idx];
 
     // Find peak overshoot
-    double peak      = *std::max_element(step_resp.output.begin(), step_resp.output.end());
+    // Find peak value
+    double peak = 0.0;
+    for (const auto& y : step_resp.output) {
+        peak = std::max(peak, y(0, 0));
+    }
     double overshoot = ((peak - steady_state) / steady_state) * 100.0;
 
-    std::cout << "Steady-state value: " << std::format("{:.4f}", steady_state) << "\n";
-    std::cout << "Peak overshoot: " << std::format("{:.2f}%", overshoot) << "\n";
-    std::cout << "Settling time (2%): " << std::format("{:.3f}s", settling_time) << "\n";
+    std::cout << "Steady-state value: " << fmt::format("{:.4f}", steady_state) << "\n";
+    std::cout << "Peak overshoot: " << fmt::format("{:.2f}%", overshoot) << "\n";
+    std::cout << "Settling time (2%): " << fmt::format("{:.3f}s", settling_time) << "\n";
 
     std::cout << "\nFirst few step response values:\n";
     for (size_t i = 0; i < std::min(size_t(15), step_resp.time.size()); ++i) {
-        std::cout << std::format("  t={:.4f}s, y={:.4f}\n", step_resp.time[i], step_resp.output[i]);
+        std::cout << fmt::format("  t={:.4f}s, y={:.4f}\n", step_resp.time[i], step_resp.output[i](0, 0));
     }
 
-    constexpr double fmin       = 0.01;   // Minimum frequency for Bode plot
-    constexpr double fmax       = 100.0;  // Maximum frequency for Bode plot
-    constexpr double num_points = 1000;   // Number of frequency points
+    constexpr double fmin = 0.01;   // Minimum frequency for Bode plot
+    constexpr double fmax = 100.0;  // Maximum frequency for Bode plot
 
-    // Test frequency response
+    // Test frequency response (uses adaptive sampling)
     std::cout << "\n=== Bode Plot Analysis ===\n";
-    const auto bode_open   = open_loop.bode(fmin, fmax, num_points);
-    const auto bode_closed = closed_loop.bode(fmin, fmax, num_points);
+    const auto bode_open   = open_loop.bode(fmin, fmax);
+    const auto bode_closed = closed_loop.bode(fmin, fmax);
 
     // Find -3dB bandwidth
     double bandwidth = 0.0;
@@ -141,8 +142,8 @@ int main() {
         }
     }
 
-    std::cout << "Closed-loop bandwidth (-3dB): " << std::format("{:.2f} Hz", bandwidth) << "\n";
-    std::cout << "Closed-loop bandwidth: " << std::format("{:.2f} rad/s", bandwidth * 2.0 * 3.14159) << "\n";
+    std::cout << "Closed-loop bandwidth (-3dB): " << fmt::format("{:.2f} Hz", bandwidth) << "\n";
+    std::cout << "Closed-loop bandwidth: " << fmt::format("{:.2f} rad/s", bandwidth * 2.0 * 3.14159) << "\n";
 
     // Create figure for Bode plots
     auto fig_mag = matplot::figure(true);

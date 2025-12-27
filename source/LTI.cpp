@@ -1,182 +1,197 @@
 #include "LTI.hpp"
 
-#include <cassert>
-#include <cmath>
 #include <cstddef>
+#include <optional>
 
-#include "solver.hpp"
-#include "unsupported/Eigen/MatrixFunctions"  // IWYU pragma: keep
+#include "types.hpp"
+#include "unsupported/Eigen/MatrixFunctions"
 
 namespace control {
 
-DiscreteStateSpace ContinuousStateSpace::discretize(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
-    const auto I    = decltype(A)::Identity(A.rows(), A.cols());
-    const auto E    = (A * Ts).exp();
-    const auto Ainv = A.inverse();
-    const auto I1   = Ainv * (E - I);
-    const auto I2   = Ainv * (E * Ts - I1);
-
-    switch (method) {
-        case DiscretizationMethod::ZOH: {
-            return DiscreteStateSpace{
-                E,       // A
-                I1 * B,  // B
-                C,       // C
-                D,       // D
-                Ts       // Ts
-            };
-        }
-        case DiscretizationMethod::FOH: {
-            const auto Q = I1 - (I2 / Ts);
-            const auto P = I1 - Q;
-            return DiscreteStateSpace{
-                E,                  // A
-                (P + (E * Q)) * B,  // B
-                C,                  // C
-                C * Q * B + D,      // D
-                Ts                  // Ts
-            };
-        }
-        case DiscretizationMethod::Tustin:  // Fallthrough
-        case DiscretizationMethod::Bilinear: {
-            double k = 2.0 / Ts;
-            if (prewarp.has_value()) {
-                k = prewarp.value() / std::tan(prewarp.value() * Ts / 2.0);
-            }
-
-            const auto Q = (k * I - A).inverse();
-            return DiscreteStateSpace{
-                Q * (k * I + A),  // A
-                (I + A) * Q * B,  // B
-                C,                // C
-                C * Q * B + D,    // D
-                Ts                // Ts
-            };
-        }
-        default:
-            // Default to ZOH
-            return DiscreteStateSpace{
-                E,       // A
-                I1 * B,  // B
-                C,       // C
-                D,       // D
-                Ts       // Ts
-            };
-    }
+/* ZPK Free Functions */
+ZeroPoleGain zpk(const std::vector<Zero>& zeros,
+                 const std::vector<Pole>& poles,
+                 double                   gain,
+                 std::optional<double>    Ts) {
+    return ZeroPoleGain{zeros, poles, gain, Ts};
 }
 
-FrequencyResponse ContinuousStateSpace::bodeImpl(double fStart, double fEnd, size_t numFreq) const {
-    auto response = FrequencyResponse{
-        .freq      = std::vector<double>(numFreq),
-        .magnitude = std::vector<double>(numFreq),
-        .phase     = std::vector<double>(numFreq)};
-
-    // Generate logarithmically spaced frequencies
-    const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
-    const auto logStep            = (logEnd - logStart) / (numFreq - 1);
-
-    for (size_t i = 0; i < numFreq; ++i) {
-        response.freq[i] = std::pow(10.0, logStart + i * logStep);     // Hz
-        const auto w     = 2.0 * std::numbers::pi * response.freq[i];  // Convert to rad/s for calculations
-
-        const auto s = std::complex<double>(0, w);  // s = jω
-
-        // Calculate transfer function H(s) = C(sI - A)^(-1)B + D
-        const auto I = control::Matrix::Identity(A.rows(), A.cols());
-        const auto H = (C * (((s * I) - A).inverse()) * B) + D;
-
-        // Store magnitude in dB and phase in degrees
-        response.magnitude[i] = 20.0 * std::log10(std::abs(H(0, 0)));
-        response.phase[i]     = std::arg(H(0, 0)) * 180.0 / std::numbers::pi;
-    }
-
-    return response;
+ZeroPoleGain zpk(const TransferFunction& tf) {
+    return tf.toZeroPoleGain();
 }
 
-FrequencyResponse DiscreteStateSpace::bodeImpl(double fStart, double fEnd, size_t numFreq) const {
-    auto response = FrequencyResponse{
-        .freq      = std::vector<double>(numFreq),
-        .magnitude = std::vector<double>(numFreq),
-        .phase     = std::vector<double>(numFreq)};
-
-    // Generate logarithmically spaced frequencies
-    const auto [logStart, logEnd] = std::tuple{std::log10(fStart), std::log10(fEnd)};
-    const auto logStep            = (logEnd - logStart) / (numFreq - 1);
-
-    for (size_t i = 0; i < numFreq; ++i) {
-        response.freq[i] = std::pow(10.0, logStart + (i * logStep));  // Hz
-
-        // Discrete system: z = exp(j * 2π * f * Ts)
-        double omega_d = 2.0 * std::numbers::pi * response.freq[i] * Ts;
-        auto   z       = std::exp(std::complex<double>(0, omega_d));
-
-        // Calculate transfer function H(z) = C(zI - A)^(-1)B + D
-        const auto I = control::Matrix::Identity(A.rows(), A.cols());
-        const auto H = (C * ((z * I) - A).inverse() * B) + D;
-
-        // Store magnitude in dB and phase in degrees
-        response.magnitude[i] = 20.0 * std::log10(std::abs(H(0, 0)));
-        response.phase[i]     = std::arg(H(0, 0)) * 180.0 / std::numbers::pi;
-    }
-
-    return response;
+ZeroPoleGain zpk(TransferFunction&& tf) {
+    return tf.toZeroPoleGain();  // Method handles const ref, move not needed
 }
 
-StepResponse ContinuousStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
-    Solver solver{IntegrationMethod::RK45, std::nullopt};
+ZeroPoleGain zpk(const StateSpace& sys) {
+    return sys.toZeroPoleGain();
+}
 
-    const double dt        = solver.getTimestep().value_or(0.01);  // Use configured timestep or default 10ms steps
-    size_t       numPoints = static_cast<size_t>((tEnd - tStart) / dt) + 1;
+ZeroPoleGain zpk(StateSpace&& sys) {
+    return sys.toZeroPoleGain();  // Method handles const ref, move not needed
+}
 
-    StepResponse response;
-    Matrix       x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
-    if (!solver.getTimestep().has_value()) {
-        // Adaptive timestepping for RK45 when no fixed timestep is set
-        std::vector<AdaptiveStepResult> integration_data;
+/* SS Free Functions */
+StateSpace ss(const TransferFunction& tf) {
+    return tf.toStateSpace();
+}
 
-        double time = tStart;
-        while (time < tEnd) {
-            auto res = solver.evolveAdaptiveTimestep(A, B, x, uStep, dt, 1e-6);
-            x        = res.x;
+StateSpace ss(TransferFunction&& tf) {
+    return tf.toStateSpace();  // Method handles const ref, move not needed
+}
 
-            time += res.step_size;
-            response.time.push_back(time);
-            response.output.push_back(output(x, uStep)(0, 0));
+StateSpace ss(const ZeroPoleGain& zpk_sys) {
+    return zpk_sys.toStateSpace();
+}
+
+StateSpace ss(ZeroPoleGain&& zpk_sys) {
+    return zpk_sys.toStateSpace();  // Method handles const ref, move not needed
+}
+
+/* TF Free Functions */
+TransferFunction tf(const StateSpace& sys) {
+    return sys.toTransferFunction();
+}
+
+TransferFunction tf(StateSpace&& sys) {
+    return sys.toTransferFunction();  // Method handles const ref, move not needed
+}
+
+TransferFunction tf(const ZeroPoleGain& zpk_sys) {
+    return zpk_sys.toTransferFunction();
+}
+
+TransferFunction tf(ZeroPoleGain&& zpk_sys) {
+    return zpk_sys.toTransferFunction();  // Method handles const ref, move not needed
+}
+
+/**
+ * @brief Extract a SISO transfer function from a MIMO StateSpace system.
+ *
+ * For MIMO systems, extracts the transfer function from a specific input to a specific output.
+ * This creates a SISO subsystem: G_ij(s) = C_i(sI-A)^(-1)B_j + D_ij
+ * where i is the output index and j is the input index (0-based).
+ *
+ * @param sys          StateSpace system (can be SISO or MIMO)
+ * @param output_idx   Output index (0-based, must be < number of outputs)
+ * @param input_idx    Input index (0-based, must be < number of inputs)
+ * @return TransferFunction  Transfer function from input_idx to output_idx
+ * @throws std::out_of_range if indices are out of bounds
+ */
+TransferFunction tf(const StateSpace& sys, int output_idx, int input_idx) {
+    // Validate indices
+    int num_outputs = sys.C.rows();
+    int num_inputs  = sys.B.cols();
+
+    if (output_idx < 0 || output_idx >= num_outputs) {
+        throw std::out_of_range("Output index " + std::to_string(output_idx) +
+                                " is out of range [0, " + std::to_string(num_outputs - 1) + "]");
+    }
+
+    if (input_idx < 0 || input_idx >= num_inputs) {
+        throw std::out_of_range("Input index " + std::to_string(input_idx) +
+                                " is out of range [0, " + std::to_string(num_inputs - 1) + "]");
+    }
+
+    int n = sys.A.rows();  // State dimension
+
+    // Extract SISO subsystem: C_row(i), B_col(j), D(i,j)
+    RowVec C_i  = sys.C.row(output_idx);
+    ColVec B_j  = sys.B.col(input_idx);
+    double D_ij = sys.D(output_idx, input_idx);
+
+    // For very simple cases, handle directly
+    if (n == 0) {
+        // Pure gain system (no states)
+        return TransferFunction({D_ij}, {1.0}, sys.Ts);
+    }
+
+    // Compute transfer function using Faddeev-LeVerrier algorithm
+    // This is numerically stable for high-order systems
+
+    // Step 1: Compute characteristic polynomial using Faddeev-LeVerrier
+    // det(sI - A) = s^n + a_{n-1}s^{n-1} + ... + a_0
+    std::vector<double> p(n + 1, 0.0);  // p[0] = 0
+    std::vector<Matrix> H(n + 1);
+    H[0] = Matrix::Identity(n, n);
+
+    for (int k = 1; k <= n; ++k) {
+        H[k] = sys.A * H[k - 1];
+        p[k] = H[k].trace() / static_cast<double>(k);
+    }
+
+    // Build denominator polynomial: s^n + a_{n-1}s^{n-1} + ... + a_0
+    std::vector<double> den(n + 1);
+    den[0] = 1.0;  // Leading coefficient s^n
+    for (int i = 1; i <= n; ++i) {
+        den[i] = (i % 2 == 1 ? -p[i] : p[i]);
+    }
+
+    // Step 2: Compute numerator coefficients
+    // For the transfer function G(s) = [C*adj(sI-A)*B + D*det(sI-A)] / det(sI-A)
+    std::vector<double> num(n + 1, 0.0);
+
+    // Add D*det(sI-A) term
+    for (int i = 0; i <= n; ++i) {
+        num[i] += D_ij * den[i];
+    }
+
+    // Add C*adj(sI-A)*B term using the Faddeev-LeVerrier matrices
+    // The adjoint matrix adj(sI-A) = sum_{k=0}^{n-1} s^{n-1-k} * F_k
+    // where F_k satisfy a similar recurrence
+    if (n > 0) {
+        std::vector<Matrix> F(n);
+        F[0] = Matrix::Identity(n, n);
+
+        for (int k = 1; k < n; ++k) {
+            F[k] = sys.A * F[k - 1] - p[k] * Matrix::Identity(n, n);
         }
 
-    } else {
-        // Fixed timestep if set
-        for (size_t i = 0; i < numPoints; ++i) {
-            response.time.push_back(tStart + i * dt);
-            response.output.push_back(output(x, uStep)(0, 0));
-
-            x = solver.evolveFixedTimestep(A, B, x, uStep, dt).x;
+        // Compute C * F_k * B for each k and add to appropriate power of s
+        for (int k = 0; k < n; ++k) {
+            double coeff = C_i.dot(F[k] * B_j);
+            num[k + 1] += coeff;
         }
     }
-    return response;
-}
 
-StepResponse DiscreteStateSpace::stepImpl(double tStart, double tEnd, Matrix uStep) const {
-    Solver solver{IntegrationMethod::RK45, Ts};
-
-    // Number of discrete time points
-    size_t numPoints = static_cast<size_t>((tEnd - tStart) / Ts) + 1;
-
-    StepResponse response;
-    response.time.resize(numPoints);
-    response.output.resize(numPoints);
-    Matrix x = Matrix::Zero(A.rows(), 1);  // Start from zero initial conditions
-    for (size_t i = 0; i < numPoints; ++i) {
-        response.time[i]   = tStart + i * Ts;
-        response.output[i] = (C * x + D * uStep)(0, 0);
-        auto res           = solver.evolveDiscrete(A, B, x, uStep);
-        x                  = res.x;
+    // Normalize denominator to have leading coefficient 1
+    double den_leading = den[0];
+    if (std::abs(den_leading) > 1e-10) {
+        for (double& coeff : den) {
+            coeff /= den_leading;
+        }
+        for (double& coeff : num) {
+            coeff /= den_leading;
+        }
     }
-    return response;
+
+    // Remove leading zeros from numerator (but keep at least one coefficient)
+    while (num.size() > 1 && std::abs(num[0]) < 1e-10) {
+        num.erase(num.begin());
+    }
+
+    // Create and return transfer function
+    TransferFunction result(num, den, sys.Ts);
+    return result;
 }
 
-// Explicit instantiations
-template class StateSpaceBase<ContinuousStateSpace>;
-template class StateSpaceBase<DiscreteStateSpace>;
+TransferFunction tf(StateSpace&& sys, int output_idx, int input_idx) {
+    // Forward to const& implementation to avoid duplicating logic
+    return tf(static_cast<const StateSpace&>(sys), output_idx, input_idx);
+}
+
+/**
+ * @brief Convert a continuous-time LTI system to discrete-time using specified method.
+ *
+ * @param sys           Continuous-time LTI system
+ * @param Ts            Sampling time
+ * @param method        Discretization method (default: ZOH)
+ * @param prewarp       Optional pre-warp frequency for Tustin method
+ * @return StateSpace   Discrete-time StateSpace system
+ */
+StateSpace c2d(const LTI& sys, double Ts, DiscretizationMethod method, std::optional<double> prewarp) {
+    return sys.discretize(Ts, method, prewarp);
+}
 
 }  // namespace control

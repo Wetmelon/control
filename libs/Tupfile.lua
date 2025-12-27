@@ -77,5 +77,5 @@ matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MAT
 matplot_lib = tup.rule(
     matplot_objs,
     'ar rcs %o %f',
-    'libmatplot.a'
+    {'build/libmatplot.a', extra_outputs = ROOT..'/<libmatplot>'}
 )
