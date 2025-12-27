@@ -91,7 +91,6 @@ enum class GramianType {
     Observability,
 };
 
-
 /**
  * @brief Abstract base class for all LTI systems (Linear Time-Invariant).
  *
@@ -259,8 +258,6 @@ ZeroPoleGain zpk(const std::vector<Zero>& zeros,
                  const std::vector<Pole>& poles,
                  double                   gain,
                  std::optional<double>    Ts = std::nullopt);
-
-
 
 /**
  * @brief Convert a continuous-time LTI system to discrete-time using specified method.
