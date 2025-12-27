@@ -45,13 +45,11 @@ struct RootLocusResponse {
 };
 
 struct ObservabilityInfo {
-    Matrix gramian;
     size_t rank;
     bool   isObservable;
 };
 
 struct ControllabilityInfo {
-    Matrix gramian;
     size_t rank;
     bool   isControllable;
 };
@@ -89,6 +87,11 @@ enum class SystemType {
     Discrete,
 };
 
+enum class GramianType {
+    Controllability,
+    Observability,
+};
+
 template <class T>
 concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 
@@ -101,10 +104,6 @@ concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 class LTI {
    public:
     virtual ~LTI() = default;
-
-    /* TODO:
-        - Implement margin(), stepinfo(), freqresp(), etc. with appropriate return structures
-    */
 
     /**
      * @brief  Compute gain and phase margins of the system.
@@ -448,6 +447,9 @@ ZeroPoleGain zpk(const std::vector<Zero>& zeros,
                  const std::vector<Pole>& poles,
                  double                   gain,
                  std::optional<double>    Ts = std::nullopt);
+
+// Compute Gramian matrices (continuous-time iterative method)
+Matrix gramian(const StateSpace& sys, GramianType type);
 
 // Model reduction utilities (operate on StateSpace representation)
 StateSpace minreal(const StateSpace& sys, double tol = 1e-9);

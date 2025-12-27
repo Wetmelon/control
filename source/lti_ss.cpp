@@ -503,65 +503,85 @@ StateSpace StateSpace::discretize(double Ts, DiscretizationMethod method, std::o
 }
 
 ObservabilityInfo StateSpace::observability() const {
-    // Compute the observability gramian W_o = sum_{k=0}^infty (A^T)^k C^T C A^k
-    // This iterative method assumes the system is stable (all eigenvalues have negative real parts).
-    // For unstable systems, the series may not converge.
-    // For systems with eigenvalues near the imaginary axis, results may be numerically unstable.
-    // MATLAB warns that gram() may give poor results for singular or ill-conditioned systems.
-    // Use obsv() matrix rank for guaranteed structural observability testing.
-    const int n    = A.rows();
-    Matrix    W    = Matrix::Zero(n, n);
-    Matrix    term = C.transpose() * C;
-    W += term;
-
-    // Iterative computation for stable systems
-    const int max_iter = 1000;
-    for (int k = 1; k < max_iter; ++k) {
-        term = A.transpose() * term * A;
-        W += term;
-        // Check for convergence
-        if (term.norm() < 1e-12 * W.norm()) {
-            break;
-        }
+    // Structural observability: compute observability matrix and its rank.
+    const int n = A.rows();
+    const int p = static_cast<int>(C.rows());
+    if (n == 0) {
+        return ObservabilityInfo{.rank = 0, .isObservable = true};
     }
 
-    // Compute rank and observability
-    Eigen::ColPivHouseholderQR<Matrix> qr(W);
+    Matrix Ob = Matrix::Zero(p * n, n);
+    Matrix Ak = Matrix::Identity(n, n);
+    for (int k = 0; k < n; ++k) {
+        Ob.block(k * p, 0, p, n) = C * Ak;
+        Ak                       = A * Ak;
+    }
+
+    Eigen::ColPivHouseholderQR<Matrix> qr(Ob);
     size_t                             rank         = qr.rank();
     bool                               isObservable = (rank == static_cast<size_t>(n));
 
-    return ObservabilityInfo{.gramian = W, .rank = rank, .isObservable = isObservable};
+    // Do not compute the gramian here; return empty (zero) gramian to avoid expensive or unstable ops.
+    return ObservabilityInfo{.rank = rank, .isObservable = isObservable};
 }
 
 ControllabilityInfo StateSpace::controllability() const {
-    // Compute the controllability gramian W_c = sum_{k=0}^infty A^k B B^T (A^T)^k
-    // This iterative method assumes the system is stable (all eigenvalues have negative real parts).
-    // For unstable systems, the series may not converge.
-    // For systems with eigenvalues near the imaginary axis, results may be numerically unstable.
-    // MATLAB warns that gram() may give poor results for singular or ill-conditioned systems.
-    // Use ctrb() matrix rank for guaranteed structural controllability testing.
-    const int n    = A.rows();
-    Matrix    W    = Matrix::Zero(n, n);
-    Matrix    term = B * B.transpose();
-    W += term;
-
-    // Iterative computation for stable systems
-    const int max_iter = 1000;
-    for (int k = 1; k < max_iter; ++k) {
-        term = A * term * A.transpose();
-        W += term;
-        // Check for convergence
-        if (term.norm() < 1e-12 * W.norm()) {
-            break;
-        }
+    // Structural controllability: compute controllability matrix and its rank.
+    const int n = A.rows();
+    const int m = static_cast<int>(B.cols());
+    if (n == 0) {
+        return ControllabilityInfo{.rank = 0, .isControllable = true};
     }
 
-    // Compute rank and controllability
-    Eigen::ColPivHouseholderQR<Matrix> qr(W);
+    Matrix Ctrb = Matrix::Zero(n, n * std::max(1, m));
+    Matrix Ak2  = Matrix::Identity(n, n);
+    for (int k = 0; k < n; ++k) {
+        Ctrb.block(0, k * m, n, m) = Ak2 * B;
+        Ak2                        = A * Ak2;
+    }
+
+    Eigen::ColPivHouseholderQR<Matrix> qr(Ctrb);
     size_t                             rank           = qr.rank();
     bool                               isControllable = (rank == static_cast<size_t>(n));
 
-    return ControllabilityInfo{.gramian = W, .rank = rank, .isControllable = isControllable};
+    // Do not compute the gramian here; return empty (zero) gramian to avoid expensive or unstable ops.
+    return ControllabilityInfo{.rank = rank, .isControllable = isControllable};
+}
+
+// Compute Gramian matrices for continuous-time systems using iterative series
+Matrix gramian(const StateSpace& sys, GramianType type) {
+    if (sys.isDiscrete()) {
+        throw std::runtime_error("gramian: discrete-time systems are not yet supported");
+    }
+
+    const Matrix A = sys.A;
+    const Matrix B = sys.B;
+    const Matrix C = sys.C;
+
+    const int n = static_cast<int>(A.rows());
+    if (n == 0) return Matrix::Zero(0, 0);
+
+    Matrix    W        = Matrix::Zero(n, n);
+    const int max_iter = 1000;
+    if (type == GramianType::Observability) {
+        Matrix term = C.transpose() * C;
+        W += term;
+        for (int k = 1; k < max_iter; ++k) {
+            term = A.transpose() * term * A;
+            W += term;
+            if (term.norm() < 1e-12 * W.norm()) break;
+        }
+    } else {  // Controllability
+        Matrix term = B * B.transpose();
+        W += term;
+        for (int k = 1; k < max_iter; ++k) {
+            term = A * term * A.transpose();
+            W += term;
+            if (term.norm() < 1e-12 * W.norm()) break;
+        }
+    }
+
+    return W;
 }
 
 TransferFunction StateSpace::toTransferFunction() const {
