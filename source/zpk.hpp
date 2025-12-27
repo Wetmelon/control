@@ -40,9 +40,9 @@ class ZeroPoleGain : public LTI {
                           DiscretizationMethod  method  = DiscretizationMethod::ZOH,
                           std::optional<double> prewarp = std::nullopt) const override;
 
-    StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
+    StateSpace       toStateSpace() const;
+    TransferFunction toTransferFunction() const;
+    ZeroPoleGain     toZeroPoleGain() const;
 
     ZeroPoleGain(const StateSpace& ss);
     ZeroPoleGain(const TransferFunction& tf);

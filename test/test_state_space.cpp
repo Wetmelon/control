@@ -687,19 +687,6 @@ TEST_CASE("StateSpace to TransferFunction Conversion") {
         CHECK(tf_sys.den[0] == doctest::Approx(1.0));
     }
 
-    SUBCASE("MIMO system throws with SISO tf()") {
-        // Create a 2x2 MIMO system
-        StateSpace mimo_sys{
-            Matrix::Identity(2, 2),  // A
-            Matrix::Identity(2, 2),  // B (2 inputs)
-            Matrix::Identity(2, 2),  // C (2 outputs)
-            Matrix::Zero(2, 2)       // D
-        };
-
-        // Should throw when trying to convert MIMO to TF without indices
-        CHECK_THROWS_AS(tf(mimo_sys), std::invalid_argument);
-    }
-
     SUBCASE("Extract SISO from MIMO using indices") {
         // Create a 2x2 MIMO system
         StateSpace mimo_sys{

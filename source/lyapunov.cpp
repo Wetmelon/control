@@ -9,13 +9,13 @@ namespace control {
 // Primary solver: Schur-based Bartels–Stewart using complex Schur decomposition.
 // This transforms A -> U*T*U^H, Q -> U^H * Q * U and solves T*X + X*T^H = -Qhat
 // by vectorizing the triangular system. For moderate sizes this is robust.
-Matrix solve_continuous_lyap(const Matrix& A, const Matrix& Q) {
+Matrix lyap(const Matrix& A, const Matrix& Q) {
     const int n = static_cast<int>(A.rows());
     if (n == 0) return Matrix::Zero(0, 0);
 
     // Quick check: ensure A is square and Q matches
     if (A.rows() != A.cols() || Q.rows() != n || Q.cols() != n) {
-        throw std::invalid_argument("solve_continuous_lyap: dimension mismatch");
+        throw std::invalid_argument("lyap: dimension mismatch");
     }
 
     // If A is very small, fall back to direct Kronecker solve for simplicity

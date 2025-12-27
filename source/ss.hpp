@@ -40,8 +40,8 @@ class StateSpace : public LTI {
     std::vector<Zero> zeros() const override;
 
     StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
+    TransferFunction toTransferFunction(int output_idx = 0, int input_idx = 0) const;
+    ZeroPoleGain     toZeroPoleGain() const;
 
     StateSpace(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, std::optional<double> Ts = std::nullopt);
     StateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, std::optional<double> Ts = std::nullopt);

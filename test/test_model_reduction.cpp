@@ -15,7 +15,7 @@ TEST_CASE("minreal removes uncontrollable states") {
     Matrix D = Matrix::Zero(1, 1);
 
     StateSpace sys(A, B, C, D);
-    StateSpace red = minreal(sys);
+    StateSpace red = sys.minreal();
 
     CHECK(red.A.rows() == 1);
     CHECK(red.B.rows() == 1);
@@ -38,7 +38,7 @@ TEST_CASE("minreal removes unobservable states") {
     Matrix D = Matrix::Zero(1, 1);
 
     StateSpace sys(A, B, C, D);
-    StateSpace red = minreal(sys);
+    StateSpace red = sys.minreal();
 
     CHECK(red.A.rows() == 1);
     CHECK(red.B.rows() == 1);
@@ -55,7 +55,7 @@ TEST_CASE("minreal no-op on minimal system") {
     Matrix D = Matrix::Zero(1, 1);
 
     StateSpace sys(A, B, C, D);
-    StateSpace red = minreal(sys);
+    StateSpace red = sys.minreal();
 
     CHECK(red.A.rows() == 1);
     CHECK(red.A(0, 0) == doctest::Approx(-1.0));

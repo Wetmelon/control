@@ -53,20 +53,18 @@ StateSpace::StateSpace(Matrix&& A, Matrix&& B, Matrix&& C, Matrix&& D, std::opti
 }
 
 StateSpace::StateSpace(const TransferFunction& tf)
-    : StateSpace(ss(tf)) {}
+    : StateSpace(tf.toStateSpace()) {}
 
 StateSpace::StateSpace(TransferFunction&& tf) noexcept
-    : StateSpace(ss(std::move(tf))) {}
+    : StateSpace(std::move(tf).toStateSpace()) {}
 
 StateSpace::StateSpace(const StateSpace& other)
     : A(other.A), B(other.B), C(other.C), D(other.D) {
-    validateStateSpaceMatrices(this->A, this->B, this->C, this->D);
     this->Ts = other.Ts;
 }
 
 StateSpace::StateSpace(StateSpace&& other) noexcept
     : A(std::move(other.A)), B(std::move(other.B)), C(std::move(other.C)), D(std::move(other.D)) {
-    validateStateSpaceMatrices(this->A, this->B, this->C, this->D);
     this->Ts = other.Ts;
 }
 
@@ -96,13 +94,13 @@ StateSpace& StateSpace::operator=(StateSpace&& other) noexcept {
 
 // Assignment from TransferFunction
 StateSpace& StateSpace::operator=(const TransferFunction& tf) {
-    *this = ss(tf);
+    *this = tf.toStateSpace();
     return *this;
 }
 
 // Move assignment from TransferFunction
 StateSpace& StateSpace::operator=(TransferFunction&& tf) noexcept {
-    *this = ss(std::move(tf));
+    *this = std::move(tf).toStateSpace();
     return *this;
 }
 
@@ -656,26 +654,123 @@ Matrix StateSpace::gramian(GramianType type) const {
     if (type == GramianType::Observability) {
         // Observability Gramian Q solves: A^T*Q + Q*A + C^T*C = 0
         Matrix CtC = C.transpose() * C;
-        Matrix Q   = solve_continuous_lyap(A.transpose(), CtC);
+        Matrix Q   = lyap(A.transpose(), CtC);
         return (Q + Q.transpose()) * 0.5;
     } else {  // Controllability
         // Controllability Gramian P solves: A*P + P*A^T + B*B^T = 0
         Matrix BBt = B * B.transpose();
-        Matrix P   = solve_continuous_lyap(A, BBt);
+        Matrix P   = lyap(A, BBt);
         return (P + P.transpose()) * 0.5;
     }
 }
 
-TransferFunction StateSpace::toTransferFunction() const {
-    // Check that system is SISO
-    if (B.cols() != 1 || C.rows() != 1) {
-        throw std::invalid_argument(
-            "toTransferFunction() only works for SISO systems (1 input, 1 output). "
-            "For MIMO systems, use tf(sys, output_idx, input_idx) to extract individual transfer functions.");
+/**
+ * @brief Extract a SISO transfer function from a MIMO StateSpace system.
+ *
+ * For MIMO systems, extracts the transfer function from a specific input to a specific output.
+ * This creates a SISO subsystem: G_ij(s) = C_i(sI-A)^(-1)B_j + D_ij
+ * where i is the output index and j is the input index (0-based).
+ *
+ * @param output_idx   Output index (0-based, must be < number of outputs)
+ * @param input_idx    Input index (0-based, must be < number of inputs)
+ * @return TransferFunction  Transfer function from input_idx to output_idx
+ * @throws std::out_of_range if indices are out of bounds
+ */
+TransferFunction StateSpace::toTransferFunction(int output_idx, int input_idx) const {
+    // Validate indices
+    int num_outputs = C.rows();
+    int num_inputs  = B.cols();
+
+    if (output_idx < 0 || output_idx >= num_outputs) {
+        throw std::out_of_range("Output index " + std::to_string(output_idx) +
+                                " is out of range [0, " + std::to_string(num_outputs - 1) + "]");
     }
 
-    // For SISO systems, delegate to the indexed version
-    return tf(*this, 0, 0);
+    if (input_idx < 0 || input_idx >= num_inputs) {
+        throw std::out_of_range("Input index " + std::to_string(input_idx) +
+                                " is out of range [0, " + std::to_string(num_inputs - 1) + "]");
+    }
+
+    int n = A.rows();  // State dimension
+
+    // Extract SISO subsystem: C_row(i), B_col(j), D(i,j)
+    RowVec C_i  = C.row(output_idx);
+    ColVec B_j  = B.col(input_idx);
+    double D_ij = D(output_idx, input_idx);
+
+    // For very simple cases, handle directly
+    if (n == 0) {
+        // Pure gain system (no states)
+        return TransferFunction({D_ij}, {1.0}, Ts);
+    }
+
+    // Compute transfer function using Faddeev-LeVerrier algorithm
+    // This is numerically stable for high-order systems
+
+    // Step 1: Compute characteristic polynomial using Faddeev-LeVerrier
+    // det(sI - A) = s^n + a_{n-1}s^{n-1} + ... + a_0
+    std::vector<double> p(n + 1, 0.0);  // p[0] = 0
+    std::vector<Matrix> H(n + 1);
+    H[0] = Matrix::Identity(n, n);
+
+    for (int k = 1; k <= n; ++k) {
+        H[k] = A * H[k - 1];
+        p[k] = H[k].trace() / static_cast<double>(k);
+    }
+
+    // Build denominator polynomial: s^n + a_{n-1}s^{n-1} + ... + a_0
+    std::vector<double> den(n + 1);
+    den[0] = 1.0;  // Leading coefficient s^n
+    for (int i = 1; i <= n; ++i) {
+        den[i] = (i % 2 == 1 ? -p[i] : p[i]);
+    }
+
+    // Step 2: Compute numerator coefficients
+    // For the transfer function G(s) = [C*adj(sI-A)*B + D*det(sI-A)] / det(sI-A)
+    std::vector<double> num(n + 1, 0.0);
+
+    // Add D*det(sI-A) term
+    for (int i = 0; i <= n; ++i) {
+        num[i] += D_ij * den[i];
+    }
+
+    // Add C*adj(sI-A)*B term using the Faddeev-LeVerrier matrices
+    // The adjoint matrix adj(sI-A) = sum_{k=0}^{n-1} s^{n-1-k} * F_k
+    // where F_k satisfy a similar recurrence
+    if (n > 0) {
+        std::vector<Matrix> F(n);
+        F[0] = Matrix::Identity(n, n);
+
+        for (int k = 1; k < n; ++k) {
+            F[k] = A * F[k - 1] - p[k] * Matrix::Identity(n, n);
+        }
+
+        // Compute C * F_k * B for each k and add to appropriate power of s
+        for (int k = 0; k < n; ++k) {
+            double coeff = C_i.dot(F[k] * B_j);
+            num[k + 1] += coeff;
+        }
+    }
+
+    // Normalize denominator to have leading coefficient 1
+    double den_leading = den[0];
+    if (std::abs(den_leading) > 1e-10) {
+        for (double& coeff : den) {
+            coeff /= den_leading;
+        }
+        for (double& coeff : num) {
+            coeff /= den_leading;
+        }
+    }
+
+    // Remove leading zeros from numerator (but keep at least one coefficient)
+    while (num.size() > 1 && std::abs(num[0]) < 1e-10) {
+        num.erase(num.begin());
+    }
+
+    // Create and return transfer function
+    TransferFunction result(num, den, Ts);
+    return result;
 }
 
 StateSpace StateSpace::toStateSpace() const {

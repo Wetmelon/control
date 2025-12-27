@@ -55,16 +55,16 @@ TransferFunction::TransferFunction(TransferFunction&& other) noexcept
 }
 
 TransferFunction::TransferFunction(const StateSpace& ss)
-    : TransferFunction(tf(ss)) {}
+    : TransferFunction(ss.toTransferFunction()) {}
 
 TransferFunction::TransferFunction(const ZeroPoleGain& zpk)
-    : TransferFunction(tf(zpk)) {}
+    : TransferFunction(zpk.toTransferFunction()) {}
 
 TransferFunction::TransferFunction(StateSpace&& ss) noexcept
-    : TransferFunction(tf(std::move(ss))) {}
+    : TransferFunction(ss.toTransferFunction()) {}
 
 TransferFunction::TransferFunction(ZeroPoleGain&& zpk) noexcept
-    : TransferFunction(tf(std::move(zpk))) {}
+    : TransferFunction(zpk.toTransferFunction()) {}
 
 // Copy and Move Assignment Operators
 TransferFunction& TransferFunction::operator=(const TransferFunction& other) {
@@ -86,12 +86,12 @@ TransferFunction& TransferFunction::operator=(TransferFunction&& other) noexcept
 }
 
 TransferFunction& TransferFunction::operator=(const StateSpace& ss) {
-    *this = TransferFunction(ss);
+    *this = TransferFunction(ss.toTransferFunction());
     return *this;
 }
 
 TransferFunction& TransferFunction::operator=(StateSpace&& ss) noexcept {
-    *this = TransferFunction(std::move(ss));
+    *this = TransferFunction(ss.toTransferFunction());
     return *this;
 }
 

@@ -37,8 +37,8 @@ class TransferFunction : public LTI {
     StateSpace discretize(double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt) const override;
 
     StateSpace       toStateSpace() const override;
-    TransferFunction toTransferFunction() const override;
-    ZeroPoleGain     toZeroPoleGain() const override;
+    TransferFunction toTransferFunction() const;
+    ZeroPoleGain     toZeroPoleGain() const;
 
     // Default constructor - creates a zero transfer function
     TransferFunction()

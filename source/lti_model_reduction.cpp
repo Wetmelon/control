@@ -26,8 +26,8 @@ StateSpace StateSpace::balred(size_t r) const {
     Matrix BBt = B * B.transpose();
     Matrix CtC = C.transpose() * C;
 
-    Matrix P = solve_continuous_lyap(A, BBt);
-    Matrix Q = solve_continuous_lyap(A.transpose(), CtC);
+    Matrix P = lyap(A, BBt);
+    Matrix Q = lyap(A.transpose(), CtC);
 
     // Ensure symmetry
     P = (P + P.transpose()) * 0.5;

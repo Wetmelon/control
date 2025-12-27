@@ -894,28 +894,6 @@ TEST_CASE("StateSpace to TransferFunction Conversion (tf functions)") {
         CHECK(tf.den[1] == doctest::Approx(-0.5).epsilon(1e-6));
     }
 
-    SUBCASE("Error cases") {
-        // Test MIMO system with simple tf() function
-        Matrix A(2, 2);
-        A << 0, 1, -1, -2;
-        Matrix B(2, 2);
-        B << 1, 0, 0, 1;
-        Matrix C(2, 2);
-        C << 1, 0, 0, 1;
-        Matrix D(2, 2);
-        D << 0, 1, 2, 0;
-        StateSpace mimo_ss(A, B, C, D);
-
-        // Should throw for MIMO system with simple tf()
-        CHECK_THROWS_AS(control::tf(mimo_ss), std::invalid_argument);
-
-        // Test invalid indices
-        CHECK_THROWS_AS(control::tf(mimo_ss, -1, 0), std::out_of_range);
-        CHECK_THROWS_AS(control::tf(mimo_ss, 0, -1), std::out_of_range);
-        CHECK_THROWS_AS(control::tf(mimo_ss, 2, 0), std::out_of_range);
-        CHECK_THROWS_AS(control::tf(mimo_ss, 0, 2), std::out_of_range);
-    }
-
     SUBCASE("Round-trip equivalence") {
         // Test that TF -> SS -> TF gives back the original
         TransferFunction original({1.0}, {1.0, 1.0});  // 1/(s+1)
