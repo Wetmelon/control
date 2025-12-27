@@ -89,6 +89,9 @@ enum class SystemType {
     Discrete,
 };
 
+template <class T>
+concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
+
 /**
  * @brief Abstract base class for all LTI systems (Linear Time-Invariant).
  *
@@ -446,6 +449,20 @@ ZeroPoleGain zpk(const std::vector<Zero>& zeros,
                  double                   gain,
                  std::optional<double>    Ts = std::nullopt);
 
+// Model reduction utilities (operate on StateSpace representation)
+StateSpace minreal(const StateSpace& sys, double tol = 1e-9);
+StateSpace balred(const StateSpace& sys, size_t r);
+
+template <SSConvertible T>
+StateSpace minreal(const T& t, double tol = 1e-9) {
+    return minreal(t.toStateSpace(), tol);
+}
+
+template <SSConvertible T>
+StateSpace balred(const T& t, size_t r) {
+    return balred(t.toStateSpace(), r);
+}
+
 /**
  * @brief Convert a continuous-time LTI system to discrete-time using specified method.
  *
@@ -514,8 +531,6 @@ ZeroPoleGain     operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& 
 // ---------------------------------------------------------------------------
 // LTI operations for mixed types always return StateSpace representation
 // ---------------------------------------------------------------------------
-template <class T>
-concept SSConvertible = requires(const T& t) { { t.toStateSpace() }; };
 
 template <SSConvertible A, SSConvertible B>
 StateSpace series(const A& a, const B& b) {
