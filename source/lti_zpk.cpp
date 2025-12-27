@@ -109,6 +109,16 @@ MarginInfo ZeroPoleGain::margin() const {
     return ss.margin();
 }
 
+DampingInfo ZeroPoleGain::damp() const {
+    StateSpace ss = this->toStateSpace();
+    return ss.damp();
+}
+
+StepInfo ZeroPoleGain::stepinfo() const {
+    StateSpace ss = this->toStateSpace();
+    return ss.stepinfo();
+}
+
 FrequencyResponse ZeroPoleGain::freqresp(const std::vector<double>& frequencies) const {
     StateSpace ss = this->toStateSpace();
     return ss.freqresp(frequencies);

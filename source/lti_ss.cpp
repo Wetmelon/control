@@ -215,6 +215,97 @@ MarginInfo StateSpace::margin() const {
         .phaseCrossover = phaseCrossover};
 }
 
+DampingInfo StateSpace::damp() const {
+    auto                 poles_vec     = this->poles();
+    std::complex<double> dominant_pole = 0.0;
+    double               max_imag      = 0.0;
+    for (auto p : poles_vec) {
+        if (std::abs(p.imag()) > max_imag) {
+            max_imag      = std::abs(p.imag());
+            dominant_pole = p;
+        }
+    }
+    if (max_imag > 1e-6) {
+        double abs_p = std::abs(dominant_pole);
+        double zeta  = -dominant_pole.real() / abs_p;
+        double wn    = abs_p;
+        return {wn, zeta};
+    } else {
+        // no complex poles, find real pole closest to imaginary axis
+        double max_re = -1e9;
+        for (auto p : poles_vec) {
+            if (std::abs(p.imag()) < 1e-6 && p.real() > max_re) {
+                max_re        = p.real();
+                dominant_pole = p;
+            }
+        }
+        if (max_re > -1e9) {
+            return {-dominant_pole.real(), 1.0};  // ζ=1, ω_n = -Re
+        } else {
+            return {0.0, 1.0};  // no poles?
+        }
+    }
+}
+
+StepInfo StateSpace::stepinfo() const {
+    // Assume SISO
+    if (B.cols() != 1 || C.rows() != 1) {
+        throw std::invalid_argument("stepinfo() only works for SISO systems");
+    }
+    auto                step_resp  = this->step(0.0, 10.0, ColVec::Ones(1));
+    const auto&         time       = step_resp.time;
+    const auto&         output_vec = step_resp.output;
+    std::vector<double> y;
+    for (const auto& out : output_vec) {
+        y.push_back(out(0));
+    }
+    double y_ss             = y.back();
+    double steadyStateError = 1.0 - y_ss;
+    // Find peak
+    auto   max_it    = std::max_element(y.begin(), y.end());
+    double peak      = *max_it;
+    size_t peak_idx  = std::distance(y.begin(), max_it);
+    double peakTime  = time[peak_idx];
+    double overshoot = (std::abs(y_ss) > 1e-6) ? (peak - y_ss) / std::abs(y_ss) * 100.0 : 0.0;
+    // Rise time: 10% to 90%
+    double y10      = 0.1 * y_ss;
+    double y90      = 0.9 * y_ss;
+    double riseTime = 0.0;
+    size_t i10 = 0, i90 = 0;
+    bool   found10 = false, found90 = false;
+    for (size_t i = 0; i < y.size(); ++i) {
+        if (!found10 && y[i] >= y10) {
+            i10     = i;
+            found10 = true;
+        }
+        if (!found90 && y[i] >= y90) {
+            i90     = i;
+            found90 = true;
+            break;
+        }
+    }
+    if (found10 && found90 && i90 > i10) {
+        riseTime = time[i90] - time[i10];
+    }
+    // Settling time: within 2% of y_ss
+    double tol          = 0.02 * std::abs(y_ss);
+    double settlingTime = time.back();
+    for (size_t i = y.size() - 1; i > 0; --i) {
+        bool settled = true;
+        for (size_t j = i; j < y.size(); ++j) {
+            if (std::abs(y[j] - y_ss) > tol) {
+                settled = false;
+                break;
+            }
+        }
+        if (settled) {
+            settlingTime = time[i];
+            break;
+        }
+    }
+    return {riseTime, settlingTime, overshoot, steadyStateError, peak, peakTime};
+}
+
 StepResponse StateSpace::step(double tStart, double tEnd, ColVec uStep) const {
     if (uStep.size() == 0) {
         uStep = ColVec::Ones(B.cols(), 1);

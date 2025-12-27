@@ -117,9 +117,9 @@ class LTI {
      *
      * @return DampingInfo  Natural frequency and damping ratio
      */
-    // virtual DampingInfo damp() const = 0;
+    virtual DampingInfo damp() const = 0;
 
-    // virtual StepInfo stepinfo() const = 0;
+    virtual StepInfo stepinfo() const = 0;
 
     virtual FrequencyResponse freqresp(const std::vector<double>& frequencies) const = 0;
 
@@ -258,6 +258,8 @@ class StateSpace : public LTI {
     RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
     MarginInfo        margin() const override;
     FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
+    DampingInfo       damp() const override;
+    StepInfo          stepinfo() const override;
 
     ObservabilityInfo   observability() const override;
     ControllabilityInfo controllability() const override;
@@ -357,6 +359,9 @@ class TransferFunction : public LTI {
     TransferFunction& operator=(StateSpace&& ss) noexcept;
     TransferFunction& operator=(ZeroPoleGain&& zpk) noexcept;
 
+    DampingInfo damp() const override;
+    StepInfo    stepinfo() const override;
+
    private:
     // Caching of state-space representation to avoid repeated conversions
     mutable std::optional<StateSpace> ss_cache_;
@@ -377,6 +382,8 @@ class ZeroPoleGain : public LTI {
     RootLocusResponse rlocus(double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500) const override;
     MarginInfo        margin() const override;
     FrequencyResponse freqresp(const std::vector<double>& frequencies) const override;
+    DampingInfo       damp() const override;
+    StepInfo          stepinfo() const override;
 
     ObservabilityInfo   observability() const override;
     ControllabilityInfo controllability() const override;

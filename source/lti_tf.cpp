@@ -513,6 +513,14 @@ MarginInfo TransferFunction::margin() const {
         .phaseCrossover = phaseCrossover};
 }
 
+DampingInfo TransferFunction::damp() const {
+    return toStateSpace().damp();
+}
+
+StepInfo TransferFunction::stepinfo() const {
+    return toStateSpace().stepinfo();
+}
+
 ObservabilityInfo TransferFunction::observability() const {
     return toStateSpace().observability();
 }
