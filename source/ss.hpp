@@ -34,6 +34,7 @@ class StateSpace : public LTI {
     Matrix     gramian(GramianType type) const override;
     StateSpace minreal(double tol = 1e-9) const override;
     StateSpace balred(size_t r) const override;
+    StateSpace balreal(size_t r) const;
 
     std::vector<Pole> poles() const override;
     std::vector<Zero> zeros() const override;

@@ -212,4 +212,7 @@ StateSpace StateSpace::minreal(double tol) const {
     return red;
 }
 
+StateSpace StateSpace::balreal(size_t r) const {
+    return balred(r);
+}
 }  // namespace control

@@ -308,6 +308,16 @@ StateSpace       feedback(const StateSpace& sys_forward, const StateSpace& sys_f
 TransferFunction feedback(const TransferFunction& sys_forward, const TransferFunction& sys_feedback, int sign = -1);
 ZeroPoleGain     feedback(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback, int sign = -1);
 
+// Pade approximation for time delays
+StateSpace       pade(const StateSpace& sys, double delay, int order = 3);
+TransferFunction pade(const TransferFunction& tf, double delay, int order = 3);
+ZeroPoleGain     pade(const ZeroPoleGain& zpk_sys, double delay, int order = 3);
+
+// Pade approximation for time delays
+StateSpace       delay(const StateSpace& sys, double delay, int order = 3);
+TransferFunction delay(const TransferFunction& tf, double delay, int order = 3);
+ZeroPoleGain     delay(const ZeroPoleGain& zpk_sys, double delay, int order = 3);
+
 // Type-preserving series connection operators
 StateSpace       operator*(const StateSpace& sys1, const StateSpace& sys2);
 TransferFunction operator*(const TransferFunction& sys1, const TransferFunction& sys2);

@@ -7,9 +7,7 @@
 
 namespace control {
 
-using Matrix    = Eigen::MatrixXd;
-using ColVector = Eigen::VectorXd;
-using RowVector = Eigen::RowVectorXd;
+using Matrix = Eigen::MatrixXd;
 
 using Pole = std::complex<double>;
 using Zero = std::complex<double>;

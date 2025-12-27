@@ -35,6 +35,11 @@ StateSpace balred(const T& sys, size_t r) {
     return sys.toStateSpace().balred(r);
 }
 
+template <SSConvertible T>
+StateSpace balreal(const T& sys, size_t r) {
+    return sys.toStateSpace().balreal(r);
+}
+
 template <SSConvertible A, SSConvertible B>
 StateSpace series(const A& a, const B& b) {
     return series(a.toStateSpace(), b.toStateSpace());
@@ -48,6 +53,11 @@ StateSpace parallel(const A& a, const B& b) {
 template <SSConvertible A, SSConvertible B>
 StateSpace feedback(const A& a, const B& b, int sign = -1) {
     return feedback(a.toStateSpace(), b.toStateSpace(), sign);
+}
+
+template <SSConvertible A>
+A pade(const A& sys, int order) {
+    return A(pade(sys.toStateSpace(), order));
 }
 
 template <SSConvertible A, SSConvertible B>

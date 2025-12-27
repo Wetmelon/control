@@ -1,5 +1,6 @@
 #include "LTI.hpp"
 
+#include <cmath>
 #include <optional>
 
 #include "ss.hpp"
@@ -525,4 +526,91 @@ TransferFunction operator/(const TransferFunction& sys_forward, const TransferFu
 ZeroPoleGain operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback) {
     return feedback(sys_forward, sys_feedback, -1);
 }
+
+// Pade approximation for time delays
+StateSpace pade(const StateSpace& sys, double delay, int order) {
+    if (order < 1) {
+        throw std::invalid_argument("Pade order must be at least 1");
+    }
+    if (delay < 0) {
+        throw std::invalid_argument("Delay must be non-negative");
+    }
+
+    // Compute Pade [order/order] coefficients for e^{-z} where z = s*delay
+    std::vector<double> num(order + 1);
+    std::vector<double> den(order + 1);
+
+    for (int k = 0; k <= order; ++k) {
+        double binom = std::tgamma(2 * order - k + 1) /
+                       (std::tgamma(k + 1) * std::tgamma(order - k + 1) * std::tgamma(order + 1));
+        num[k] = std::pow(-1.0, k) * binom;
+        den[k] = binom;
+    }
+
+    // Scale by powers of delay
+    std::vector<double> num_scaled(order + 1);
+    std::vector<double> den_scaled(order + 1);
+    for (int k = 0; k <= order; ++k) {
+        num_scaled[k] = num[k] * std::pow(delay, k);
+        den_scaled[k] = den[k] * std::pow(delay, k);
+    }
+
+    // Create transfer function for the delay approximation
+    TransferFunction delay_tf(num_scaled, den_scaled, sys.Ts);
+    StateSpace       delay_ss = delay_tf.toStateSpace();
+
+    // Series connect with the original system
+    return series(sys, delay_ss);
+}
+
+TransferFunction pade(const TransferFunction& tf, double delay, int order) {
+    StateSpace ss = pade(tf.toStateSpace(), delay, order);
+    return ss.toTransferFunction();
+}
+
+ZeroPoleGain pade(const ZeroPoleGain& zpk_sys, double delay, int order) {
+    StateSpace ss = pade(zpk_sys.toStateSpace(), delay, order);
+    return ss.toZeroPoleGain();
+}
+
+StateSpace delay(const StateSpace& sys, double delay, int order) {
+    auto I = StateSpace{Matrix::Identity(0, 0), Matrix::Zero(0, 1), Matrix::Zero(1, 0), Matrix::Identity(1, 1), sys.Ts};
+
+    if (sys.Ts.has_value()) {
+        // Discrete delay: exact implementation using shift register
+        int num_states = static_cast<int>(delay / *sys.Ts);
+        if (num_states < 1) {
+            // No delay or fractional - return identity
+            return I;
+        }
+
+        // Create shift register: x(k+1) = [0, 1, 0; 0, 0, 1; ...; 0, 0, 0] * x(k) + [1; 0; 0] * u(k)
+        // y(k) = [0, 0, ..., 1] * x(k)
+        Matrix A = Matrix::Zero(num_states, num_states);
+        for (int i = 0; i < num_states - 1; ++i) {
+            A(i, i + 1) = 1.0;
+        }
+        Matrix B             = Matrix::Zero(num_states, 1);
+        B(0, 0)              = 1.0;
+        Matrix C             = Matrix::Zero(1, num_states);
+        C(0, num_states - 1) = 1.0;
+        Matrix D             = Matrix::Zero(1, 1);
+
+        return StateSpace{std::move(A), std::move(B), std::move(C), std::move(D), sys.Ts};
+    } else {
+        // Continuous delay: use Pade approximation
+        return pade(I, delay, order);
+    }
+}
+
+TransferFunction delay(const TransferFunction& tf, double delay, int order) {
+    StateSpace ss = control::delay(tf.toStateSpace(), delay, order);
+    return ss.toTransferFunction();
+}
+
+ZeroPoleGain delay(const ZeroPoleGain& zpk_sys, double delay, int order) {
+    StateSpace ss = control::delay(zpk_sys.toStateSpace(), delay, order);
+    return ss.toZeroPoleGain();
+}
+
 }  // namespace control
