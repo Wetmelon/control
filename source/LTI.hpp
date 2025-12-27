@@ -451,6 +451,11 @@ ZeroPoleGain zpk(const std::vector<Zero>& zeros,
 // Compute Gramian matrices (continuous-time iterative method)
 Matrix gramian(const StateSpace& sys, GramianType type);
 
+template <SSConvertible T>
+Matrix gramian(const T& t, GramianType type) {
+    return gramian(t.toStateSpace(), type);
+}
+
 // Model reduction utilities (operate on StateSpace representation)
 StateSpace minreal(const StateSpace& sys, double tol = 1e-9);
 StateSpace balred(const StateSpace& sys, size_t r);

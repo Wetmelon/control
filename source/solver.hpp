@@ -10,6 +10,11 @@
 
 namespace control {
 
+// Solve continuous Lyapunov equation A*X + X*A^T + Q = 0 for X
+// Primary solver: Schur-based Bartels–Stewart (complex Schur variant)
+// Fallback: numerical integral approximation for large/stiff problems
+Matrix solve_continuous_lyap(const Matrix& A, const Matrix& Q);
+
 // Input can be either a constant column vector or a function of time
 struct Input : public std::variant<ColVec, std::function<ColVec(double)>> {
     using std::variant<ColVec, std::function<ColVec(double)>>::variant;

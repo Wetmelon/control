@@ -2,61 +2,9 @@
 #include <Eigen/SVD>
 
 #include "LTI.hpp"
+#include "solver.hpp"
 
 namespace control {
-
-// Helper: solve continuous Lyapunov A*X + X*A^T + Q = 0 for X
-// Uses Kronecker product formulation: (I kron A + A kron I) vec(X) = -vec(Q)
-static Matrix solve_continuous_lyap(const Matrix& A, const Matrix& Q) {
-    const int n = static_cast<int>(A.rows());
-    if (n == 0) {
-        return Matrix::Zero(0, 0);
-    }
-
-    const int       N = n * n;
-    Eigen::MatrixXd K = Eigen::MatrixXd::Zero(N, N);
-
-    // vec indexing: idx = i + j*n for element (i,j)
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            int row = i + j * n;
-            for (int r = 0; r < n; ++r) {
-                for (int s = 0; s < n; ++s) {
-                    int    col = r + s * n;
-                    double val = 0.0;
-                    if (j == s) {
-                        val += A(i, r);
-                    }
-                    if (i == r) {
-                        val += A(j, s);
-                    }
-                    K(row, col) = val;
-                }
-            }
-        }
-    }
-
-    // right-hand side = -vec(Q)
-    Eigen::VectorXd vecQ(N);
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < n; ++i) {
-            vecQ(i + j * n) = Q(i, j);
-        }
-    }
-    Eigen::VectorXd rhs = -vecQ;
-
-    // Solve
-    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> solver(K);
-    Eigen::VectorXd                             vecX = solver.solve(rhs);
-
-    Matrix X = Matrix::Zero(n, n);
-    for (int j = 0; j < n; ++j) {
-        for (int i = 0; i < n; ++i) {
-            X(i, j) = vecX(i + j * n);
-        }
-    }
-    return X;
-}
 
 StateSpace balred(const StateSpace& sys, size_t r) {
     if (sys.isDiscrete()) {

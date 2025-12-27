@@ -518,8 +518,9 @@ ObservabilityInfo StateSpace::observability() const {
     }
 
     Eigen::ColPivHouseholderQR<Matrix> qr(Ob);
-    size_t                             rank         = qr.rank();
-    bool                               isObservable = (rank == static_cast<size_t>(n));
+
+    size_t rank         = qr.rank();
+    bool   isObservable = (rank == static_cast<size_t>(n));
 
     // Do not compute the gramian here; return empty (zero) gramian to avoid expensive or unstable ops.
     return ObservabilityInfo{.rank = rank, .isObservable = isObservable};
@@ -541,8 +542,9 @@ ControllabilityInfo StateSpace::controllability() const {
     }
 
     Eigen::ColPivHouseholderQR<Matrix> qr(Ctrb);
-    size_t                             rank           = qr.rank();
-    bool                               isControllable = (rank == static_cast<size_t>(n));
+
+    size_t rank           = qr.rank();
+    bool   isControllable = (rank == static_cast<size_t>(n));
 
     // Do not compute the gramian here; return empty (zero) gramian to avoid expensive or unstable ops.
     return ControllabilityInfo{.rank = rank, .isControllable = isControllable};
@@ -561,27 +563,18 @@ Matrix gramian(const StateSpace& sys, GramianType type) {
     const int n = static_cast<int>(A.rows());
     if (n == 0) return Matrix::Zero(0, 0);
 
-    Matrix    W        = Matrix::Zero(n, n);
-    const int max_iter = 1000;
+    // Use the Schur-based Lyapunov solver for robustness and reuse
     if (type == GramianType::Observability) {
-        Matrix term = C.transpose() * C;
-        W += term;
-        for (int k = 1; k < max_iter; ++k) {
-            term = A.transpose() * term * A;
-            W += term;
-            if (term.norm() < 1e-12 * W.norm()) break;
-        }
+        // Observability Gramian Q solves: A^T*Q + Q*A + C^T*C = 0
+        Matrix CtC = C.transpose() * C;
+        Matrix Q   = solve_continuous_lyap(A.transpose(), CtC);
+        return (Q + Q.transpose()) * 0.5;
     } else {  // Controllability
-        Matrix term = B * B.transpose();
-        W += term;
-        for (int k = 1; k < max_iter; ++k) {
-            term = A * term * A.transpose();
-            W += term;
-            if (term.norm() < 1e-12 * W.norm()) break;
-        }
+        // Controllability Gramian P solves: A*P + P*A^T + B*B^T = 0
+        Matrix BBt = B * B.transpose();
+        Matrix P   = solve_continuous_lyap(A, BBt);
+        return (P + P.transpose()) * 0.5;
     }
-
-    return W;
 }
 
 TransferFunction StateSpace::toTransferFunction() const {
