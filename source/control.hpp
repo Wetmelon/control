@@ -189,4 +189,39 @@ StateSpace       operator/(const StateSpace& sys_forward, const StateSpace& sys_
 TransferFunction operator/(const TransferFunction& sys_forward, const TransferFunction& sys_feedback);
 ZeroPoleGain     operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback);
 
+// Free function implementations for LTI operations
+// These were originally in StateSpace but moved here for reuse
+
+bool is_stable(const StateSpace& sys);
+
+std::vector<Pole> poles(const StateSpace& sys);
+std::vector<Zero> zeros(const StateSpace& sys);
+
+StepResponse    step(const StateSpace& sys, double tStart = 0.0, double tEnd = 10.0, ColVec uStep = ColVec::Ones(1));
+ImpulseResponse impulse(const StateSpace& sys, double tStart = 0.0, double tEnd = 10.0);
+
+BodeResponse      bode(const StateSpace& sys, double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500);
+NyquistResponse   nyquist(const StateSpace& sys, double fStart = 0.1, double fEnd = 1.0e4, size_t maxPoints = 500);
+RootLocusResponse rlocus(const StateSpace& sys, double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500);
+
+MarginInfo        margin(const StateSpace& sys);
+FrequencyResponse freqresp(const StateSpace& sys, const std::vector<double>& frequencies);
+
+DampingInfo damp(const StateSpace& sys);
+StepInfo    stepinfo(const StateSpace& sys);
+
+ObservabilityInfo   observability(const StateSpace& sys);
+ControllabilityInfo controllability(const StateSpace& sys);
+
+Matrix     gramian(const StateSpace& sys, GramianType type);
+StateSpace minreal(const StateSpace& sys, double tol = 1e-9);
+StateSpace balred(const StateSpace& sys, size_t r);
+
+StateSpace discretize(const StateSpace& sys, double Ts, DiscretizationMethod method = DiscretizationMethod::ZOH, std::optional<double> prewarp = std::nullopt);
+
+RootLocusResponse rlocus(const TransferFunction& sys, double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500);
+
+// For ZeroPoleGain specific
+bool is_stable(const ZeroPoleGain& sys);
+
 }  // namespace control

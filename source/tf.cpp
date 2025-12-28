@@ -3,26 +3,12 @@
 #include <shlobj.h>
 
 #include "LTI.hpp"
+#include "control.hpp"
 #include "ss.hpp"
 #include "types.hpp"
 #include "zpk.hpp"
 
 namespace control {
-
-// Unwrap phase to ensure continuity (remove 2π jumps)
-static inline void unwrap_phase(std::vector<double>& phases) {
-    for (size_t i = 1; i < phases.size(); ++i) {
-        double diff = phases[i] - phases[i - 1];
-        while (diff > 180.0) {
-            phases[i] -= 360.0;
-            diff -= 360.0;
-        }
-        while (diff < -180.0) {
-            phases[i] += 360.0;
-            diff += 360.0;
-        }
-    }
-}
 
 static void validateTransferFunctionVectors(const std::vector<double>& num, const std::vector<double>& den) {
     if (den.empty() || std::abs(den[0]) < 1e-15) {
@@ -264,67 +250,19 @@ std::vector<Zero> TransferFunction::zeros() const {
 }
 
 StepResponse TransferFunction::step(double tStart, double tEnd, ColVec uStep) const {
-    return toStateSpace().step(tStart, tEnd, uStep);
+    return control::step(toStateSpace(), tStart, tEnd, uStep);
 }
 
 ImpulseResponse TransferFunction::impulse(double tStart, double tEnd) const {
-    return toStateSpace().impulse(tStart, tEnd);
+    return control::impulse(toStateSpace(), tStart, tEnd);
 }
 
 BodeResponse TransferFunction::bode(double fStart, double fEnd, size_t maxPoints) const {
-    // Generate logarithmically spaced frequency points
-    const double logStart = std::log10(fStart);
-    const double logEnd   = std::log10(fEnd);
-    const double logStep  = (logEnd - logStart) / (maxPoints - 1);
-
-    std::vector<double> freqs;
-    freqs.reserve(maxPoints);
-    for (size_t i = 0; i < maxPoints; ++i) {
-        freqs.push_back(std::pow(10.0, logStart + i * logStep));
-    }
-
-    // Get frequency response
-    auto freq_resp = freqresp(freqs);
-
-    // Convert to magnitude (dB) and phase (degrees)
-    std::vector<double> mags, phases;
-    mags.reserve(maxPoints);
-    phases.reserve(maxPoints);
-
-    for (const auto& H : freq_resp.response) {
-        const double magnitude = 20.0 * std::log10(std::abs(H));
-        const double phase     = std::arg(H) * 180.0 / std::numbers::pi;
-        mags.push_back(magnitude);
-        phases.push_back(phase);
-    }
-
-    // Unwrap phase to ensure continuity
-    unwrap_phase(phases);
-
-    return BodeResponse{
-        .freq      = std::move(freqs),
-        .magnitude = std::move(mags),
-        .phase     = std::move(phases)};
+    return control::bode(toStateSpace(), fStart, fEnd, maxPoints);
 }
 
 NyquistResponse TransferFunction::nyquist(double fStart, double fEnd, size_t maxPoints) const {
-    // Generate logarithmically spaced frequency points
-    const double logStart = std::log10(fStart);
-    const double logEnd   = std::log10(fEnd);
-    const double logStep  = (logEnd - logStart) / (maxPoints - 1);
-
-    std::vector<double> freqs;
-    freqs.reserve(maxPoints);
-    for (size_t i = 0; i < maxPoints; ++i) {
-        freqs.push_back(std::pow(10.0, logStart + i * logStep));
-    }
-
-    // Get frequency response
-    auto freq_resp = freqresp(freqs);
-
-    return NyquistResponse{
-        .response = std::move(freq_resp.response),
-        .freq     = std::move(freqs)};
+    return control::nyquist(toStateSpace(), fStart, fEnd, maxPoints);
 }
 
 FrequencyResponse TransferFunction::freqresp(const std::vector<double>& frequencies) const {
@@ -443,105 +381,39 @@ RootLocusResponse TransferFunction::rlocus(double kMin, double kMax, size_t numP
 }
 
 MarginInfo TransferFunction::margin() const {
-    // For discrete systems, adjust frequency range to avoid aliasing
-    double fStart = 1e-3;  // 0.001 Hz
-    double fEnd   = 1e4;   // 10000 Hz
-
-    if (Ts.has_value()) {
-        // For discrete systems, limit to Nyquist frequency
-        const double nyquist_freq = 1.0 / (2.0 * (*Ts));
-        fEnd                      = std::min(fEnd, nyquist_freq * 0.9);  // Stay below Nyquist
-    }
-
-    // Compute Bode plot over appropriate frequency range
-    const size_t numPoints = 1000;
-    auto         bode_resp = bode(fStart, fEnd, numPoints);
-
-    // Find gain crossover frequency (where magnitude is closest to 0 dB)
-    double gainCrossover = 0.0;
-    double minMagDiff    = std::numeric_limits<double>::max();
-
-    for (size_t i = 0; i < bode_resp.freq.size(); ++i) {
-        double magDiff = std::abs(bode_resp.magnitude[i]);
-        if (magDiff < minMagDiff) {
-            minMagDiff    = magDiff;
-            gainCrossover = bode_resp.freq[i];
-        }
-    }
-
-    // Find phase crossover frequency (where phase is closest to -180°)
-    double phaseCrossover = 0.0;
-    double minPhaseDiff   = std::numeric_limits<double>::max();
-
-    for (size_t i = 0; i < bode_resp.freq.size(); ++i) {
-        double phaseDiff = std::abs(bode_resp.phase[i] - (-180.0));
-        if (phaseDiff < minPhaseDiff) {
-            minPhaseDiff   = phaseDiff;
-            phaseCrossover = bode_resp.freq[i];
-        }
-    }
-
-    // Compute gain margin: -magnitude at phase crossover frequency
-    double gainMargin = 0.0;
-    if (phaseCrossover > 0.0) {
-        // Find the magnitude at phase crossover frequency
-        for (size_t i = 0; i < bode_resp.freq.size(); ++i) {
-            if (std::abs(bode_resp.freq[i] - phaseCrossover) < 1e-6) {
-                gainMargin = -bode_resp.magnitude[i];  // Negative because it's the margin
-                break;
-            }
-        }
-    }
-
-    // Compute phase margin: 180° + phase at gain crossover frequency
-    double phaseMargin = 0.0;
-    if (gainCrossover > 0.0) {
-        // Find the phase at gain crossover frequency
-        for (size_t i = 0; i < bode_resp.freq.size(); ++i) {
-            if (std::abs(bode_resp.freq[i] - gainCrossover) < 1e-6) {
-                phaseMargin = 180.0 + bode_resp.phase[i];
-                break;
-            }
-        }
-    }
-
-    return MarginInfo{
-        .gainMargin     = gainMargin,
-        .phaseMargin    = phaseMargin,
-        .gainCrossover  = gainCrossover,
-        .phaseCrossover = phaseCrossover};
+    return control::margin(toStateSpace());
 }
 
 DampingInfo TransferFunction::damp() const {
-    return toStateSpace().damp();
+    return control::damp(toStateSpace());
 }
 
 StepInfo TransferFunction::stepinfo() const {
-    return toStateSpace().stepinfo();
+    return control::stepinfo(toStateSpace());
 }
 
 ObservabilityInfo TransferFunction::observability() const {
-    return toStateSpace().observability();
+    return control::observability(toStateSpace());
 }
 
 ControllabilityInfo TransferFunction::controllability() const {
-    return toStateSpace().controllability();
+    return control::controllability(toStateSpace());
 }
 
 Matrix TransferFunction::gramian(GramianType type) const {
-    return toStateSpace().gramian(type);
+    return control::gramian(toStateSpace(), type);
 }
 
 StateSpace TransferFunction::minreal(double tol) const {
-    return toStateSpace().minreal(tol);
+    return control::minreal(toStateSpace(), tol);
 }
 
 StateSpace TransferFunction::balred(size_t r) const {
-    return toStateSpace().balred(r);
+    return control::balred(toStateSpace(), r);
 }
 
 StateSpace TransferFunction::discretize(double Ts, DiscretizationMethod method, std::optional<double> prewarp) const {
-    return toStateSpace().discretize(Ts, method, prewarp);
+    return control::discretize(toStateSpace(), Ts, method, prewarp);
 }
 
 TransferFunction TransferFunction::toTransferFunction() const {

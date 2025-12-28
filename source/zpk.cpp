@@ -1,6 +1,7 @@
 #include "zpk.hpp"
 
 #include "LTI.hpp"
+#include "control.hpp"
 #include "types.hpp"
 
 namespace control {
@@ -81,74 +82,61 @@ bool ZeroPoleGain::is_stable() const {
     }
     return true;
 }
+
 StepResponse ZeroPoleGain::step(double tStart, double tEnd, ColVec uStep) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.step(tStart, tEnd, uStep);
+    return control::step(toStateSpace(), tStart, tEnd, uStep);
 }
 
 ImpulseResponse ZeroPoleGain::impulse(double tStart, double tEnd) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.impulse(tStart, tEnd);
+    return control::impulse(toStateSpace(), tStart, tEnd);
 }
 
 BodeResponse ZeroPoleGain::bode(double fStart, double fEnd, size_t maxPoints) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.bode(fStart, fEnd, maxPoints);
+    return control::bode(toStateSpace(), fStart, fEnd, maxPoints);
 }
 
 NyquistResponse ZeroPoleGain::nyquist(double fStart, double fEnd, size_t maxPoints) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.nyquist(fStart, fEnd, maxPoints);
+    return control::nyquist(toStateSpace(), fStart, fEnd, maxPoints);
 }
 
 RootLocusResponse ZeroPoleGain::rlocus(double kMin, double kMax, size_t numPoints) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.rlocus(kMin, kMax, numPoints);
+    return control::rlocus(toStateSpace(), kMin, kMax, numPoints);
 }
 
 MarginInfo ZeroPoleGain::margin() const {
-    StateSpace ss = this->toStateSpace();
-    return ss.margin();
+    return control::margin(toStateSpace());
 }
 
 DampingInfo ZeroPoleGain::damp() const {
-    StateSpace ss = this->toStateSpace();
-    return ss.damp();
+    return control::damp(toStateSpace());
 }
 
 StepInfo ZeroPoleGain::stepinfo() const {
-    StateSpace ss = this->toStateSpace();
-    return ss.stepinfo();
+    return control::stepinfo(toStateSpace());
 }
 
 FrequencyResponse ZeroPoleGain::freqresp(const std::vector<double>& frequencies) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.freqresp(frequencies);
+    return control::freqresp(toStateSpace(), frequencies);
 }
 
 ObservabilityInfo ZeroPoleGain::observability() const {
-    StateSpace ss = this->toStateSpace();
-    return ss.observability();
+    return control::observability(toStateSpace());
 }
 
 ControllabilityInfo ZeroPoleGain::controllability() const {
-    StateSpace ss = this->toStateSpace();
-    return ss.controllability();
+    return control::controllability(toStateSpace());
 }
 
 Matrix ZeroPoleGain::gramian(GramianType type) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.gramian(type);
+    return control::gramian(toStateSpace(), type);
 }
 
 StateSpace ZeroPoleGain::minreal(double tol) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.minreal(tol);
+    return control::minreal(toStateSpace(), tol);
 }
 
 StateSpace ZeroPoleGain::balred(size_t r) const {
-    StateSpace ss = this->toStateSpace();
-    return ss.balred(r);
+    return control::balred(toStateSpace(), r);
 }
 
 // Build state-space from zeros, poles, and gain
@@ -202,7 +190,7 @@ TransferFunction ZeroPoleGain::toTransferFunction() const {
 StateSpace ZeroPoleGain::discretize(double                Ts,
                                     DiscretizationMethod  method,
                                     std::optional<double> prewarp) const {
-    return toStateSpace().discretize(Ts, method, prewarp);
+    return control::discretize(toStateSpace(), Ts, method, prewarp);
 }
 
 ZeroPoleGain ZeroPoleGain::toZeroPoleGain() const {
