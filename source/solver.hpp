@@ -9,7 +9,6 @@
 #include "types.hpp"
 
 namespace control {
-
 // Solve continuous Lyapunov equation A*X + X*A^T + Q = 0 for X
 // Primary solver: Schur-based Bartels–Stewart (complex Schur variant)
 // Fallback: numerical integral approximation for large/stiff problems
@@ -19,6 +18,13 @@ Matrix dlyap(const Matrix& A, const Matrix& Q);
 // Solve continuous/discrete Algebraic Riccati Equations
 Matrix care(const Matrix& A, const Matrix& B, const Matrix& Q, const Matrix& R);
 Matrix dare(const Matrix& A, const Matrix& B, const Matrix& Q, const Matrix& R);
+
+// Controllability and observability matrices
+Matrix ctrb(const Matrix& A, const Matrix& B);
+Matrix obsv(const Matrix& C, const Matrix& A);
+
+// System norms
+double norm(const Matrix& A, const Matrix& B, const Matrix& C, const Matrix& D, const std::string& type = "inf");
 
 // InputFcn can be either a constant column vector or a function of time
 struct InputFcn : public std::variant<ColVec, std::function<ColVec(double)>> {

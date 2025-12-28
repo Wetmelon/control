@@ -190,9 +190,8 @@ TransferFunction operator/(const TransferFunction& sys_forward, const TransferFu
 ZeroPoleGain     operator/(const ZeroPoleGain& sys_forward, const ZeroPoleGain& sys_feedback);
 
 // Free function implementations for LTI operations
-// These were originally in StateSpace but moved here for reuse
-
 bool is_stable(const StateSpace& sys);
+bool is_stable(const ZeroPoleGain& sys);
 
 std::vector<Pole> poles(const StateSpace& sys);
 std::vector<Zero> zeros(const StateSpace& sys);
@@ -221,7 +220,9 @@ StateSpace discretize(const StateSpace& sys, double Ts, DiscretizationMethod met
 
 RootLocusResponse rlocus(const TransferFunction& sys, double kMin = 0.0, double kMax = 100.0, size_t numPoints = 500);
 
-// For ZeroPoleGain specific
-bool is_stable(const ZeroPoleGain& sys);
+// Matrix computations
+Matrix ctrb(const StateSpace& sys);
+Matrix obsv(const StateSpace& sys);
+double norm(const StateSpace& sys, const std::string& type = "inf");
 
 }  // namespace control

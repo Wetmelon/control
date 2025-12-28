@@ -1297,4 +1297,17 @@ ZeroPoleGain delay(const ZeroPoleGain& zpk_sys, double delay, int order) {
     return ss.toZeroPoleGain();
 }
 
+// Matrix computations
+Matrix ctrb(const StateSpace& sys) {
+    return control::ctrb(sys.A, sys.B);
+}
+
+Matrix obsv(const StateSpace& sys) {
+    return control::obsv(sys.C, sys.A);
+}
+
+double norm(const StateSpace& sys, const std::string& type) {
+    return control::norm(sys.A, sys.B, sys.C, sys.D, type);
+}
+
 }  // namespace control
