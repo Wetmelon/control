@@ -9,7 +9,8 @@ namespace plt = matplot;
 void plotStepResponse(const std::vector<std::vector<double>>& times, const std::vector<std::vector<double>>& responses,
                       const std::vector<std::string>& labels, const std::string& title = "Step Response") {
     auto fig = plt::figure(true);
-    fig->size(800, 600);
+    fig->size(1200, 800);
+
     plt::hold(plt::on);
 
     for (size_t i = 0; i < responses.size(); ++i) {
@@ -25,11 +26,12 @@ void plotStepResponse(const std::vector<std::vector<double>>& times, const std::
     plt::show();
 }
 
-void plotBodePlot(const std::vector<control::FrequencyResponse>& responses, const std::vector<std::string>& labels, const std::string& title = "Bode Plot") {
+void plotBodePlot(const std::vector<control::BodeResponse>& responses, const std::vector<std::string>& labels, const std::string& title = "Bode Plot") {
     auto fig = plt::figure(true);
-    fig->size(800, 600);
+    fig->size(1200, 800);
 
-    plt::subplot(2, 1, 1);
+    plt::sgtitle(title);
+    plt::subplot(2, 1, 0);
     plt::hold(plt::on);
     for (size_t i = 0; i < responses.size(); ++i) {
         plt::semilogx(responses[i].freq, responses[i].magnitude)->display_name(labels[i]);
@@ -40,7 +42,7 @@ void plotBodePlot(const std::vector<control::FrequencyResponse>& responses, cons
     plt::legend()->location(plt::legend::general_alignment::bottomleft);
     plt::hold(plt::off);
 
-    plt::subplot(2, 1, 2);
+    plt::subplot(2, 1, 1);
     plt::hold(plt::on);
     for (size_t i = 0; i < responses.size(); ++i) {
         plt::semilogx(responses[i].freq, responses[i].phase)->display_name(labels[i]);
@@ -74,9 +76,9 @@ int main() {
     std::vector<double> time;
 
     // Simulate for each damping ratio
-    std::vector<std::vector<double>>        times;
-    std::vector<std::vector<double>>        stepResponses;
-    std::vector<control::FrequencyResponse> freqResponses;
+    std::vector<std::vector<double>>   times;
+    std::vector<std::vector<double>>   stepResponses;
+    std::vector<control::BodeResponse> freqResponses;
 
     std::vector<std::string> labels;
     for (double zeta : zetas) {
@@ -98,8 +100,14 @@ int main() {
 
         // Store time vector from the first response
         times.push_back(stepResp.time);
-        stepResponses.push_back(stepResp.output);
-        labels.push_back(std::format("ζ = {:.1f}", zeta));
+        // Extract scalar output from Matrix (SISO system)
+        std::vector<double> scalarOutput;
+        scalarOutput.reserve(stepResp.output.size());
+        for (const auto& y : stepResp.output) {
+            scalarOutput.push_back(y(0, 0));
+        }
+        stepResponses.push_back(scalarOutput);
+        labels.push_back(fmt::format("ζ = {:.1f}", zeta));
         freqResponses.push_back(sys.bode());
     }
 

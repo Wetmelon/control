@@ -3,16 +3,16 @@ INCLUDES = {
      'source',
      'libs',
      'libs/eigen',
+     'libs/fmt/include',
      'libs/matplotplusplus/source',
-     'build/libs/matplotplusplus',
 }
 
 WARNINGS = '-Wall -Wextra'
 
 COMMON_FLAGS = '-O3 -ffunction-sections -fdata-sections -march=native -mtune=native -fno-omit-frame-pointer'
-CCFLAGS = '-std=c17'
-CXXFLAGS = '-std=c++23'
-LDFLAGS = ''
+CCFLAGS = COMMON_FLAGS..' -std=c17'
+CXXFLAGS = COMMON_FLAGS..' -std=c++23'
+LDFLAGS = '-Wl,--gc-sections'
 
 CC_PATH = tup.getconfig("COMPILER_PATH")
 if CC_PATH ~= "" then
@@ -20,8 +20,9 @@ if CC_PATH ~= "" then
 end
 
 if tup.getconfig('LTO') == 'true' then
-    COMMON_FLAGS += ' -flto'
-    LDFLAGS += ' -flto'
+    CCFLAGS += '-flto'
+    CXXFLAGS += '-flto'
+    LDFLAGS += '-flto'
 end
 
 ROOT = tup.getcwd()

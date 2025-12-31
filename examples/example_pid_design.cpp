@@ -1,25 +1,23 @@
-#include <format>
-#include <iostream>
+#include <fmt/core.h>
 
-#include "../source/control.hpp"
+#include "control.hpp"
 #include "matplot/matplot.h"
 
 int main() {
     using namespace control;
 
-    std::cout << "=== Advanced Control System Example ===\n";
-    std::cout << "Building a PID controller for a second-order plant\n\n";
+    fmt::print("=== Advanced Control System Example ===\n");
+    fmt::print("Building a PID controller for a second-order plant\n\n");
 
     // Create a second-order plant: G(s) = 1/(s^2 + 2s + 1)
     // This represents a critically damped system
     StateSpace plant{
-        (Matrix(2, 2) << 0, 1, -1, -2).finished(),  // A
-        (Matrix(2, 1) << 0, 1).finished(),          // B
-        (Matrix(1, 2) << 1, 0).finished(),          // C
-        Matrix::Zero(1, 1)                          // D
+        Matrix{{0.0, 1.0}, {-1.0, -2.0}},  // A
+        Matrix{{0.0}, {1.0}},              // B
+        Matrix{{1.0, 0.0}},                // C
+        Matrix::Zero(1, 1)                 // D
     };
-    std::cout << "Plant G(s) = 1/(s^2 + 2s + 1):\n"
-              << std::format("{}\n", plant);
+    fmt::print("Plant G(s) = 1/(s^2 + 2s + 1):\n{}", plant);
 
     // Create PID controller components
     // P: Proportional gain Kp = 10
@@ -48,27 +46,22 @@ int main() {
         Matrix::Zero(1, 1)               // D
     };
 
-    std::cout << "\n=== PID Controller Components ===\n";
-    std::cout << "P (Kp = 10):\n"
-              << std::format("{}\n", P);
-    std::cout << "I (Ki/s, Ki = 5):\n"
-              << std::format("{}\n", I);
-    std::cout << "D (Kd*s/(tau*s+1), Kd = 2, tau = 0.01):\n"
-              << std::format("{}\n", D);
+    fmt::print("\n=== PID Controller Components ===\n");
+    fmt::print("P (Kp = 10):\n{}\n", P);
+    fmt::print("I (Ki/s, Ki = 5):\n{}\n", I);
+    fmt::print("D (Kd*s/(tau*s+1), Kd = 2, tau = 0.01):\n{}\n", D);
 
     // Combine PID components: PID = P + I + D
     auto PI  = P + I;
     auto PID = PI + D;
 
-    std::cout << "\n=== Combined PID Controller ===\n";
-    std::cout << "PID = P + I + D:\n"
-              << std::format("{}\n", PID);
+    fmt::print("\n=== Combined PID Controller ===\n");
+    fmt::print("PID = P + I + D:\n{}\n", PID);
 
     // Create open-loop system: L(s) = PID(s) * G(s)
     auto open_loop = PID * plant;
-    std::cout << "\n=== Open-Loop System ===\n";
-    std::cout << "L(s) = PID(s) * G(s):\n"
-              << std::format("{}\n", open_loop);
+    fmt::print("\n=== Open-Loop System ===\n");
+    fmt::print("L(s) = PID(s) * G(s):\n{}\n", open_loop);
 
     // Unity feedback sensor
     StateSpace sensor{
@@ -80,48 +73,50 @@ int main() {
 
     // Create closed-loop system with negative feedback
     auto closed_loop = feedback(open_loop, sensor, -1);
-    std::cout << "\n=== Closed-Loop System ===\n";
-    std::cout << "T(s) = L(s) / (1 + L(s)):\n";
-    std::cout << "System order: " << closed_loop.A.rows() << "\n";
-    std::cout << std::format("{}\n", closed_loop);
+    fmt::print("\n=== Closed-Loop System ===\n");
+    fmt::print("T(s) = L(s) / (1 + L(s)):\n");
+    fmt::print("System order: {}\n", closed_loop.A.rows());
+    fmt::print("{}\n", closed_loop);
 
     // Test step response
-    std::cout << "\n=== Step Response Analysis ===\n";
+    fmt::print("\n=== Step Response Analysis ===\n");
     auto step_resp = closed_loop.step(0.0, 2.0);
 
     // Find steady-state value and settling time
-    double steady_state       = step_resp.output.back();
-    double settling_threshold = 0.02 * steady_state;  // 2% criterion
-    double settling_time      = 0.0;
-
-    for (size_t i = step_resp.output.size() - 1; i > 0; --i) {
-        if (std::abs(step_resp.output[i] - steady_state) > settling_threshold) {
-            settling_time = step_resp.time[i];
-            break;
+    double steady_state       = step_resp.output.back()(0, 0);
+    double settling_threshold = 0.02 * std::abs(steady_state);  // 2% criterion
+    size_t settling_idx       = 0;
+    for (size_t i = 0; i < step_resp.output.size(); ++i) {
+        if (std::abs(step_resp.output[i](0, 0) - steady_state) > settling_threshold) {
+            settling_idx = i;
         }
     }
+    double settling_time = step_resp.time[settling_idx];
 
     // Find peak overshoot
-    double peak      = *std::max_element(step_resp.output.begin(), step_resp.output.end());
+    // Find peak value
+    double peak = 0.0;
+    for (const auto& y : step_resp.output) {
+        peak = std::max(peak, y(0, 0));
+    }
     double overshoot = ((peak - steady_state) / steady_state) * 100.0;
 
-    std::cout << "Steady-state value: " << std::format("{:.4f}", steady_state) << "\n";
-    std::cout << "Peak overshoot: " << std::format("{:.2f}%", overshoot) << "\n";
-    std::cout << "Settling time (2%): " << std::format("{:.3f}s", settling_time) << "\n";
+    fmt::print("Steady-state value: {:.4f}\n", steady_state);
+    fmt::print("Peak overshoot: {:.2f}%\n", overshoot);
+    fmt::print("Settling time (2%): {:.3f}s\n", settling_time);
 
-    std::cout << "\nFirst few step response values:\n";
+    fmt::print("\nFirst few step response values:\n");
     for (size_t i = 0; i < std::min(size_t(15), step_resp.time.size()); ++i) {
-        std::cout << std::format("  t={:.4f}s, y={:.4f}\n", step_resp.time[i], step_resp.output[i]);
+        fmt::print("  t={:.4f}s, y={:.4f}\n", step_resp.time[i], step_resp.output[i](0, 0));
     }
 
-    constexpr double fmin       = 0.01;   // Minimum frequency for Bode plot
-    constexpr double fmax       = 100.0;  // Maximum frequency for Bode plot
-    constexpr double num_points = 1000;   // Number of frequency points
+    constexpr double fmin = 0.01;   // Minimum frequency for Bode plot
+    constexpr double fmax = 100.0;  // Maximum frequency for Bode plot
 
-    // Test frequency response
-    std::cout << "\n=== Bode Plot Analysis ===\n";
-    const auto bode_open   = open_loop.bode(fmin, fmax, num_points);
-    const auto bode_closed = closed_loop.bode(fmin, fmax, num_points);
+    // Test frequency response (uses adaptive sampling)
+    fmt::print("\n=== Bode Plot Analysis ===\n");
+    const auto bode_open   = open_loop.bode(fmin, fmax);
+    const auto bode_closed = closed_loop.bode(fmin, fmax);
 
     // Find -3dB bandwidth
     double bandwidth = 0.0;
@@ -141,8 +136,8 @@ int main() {
         }
     }
 
-    std::cout << "Closed-loop bandwidth (-3dB): " << std::format("{:.2f} Hz", bandwidth) << "\n";
-    std::cout << "Closed-loop bandwidth: " << std::format("{:.2f} rad/s", bandwidth * 2.0 * 3.14159) << "\n";
+    fmt::print("Closed-loop bandwidth (-3dB): {:.2f} Hz\n", bandwidth);
+    fmt::print("Closed-loop bandwidth: {:.2f} rad/s\n", bandwidth * 2.0 * 3.14159);
 
     // Create figure for Bode plots
     auto fig_mag = matplot::figure(true);
@@ -169,8 +164,8 @@ int main() {
     ax2->legend();
 
     matplot::show();
-    std::cout << "Bode plots displayed.\n";
+    fmt::print("Bode plots displayed.\n");
 
-    std::cout << "\n=== Analysis Complete ===\n";
+    fmt::print("\n=== Analysis Complete ===\n");
     return 0;
 }

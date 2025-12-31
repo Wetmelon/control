@@ -1,11 +1,10 @@
-
 for k, v in ipairs(INCLUDES) do
     INCLUDES[k] = '-I'..ROOT..'/'..v
 end
 
-examples += tup.foreach_rule('*.cpp', '^j^'..CC_PATH..'g++ $(INCLUDES) '..COMMON_FLAGS..' '..CXXFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
-libs = {ROOT..'/source/libcontrol.a', ROOT..'/libs/libmatplot.a'}
-examples.extra_inputs = libs
+-- Compile all example source files
+examples = tup.foreach_rule('*.cpp', '^j^'..CC_PATH..'g++ $(INCLUDES) '..CXXFLAGS..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
+examples.extra_inputs = {ROOT..'/<libmatplot>', ROOT..'/<libcontrol>', ROOT..'/<libfmt>'}
 
--- Generate executable for this example
-tup.foreach_rule(examples, 'g++ '..LDFLAGS..'%f $(libs)  -lstdc++exp -lgdi32 -o %o', 'build/%B.exe')
+-- Link example executables
+tup.foreach_rule(examples, '^o^ g++ '..LDFLAGS..' %f %<libmatplot> %<libcontrol> %<libfmt> -lstdc++exp -lgdi32 -o %o', 'build/%B.exe')

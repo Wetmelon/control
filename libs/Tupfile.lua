@@ -76,6 +76,15 @@ matplot_objs += tup.foreach_rule(nodesoup_cpp_files, '^j^'..CC_PATH..'g++ '..MAT
 -- Link matplot library (combine matplot objects and nodesoup objects into one library)
 matplot_lib = tup.rule(
     matplot_objs,
-    'ar rcs %o %f',
-    'libmatplot.a'
+    '^o matplotlib^ ar rcs %o %f',
+    {'build/libmatplot.a', extra_outputs = ROOT..'/<libmatplot>'}
 )
+
+fmt_includes = {
+    '-Ifmt/include',
+}
+fmt_sources = {
+    'fmt/src/format.cc',
+    'fmt/src/os.cc',
+}
+fmt_lib = tup.foreach_rule(fmt_sources, CC_PATH..'g++ '..MATPLOT_FLAGS..' $(fmt_includes) -c %f -o %o', {'build/obj/%B.o', extra_outputs = ROOT..'/<libfmt>'})

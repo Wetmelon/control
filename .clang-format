@@ -9,3 +9,5 @@ AlignConsecutiveMacros: true
 AlignAfterOpenBracket: true
 AlignEscapedNewlines: true
 AlignOperands: true
+
+NamespaceIndentation: Inner

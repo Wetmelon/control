@@ -1,6 +1,7 @@
 #include <vector>
 
 #include "control.hpp"
+#include "integrator.hpp"
 #include "matplot/matplot.h"
 
 namespace plt = matplot;
@@ -15,11 +16,11 @@ int main() {
     const double k_over_m = 4.0;  // stiffness/mass
     const double c_over_m = 0.5;  // damping/mass
     const Matrix A        = Matrix{{0.0, 1.0}, {-k_over_m, -c_over_m}};
-    const Matrix B        = Matrix{{0.0}, {1.0}};                   // input affects acceleration
-    const Matrix x0       = (Matrix(2, 1) << 1.0, 0.0).finished();  // initial: x1=1, x2=0
-    const Matrix u_const  = Matrix{{0.5}};                          // constant forcing
+    const Matrix B        = Matrix{{0.0}, {1.0}};  // input affects acceleration
+    const ColVec x0       = ColVec({1.0, 0.0});    // initial: x1=1, x2=0
+    const ColVec u_const  = ColVec({0.5});         // constant forcing
 
-    Solver solver;  // default RK45
+    // Using new solve API
 
     // Time span and evaluation points
     const double        t0 = 0.0;
@@ -30,38 +31,44 @@ int main() {
         t_eval.push_back(t0 + (tf - t0) * (double(i) / double(N)));
     }
 
-    // Exact solution using matrix exponential (should be available for this system)
-    auto res_exact = solver.solveLTI(A, B, x0, u_const, {t0, tf}, t_eval, IntegrationMethod::Exact);
+    // Exact solution using matrix exponential
+    auto res_exact = ExactSolver{}.solve(A, B, x0, u_const, {t0, tf}, t_eval);
 
-    // Numeric solution (RK45)
-    auto res_num = solver.solveLTI(A, B, x0, u_const, {t0, tf}, t_eval, IntegrationMethod::RK45);
+    // Time-varying input example
+    auto dynamics_varying = [&](double t, const ColVec& x) -> ColVec {
+        ColVec u = ColVec({std::sin(t)});  // time-varying input
+        return A * x + B * u;
+    };
+    auto res_time_varying = AdaptiveStepSolver<RK45>{}.solve(dynamics_varying, x0, {t0, tf}, t_eval);
 
     // Convert results to vectors for plotting (two states)
-    std::vector<double> t_plot_exact, x1_plot_exact, x2_plot_exact;
-    std::vector<double> t_plot_num, x1_plot_num, x2_plot_num;
+    std::vector<double> t_plot_const, x1_plot_const, x2_plot_const;
+    std::vector<double> t_plot_varying, x1_plot_varying, x2_plot_varying;
 
     for (size_t i = 0; i < res_exact.t.size(); ++i) {
-        t_plot_exact.push_back(res_exact.t[i]);
-        x1_plot_exact.push_back(res_exact.x[i](0, 0));
-        x2_plot_exact.push_back(res_exact.x[i](1, 0));
+        t_plot_const.push_back(res_exact.t[i]);
+        x1_plot_const.push_back(res_exact.x[i](0, 0));
+        x2_plot_const.push_back(res_exact.x[i](1, 0));
     }
-    for (size_t i = 0; i < res_num.t.size(); ++i) {
-        t_plot_num.push_back(res_num.t[i]);
-        x1_plot_num.push_back(res_num.x[i](0, 0));
-        x2_plot_num.push_back(res_num.x[i](1, 0));
+    for (size_t i = 0; i < res_time_varying.t.size(); ++i) {
+        t_plot_varying.push_back(res_time_varying.t[i]);
+        x1_plot_varying.push_back(res_time_varying.x[i](0, 0));
+        x2_plot_varying.push_back(res_time_varying.x[i](1, 0));
     }
 
-    // Plot two subplots: x1 and x2 (Exact vs RK45)
+    // Plot two subplots: x1 and x2 (Constant input vs Time-varying)
     auto fig = plt::figure(true);
     fig->size(1200, 800);
 
-    plt::subplot(2, 1, 1);
-    auto le1 = plt::plot(t_plot_exact, x1_plot_exact);
-    le1->display_name("Exact x1");
+    // Figure-level title
+    plt::sgtitle("Second-order LTI: State Responses");
+    plt::subplot(2, 1, 0);
+    auto le1 = plt::plot(t_plot_const, x1_plot_const);
+    le1->display_name("Constant input");
     le1->line_width(2);
     plt::hold(plt::on);
-    auto ln1 = plt::plot(t_plot_num, x1_plot_num);
-    ln1->display_name("RK45 x1");
+    auto ln1 = plt::plot(t_plot_varying, x1_plot_varying);
+    ln1->display_name("Time-varying input");
     ln1->line_style("--");
     ln1->line_width(1);
     plt::hold(plt::off);
@@ -71,13 +78,13 @@ int main() {
     plt::legend()->location(plt::legend::general_alignment::topright);
     plt::grid(plt::on);
 
-    plt::subplot(2, 1, 2);
-    auto le2 = plt::plot(t_plot_exact, x2_plot_exact);
-    le2->display_name("Exact x2");
+    plt::subplot(2, 1, 1);
+    auto le2 = plt::plot(t_plot_const, x2_plot_const);
+    le2->display_name("Constant input");
     le2->line_width(2);
     plt::hold(plt::on);
-    auto ln2 = plt::plot(t_plot_num, x2_plot_num);
-    ln2->display_name("RK45 x2");
+    auto ln2 = plt::plot(t_plot_varying, x2_plot_varying);
+    ln2->display_name("Time-varying input");
     ln2->line_style("--");
     ln2->line_width(1);
     plt::hold(plt::off);

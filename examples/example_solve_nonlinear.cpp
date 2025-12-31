@@ -1,14 +1,13 @@
 #include <vector>
 
 #include "control.hpp"
+#include "integrator.hpp"
 #include "matplot/matplot.h"
-
-namespace plt = matplot;
+#include "solver.hpp"
 
 int main() {
     using namespace control;
-
-    Solver solver;  // default RK45
+    namespace plt = matplot;
 
     // Van der Pol oscillator (nonlinear ODE)
     // x1' = x2
@@ -36,7 +35,7 @@ int main() {
         t_eval.push_back(t0 + (tf - t0) * (double(i) / double(N)));
     }
 
-    auto res = solver.solve(fun, x0, {t0, tf}, t_eval, IntegrationMethod::RK45, 1e-6, 1e-3, 0.0, 0.0);
+    auto res = AdaptiveStepSolver<RK45>{}.solve(fun, x0, {t0, tf}, t_eval);
 
     std::vector<double> t_plot, x1_plot, x2_plot;
     t_plot.reserve(res.t.size());
@@ -51,6 +50,7 @@ int main() {
     // Plot states over time and phase portrait
     auto fig = plt::figure(true);
     fig->size(1200, 800);
+
     // Compose a short info string for the figure
     std::string info = "Van der Pol oscillator (mu=" + std::to_string(mu) +
                        ") — "
@@ -60,7 +60,7 @@ int main() {
     // Use a suptitle (supported by matplot++) and individual subplot titles/labels
     plt::sgtitle(info);
 
-    plt::subplot(3, 1, 1);
+    plt::subplot(3, 1, 0);
     auto l1 = plt::plot(t_plot, x1_plot);
     l1->display_name("x1");
     l1->line_width(1.5);
@@ -70,7 +70,7 @@ int main() {
     plt::legend()->location(plt::legend::general_alignment::topright);
     plt::grid(plt::on);
 
-    plt::subplot(3, 1, 2);
+    plt::subplot(3, 1, 1);
     auto l2 = plt::plot(t_plot, x2_plot);
     l2->display_name("x2");
     l2->line_width(1.5);
@@ -82,7 +82,7 @@ int main() {
     plt::grid(plt::on);
 
     // Phase portrait (x1 vs x2)
-    plt::subplot(3, 1, 3);
+    plt::subplot(3, 1, 2);
     auto lp = plt::plot(x1_plot, x2_plot);
     lp->display_name("phase");
     lp->line_width(1.0);
