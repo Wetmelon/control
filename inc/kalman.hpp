@@ -289,8 +289,10 @@ struct ErrorStateKalmanFilter {
 
     // Reset error state after applying corrections to nominal state
     // Call this after you've updated the nominal quaternion/biases with delta_x
-    constexpr void reset_error_state() {
+    // Optionally provide a G matrix to adjust covariance (e.g., for attitude reset)
+    constexpr void reset_error_state(const ColVec<NDX, T>& G = ColVec<NDX, T>{}) {
         delta_x = ColVec<NDX, T>{};
+        P = G * P * G.transpose();
     }
 
     // Accessors
