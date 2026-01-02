@@ -6,15 +6,25 @@
 #include "kalman.hpp"
 #include "matrix.hpp"
 
-// ============================================================================
-// Discrete-time controllers for embedded systems (ISR / RTOS)
-// ============================================================================
-// Use design:: namespace functions to create these from continuous or discrete models.
-// Use online:: namespace for fast runtime linearization and system identification.
+/**
+ * @defgroup discrete_controllers Discrete-Time Controllers
+ * @brief Ready-to-use discrete-time controllers for embedded systems (ISR/RTOS)
+ *
+ * Use design:: namespace functions to create these from continuous or discrete models.
+ * Use online:: namespace for fast runtime linearization and system identification.
+ */
 
-// ============================================================================
-// LQR: Discrete Linear-Quadratic Regulator
-// ============================================================================
+/**
+ * @ingroup discrete_controllers
+ * @brief Discrete Linear-Quadratic Regulator (LQR)
+ *
+ * State-feedback controller u = -K*x that minimizes a quadratic cost function.
+ * Designed for regulation (driving state to zero) or tracking (following state reference).
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, typename T = double>
 struct LQR {
 private:
@@ -28,12 +38,27 @@ public:
     template<typename U>
     constexpr LQR(const LQR<NX, NU, U>& other) : K(other.getK()) {}
 
-    // Regulator: u = -K*x (drives x to zero)
+    /**
+     * @brief Compute regulator control law
+     *
+     * Drives state to zero: u = -K*x
+     *
+     * @param x Current state vector
+     * @return Control input vector u
+     */
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x) const {
         return ColVec<NU, T>(-K * x);
     }
 
-    // Servo: u = -K*(x - x_ref) (tracks state reference)
+    /**
+     * @brief Compute servo control law
+     *
+     * Tracks state reference: u = -K*(x - x_ref)
+     *
+     * @param x     Current state vector
+     * @param x_ref Reference state vector
+     * @return Control input vector u
+     */
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x, const ColVec<NX, T>& x_ref) const {
         return ColVec<NU, T>(-K * (x - x_ref));
     }
@@ -41,9 +66,19 @@ public:
     [[nodiscard]] constexpr const Matrix<NU, NX, T>& getK() const { return K; }
 };
 
-// ============================================================================
-// LQI: Linear-Quadratic-Integral (output tracking with integral action)
-// ============================================================================
+/**
+ * @ingroup discrete_controllers
+ * @brief Linear-Quadratic-Integral (LQI) controller
+ *
+ * Output tracking controller with integral action: u = -Kx*x - Ki*xi
+ * where xi integrates the output error (r - y).
+ * Provides zero steady-state error for constant references and disturbances.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam NY Number of outputs
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct LQI {
 private:
@@ -60,7 +95,16 @@ public:
     constexpr LQI(const LQI<NX, NU, NY, U>& other)
         : Kx(other.getKx()), Ki(other.getKi()), xi(other.getIntegratorState()) {}
 
-    // u = -Kx*x - Ki*xi, where xi integrates (r - y)
+    /**
+     * @brief Compute control with integral action
+     *
+     * Computes u = -Kx*x - Ki*xi where xi integrates (r - y)
+     *
+     * @param x Current state vector
+     * @param r Reference output vector
+     * @param y Current output vector
+     * @return Control input vector u
+     */
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x, const ColVec<NY, T>& r, const ColVec<NY, T>& y) {
         xi = ColVec<NY, T>(xi + (r - y));
         return ColVec<NU, T>(-Kx * x - Ki * xi);
@@ -73,9 +117,21 @@ public:
     [[nodiscard]] constexpr const ColVec<NY, T>&     getIntegratorState() const { return xi; }
 };
 
-// ============================================================================
-// LQG: LQR + Kalman Filter
-// ============================================================================
+/**
+ * @ingroup discrete_controllers
+ * @brief Linear-Quadratic-Gaussian (LQG) controller
+ *
+ * Combines LQR optimal control with Kalman filter state estimation.
+ * Implements separation principle: estimate state with Kalman filter,
+ * then apply LQR control to estimated state.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam NY Number of outputs
+ * @tparam NW Number of process noise inputs (default: NX)
+ * @tparam NV Number of measurement noise inputs (default: NY)
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct LQG {
     LQR<NX, NU, T>                      lqr{};
@@ -99,9 +155,20 @@ struct LQG {
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x_ref) const { return lqr.control(kf.state(), x_ref); }
 };
 
-// ============================================================================
-// LQGI: LQI + Kalman Filter (output tracking with integral action)
-// ============================================================================
+/**
+ * @ingroup discrete_controllers
+ * @brief Linear-Quadratic-Gaussian-Integral (LQGI) controller
+ *
+ * Combines LQI output tracking controller with Kalman filter state estimation.
+ * Provides optimal control with integral action and state estimation.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam NY Number of outputs
+ * @tparam NW Number of process noise inputs (default: NX)
+ * @tparam NV Number of measurement noise inputs (default: NY)
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct LQGI {
     LQI<NX, NU, NY, T>                  lqi{};

@@ -10,8 +10,8 @@
  * @brief Discretization methods for continuous-time state-space systems
  */
 enum class DiscretizationMethod {
-    ZOH,    // Zero-Order Hold (exact for piecewise constant inputs)
-    Tustin, // Bilinear Transform (preserves stability, good for filters)
+    ZOH,    //!< Zero-Order Hold (exact for piecewise constant inputs)
+    Tustin, //!< Bilinear Transform (preserves stability, good for filters)
 };
 
 namespace detail {
@@ -51,12 +51,12 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 
     Matrix<NX, NU, T> B_d;
     if (A_inv) {
-        // Standard formula: B_d = A^{-1} * (exp(A*Ts) - I) * B
+        //! Standard formula: B_d = A⁻¹ * (exp(A*Ts) - I) * B
         const Matrix I = Matrix<NX, NX, T>::identity();
         B_d = A_inv.value() * (exp_A_Ts - I) * sys.B;
     } else {
-        // Fallback: Use series expansion directly
-        // B_d ≈ (I*Ts + A*Ts^2/2 + A^2*Ts^3/6 + ...) * B
+        //! Fallback: Use series expansion directly
+        //! B_d ≈ (I*Ts + A*Ts²/2 + A²*Ts³/6 + ...) * B
         B_d = sys.B * sampling_time;
         Matrix A_power = sys.A;
 
@@ -72,14 +72,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
         }
     }
 
-    // C_d = C, D_d = D (output equation is the same)
+    //! C_d = C, D_d = D (output equation is the same)
     const Matrix C_d = sys.C;
     const Matrix D_d = sys.D;
 
-    // G_d and H_d can be transformed similarly, but for simplicity use continuous versions
-    // (noise models don't discretize as simply without differential equations)
-    const Matrix G_d = sys.G * sampling_time; // Approximate
-    const Matrix H_d = sys.H;                 // Direct
+    //! G_d and H_d can be transformed similarly, but for simplicity use continuous versions
+    //! (noise models don't discretize as simply without differential equations)
+    const Matrix G_d = sys.G * sampling_time; //! Approximate
+    const Matrix H_d = sys.H;                 //! Direct
 
     return StateSpace{exp_A_Ts, B_d, C_d, D_d, G_d, H_d, sampling_time};
 }
@@ -105,27 +105,27 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     const T      ts_half = sampling_time / T{2};
     const Matrix I = Matrix<NX, NX, T>::identity();
 
-    // Compute (I + A*Ts/2) and its inverse
+    //! Compute (I + A*Ts/2) and its inverse
     const Matrix I_plus_A_ts2 = I + sys.A * ts_half;
     const auto   inv_I_plus = I_plus_A_ts2.inverse();
 
     if (!inv_I_plus) {
-        // Fallback to ZOH if Tustin matrix is singular
+        //! Fallback to ZOH if Tustin matrix is singular
         return discretize_zoh_impl(sys, sampling_time);
     }
 
-    // A_d = (I + A*Ts/2)^{-1} * (I - A*Ts/2)
+    //! A_d = (I + A*Ts/2)⁻¹ * (I - A*Ts/2)
     const Matrix I_minus_A_ts2 = I - sys.A * ts_half;
     const Matrix A_d = inv_I_plus.value() * I_minus_A_ts2;
 
-    // B_d = (I + A*Ts/2)^{-1} * B * Ts
+    //! B_d = (I + A*Ts/2)⁻¹ * B * Ts
     const Matrix B_d = inv_I_plus.value() * sys.B * sampling_time;
 
-    // C_d ≈ C (output mapping typically unchanged)
+    //! C_d ≈ C (output mapping typically unchanged)
     const Matrix C_d = sys.C;
     const Matrix D_d = sys.D;
 
-    // Noise models (approximate)
+    //! Noise models (approximate)
     const Matrix G_d = sys.G * sampling_time;
     const Matrix H_d = sys.H;
 
@@ -149,11 +149,11 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     DiscretizationMethod                     method = DiscretizationMethod::ZOH
 ) {
     if (sampling_time <= T{0}) {
-        return sys; // No discretization needed
+        return sys; //! No discretization needed
     }
 
     if (sys.Ts > T{0}) {
-        return sys; // Already discrete
+        return sys; //! Already discrete
     }
 
     switch (method) {

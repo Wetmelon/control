@@ -6,9 +6,17 @@
 
 namespace wet {
 
-// ============================================================================
-// Square root (constexpr, Newton's method)
-// ============================================================================
+/**
+ * @brief Compute square root using Newton's method (constexpr)
+ *
+ * Computes sqrt(x) using iterative Newton-Raphson: x_{n+1} = (x_n + S/x_n) / 2
+ * Returns 0 for negative inputs (NaN not available in constexpr context).
+ *
+ * @tparam T Numeric type (must support arithmetic operations)
+ * @param x  Value to compute square root of
+ *
+ * @return Square root of x, or 0 if x < 0
+ */
 template<typename T>
 constexpr T sqrt(T x) {
     if (x == T{0})
@@ -27,17 +35,30 @@ constexpr T sqrt(T x) {
     return guess;
 }
 
-// ============================================================================
-// Absolute value (constexpr)
-// ============================================================================
+/**
+ * @brief Compute absolute value (constexpr)
+ *
+ * @tparam T Numeric type (must support comparison and negation)
+ * @param x  Value to take absolute value of
+ *
+ * @return |x|
+ */
 template<typename T>
 constexpr T abs(T x) {
     return x >= T{0} ? x : -x;
 }
 
-// ============================================================================
-// Cube root (constexpr, handles negative numbers)
-// ============================================================================
+/**
+ * @brief Compute cube root using Newton's method (constexpr)
+ *
+ * Computes cbrt(x) using iterative Newton-Raphson for cube roots.
+ * Correctly handles negative inputs by preserving sign.
+ *
+ * @tparam T Numeric type (must support arithmetic operations)
+ * @param x  Value to compute cube root of
+ *
+ * @return Cube root of x (preserves sign for negative x)
+ */
 template<typename T>
 constexpr T cbrt(T x) {
     if (x == T{0})
@@ -59,9 +80,17 @@ constexpr T cbrt(T x) {
     return neg ? -guess : guess;
 }
 
-// ============================================================================
-// Complex square root (constexpr)
-// ============================================================================
+/**
+ * @brief Compute complex square root (constexpr)
+ *
+ * Computes the principal square root of a complex number z.
+ * Uses the formula: sqrt(z) = sqrt((|z| + Re(z))/2) + i*sign(Im(z))*sqrt((|z| - Re(z))/2)
+ *
+ * @tparam T Underlying floating-point type
+ * @param z  Complex number to compute square root of
+ *
+ * @return Principal square root of z
+ */
 template<typename T>
 constexpr std::complex<T> csqrt(const std::complex<T>& z) {
     T re = z.real();
@@ -83,9 +112,20 @@ constexpr std::complex<T> csqrt(const std::complex<T>& z) {
     return std::complex<T>{r, i};
 }
 
-// ============================================================================
-// atan2 (constexpr, Taylor series with better convergence)
-// ============================================================================
+/**
+ * @brief Compute two-argument arctangent (constexpr)
+ *
+ * Computes atan2(y, x) = angle in radians from positive x-axis to point (x, y).
+ * Uses Taylor series with range reduction for better convergence:
+ * atan(x) ≈ π/4 + atan((x-1)/(x+1)) for |x| > 0.414
+ * Result is in range [-π, π].
+ *
+ * @tparam T Numeric type (floating-point)
+ * @param y  Y-coordinate (numerator)
+ * @param x  X-coordinate (denominator)
+ *
+ * @return Angle in radians from positive x-axis to point (x, y)
+ */
 template<typename T>
 constexpr T atan2(T y, T x) {
     constexpr T pi = std::numbers::pi_v<T>;
@@ -155,9 +195,17 @@ constexpr T atan2(T y, T x) {
     return atan_val;
 }
 
-// ============================================================================
-// cos (constexpr, Taylor series)
-// ============================================================================
+/**
+ * @brief Compute cosine using Taylor series (constexpr)
+ *
+ * Computes cos(x) using Taylor series: cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
+ * Input is reduced to [-π, π] for better accuracy.
+ *
+ * @tparam T Numeric type (floating-point)
+ * @param x  Angle in radians
+ *
+ * @return cos(x)
+ */
 template<typename T>
 constexpr T cos(T x) {
     constexpr T pi = std::numbers::pi_v<T>;
@@ -180,9 +228,17 @@ constexpr T cos(T x) {
     return result;
 }
 
-// ============================================================================
-// sin (constexpr, Taylor series)
-// ============================================================================
+/**
+ * @brief Compute sine using Taylor series (constexpr)
+ *
+ * Computes sin(x) using Taylor series: sin(x) = x - x³/3! + x⁵/5! - x⁷/7! + ...
+ * Input is reduced to [-π, π] for better accuracy.
+ *
+ * @tparam T Numeric type (floating-point)
+ * @param x  Angle in radians
+ *
+ * @return sin(x)
+ */
 template<typename T>
 constexpr T sin(T x) {
     constexpr T pi = std::numbers::pi_v<T>;
