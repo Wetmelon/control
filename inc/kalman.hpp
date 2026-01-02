@@ -27,10 +27,10 @@ struct MeasJacobian {
 };
 
 // ESKF error-state prediction result: Jacobians only (nominal state updated externally)
-template<typename T, size_t N_ERROR>
+template<typename T, size_t NDX>
 struct ErrorStateJacobian {
-    Matrix<N_ERROR, N_ERROR, T> F{}; // Error state transition Jacobian ∂(δx_next)/∂(δx)
-    Matrix<N_ERROR, N_ERROR, T> G{}; // Process noise Jacobian (maps Q to error state)
+    Matrix<NDX, NDX, T> F{}; // Error state transition Jacobian ∂(δx_next)/∂(δx)
+    Matrix<NDX, NDX, T> G{}; // Process noise Jacobian (maps Q to error state)
 };
 
 // ---------------------------------------------------------------------------
@@ -50,15 +50,15 @@ concept EKFMeasFn = requires(Fn&& fn, const ColVec<NX, T>& x, const ColVec<NU, T
 };
 
 // ESKF predict function: (dt) -> ErrorStateJacobian
-template<typename Fn, typename T, size_t N_ERROR>
+template<typename Fn, typename T, size_t NDX>
 concept ESKFPredictFn = requires(Fn&& fn, T dt) {
-    { fn(dt) } -> std::convertible_to<ErrorStateJacobian<T, N_ERROR>>;
+    { fn(dt) } -> std::convertible_to<ErrorStateJacobian<T, NDX>>;
 };
 
 // ESKF measurement function: () -> MeasJacobian (no state arg - user captures nominal state)
-template<typename Fn, typename T, size_t N_ERROR, size_t NY>
+template<typename Fn, typename T, size_t NDX, size_t NY>
 concept ESKFMeasFn = requires(Fn&& fn) {
-    { fn() } -> std::convertible_to<MeasJacobian<T, NY, N_ERROR>>;
+    { fn() } -> std::convertible_to<MeasJacobian<T, NY, NDX>>;
 };
 
 // ---------------------------------------------------------------------------
@@ -216,7 +216,7 @@ private:
 // User provides:
 //   f_nominal: (q_nom, b_g, b_a, gyro_meas, accel_meas, dt) -> (q_new, error_jacobian F, noise_jacobian G)
 //   h_meas:    (q_nom, accel_meas) -> (accel_predicted, H_matrix, M_matrix)
-template<size_t N_ERROR, size_t NY, typename T = double>
+template<size_t NDX, size_t NY, typename T = double>
 struct ErrorStateKalmanFilter {
     // Error state dimension typically: 3 (attitude) + 3 (gyro bias) + 3 (accel bias) = 9
     // Nominal state (quaternion + biases) is tracked separately and not part of the KF
@@ -224,14 +224,14 @@ struct ErrorStateKalmanFilter {
     constexpr ErrorStateKalmanFilter() = default;
 
     constexpr ErrorStateKalmanFilter(
-        const Matrix<N_ERROR, N_ERROR, T>& P0,
-        const Matrix<N_ERROR, N_ERROR, T>& Q_,
-        const Matrix<NY, NY, T>&           R_
-    ) : P(P0), Q(Q_), R(R_), delta_x(ColVec<N_ERROR, T>{}) {}
+        const Matrix<NDX, NDX, T>& P0,
+        const Matrix<NDX, NDX, T>& Q_,
+        const Matrix<NY, NY, T>&   R_
+    ) : P(P0), Q(Q_), R(R_), delta_x(ColVec<NDX, T>{}) {}
 
     // Type conversion constructor
     template<typename U>
-    constexpr ErrorStateKalmanFilter(const ErrorStateKalmanFilter<N_ERROR, NY, U>& other)
+    constexpr ErrorStateKalmanFilter(const ErrorStateKalmanFilter<NDX, NY, U>& other)
         : P(other.covariance()),
           Q(other.process_noise_covariance()),
           R(other.measurement_noise_covariance()),
@@ -244,9 +244,9 @@ struct ErrorStateKalmanFilter {
     //   G = process noise Jacobian (maps Q to error covariance)
     // P[k+1|k] = F * P[k|k] * F' + G * Q * G'
     template<typename PredictFn>
-        requires ESKFPredictFn<PredictFn, T, N_ERROR>
+        requires ESKFPredictFn<PredictFn, T, NDX>
     constexpr void predict(PredictFn&& propagate_nominal, const T dt) {
-        ErrorStateJacobian<T, N_ERROR> ej = propagate_nominal(dt);
+        ErrorStateJacobian<T, NDX> ej = propagate_nominal(dt);
         P = ej.F * P * ej.F.transpose() + ej.G * Q * ej.G.transpose();
 
         // Error state decays naturally (doesn't accumulate without measurement correction)
@@ -260,9 +260,9 @@ struct ErrorStateKalmanFilter {
     //   M = measurement noise Jacobian (∂h/∂v, usually identity)
     // P update: P = (I - K*H) * P * (I - K*H)' + K*M*R*M'*K'  (Joseph form)
     template<typename MeasFn>
-        requires ESKFMeasFn<MeasFn, T, N_ERROR, NY>
+        requires ESKFMeasFn<MeasFn, T, NDX, NY>
     constexpr bool update(MeasFn&& h, const ColVec<NY, T>& z_meas) {
-        MeasJacobian<T, NY, N_ERROR> mj = h();
+        MeasJacobian<T, NY, NDX> mj = h();
 
         y = z_meas - mj.z_pred; // Innovation
 
@@ -280,7 +280,7 @@ struct ErrorStateKalmanFilter {
         delta_x = ColVec(K * y);
 
         // Covariance update (Joseph form for numerical stability)
-        const auto I_KH = Matrix<N_ERROR, N_ERROR, T>::identity() - K * mj.H;
+        const auto I_KH = Matrix<NDX, NDX, T>::identity() - K * mj.H;
         const auto KM = K * mj.M;
         P = I_KH * P * I_KH.transpose() + KM * R * KM.transpose();
 
@@ -290,7 +290,7 @@ struct ErrorStateKalmanFilter {
     // Reset error state after applying corrections to nominal state
     // Call this after you've updated the nominal quaternion/biases with delta_x
     constexpr void reset_error_state() {
-        delta_x = ColVec<N_ERROR, T>{};
+        delta_x = ColVec<NDX, T>{};
     }
 
     // Accessors
@@ -301,14 +301,14 @@ struct ErrorStateKalmanFilter {
     [[nodiscard]] constexpr const auto& innovation() const { return y; }
 
     // Setters for runtime tuning
-    constexpr void set_process_noise_covariance(const Matrix<N_ERROR, N_ERROR, T>& Q_new) { Q = Q_new; }
+    constexpr void set_process_noise_covariance(const Matrix<NDX, NDX, T>& Q_new) { Q = Q_new; }
     constexpr void set_measurement_noise_covariance(const Matrix<NY, NY, T>& R_new) { R = R_new; }
-    constexpr void set_covariance(const Matrix<N_ERROR, N_ERROR, T>& P_new) { P = P_new; }
+    constexpr void set_covariance(const Matrix<NDX, NDX, T>& P_new) { P = P_new; }
 
 private:
-    Matrix<N_ERROR, N_ERROR, T> P{};       // Error covariance
-    Matrix<N_ERROR, N_ERROR, T> Q{};       // Process noise covariance
-    Matrix<NY, NY, T>           R{};       // Measurement noise covariance
-    ColVec<N_ERROR, T>          delta_x{}; // Error state δx
-    ColVec<NY, T>               y{};       // Innovation
+    Matrix<NDX, NDX, T> P{};       // Error covariance
+    Matrix<NDX, NDX, T> Q{};       // Process noise covariance
+    Matrix<NY, NY, T>   R{};       // Measurement noise covariance
+    ColVec<NDX, T>      delta_x{}; // Error state δx
+    ColVec<NY, T>       y{};       // Innovation
 };
