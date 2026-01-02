@@ -367,10 +367,6 @@ using EulerZYX = Euler<T, EulerOrder::ZYX>;
 template<typename T>
 using EulerXYZ = Euler<T, EulerOrder::XYZ>;
 
-// 4x4 homogeneous transform matrix alias
-template<typename T>
-using Transform4 = Mat4<T>;
-
 // ============================================================================
 // Quaternion (moved/refactored from quaternion.hpp)
 // ============================================================================
@@ -523,7 +519,6 @@ struct Quaternion : public Matrix<4, 1, T> {
             v[2] + w() * t[2] + (qv[0] * t[1] - qv[1] * t[0])
         };
         return result;
-        return result;
     }
 
     // Convert to DCM
@@ -624,7 +619,7 @@ struct Quaternion : public Matrix<4, 1, T> {
     [[nodiscard]] constexpr Quaternion integrate_body_rates(const Vec3<T>& omega, T dt) const {
         T          half_dt = dt * T{0.5};
         Quaternion dq{T{1}, omega[0] * half_dt, omega[1] * half_dt, omega[2] * half_dt};
-        return (dq * (*this)).normalized();
+        return ((*this) * dq).normalized();
     }
 
     // Spherical linear interpolation
@@ -708,9 +703,150 @@ constexpr Euler<T, Order> Euler<T, Order>::from_quaternion(const Quaternion<T>& 
     return q.template to_euler<Order>();
 }
 
+// ============================================================================
+// Transform4: 4x4 homogeneous transformation matrix for robotics
+// ============================================================================
+template<typename T>
+struct Transform4 : public Mat4<T> {
+    using value_type = T;
+
+    static_assert(std::is_floating_point_v<T>, "Transform4 element type must be floating point");
+
+    constexpr Transform4() : Mat4<T>(Mat4<T>::identity()) {}
+    constexpr Transform4(const Transform4&) = default;
+    constexpr Transform4& operator=(const Transform4&) = default;
+    constexpr Transform4(Transform4&&) = default;
+    constexpr Transform4& operator=(Transform4&&) = default;
+    constexpr ~Transform4() = default;
+
+    // Construct from raw Mat4
+    constexpr explicit Transform4(const Mat4<T>& m) : Mat4<T>(m) {}
+
+    // Identity transform
+    [[nodiscard]] static constexpr Transform4 identity() { return Transform4{}; }
+
+    // Construct from rotation matrix + translation vector
+    [[nodiscard]] static constexpr Transform4 from_rotation_translation(const DCM<T>& R, const Vec3<T>& t) {
+        Transform4 result;
+        // Rotation part (top-left 3x3)
+        for (size_t i = 0; i < 3; ++i) {
+            for (size_t j = 0; j < 3; ++j) {
+                result(i, j) = R(i, j);
+            }
+        }
+        // Translation part (top-right 3x1)
+        result(0, 3) = t[0];
+        result(1, 3) = t[1];
+        result(2, 3) = t[2];
+        // Bottom row (homogeneous coordinates)
+        result(3, 0) = result(3, 1) = result(3, 2) = T{0};
+        result(3, 3) = T{1};
+        return result;
+    }
+
+    // Construct from quaternion + translation vector
+    [[nodiscard]] static constexpr Transform4 from_quaternion_translation(const Quaternion<T>& q, const Vec3<T>& t) {
+        return from_rotation_translation(q.to_dcm(), t);
+    }
+
+    // Construct from Euler angles + translation vector
+    template<EulerOrder Order>
+    [[nodiscard]] static constexpr Transform4 from_euler_translation(const Euler<T, Order>& e, const Vec3<T>& t) {
+        return from_rotation_translation(e.to_dcm(), t);
+    }
+
+    // Extract rotation part
+    [[nodiscard]] constexpr DCM<T> rotation() const {
+        DCM<T> R;
+        for (size_t i = 0; i < 3; ++i) {
+            for (size_t j = 0; j < 3; ++j) {
+                R(i, j) = this->data_[i][j];
+            }
+        }
+        return R;
+    }
+
+    // Extract translation part
+    [[nodiscard]] constexpr Vec3<T> translation() const {
+        return Vec3<T>{this->data_[0][3], this->data_[1][3], this->data_[2][3]};
+    }
+
+    // Transform composition (this * rhs)
+    [[nodiscard]] constexpr Transform4 operator*(const Transform4& rhs) const {
+        return Transform4(static_cast<const Mat4<T>&>(*this) * static_cast<const Mat4<T>&>(rhs));
+    }
+
+    constexpr Transform4& operator*=(const Transform4& rhs) {
+        return *this = *this * rhs;
+    }
+
+    // Transform a 3D point (homogeneous coordinates)
+    [[nodiscard]] constexpr Vec3<T> transform_point(const Vec3<T>& p) const {
+        // Convert to homogeneous coordinates
+        T x = this->data_[0][0] * p[0] + this->data_[0][1] * p[1] + this->data_[0][2] * p[2] + this->data_[0][3];
+        T y = this->data_[1][0] * p[0] + this->data_[1][1] * p[1] + this->data_[1][2] * p[2] + this->data_[1][3];
+        T z = this->data_[2][0] * p[0] + this->data_[2][1] * p[1] + this->data_[2][2] * p[2] + this->data_[2][3];
+        T w = this->data_[3][0] * p[0] + this->data_[3][1] * p[1] + this->data_[3][2] * p[2] + this->data_[3][3];
+
+        // Normalize homogeneous coordinates
+        if (w != T{1} && w != T{0}) {
+            T inv_w = T{1} / w;
+            x *= inv_w;
+            y *= inv_w;
+            z *= inv_w;
+        }
+
+        return Vec3<T>{x, y, z};
+    }
+
+    // Transform a 3D vector (no translation, only rotation)
+    [[nodiscard]] constexpr Vec3<T> transform_vector(const Vec3<T>& v) const {
+        DCM<T> R = rotation();
+        return R * v;
+    }
+
+    // Inverse transform
+    [[nodiscard]] constexpr std::optional<Transform4> inverse() const {
+        auto mat_inv = Mat4<T>::inverse();
+        if (!mat_inv) {
+            return std::nullopt;
+        }
+        return Transform4(*mat_inv);
+    }
+
+    // Convert to quaternion + translation
+    [[nodiscard]] constexpr std::pair<Quaternion<T>, Vec3<T>> to_quaternion_translation() const {
+        DCM<T>  R = rotation();
+        auto    q_opt = R.to_quaternion();
+        Vec3<T> t = translation();
+        return {q_opt.value_or(Quaternion<T>::identity()), t};
+    }
+
+    // Convert to Euler + translation
+    template<EulerOrder Order = EulerOrder::ZYX>
+    [[nodiscard]] constexpr std::pair<Euler<T, Order>, Vec3<T>> to_euler_translation() const {
+        DCM<T>          R = rotation();
+        Euler<T, Order> e = R.template to_euler<Order>();
+        Vec3<T>         t = translation();
+        return {e, t};
+    }
+
+    // Access underlying matrix
+    [[nodiscard]] constexpr const Mat4<T>& matrix() const { return *this; }
+    [[nodiscard]] constexpr Mat4<T>&       matrix() { return *this; }
+};
+
+// Convenience type aliases
+using Transform4f = Transform4<float>;
+using Transform4d = Transform4<double>;
+
 // Convenience type aliases
 using Quatf = Quaternion<float>;
 using Quatd = Quaternion<double>;
+using Quaterniond = Quaternion<double>; // Alias for compatibility
+
+using Vec3f = Vec3<float>;
+using Vec3d = Vec3<double>;
 
 using DCMf = DCM<float>;
 using DCMd = DCM<double>;
