@@ -122,12 +122,19 @@ public:
 
     // Static factory function for zero matrix
     [[nodiscard]] static constexpr Matrix zeros() { return Matrix{}; }
+    [[nodiscard]] static constexpr Matrix constant(const T& value) {
+        Matrix result;
+        for (auto& row : result.data_) {
+            row.fill(value);
+        }
+        return result;
+    }
 
     // Static factory function for identity matrix (only for square matrices)
     [[nodiscard]] static constexpr Matrix identity()
         requires(Rows == Cols)
     {
-        Matrix result;
+        Matrix result{};
         for (size_t r = 0; r < Rows; ++r) {
             result.data_[r][r] = T{1};
         }
