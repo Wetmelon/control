@@ -8,24 +8,43 @@
 #include "ricatti.hpp"
 #include "state_space.hpp"
 
-// ============================================================================
-// Servo design choices (used by LQI and related functions)
-// ============================================================================
+/**
+ * @defgroup servo_design Servo Design Utilities
+ * @brief Enumeration for servo controller degrees of freedom
+ */
+
+/**
+ * @brief Servo design choices for tracking controllers
+ *
+ * Specifies whether to use 1-DOF (error feedback only) or 2-DOF (error feedback + feedforward)
+ * control architecture.
+ */
 enum class ServoDOF {
-    OneDOF, // 1-DOF: integrator on error only
-    TwoDOF  // 2-DOF: integrator + feedforward
+    OneDOF, //!< 1-DOF: integrator on error only
+    TwoDOF  //!< 2-DOF: integrator + feedforward
 };
 
-// ============================================================================
-// Stability Analysis Utilities
-// ============================================================================
-// Functions to analyze closed-loop stability of control systems.
-// For continuous systems: stable if all eigenvalues have Re(λ) < 0
-// For discrete systems: stable if all eigenvalues have |λ| < 1
+/**
+ * @defgroup stability_analysis Stability Analysis
+ * @brief Functions to analyze closed-loop stability of control systems
+ *
+ * For continuous systems: stable if all eigenvalues have Re(λ) < 0 (left half plane)
+ * For discrete systems: stable if all eigenvalues have |λ| < 1 (inside unit circle)
+ */
 
 namespace stability {
 
-// Check if a continuous-time system matrix A is stable (all eigenvalues in LHP)
+/**
+ * @brief Check if a continuous-time system matrix A is stable
+ *
+ * A continuous system is stable if all eigenvalues have negative real parts (LHP).
+ *
+ * @tparam N   Number of states (must be ≤ 4)
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix to check
+ *
+ * @return true if all eigenvalues have Re(λ) < 0, false otherwise
+ */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr bool is_stable_continuous(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
@@ -41,7 +60,17 @@ template<size_t N, typename T = double>
     return true;
 }
 
-// Check if a discrete-time system matrix A is stable (all eigenvalues inside unit circle)
+/**
+ * @brief Check if a discrete-time system matrix A is stable
+ *
+ * A discrete system is stable if all eigenvalues have magnitude less than 1 (inside unit circle).
+ *
+ * @tparam N   Number of states (must be ≤ 4)
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix to check
+ *
+ * @return true if all eigenvalues satisfy |λ| < 1, false otherwise
+ */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr bool is_stable_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
@@ -60,7 +89,20 @@ template<size_t N, typename T = double>
     return true;
 }
 
-// Check closed-loop stability for continuous system with state feedback u = -K*x
+/**
+ * @brief Check closed-loop stability for continuous system with state feedback
+ *
+ * Checks stability of the closed-loop system A_cl = A - B*K with feedback u = -K*x.
+ *
+ * @tparam NX  Number of states
+ * @tparam NU  Number of inputs
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ * @param B    Control input matrix
+ * @param K    State feedback gain matrix (u = -K*x)
+ *
+ * @return true if closed-loop system is stable, false otherwise
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr bool is_closed_loop_stable_continuous(
     const Matrix<NX, NX, T>& A,
@@ -71,7 +113,20 @@ template<size_t NX, size_t NU, typename T = double>
     return is_stable_continuous(A_cl);
 }
 
-// Check closed-loop stability for discrete system with state feedback u = -K*x
+/**
+ * @brief Check closed-loop stability for discrete system with state feedback
+ *
+ * Checks stability of the closed-loop system A_cl = A - B*K with feedback u = -K*x.
+ *
+ * @tparam NX  Number of states
+ * @tparam NU  Number of inputs
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ * @param B    Control input matrix
+ * @param K    State feedback gain matrix (u = -K*x)
+ *
+ * @return true if closed-loop system is stable, false otherwise
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr bool is_closed_loop_stable_discrete(
     const Matrix<NX, NX, T>& A,
@@ -82,9 +137,19 @@ template<size_t NX, size_t NU, typename T = double>
     return is_stable_discrete(A_cl);
 }
 
-// Compute stability margin (minimum distance to instability boundary)
-// For continuous: most positive real part (negative = stable)
-// For discrete: maximum magnitude - 1 (negative = stable)
+/**
+ * @brief Compute stability margin for continuous system
+ *
+ * Returns the distance to the stability boundary (imaginary axis).
+ * Computed as the negative of the most positive real eigenvalue part.
+ * Positive values indicate stability; larger values indicate more stability margin.
+ *
+ * @tparam N   Number of states (must be ≤ 4)
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ *
+ * @return Stability margin (positive = stable, negative = unstable)
+ */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_continuous(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
@@ -101,6 +166,19 @@ template<size_t N, typename T = double>
     return -max_real; // Positive means stable, larger is more stable
 }
 
+/**
+ * @brief Compute stability margin for discrete system
+ *
+ * Returns the distance to the stability boundary (unit circle).
+ * Computed as 1 - (maximum magnitude eigenvalue).
+ * Positive values indicate stability; larger values indicate more stability margin.
+ *
+ * @tparam N   Number of states (must be ≤ 4)
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ *
+ * @return Stability margin (positive = stable, negative = unstable)
+ */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
@@ -120,7 +198,21 @@ template<size_t N, typename T = double>
     return T{1} - max_mag; // Positive means stable, larger is more stable
 }
 
-// Get closed-loop eigenvalues
+/**
+ * @brief Compute closed-loop poles (eigenvalues) with state feedback
+ *
+ * Computes the eigenvalues of the closed-loop state matrix A_cl = A - B*K.
+ * These poles determine the closed-loop system dynamics.
+ *
+ * @tparam NX  Number of states (must be ≤ 4)
+ * @tparam NU  Number of inputs
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ * @param B    Control input matrix
+ * @param K    State feedback gain matrix (u = -K*x)
+ *
+ * @return Vector of closed-loop pole locations (eigenvalues as complex numbers)
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr ColVec<NX, std::complex<T>> closed_loop_poles(
     const Matrix<NX, NX, T>& A,
@@ -137,23 +229,28 @@ template<size_t NX, size_t NU, typename T = double>
 
 namespace design {
 
-// ============================================================================
-// MATLAB-Style API Functions
-// ============================================================================
-// These functions mirror MATLAB's Control System Toolbox API for familiarity.
-// Both design:: (consteval) and online:: (constexpr) variants are provided.
-
-// ============================================================================
-// LQR Result Structure (mirrors MATLAB's [K,S,P] = lqr(...) output)
-// ============================================================================
+/**
+ * @defgroup control_design Control Design Algorithms
+ * @brief MATLAB-style API functions for LQR, LQI, LQG, and Kalman filter design
+ *
+ * These functions mirror MATLAB's Control System Toolbox API for familiarity.
+ * Both design:: (consteval) and online:: (constexpr) variants are provided.
+ */
+/**
+ * @struct LQRResult
+ * @brief Linear-Quadratic Regulator design result
+ *
+ * Mirrors MATLAB's [K,S,P] = lqr(...) output structure, containing optimal gain,
+ * Riccati solution, and closed-loop pole information.
+ */
 template<size_t NX, size_t NU, typename T = double>
 struct LQRResult {
-    Matrix<NU, NX, T>           K{};                    // Optimal gain: u = -K*x
-    Matrix<NX, NX, T>           S{};                    // Solution to Riccati equation
-    ColVec<NX, T>               poles{};                // Closed-loop poles (real parts)
-    ColVec<NX, std::complex<T>> poles_complex{};        // Full complex closed-loop poles
-    bool                        is_stable{false};       // Closed-loop stability flag
-    T                           stability_margin{T{0}}; // Distance to instability
+    Matrix<NU, NX, T>           K{};                    //!< Optimal gain: u = -K*x
+    Matrix<NX, NX, T>           S{};                    //!< Solution to Riccati equation
+    ColVec<NX, T>               poles{};                //!< Closed-loop poles (real parts)
+    ColVec<NX, std::complex<T>> poles_complex{};        //!< Full complex closed-loop poles
+    bool                        is_stable{false};       //!< Closed-loop stability flag
+    T                           stability_margin{T{0}}; //!< Distance to instability
 
     constexpr LQRResult() = default;
 
@@ -178,18 +275,21 @@ struct LQRResult {
         : K(other.K), S(other.S), poles(other.poles), poles_complex(other.poles_complex), is_stable(other.is_stable), stability_margin(static_cast<T>(other.stability_margin)) {}
 };
 
-// ============================================================================
-// LQI Result Structure (LQR with integral action)
-// ============================================================================
+/**
+ * @struct LQIResult
+ * @brief Linear-Quadratic Integral controller design result
+ *
+ * Contains gains and Riccati solution for servo control with integral action.
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct LQIResult {
-    Matrix<NX, NX, T>           A{};  // System A matrix
-    Matrix<NX, NU, T>           B{};  // System B matrix
-    Matrix<NY, NX, T>           C{};  // System C matrix
-    Matrix<NU, NX, T>           Kx{}; // State gain
-    Matrix<NU, NY, T>           Ki{}; // Integral gain
-    Matrix<NX + NY, NX + NY, T> S{};  // Riccati solution for augmented system
-    ServoDOF                    dof{ServoDOF::OneDOF};
+    Matrix<NX, NX, T>           A{};                   //!< System A matrix
+    Matrix<NX, NU, T>           B{};                   //!< System B matrix
+    Matrix<NY, NX, T>           C{};                   //!< System C matrix
+    Matrix<NU, NX, T>           Kx{};                  //!< State gain
+    Matrix<NU, NY, T>           Ki{};                  //!< Integral gain
+    Matrix<NX + NY, NX + NY, T> S{};                   //!< Riccati solution for augmented system
+    ServoDOF                    dof{ServoDOF::OneDOF}; //!< Servo configuration (1DOF or 2DOF)
 
     constexpr LQIResult() = default;
     constexpr LQIResult(
@@ -207,16 +307,19 @@ struct LQIResult {
         : A(other.A), B(other.B), C(other.C), Kx(other.Kx), Ki(other.Ki), S(other.S), dof(other.dof) {}
 };
 
-// ============================================================================
-// Kalman Filter Result Structure
-// ============================================================================
+/**
+ * @struct KalmanResult
+ * @brief Kalman filter design result
+ *
+ * Contains filter gains and covariance matrices for optimal state estimation.
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct KalmanResult {
-    StateSpace<NX, NU, NY, NW, NV, T> sys{}; // System model
-    Matrix<NW, NW, T>                 Q{};   // Process noise covariance
-    Matrix<NV, NV, T>                 R{};   // Measurement noise covariance
-    Matrix<NX, NY, T>                 L{};   // Kalman gain (steady-state)
-    Matrix<NX, NX, T>                 P{};   // Error covariance (steady-state)
+    StateSpace<NX, NU, NY, NW, NV, T> sys{}; //!< System model
+    Matrix<NW, NW, T>                 Q{};   //!< Process noise covariance
+    Matrix<NV, NV, T>                 R{};   //!< Measurement noise covariance
+    Matrix<NX, NY, T>                 L{};   //!< Kalman gain (steady-state)
+    Matrix<NX, NX, T>                 P{};   //!< Error covariance (steady-state)
 
     constexpr KalmanResult() = default;
     constexpr KalmanResult(
@@ -232,13 +335,16 @@ struct KalmanResult {
         : sys(other.sys), Q(other.Q), R(other.R), L(other.L), P(other.P) {}
 };
 
-// ============================================================================
-// LQG Result Structure (LQR + Kalman filter results)
-// ============================================================================
+/**
+ * @struct LQGResult
+ * @brief Linear-Quadratic-Gaussian controller design result
+ *
+ * Combines LQR and Kalman filter designs for separation principle-based control.
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct LQGResult {
-    LQRResult<NX, NU, T>                lqr{};    // LQR design result
-    KalmanResult<NX, NU, NY, NW, NV, T> kalman{}; // Kalman filter result
+    LQRResult<NX, NU, T>                lqr{};    //!< LQR design result
+    KalmanResult<NX, NU, NY, NW, NV, T> kalman{}; //!< Kalman filter result
 
     constexpr LQGResult() = default;
     constexpr LQGResult(
@@ -251,13 +357,16 @@ struct LQGResult {
         : lqr(other.lqr), kalman(other.kalman) {}
 };
 
-// ============================================================================
-// LQGI Result Structure (LQI + Kalman filter results)
-// ============================================================================
+/**
+ * @struct LQGIResult
+ * @brief Linear-Quadratic-Gaussian Integral controller design result
+ *
+ * Combines LQI and Kalman filter designs for servo control with state estimation.
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct LQGIResult {
-    LQIResult<NX, NU, NY, T>            lqi{};    // LQI design result
-    KalmanResult<NX, NU, NY, NW, NV, T> kalman{}; // Kalman filter result
+    LQIResult<NX, NU, NY, T>            lqi{};    //!< LQI design result
+    KalmanResult<NX, NU, NY, NW, NV, T> kalman{}; //!< Kalman filter result
 
     constexpr LQGIResult() = default;
     constexpr LQGIResult(
@@ -270,11 +379,25 @@ struct LQGIResult {
         : lqi(other.lqi), kalman(other.kalman) {}
 };
 
-// ============================================================================
-// Helper: Create LQRResult with full stability analysis
-// ============================================================================
+/**
+ * @defgroup lqr_helpers LQR Result Helper Functions
+ * @brief Internal functions to construct LQRResult with stability analysis
+ */
 namespace detail {
 
+/**
+ * @brief Create LQRResult for continuous-time system with stability analysis
+ *
+ * @tparam NX  Number of states
+ * @tparam NU  Number of inputs
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ * @param B    Control input matrix
+ * @param K    Optimal gain matrix
+ * @param S    Riccati equation solution
+ *
+ * @return LQRResult with computed poles, stability flag, and stability margin
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr LQRResult<NX, NU, T> make_lqr_result_continuous(
     const Matrix<NX, NX, T>& A,
@@ -303,6 +426,19 @@ template<size_t NX, size_t NU, typename T = double>
     return LQRResult<NX, NU, T>{K, S, poles, poles_complex, is_stable, margin};
 }
 
+/**
+ * @brief Create LQRResult for discrete-time system with stability analysis
+ *
+ * @tparam NX  Number of states
+ * @tparam NU  Number of inputs
+ * @tparam T   Numeric type (default: double)
+ * @param A    State matrix
+ * @param B    Control input matrix
+ * @param K    Optimal gain matrix
+ * @param S    Riccati equation solution
+ *
+ * @return LQRResult with computed poles, stability flag, and stability margin
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr LQRResult<NX, NU, T> make_lqr_result_discrete(
     const Matrix<NX, NX, T>& A,
@@ -333,13 +469,19 @@ template<size_t NX, size_t NU, typename T = double>
 
 } // namespace detail
 
-// ============================================================================
-// dlqr: Discrete Linear-Quadratic Regulator
-// ============================================================================
-// MATLAB: [K,S,P] = dlqr(A,B,Q,R,N)
-// Designs optimal gain for discrete system: x[k+1] = A*x[k] + B*u[k]
-// Minimizes: J = sum{ x'Qx + u'Ru + 2*x'Nu }
-
+/**
+ * @brief Discrete Linear-Quadratic Regulator design
+ *
+ * Designs optimal gain for discrete system: x[k+1] = A*x[k] + B*u[k]
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> dlqr(
     const Matrix<NX, NX, T>& A,
@@ -362,13 +504,19 @@ template<size_t NX, size_t NU, typename T = double>
     return detail::make_lqr_result_discrete(A, B, K, S);
 }
 
-// ============================================================================
-// lqr: Continuous Linear-Quadratic Regulator
-// ============================================================================
-// MATLAB: [K,S,P] = lqr(A,B,Q,R,N) or [K,S,P] = lqr(sys,Q,R,N)
-// Designs optimal gain for continuous system: dx/dt = A*x + B*u
-// Minimizes: J = integral{ x'Qx + u'Ru + 2*x'Nu } dt
-
+/**
+ * @brief Linear-Quadratic Regulator design for continuous-time systems
+ *
+ * Designs optimal gain for continuous system: dx/dt = A*x + B*u
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> lqr(
     const Matrix<NX, NX, T>& A,
@@ -399,7 +547,16 @@ template<size_t NX, size_t NU, typename T = double>
     return detail::make_lqr_result_continuous(A, B, K, S);
 }
 
-// Overload: lqr(sys, Q, R, N) for StateSpace input
+/**
+ * @brief Linear-Quadratic Regulator design for continuous-time state-space systems
+ *
+ * @param sys  State-space system
+ * @param Q    State cost matrix
+ * @param R    Input cost matrix
+ * @param N    (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> lqr(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -410,12 +567,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqr(sys.A, sys.B, Q, R, N);
 }
 
-// ============================================================================
-// lqrd: Discrete LQR design from continuous plant
-// ============================================================================
-// MATLAB: [Kd,S,e] = lqrd(A,B,Q,R,N,Ts)
-// Discretizes continuous plant and designs discrete LQR
-
+/**
+ * @brief Design discrete LQR from continuous-time system via discretization
+ *
+ * @param A   State transition matrix (continuous-time)
+ * @param B   Control input matrix (continuous-time)
+ * @param Q   State cost matrix
+ * @param R   Input cost matrix
+ * @param Ts  Sampling time
+ * @param N   (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> lqrd(
     const Matrix<NX, NX, T>& A,
@@ -427,12 +590,22 @@ template<size_t NX, size_t NU, typename T = double>
 ) {
     // Create continuous state-space and discretize
     StateSpace sys_c{A, B, Matrix<NX, NX, T>::identity()};
-    const auto sys_d = discretize_zoh(sys_c, Ts);
+    const auto sys_d = discretize(sys_c, Ts, DiscretizationMethod::ZOH);
 
     return dlqr(sys_d.A, sys_d.B, Q, R, N);
 }
 
-// Overload: lqrd(sys, Q, R, Ts)
+/**
+ * @brief Design discrete LQR from continuous-time state-space system via discretization
+ *
+ * @param sys  State-space system (continuous-time)
+ * @param Q    State cost matrix
+ * @param R    Input cost matrix
+ * @param Ts   Sampling time
+ * @param N    (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> lqrd(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -444,12 +617,16 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqrd(sys.A, sys.B, Q, R, Ts, N);
 }
 
-// ============================================================================
-// lqi: Linear-Quadratic-Integral controller design
-// ============================================================================
-// MATLAB: K = lqi(sys, Q, R, N)
-// Returns LQIResult with state and integral gains
-
+/**
+ * @brief Linear-Quadratic Integral design for tracking with servo action
+ *
+ * @param sys  State-space system
+ * @param Q    Augmented state cost matrix (state + integral error)
+ * @param R    Input cost matrix
+ * @param dof  Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQIResult containing state and integral gains
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQIResult<NX, NU, NY, T> lqi(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -509,12 +686,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return LQIResult<NX, NU, NY, T>(sys.A, sys.B, sys.C, Kx, Ki, P_aug, dof);
 }
 
-// ============================================================================
-// lqg: Linear-Quadratic-Gaussian design
-// ============================================================================
-// MATLAB: reg = lqg(sys, QXU, QWV)
-// Returns LQGResult combining LQR and Kalman filter design results
-
+/**
+ * @brief Linear-Quadratic-Gaussian regulator design combining LQR and Kalman filter
+ *
+ * @param sys     State-space system
+ * @param Q_lqr   State cost for LQR
+ * @param R_lqr   Input cost for LQR
+ * @param Q_kf    Process noise covariance for Kalman filter
+ * @param R_kf    Measurement noise covariance for Kalman filter
+ * @param N       (optional) Cross-term cost matrix
+ *
+ * @return LQGResult combining LQR and Kalman filter designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGResult<NX, NU, NY, NW, NV, T> lqg(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -545,12 +728,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return LQGResult<NX, NU, NY, NW, NV, T>(lqr_result, kalman_result);
 }
 
-// ============================================================================
-// lqgtrack: LQG servo controller for tracking
-// ============================================================================
-// MATLAB: C = lqgtrack(kest, k, '1dof') or lqgtrack(kest, k, '2dof')
-// Returns LQGIResult with integral action for tracking
-
+/**
+ * @brief Linear-Quadratic-Gaussian with integral action for tracking
+ *
+ * @param sys      State-space system
+ * @param Q_aug    Augmented state cost (state + integral error)
+ * @param R        Input cost matrix
+ * @param Q_kf     Process noise covariance for Kalman filter
+ * @param R_kf     Measurement noise covariance for Kalman filter
+ * @param dof      Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQGIResult with integral action for tracking
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -614,12 +803,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return LQGIResult<NX, NU, NY, NW, NV, T>(lqi_result, kalman_result);
 }
 
-// ============================================================================
-// lqgreg: Form LQG regulator from Kalman result and LQR result
-// ============================================================================
-// MATLAB: rlqg = lqgreg(kest, k)
-// Combines Kalman result and LQR result into LQGResult
-
+/**
+ * @brief Combine separate Kalman filter and LQR designs into an LQG controller
+ *
+ * @param kest        Kalman filter design result
+ * @param lqr_result  LQR controller design result
+ *
+ * @return LQGResult combining the provided Kalman and LQR designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGResult<NX, NU, NY, NW, NV, T> lqgreg(
     const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
@@ -628,14 +819,17 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return LQGResult<NX, NU, NY, NW, NV, T>(lqr_result, kest);
 }
 
-// ============================================================================
-// Long-Named Wrapper Functions (aliases for clarity)
-// ============================================================================
-// These provide more descriptive names that wrap the MATLAB-style functions.
-// They return identical result types for API consistency.
-
-// discrete_lqr: Design discrete LQR for already-discrete system
-// Wrapper for dlqr()
+/**
+ * @brief Alias for discrete-time LQR design (consteval version)
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> discrete_lqr(
     const Matrix<NX, NX, T>& A,
@@ -647,8 +841,17 @@ template<size_t NX, size_t NU, typename T = double>
     return dlqr(A, B, Q, R, N);
 }
 
-// continuous_lqr: Design continuous LQR (solves CARE)
-// Wrapper for lqr()
+/**
+ * @brief Alias for continuous-time LQR design (consteval version)
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> continuous_lqr(
     const Matrix<NX, NX, T>& A,
@@ -660,7 +863,16 @@ template<size_t NX, size_t NU, typename T = double>
     return lqr(A, B, Q, R, N);
 }
 
-// continuous_lqr: Overload for StateSpace input
+/**
+ * @brief Alias for continuous-time LQR design for state-space systems (consteval version)
+ *
+ * @param sys  State-space system
+ * @param Q    State cost matrix
+ * @param R    Input cost matrix
+ * @param N    (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> continuous_lqr(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -671,8 +883,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqr(sys, Q, R, N);
 }
 
-// discrete_lqr_from_continuous: Discretize plant, then design discrete LQR
-// Wrapper for lqrd()
+/**
+ * @brief Alias for discrete LQR from continuous system via discretization (consteval version)
+ *
+ * @param A   State transition matrix (continuous-time)
+ * @param B   Control input matrix (continuous-time)
+ * @param Q   State cost matrix
+ * @param R   Input cost matrix
+ * @param Ts  Sampling time
+ * @param N   (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const Matrix<NX, NX, T>& A,
@@ -685,7 +907,17 @@ template<size_t NX, size_t NU, typename T = double>
     return lqrd(A, B, Q, R, Ts, N);
 }
 
-// discrete_lqr_from_continuous: Overload for StateSpace input
+/**
+ * @brief Alias for discrete LQR from continuous state-space system via discretization (consteval version)
+ *
+ * @param sys  State-space system (continuous-time)
+ * @param Q    State cost matrix
+ * @param R    Input cost matrix
+ * @param Ts   Sampling time
+ * @param N    (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -697,8 +929,16 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqrd(sys, Q, R, Ts, N);
 }
 
-// lqr_with_integral: LQR with integral action for setpoint tracking
-// Wrapper for lqi()
+/**
+ * @brief Alias for LQR with integral action for tracking (consteval version)
+ *
+ * @param sys  State-space system
+ * @param Q    Augmented state cost matrix (state + integral error)
+ * @param R    Input cost matrix
+ * @param dof  Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQIResult containing state and integral gains
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] consteval LQIResult<NX, NU, NY, T> lqr_with_integral(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -709,8 +949,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqi(sys, Q, R, dof);
 }
 
-// lqg_regulator: Combined LQR + Kalman filter design
-// Wrapper for lqg()
+/**
+ * @brief Alias for LQG regulator design combining LQR and Kalman filter (consteval version)
+ *
+ * @param sys     State-space system
+ * @param Q_lqr   State cost for LQR
+ * @param R_lqr   Input cost for LQR
+ * @param Q_kf    Process noise covariance for Kalman filter
+ * @param R_kf    Measurement noise covariance for Kalman filter
+ * @param N       (optional) Cross-term cost matrix
+ *
+ * @return LQGResult combining LQR and Kalman filter designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGResult<NX, NU, NY, NW, NV, T> lqg_regulator(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -723,8 +973,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
 }
 
-// lqg_servo: LQG with integral action for tracking
-// Wrapper for lqgtrack()
+/**
+ * @brief Alias for LQG with integral action for servo tracking (consteval version)
+ *
+ * @param sys      State-space system
+ * @param Q_aug    Augmented state cost (state + integral error)
+ * @param R        Input cost matrix
+ * @param Q_kf     Process noise covariance for Kalman filter
+ * @param R_kf     Measurement noise covariance for Kalman filter
+ * @param dof      Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQGIResult with integral action for tracking
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -737,8 +997,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return lqgtrack(sys, Q_aug, R, Q_kf, R_kf, dof);
 }
 
-// lqg_from_parts: Combine separate Kalman and LQR results
-// Wrapper for lqgreg()
+/**
+ * @brief Combine separate Kalman and LQR results into an LQG controller
+ *
+ * @param kest        Kalman filter result
+ * @param lqr_result  LQR controller result
+ *
+ * @return LQG controller result structure
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] consteval LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
     const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
@@ -755,7 +1021,17 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 
 namespace online {
 
-// dlqr - discrete LQR (runtime)
+/**
+ * @brief Discrete-time Linear-Quadratic Regulator design (runtime version)
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> dlqr(
     const Matrix<NX, NX, T>& A,
@@ -777,7 +1053,17 @@ template<size_t NX, size_t NU, typename T = double>
     return design::detail::make_lqr_result_discrete(A, B, K, S);
 }
 
-// lqr - continuous LQR (runtime)
+/**
+ * @brief Continuous-time Linear-Quadratic Regulator design (runtime version)
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> lqr(
     const Matrix<NX, NX, T>& A,
@@ -814,7 +1100,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return online::lqr(sys.A, sys.B, Q, R, N);
 }
 
-// lqrd - discrete LQR from continuous plant (runtime)
+/**
+ * @brief Design discrete LQR from continuous-time system via discretization (runtime version)
+ *
+ * @param A   State transition matrix (continuous-time)
+ * @param B   Control input matrix (continuous-time)
+ * @param Q   State cost matrix
+ * @param R   Input cost matrix
+ * @param Ts  Sampling time
+ * @param N   (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> lqrd(
     const Matrix<NX, NX, T>& A,
@@ -825,7 +1122,7 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
     StateSpace<NX, NU, NX, NX, NX, T> sys_c{A, B, Matrix<NX, NX, T>::identity()};
-    const auto                        sys_d = discretize_zoh(sys_c, Ts);
+    const auto                        sys_d = discretize(sys_c, Ts, DiscretizationMethod::ZOH);
     return online::dlqr(sys_d.A, sys_d.B, Q, R, N);
 }
 
@@ -841,7 +1138,16 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return online::lqrd(sys.A, sys.B, Q, R, Ts, N);
 }
 
-// lqi - LQI controller design (runtime)
+/**
+ * @brief Linear-Quadratic Integral design for tracking with servo action (runtime version)
+ *
+ * @param sys  State-space system
+ * @param Q    Augmented state cost matrix (state + integral error)
+ * @param R    Input cost matrix
+ * @param dof  Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQIResult containing state and integral gains
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] constexpr design::LQIResult<NX, NU, NY, T> lqi(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -897,7 +1203,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return design::LQIResult<NX, NU, NY, T>(sys.A, sys.B, sys.C, Kx, Ki, P_aug, dof);
 }
 
-// lqg - LQG design (runtime)
+/**
+ * @brief Linear-Quadratic-Gaussian regulator design combining LQR and Kalman filter (runtime version)
+ *
+ * @param sys     State-space system
+ * @param Q_lqr   State cost for LQR
+ * @param R_lqr   Input cost for LQR
+ * @param Q_kf    Process noise covariance for Kalman filter
+ * @param R_kf    Measurement noise covariance for Kalman filter
+ * @param N       (optional) Cross-term cost matrix
+ *
+ * @return LQGResult combining LQR and Kalman filter designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqg(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -926,7 +1243,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return design::LQGResult<NX, NU, NY, NW, NV, T>(lqr_result, kalman_result);
 }
 
-// lqgtrack - LQG servo controller (runtime)
+/**
+ * @brief Linear-Quadratic-Gaussian with integral action for tracking (runtime version)
+ *
+ * @param sys      State-space system
+ * @param Q_aug    Augmented state cost (state + integral error)
+ * @param R        Input cost matrix
+ * @param Q_kf     Process noise covariance for Kalman filter
+ * @param R_kf     Measurement noise covariance for Kalman filter
+ * @param dof      Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQGIResult with integral action for tracking
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -988,7 +1316,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return design::LQGIResult<NX, NU, NY, NW, NV, T>(lqi_result, kalman_result);
 }
 
-// lqgreg - form LQG from Kalman result + LQR result (runtime)
+/**
+ * @brief Combine separate Kalman filter and LQR designs into an LQG controller (runtime version)
+ *
+ * @param kest        Kalman filter design result
+ * @param lqr_result  LQR controller design result
+ *
+ * @return LQGResult combining the provided Kalman and LQR designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqgreg(
     const design::KalmanResult<NX, NU, NY, NW, NV, T>& kest,
@@ -1000,11 +1335,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 // ============================================================================
 // Long-Named Wrapper Functions (aliases for clarity)
 // ============================================================================
-// These provide more descriptive names that wrap the MATLAB-style functions.
-// They return identical result types for API consistency.
 
-// discrete_lqr: Design discrete LQR for already-discrete system
-// Wrapper for dlqr()
+/**
+ * @brief Design discrete LQR for already-discrete system
+ *
+ * @param A  State transition matrix
+ * @param B  Control input matrix
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> discrete_lqr(
     const Matrix<NX, NX, T>& A,
@@ -1016,8 +1358,17 @@ template<size_t NX, size_t NU, typename T = double>
     return dlqr(A, B, Q, R, N);
 }
 
-// continuous_lqr: Design continuous LQR (solves CARE)
-// Wrapper for lqr()
+/**
+ * @brief Design continuous LQR
+ *
+ * @param A State transition matrix
+ * @param B Control input matrix
+ * @param Q State cost matrix
+ * @param R Input cost matrix
+ * @param N (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> continuous_lqr(
     const Matrix<NX, NX, T>& A,
@@ -1029,7 +1380,16 @@ template<size_t NX, size_t NU, typename T = double>
     return lqr(A, B, Q, R, N);
 }
 
-// continuous_lqr: Overload for StateSpace input
+/**
+ * @brief Design continuous LQR for state-space system
+ *
+ * @param sys State-space system
+ * @param Q   State cost matrix
+ * @param R   Input cost matrix
+ * @param N   (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to CARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> continuous_lqr(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -1040,8 +1400,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqr(sys, Q, R, N);
 }
 
-// discrete_lqr_from_continuous: Discretize plant, then design discrete LQR
-// Wrapper for lqrd()
+/**
+ * @brief Design discrete LQR from continuous-time system
+ *
+ * @param A  State transition matrix (continuous-time)
+ * @param B  Control input matrix (continuous-time)
+ * @param Q  State cost matrix
+ * @param R  Input cost matrix
+ * @param Ts Sampling time
+ * @param N  (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const Matrix<NX, NX, T>& A,
@@ -1054,7 +1424,17 @@ template<size_t NX, size_t NU, typename T = double>
     return lqrd(A, B, Q, R, Ts, N);
 }
 
-// discrete_lqr_from_continuous: Overload for StateSpace input
+/**
+ * @brief Design discrete LQR from continuous-time state-space system
+ *
+ * @param sys State-space system (continuous-time)
+ * @param Q   State cost matrix
+ * @param R   Input cost matrix
+ * @param Ts  Sampling time
+ * @param N   (optional) Cross-term cost matrix
+ *
+ * @return LQRResult containing gain matrix and solution to DARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] constexpr design::LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -1066,8 +1446,16 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqrd(sys, Q, R, Ts, N);
 }
 
-// lqr_with_integral: LQR with integral action for setpoint tracking
-// Wrapper for lqi()
+/**
+ * @brief Design continuous LQR with integral action for state-space system
+ *
+ * @param sys State-space system
+ * @param Q   Augmented state cost matrix (state + integral)
+ * @param R   Input cost matrix
+ * @param dof Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return LQIResult containing gains and solution to DARE
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 [[nodiscard]] constexpr design::LQIResult<NX, NU, NY, T> lqr_with_integral(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
@@ -1078,8 +1466,18 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     return lqi(sys, Q, R, dof);
 }
 
-// lqg_regulator: Combined LQR + Kalman filter design
-// Wrapper for lqg()
+/**
+ * @brief  LQG regulator design combining LQR and Kalman filter
+ *
+ * @param sys    State-space system
+ * @param Q_lqr  State cost for LQR
+ * @param R_lqr  Input cost for LQR
+ * @param Q_kf   Process noise covariance for Kalman filter
+ * @param R_kf   Measurement noise covariance for Kalman filter
+ * @param N      (optional) Cross-term cost matrix
+ *
+ * @return LQGResult combining LQR and Kalman filter designs
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqg_regulator(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -1092,8 +1490,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
 }
 
-// lqg_servo: LQG with integral action for tracking
-// Wrapper for lqgtrack()
+/**
+ * @brief LQG with integral action for tracking
+ *
+ * @param sys    State-space system
+ * @param Q_aug  Augmented state cost (state + integral)
+ * @param R      Input cost
+ * @param Q_kf   Process noise covariance
+ * @param R_kf   Measurement noise covariance
+ * @param dof    Servo degrees of freedom (1DOF or 2DOF)
+ *
+ * @return  LQGIResult with integral action for tracking
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
@@ -1106,8 +1514,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     return lqgtrack(sys, Q_aug, R, Q_kf, R_kf, dof);
 }
 
-// lqg_from_parts: Combine separate Kalman and LQR results
-// Wrapper for lqgreg()
+/**
+ * @brief Combine separate Kalman and LQR results into an LQG controller
+ *
+ * @param kest          Kalman filter design result
+ * @param lqr_result    LQR controller design result
+ *
+ * @return LQG Regulator combining the provided Kalman and LQR results
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
     const design::KalmanResult<NX, NU, NY, NW, NV, T>& kest,

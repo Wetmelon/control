@@ -1,0 +1,5 @@
+{
+    "doxdocgen.generic.returnTemplate": "\n@return ",
+    "doxdocgen.generic.paramTemplate": "@param {param}{indent:18} ",
+    "doxdocgen.cpp.tparamTemplate": ""
+}

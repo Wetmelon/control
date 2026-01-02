@@ -317,7 +317,7 @@ TEST_SUITE("Integration: Motor + Flexible Coupling + Mass System") {
                 Matrix<3, 1>{{1.0 / J_m}, {0.0}, {0.0}},
                 Matrix<3, 3>{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}
             };
-            return discretize_zoh(sys_c, Ts);
+            return discretize(sys_c, Ts, DiscretizationMethod::ZOH);
         }();
         StateSpace<3, 1, 3, 3, 3, float> sys_d_float(sys_d_double);
 
