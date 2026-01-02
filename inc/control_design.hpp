@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <complex>
 
 #include "discretization.hpp"
 #include "eigen.hpp"
@@ -16,12 +17,123 @@ enum class ServoDOF {
 };
 
 // ============================================================================
-// Enumeration for Discretization Methods
+// Stability Analysis Utilities
 // ============================================================================
-enum class DiscretizationMethod {
-    ZOH,    // Zero-Order Hold
-    Tustin, // Bilinear Transform
-};
+// Functions to analyze closed-loop stability of control systems.
+// For continuous systems: stable if all eigenvalues have Re(λ) < 0
+// For discrete systems: stable if all eigenvalues have |λ| < 1
+
+namespace stability {
+
+// Check if a continuous-time system matrix A is stable (all eigenvalues in LHP)
+template<size_t N, typename T = double>
+[[nodiscard]] constexpr bool is_stable_continuous(const Matrix<N, N, T>& A) {
+    static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
+    auto eigen = compute_eigenvalues(A);
+    if (!eigen.converged)
+        return false;
+
+    for (size_t i = 0; i < N; ++i) {
+        if (eigen.values[i].real() >= T{0}) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Check if a discrete-time system matrix A is stable (all eigenvalues inside unit circle)
+template<size_t N, typename T = double>
+[[nodiscard]] constexpr bool is_stable_discrete(const Matrix<N, N, T>& A) {
+    static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
+    auto eigen = compute_eigenvalues(A);
+    if (!eigen.converged)
+        return false;
+
+    for (size_t i = 0; i < N; ++i) {
+        T magnitude = wet::sqrt(
+            eigen.values[i].real() * eigen.values[i].real() + eigen.values[i].imag() * eigen.values[i].imag()
+        );
+        if (magnitude >= T{1}) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Check closed-loop stability for continuous system with state feedback u = -K*x
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr bool is_closed_loop_stable_continuous(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NU, NX, T>& K
+) {
+    Matrix<NX, NX, T> A_cl = A - B * K;
+    return is_stable_continuous(A_cl);
+}
+
+// Check closed-loop stability for discrete system with state feedback u = -K*x
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr bool is_closed_loop_stable_discrete(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NU, NX, T>& K
+) {
+    Matrix<NX, NX, T> A_cl = A - B * K;
+    return is_stable_discrete(A_cl);
+}
+
+// Compute stability margin (minimum distance to instability boundary)
+// For continuous: most positive real part (negative = stable)
+// For discrete: maximum magnitude - 1 (negative = stable)
+template<size_t N, typename T = double>
+[[nodiscard]] constexpr T stability_margin_continuous(const Matrix<N, N, T>& A) {
+    static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
+    auto eigen = compute_eigenvalues(A);
+    if (!eigen.converged)
+        return T{1}; // Return unstable indicator
+
+    T max_real = eigen.values[0].real();
+    for (size_t i = 1; i < N; ++i) {
+        if (eigen.values[i].real() > max_real) {
+            max_real = eigen.values[i].real();
+        }
+    }
+    return -max_real; // Positive means stable, larger is more stable
+}
+
+template<size_t N, typename T = double>
+[[nodiscard]] constexpr T stability_margin_discrete(const Matrix<N, N, T>& A) {
+    static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
+    auto eigen = compute_eigenvalues(A);
+    if (!eigen.converged)
+        return T{-1}; // Return unstable indicator
+
+    T max_mag = T{0};
+    for (size_t i = 0; i < N; ++i) {
+        T magnitude = wet::sqrt(
+            eigen.values[i].real() * eigen.values[i].real() + eigen.values[i].imag() * eigen.values[i].imag()
+        );
+        if (magnitude > max_mag) {
+            max_mag = magnitude;
+        }
+    }
+    return T{1} - max_mag; // Positive means stable, larger is more stable
+}
+
+// Get closed-loop eigenvalues
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr ColVec<NX, std::complex<T>> closed_loop_poles(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NU, NX, T>& K
+) {
+    static_assert(NX <= 4, "Pole computation only supported for systems up to 4 states");
+    Matrix<NX, NX, T> A_cl = A - B * K;
+    auto              eigen = compute_eigenvalues(A_cl);
+    return eigen.values;
+}
+
+} // namespace stability
 
 namespace design {
 
@@ -36,17 +148,34 @@ namespace design {
 // ============================================================================
 template<size_t NX, size_t NU, typename T = double>
 struct LQRResult {
-    Matrix<NU, NX, T> K{};     // Optimal gain: u = -K*x
-    Matrix<NX, NX, T> S{};     // Solution to Riccati equation
-    ColVec<NX, T>     poles{}; // Closed-loop poles (eigenvalues of A-B*K)
+    Matrix<NU, NX, T>           K{};                    // Optimal gain: u = -K*x
+    Matrix<NX, NX, T>           S{};                    // Solution to Riccati equation
+    ColVec<NX, T>               poles{};                // Closed-loop poles (real parts)
+    ColVec<NX, std::complex<T>> poles_complex{};        // Full complex closed-loop poles
+    bool                        is_stable{false};       // Closed-loop stability flag
+    T                           stability_margin{T{0}}; // Distance to instability
 
     constexpr LQRResult() = default;
-    constexpr LQRResult(const Matrix<NU, NX, T>& K_, const Matrix<NX, NX, T>& S_, const ColVec<NX, T>& poles_)
-        : K(K_), S(S_), poles(poles_) {}
+
+    constexpr LQRResult(
+        const Matrix<NU, NX, T>& K_,
+        const Matrix<NX, NX, T>& S_,
+        const ColVec<NX, T>&     poles_
+    ) : K(K_), S(S_), poles(poles_) {}
+
+    // Full constructor with stability info
+    constexpr LQRResult(
+        const Matrix<NU, NX, T>&           K_,
+        const Matrix<NX, NX, T>&           S_,
+        const ColVec<NX, T>&               poles_,
+        const ColVec<NX, std::complex<T>>& poles_complex_,
+        bool                               is_stable_,
+        T                                  stability_margin_
+    ) : K(K_), S(S_), poles(poles_), poles_complex(poles_complex_), is_stable(is_stable_), stability_margin(stability_margin_) {}
 
     template<typename U>
     constexpr LQRResult(const LQRResult<NX, NU, U>& other)
-        : K(other.K), S(other.S), poles(other.poles) {}
+        : K(other.K), S(other.S), poles(other.poles), poles_complex(other.poles_complex), is_stable(other.is_stable), stability_margin(static_cast<T>(other.stability_margin)) {}
 };
 
 // ============================================================================
@@ -142,6 +271,69 @@ struct LQGIResult {
 };
 
 // ============================================================================
+// Helper: Create LQRResult with full stability analysis
+// ============================================================================
+namespace detail {
+
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr LQRResult<NX, NU, T> make_lqr_result_continuous(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NU, NX, T>& K,
+    const Matrix<NX, NX, T>& S
+) {
+    // Compute closed-loop matrix
+    Matrix<NX, NX, T> A_cl = A - B * K;
+
+    // Get full eigenvalues
+    auto poles_complex = stability::closed_loop_poles(A, B, K);
+
+    // Extract real parts for backward compatibility
+    ColVec<NX, T> poles{};
+    for (size_t i = 0; i < NX; ++i) {
+        poles[i] = poles_complex[i].real();
+    }
+
+    // Check stability (continuous: Re(λ) < 0)
+    bool is_stable = stability::is_stable_continuous(A_cl);
+
+    // Compute stability margin
+    T margin = stability::stability_margin_continuous(A_cl);
+
+    return LQRResult<NX, NU, T>{K, S, poles, poles_complex, is_stable, margin};
+}
+
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr LQRResult<NX, NU, T> make_lqr_result_discrete(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NU, NX, T>& K,
+    const Matrix<NX, NX, T>& S
+) {
+    // Compute closed-loop matrix
+    Matrix<NX, NX, T> A_cl = A - B * K;
+
+    // Get full eigenvalues
+    auto poles_complex = stability::closed_loop_poles(A, B, K);
+
+    // Extract real parts for backward compatibility
+    ColVec<NX, T> poles{};
+    for (size_t i = 0; i < NX; ++i) {
+        poles[i] = poles_complex[i].real();
+    }
+
+    // Check stability (discrete: |λ| < 1)
+    bool is_stable = stability::is_stable_discrete(A_cl);
+
+    // Compute stability margin
+    T margin = stability::stability_margin_discrete(A_cl);
+
+    return LQRResult<NX, NU, T>{K, S, poles, poles_complex, is_stable, margin};
+}
+
+} // namespace detail
+
+// ============================================================================
 // dlqr: Discrete Linear-Quadratic Regulator
 // ============================================================================
 // MATLAB: [K,S,P] = dlqr(A,B,Q,R,N)
@@ -167,9 +359,7 @@ template<size_t NX, size_t NU, typename T = double>
         K = denom_inv.value() * (B.transpose() * S * A + N.transpose());
     }
 
-    // Compute closed-loop poles (eigenvalues of A - B*K)
-    ColVec<NX, T> poles = compute_closed_loop_poles(A, B, K);
-    return LQRResult<NX, NU, T>{K, S, poles};
+    return detail::make_lqr_result_discrete(A, B, K, S);
 }
 
 // ============================================================================
@@ -206,9 +396,7 @@ template<size_t NX, size_t NU, typename T = double>
     // K = R^{-1} * (B'*S + N')
     const Matrix<NU, NX, T> K = R_inv.value() * (B.transpose() * S + N.transpose());
 
-    // Compute closed-loop poles (eigenvalues of A - B*K)
-    ColVec<NX, T> poles = compute_closed_loop_poles(A, B, K);
-    return LQRResult<NX, NU, T>{K, S, poles};
+    return detail::make_lqr_result_continuous(A, B, K, S);
 }
 
 // Overload: lqr(sys, Q, R, N) for StateSpace input
@@ -238,8 +426,8 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
     // Create continuous state-space and discretize
-    StateSpace<NX, NU, NX, NX, NX, T> sys_c{A, B, Matrix<NX, NX, T>::identity()};
-    const auto                        sys_d = discretize_zoh(sys_c, Ts);
+    StateSpace sys_c{A, B, Matrix<NX, NX, T>::identity()};
+    const auto sys_d = discretize_zoh(sys_c, Ts);
 
     return dlqr(sys_d.A, sys_d.B, Q, R, N);
 }
@@ -586,8 +774,7 @@ template<size_t NX, size_t NU, typename T = double>
         K = denom_inv.value() * (B.transpose() * S * A + N.transpose());
     }
 
-    ColVec<NX, T> poles = compute_closed_loop_poles(A, B, K);
-    return design::LQRResult<NX, NU, T>{K, S, poles};
+    return design::detail::make_lqr_result_discrete(A, B, K, S);
 }
 
 // lqr - continuous LQR (runtime)
@@ -613,8 +800,7 @@ template<size_t NX, size_t NU, typename T = double>
 
     const Matrix<NU, NX, T> K = R_inv.value() * (B.transpose() * S + N.transpose());
 
-    ColVec<NX, T> poles = compute_closed_loop_poles(A, B, K);
-    return design::LQRResult<NX, NU, T>{K, S, poles};
+    return design::detail::make_lqr_result_continuous(A, B, K, S);
 }
 
 // lqr overload for StateSpace

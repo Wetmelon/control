@@ -3,23 +3,176 @@
 #include <cmath>
 
 #include "matrix.hpp"
+#include "matrix_functions.hpp"
 #include "state_space.hpp"
+
+// ============================================================================
+// Discretization Method Enumeration
+// ============================================================================
+enum class DiscretizationMethod {
+    ZOH,    // Zero-Order Hold (exact for piecewise constant inputs)
+    Tustin, // Bilinear Transform (preserves stability, good for filters)
+};
 
 // ============================================================================
 // Discretization Methods for Continuous Systems
 // ============================================================================
-
-// Zero-Order Hold (ZOH) discretization
 // Given continuous system: dx/dt = A*x + B*u
 // Discrete system: x[k+1] = A_d*x[k] + B_d*u[k]
+
+namespace detail {
+
+// Zero-Order Hold (ZOH) implementation
 // Where: A_d = exp(A*Ts)
 //        B_d = integral from 0 to Ts of exp(A*tau)*B*dtau
 //            = A^{-1} * (exp(A*Ts) - I) * B  [if A is invertible]
 //            = (A*Ts + (A*Ts)^2/2! + ...) * B [via series expansion]
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_zoh_impl(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    T                                        sampling_time
+) {
+    // Compute A_d = exp(A * Ts)
+    const Matrix A_scaled = sys.A * sampling_time;
+    const Matrix exp_A_Ts = mat::exp(A_scaled);
 
-// Computes matrix exponential using scaling and squaring method with Padé approximation
-// This provides superior numerical accuracy compared to pure Taylor series
-// Algorithm: exp(A) = (exp(A / 2^s))^(2^s) where s chosen so ||A / 2^s|| < 1
+    // Compute B_d using: B_d = A^{-1} * (exp(A*Ts) - I) * B
+    // For numerical stability, use the integral formula when A is near singular
+    const auto A_inv = sys.A.inverse();
+
+    Matrix<NX, NU, T> B_d;
+    if (A_inv) {
+        // Standard formula: B_d = A^{-1} * (exp(A*Ts) - I) * B
+        const Matrix I = Matrix<NX, NX, T>::identity();
+        B_d = A_inv.value() * (exp_A_Ts - I) * sys.B;
+    } else {
+        // Fallback: Use series expansion directly
+        // B_d ≈ (I*Ts + A*Ts^2/2 + A^2*Ts^3/6 + ...) * B
+        B_d = sys.B * sampling_time;
+        Matrix A_power = sys.A;
+
+        for (size_t n = 2; n <= 10; ++n) {
+            T coeff = T{1};
+            for (size_t i = 1; i <= n; ++i) {
+                coeff *= (sampling_time / static_cast<T>(i));
+            }
+            B_d += A_power * sys.B * coeff;
+            if (n < 10) {
+                A_power = A_power * sys.A;
+            }
+        }
+    }
+
+    // C_d = C, D_d = D (output equation is the same)
+    const Matrix C_d = sys.C;
+    const Matrix D_d = sys.D;
+
+    // G_d and H_d can be transformed similarly, but for simplicity use continuous versions
+    // (noise models don't discretize as simply without differential equations)
+    const Matrix G_d = sys.G * sampling_time; // Approximate
+    const Matrix H_d = sys.H;                 // Direct
+
+    return StateSpace{exp_A_Ts, B_d, C_d, D_d, G_d, H_d, sampling_time};
+}
+
+// Tustin (Bilinear Transform) implementation
+// Maps: s -> (2/Ts) * (z - 1) / (z + 1)
+// For A, B, C, D matrices:
+// A_d = (I + A*Ts/2)^{-1} * (I - A*Ts/2)
+// B_d = (I + A*Ts/2)^{-1} * B * Ts
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_tustin_impl(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    T                                        sampling_time
+) {
+    const T      ts_half = sampling_time / T{2};
+    const Matrix I = Matrix<NX, NX, T>::identity();
+
+    // Compute (I + A*Ts/2) and its inverse
+    const Matrix I_plus_A_ts2 = I + sys.A * ts_half;
+    const auto   inv_I_plus = I_plus_A_ts2.inverse();
+
+    if (!inv_I_plus) {
+        // Fallback to ZOH if Tustin matrix is singular
+        return discretize_zoh_impl(sys, sampling_time);
+    }
+
+    // A_d = (I + A*Ts/2)^{-1} * (I - A*Ts/2)
+    const Matrix I_minus_A_ts2 = I - sys.A * ts_half;
+    const Matrix A_d = inv_I_plus.value() * I_minus_A_ts2;
+
+    // B_d = (I + A*Ts/2)^{-1} * B * Ts
+    const Matrix B_d = inv_I_plus.value() * sys.B * sampling_time;
+
+    // C_d ≈ C (output mapping typically unchanged)
+    const Matrix C_d = sys.C;
+    const Matrix D_d = sys.D;
+
+    // Noise models (approximate)
+    const Matrix G_d = sys.G * sampling_time;
+    const Matrix H_d = sys.H;
+
+    return StateSpace{A_d, B_d, C_d, D_d, G_d, H_d, sampling_time};
+}
+
+} // namespace detail
+
+// ============================================================================
+// Unified Discretization Function
+// ============================================================================
+// Discretize a continuous-time state-space system using the specified method
+//
+// Parameters:
+//   sys            - Continuous-time state-space model (Ts should be 0)
+//   sampling_time  - Desired sampling period for discrete system
+//   method         - Discretization method (ZOH or Tustin)
+//
+// Returns:
+//   Discrete-time state-space model with Ts set to sampling_time
+
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    T                                        sampling_time,
+    DiscretizationMethod                     method = DiscretizationMethod::ZOH
+) {
+    switch (method) {
+        case DiscretizationMethod::ZOH:
+            return detail::discretize_zoh_impl(sys, sampling_time);
+        case DiscretizationMethod::Tustin:
+            return detail::discretize_tustin_impl(sys, sampling_time);
+        default:
+            return detail::discretize_zoh_impl(sys, sampling_time);
+    }
+}
+
+// ============================================================================
+// Legacy Functions (deprecated - use discretize() instead)
+// ============================================================================
+
+// [[deprecated("Use discretize(sys, Ts, DiscretizationMethod::ZOH) instead")]]
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_zoh(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    T                                        sampling_time
+) {
+    return discretize(sys, sampling_time, DiscretizationMethod::ZOH);
+}
+
+// [[deprecated("Use discretize(sys, Ts, DiscretizationMethod::Tustin) instead")]]
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_tustin(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    T                                        sampling_time
+) {
+    return discretize(sys, sampling_time, DiscretizationMethod::Tustin);
+}
+
+// ============================================================================
+// Legacy matrix_exponential (now in matrix_functions.hpp as mat::exp)
+// ============================================================================
+
+// [[deprecated("Use mat::exp() from matrix_functions.hpp instead")]]
 template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> matrix_exponential(const Matrix<N, N, T>& A) {
     // Compute matrix infinity norm (max absolute row sum)
@@ -100,96 +253,4 @@ template<typename T, size_t N>
     }
 
     return result;
-}
-
-// Discretize continuous system using Zero-Order Hold (ZOH)
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_zoh(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    T                                        sampling_time
-) {
-    // Compute A_d = exp(A * Ts)
-    const Matrix A_scaled = sys.A * sampling_time;
-    const Matrix exp_A_Ts = matrix_exponential(A_scaled);
-
-    // Compute B_d using: B_d = A^{-1} * (exp(A*Ts) - I) * B
-    // For numerical stability, use the integral formula when A is near singular
-    const auto A_inv = sys.A.inverse();
-
-    Matrix<NX, NU, T> B_d;
-    if (A_inv) {
-        // Standard formula: B_d = A^{-1} * (exp(A*Ts) - I) * B
-        const Matrix I = Matrix<NX, NX, T>::identity();
-        B_d = A_inv.value() * (exp_A_Ts - I) * sys.B;
-    } else {
-        // Fallback: Use series expansion directly
-        // B_d ≈ (I*Ts + A*Ts^2/2 + A^2*Ts^3/6 + ...) * B
-        B_d = sys.B * sampling_time;
-        Matrix A_power = sys.A;
-
-        for (size_t n = 2; n <= 10; ++n) {
-            T coeff = T{1};
-            for (size_t i = 1; i <= n; ++i) {
-                coeff *= (sampling_time / static_cast<T>(i));
-            }
-            B_d += A_power * sys.B * coeff;
-            if (n < 10) {
-                A_power = A_power * sys.A;
-            }
-        }
-    }
-
-    // C_d = C, D_d = D (output equation is the same)
-    const Matrix C_d = sys.C;
-    const Matrix D_d = sys.D;
-
-    // G_d and H_d can be transformed similarly, but for simplicity use continuous versions
-    // (noise models don't discretize as simply without differential equations)
-    const Matrix G_d = sys.G * sampling_time; // Approximate
-    const Matrix H_d = sys.H;                 // Direct
-
-    return StateSpace{exp_A_Ts, B_d, C_d, D_d, G_d, H_d, sampling_time};
-}
-
-// Discretize continuous system using Tustin (Bilinear Transform)
-// Maps: s -> (2/Ts) * (z - 1) / (z + 1)
-// Inverse: z -> (Ts*s + 2) / (2 - Ts*s)
-// For A, B, C, D matrices:
-// A_d ≈ (I + A*Ts/2)^{-1} * (I - A*Ts/2)
-// B_d ≈ (I + A*Ts/2)^{-1} * B * Ts
-// C_d ≈ C * (I - A*Ts/2)^{-1} (but typically C_d ≈ C for output mapping)
-// D_d ≈ D
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_tustin(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    T                                        sampling_time
-) {
-    const T      ts_half = sampling_time / T{2};
-    const Matrix I = Matrix<NX, NX, T>::identity();
-
-    // Compute (I + A*Ts/2) and its inverse
-    const Matrix I_plus_A_ts2 = I + sys.A * ts_half;
-    const auto   inv_I_plus = I_plus_A_ts2.inverse();
-
-    if (!inv_I_plus) {
-        // Fallback to ZOH if Tustin matrix is singular
-        return discretize_zoh(sys, sampling_time);
-    }
-
-    // A_d = (I + A*Ts/2)^{-1} * (I - A*Ts/2)
-    const Matrix I_minus_A_ts2 = I - sys.A * ts_half;
-    const Matrix A_d = inv_I_plus.value() * I_minus_A_ts2;
-
-    // B_d = (I + A*Ts/2)^{-1} * B * Ts
-    const Matrix B_d = inv_I_plus.value() * sys.B * sampling_time;
-
-    // C_d ≈ C (output mapping typically unchanged)
-    const Matrix C_d = sys.C;
-    const Matrix D_d = sys.D;
-
-    // Noise models (approximate)
-    const Matrix G_d = sys.G * sampling_time;
-    const Matrix H_d = sys.H;
-
-    return StateSpace{A_d, B_d, C_d, D_d, G_d, H_d, sampling_time};
 }

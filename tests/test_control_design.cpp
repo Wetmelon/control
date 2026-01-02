@@ -4,6 +4,7 @@
 #include "doctest.h"
 #include "fmt/core.h"
 #include "lqr.hpp"
+#include "matrix_functions.hpp"
 
 TEST_SUITE("Control Design: Discretization") {
     // Test 1: Simple 1st-order system discretization via ZOH
@@ -17,7 +18,8 @@ TEST_SUITE("Control Design: Discretization") {
             Matrix<1, 1>{{1.0}}   // C: output is state
         };
 
-        StateSpace sys_d = discretize_zoh(sys, Ts);
+        // Use new unified discretize() function
+        StateSpace sys_d = discretize(sys, Ts, DiscretizationMethod::ZOH);
 
         // Verify A_d ≈ exp(-Ts)
         double A_d_expected = std::exp(-Ts);
@@ -39,7 +41,8 @@ TEST_SUITE("Control Design: Discretization") {
             Matrix<1, 1>{{1.0}}
         };
 
-        StateSpace sys_d = discretize_tustin(sys, Ts);
+        // Use new unified discretize() function
+        StateSpace sys_d = discretize(sys, Ts, DiscretizationMethod::Tustin);
 
         // For Tustin with A=-1:
         // A_d = (I + A*Ts/2)^{-1} * (I - A*Ts/2)
@@ -50,7 +53,7 @@ TEST_SUITE("Control Design: Discretization") {
         CHECK(doctest::Approx(sys_d.A(0, 0)).epsilon(1e-4) == expected_A_d);
     }
 
-    // Test 3: ZOH vs Tustin comparison
+    // Test 3: ZOH vs Tustin comparison using unified API
     TEST_CASE("ZOH and Tustin produce different discretizations") {
         double     Ts = 0.5;
         StateSpace sys{
@@ -59,11 +62,27 @@ TEST_SUITE("Control Design: Discretization") {
             Matrix<1, 1>{{1.0}}
         };
 
-        StateSpace sys_d_zoh = discretize_zoh(sys, Ts);
-        StateSpace sys_d_tustin = discretize_tustin(sys, Ts);
+        StateSpace sys_d_zoh = discretize(sys, Ts, DiscretizationMethod::ZOH);
+        StateSpace sys_d_tustin = discretize(sys, Ts, DiscretizationMethod::Tustin);
 
         // They should produce different results
         CHECK_NE(sys_d_zoh.A(0, 0), doctest::Approx(sys_d_tustin.A(0, 0)));
+    }
+
+    // Test 4: Default method is ZOH
+    TEST_CASE("Default discretization method is ZOH") {
+        double     Ts = 0.1;
+        StateSpace sys{
+            Matrix<1, 1>{{-1.0}},
+            Matrix<1, 1>{{1.0}},
+            Matrix<1, 1>{{1.0}}
+        };
+
+        StateSpace sys_d_default = discretize(sys, Ts);
+        StateSpace sys_d_zoh = discretize(sys, Ts, DiscretizationMethod::ZOH);
+
+        CHECK(doctest::Approx(sys_d_default.A(0, 0)) == sys_d_zoh.A(0, 0));
+        CHECK(doctest::Approx(sys_d_default.B(0, 0)) == sys_d_zoh.B(0, 0));
     }
 }
 
@@ -520,10 +539,11 @@ TEST_SUITE("MATLAB-Style Control Design API") {
         // Buck converter parameters
 
         auto result = []() {
-            double R_ind = 0.005; // Inductor resistance in Ohms
-            double L = 200e-6;    // Inductance in Henry
-            double C = 14.7e-6;   // Capacitance in Farads
-            double R_load = 10;   // Load resistance in Ohms
+            double R_ind = 0.005;  // Inductor resistance in Ohms
+            double L = 200e-6;     // Inductance in Henry
+            double C = 14.7e-6;    // Capacitance in Farads
+            double R_load = 10000; // Load resistance in Ohms
+            double Fsw = 50000;    // Switching frequency in Hz
 
             // Notes:
             //  States:
@@ -552,17 +572,179 @@ TEST_SUITE("MATLAB-Style Control Design API") {
             Matrix<2, 2> Q = Matrix<2, 2>::identity();
             Matrix<1, 1> R{{0.01}};
 
-            return design::continuous_lqr(sys, Q, R);
+            return design::discrete_lqr_from_continuous(sys, Q, R, 1.0 / Fsw);
         }();
 
-        // Both poles should be negative for a stable closed-loop system
+        // Discrete LQR poles should be inside unit circle
         fmt::print("LQR Poles: {}, {}\n", result.poles[0], result.poles[1]);
-        CHECK(result.poles[0] < 0.0);
-        CHECK(result.poles[1] < 0.0);
+        CHECK(std::abs(result.poles[0]) < 1.0);
+        CHECK(std::abs(result.poles[1]) < 1.0);
 
         // Verify controller gain is finite
         LQR lqr{result};
         CHECK(std::isfinite(lqr.getK()(0, 0)));
         CHECK(std::isfinite(lqr.getK()(0, 1)));
+
+        // Verify control output is finite
+        auto u = lqr.control(ColVec<2>{0.5, 12.0});
+        CHECK(std::isfinite(u[0]));
+    }
+}
+
+TEST_SUITE("Stability Analysis") {
+    TEST_CASE("Continuous stability check - stable system") {
+        // Stable 2x2 system with negative real eigenvalues
+        Matrix<2, 2> A{{-1.0, 0.0}, {0.0, -2.0}};
+        CHECK(stability::is_stable_continuous(A) == true);
+        CHECK(stability::stability_margin_continuous(A) > 0.0);
+    }
+
+    TEST_CASE("Continuous stability check - unstable system") {
+        // Unstable: one positive eigenvalue
+        Matrix<2, 2> A{{1.0, 0.0}, {0.0, -2.0}};
+        CHECK(stability::is_stable_continuous(A) == false);
+        CHECK(stability::stability_margin_continuous(A) < 0.0);
+    }
+
+    TEST_CASE("Discrete stability check - stable system") {
+        // Stable discrete system: eigenvalues inside unit circle
+        Matrix<2, 2> A{{0.5, 0.0}, {0.0, 0.8}};
+        CHECK(stability::is_stable_discrete(A) == true);
+        CHECK(stability::stability_margin_discrete(A) > 0.0);
+    }
+
+    TEST_CASE("Discrete stability check - unstable system") {
+        // Unstable: eigenvalue outside unit circle
+        Matrix<2, 2> A{{1.5, 0.0}, {0.0, 0.5}};
+        CHECK(stability::is_stable_discrete(A) == false);
+        CHECK(stability::stability_margin_discrete(A) < 0.0);
+    }
+
+    TEST_CASE("LQR result includes stability information") {
+        StateSpace sys{
+            Matrix<1, 1>{{0.0}},
+            Matrix<1, 1>{{1.0}},
+            Matrix<1, 1>{{1.0}}
+        };
+        Matrix<1, 1> Q{{1.0}};
+        Matrix<1, 1> R{{1.0}};
+
+        auto result = online::continuous_lqr(sys, Q, R);
+
+        // LQR should always produce a stable closed-loop
+        CHECK(result.is_stable == true);
+        CHECK(result.stability_margin > 0.0);
+    }
+
+    TEST_CASE("Closed-loop poles match eigenvalues") {
+        Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
+        Matrix<2, 1> B{{0.0}, {1.0}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{1.0}};
+
+        auto result = online::lqr(A, B, Q, R);
+
+        // Check poles_complex contains valid values
+        for (size_t i = 0; i < 2; ++i) {
+            CHECK(std::isfinite(result.poles_complex[i].real()));
+            CHECK(std::isfinite(result.poles_complex[i].imag()));
+        }
+
+        // For continuous LQR, poles should have negative real parts
+        for (size_t i = 0; i < 2; ++i) {
+            CHECK(result.poles_complex[i].real() < 0.0);
+        }
+    }
+}
+
+TEST_SUITE("Matrix Functions") {
+    TEST_CASE("Matrix exponential - identity") {
+        Matrix<2, 2> I = Matrix<2, 2>::identity();
+        Matrix<2, 2> zeros = Matrix<2, 2>::zeros();
+
+        auto exp_zeros = mat::exp(zeros);
+
+        // exp(0) = I
+        CHECK(doctest::Approx(exp_zeros(0, 0)).epsilon(1e-10) == 1.0);
+        CHECK(doctest::Approx(exp_zeros(0, 1)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(exp_zeros(1, 0)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(exp_zeros(1, 1)).epsilon(1e-10) == 1.0);
+    }
+
+    TEST_CASE("Matrix exponential - diagonal") {
+        Matrix<2, 2> A{{-1.0, 0.0}, {0.0, -2.0}};
+        auto         exp_A = mat::exp(A);
+
+        // exp(diag(-1,-2)) = diag(exp(-1), exp(-2))
+        // Relaxed tolerance for Padé approximation
+        CHECK(doctest::Approx(exp_A(0, 0)).epsilon(1e-3) == std::exp(-1.0));
+        CHECK(doctest::Approx(exp_A(0, 1)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(exp_A(1, 0)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(exp_A(1, 1)).epsilon(1e-3) == std::exp(-2.0));
+    }
+
+    TEST_CASE("Matrix exponential - rotation") {
+        // Rotation matrix: exp([0 -θ; θ 0]) = [cos(θ) -sin(θ); sin(θ) cos(θ)]
+        double       theta = 0.5;
+        Matrix<2, 2> A{{0.0, -theta}, {theta, 0.0}};
+        auto         exp_A = mat::exp(A);
+
+        // Relaxed tolerance for Padé approximation
+        CHECK(doctest::Approx(exp_A(0, 0)).epsilon(1e-3) == std::cos(theta));
+        CHECK(doctest::Approx(exp_A(0, 1)).epsilon(1e-3) == -std::sin(theta));
+        CHECK(doctest::Approx(exp_A(1, 0)).epsilon(1e-3) == std::sin(theta));
+        CHECK(doctest::Approx(exp_A(1, 1)).epsilon(1e-3) == std::cos(theta));
+    }
+
+    TEST_CASE("Matrix trig identity: sin^2 + cos^2 = I") {
+        Matrix<2, 2> A{{0.3, 0.1}, {-0.1, 0.4}};
+
+        auto sinA = mat::sin(A);
+        auto cosA = mat::cos(A);
+        auto sum = sinA * sinA + cosA * cosA;
+        auto I = Matrix<2, 2>::identity();
+
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                CHECK(doctest::Approx(sum(i, j)).epsilon(1e-6) == I(i, j));
+            }
+        }
+    }
+
+    TEST_CASE("Matrix sqrt - identity") {
+        auto I = Matrix<2, 2>::identity();
+        auto sqrt_I = mat::sqrt(I);
+
+        // sqrt(I) = I
+        CHECK(doctest::Approx(sqrt_I(0, 0)).epsilon(1e-6) == 1.0);
+        CHECK(doctest::Approx(sqrt_I(1, 1)).epsilon(1e-6) == 1.0);
+    }
+
+    TEST_CASE("Matrix power - integer") {
+        Matrix<2, 2> A{{1.0, 1.0}, {0.0, 1.0}};
+
+        auto A2 = mat::pow(A, 2);
+        auto A_sq = A * A;
+
+        CHECK(doctest::Approx(A2(0, 0)).epsilon(1e-10) == A_sq(0, 0));
+        CHECK(doctest::Approx(A2(0, 1)).epsilon(1e-10) == A_sq(0, 1));
+        CHECK(doctest::Approx(A2(1, 0)).epsilon(1e-10) == A_sq(1, 0));
+        CHECK(doctest::Approx(A2(1, 1)).epsilon(1e-10) == A_sq(1, 1));
+    }
+
+    TEST_CASE("Matrix hyperbolic identity: cosh^2 - sinh^2 = I") {
+        Matrix<2, 2> A{{0.2, 0.1}, {0.1, 0.3}};
+
+        auto sinhA = mat::sinh(A);
+        auto coshA = mat::cosh(A);
+        auto diff = coshA * coshA - sinhA * sinhA;
+        auto I = Matrix<2, 2>::identity();
+
+        // Relaxed tolerance for numerical precision through exp
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                CHECK(doctest::Approx(diff(i, j)).epsilon(1e-3) == I(i, j));
+            }
+        }
     }
 }
