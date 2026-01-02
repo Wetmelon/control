@@ -1,13 +1,7 @@
-.PHONY: all compile format test
+.PHONY: all clean test
 
-all: format compile test
-
-compile:
+all:
+	@clang-format -i inc/*.hpp tests/*.cpp
 	@tup --quiet compiledb
-	@tup --quiet
-
-format:
-	@clang-format -i source/*.cpp source/*.hpp examples/*.cpp
-
-test:
-	@./test/build/test_lti_operations.exe
+	@tup
+	@./tests/build/test_runner.exe
