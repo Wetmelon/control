@@ -1,0 +1,11 @@
+---
+CompileFlags:
+    Remove: [-fcoroutines, -fconcepts-diagnostics-depth=3, -fconstexpr-ops-limit=*]
+
+Diagnostics:
+    UnusedIncludes: Strict
+    Suppress: ['constexpr_var_requires_const_init', 'invalid_consteval_call']
+
+Documentation:
+  CommentFormat: Doxygen
+  

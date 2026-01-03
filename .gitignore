@@ -1,11 +1,8 @@
-
-.tup/
-
-test/build/
-.cache/
-build/
-compile_commands.json
-
-*.a
+.cache
+.tup
 *.o
 *.exe
+build/
+compile_commands.json
+*.log
+tup.config
