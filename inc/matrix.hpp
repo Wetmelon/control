@@ -47,25 +47,30 @@ public:
     static_assert(is_matrix_element_v<T>, "Matrix element type must be floating-point or complex<floating-point>");
 
     /**
-     * @brief Default constructor, initializes all elements to zero */
+     * @brief Default constructor, initializes all elements to zero
+     */
     constexpr Matrix() = default;
 
     /**
-     * @brief Copy constructor and assignment operator */
+     * @brief Copy constructor and assignment operator
+     */
     constexpr Matrix(const Matrix&) = default;
     constexpr Matrix& operator=(const Matrix&) = default;
 
     /**
-     * @brief Move constructor and assignment operator */
+     * @brief Move constructor and assignment operator
+     */
     constexpr Matrix(Matrix&&) = default;
     constexpr Matrix& operator=(Matrix&&) = default;
 
     /**
-     * @brief Destructor */
+     * @brief Destructor
+     */
     constexpr ~Matrix() = default;
 
     /**
-     * @brief Type conversion assignment operator (copy from different element type) */
+     * @brief Type conversion assignment operator (copy from different element type)
+     */
     template<typename U>
     constexpr Matrix& operator=(const Matrix<Rows, Cols, U>& other) {
         for (size_t r = 0; r < Rows; ++r) {
@@ -77,7 +82,8 @@ public:
     }
 
     /**
-     * @brief Type conversion assignment operator (move from different element type) */
+     * @brief Type conversion assignment operator (move from different element type)
+     */
     template<typename U>
     constexpr Matrix& operator=(Matrix<Rows, Cols, U>&& other) {
         for (size_t r = 0; r < Rows; ++r) {
@@ -89,7 +95,8 @@ public:
     }
 
     /**
-     * @brief Assignment from nested initializer list */
+     * @brief Assignment from nested initializer list
+     */
     constexpr Matrix& operator=(std::initializer_list<std::initializer_list<T>> init) {
         size_t r = 0;
         for (const auto& row : init) {
@@ -106,7 +113,8 @@ public:
     }
 
     /**
-     * @brief Type conversion constructor from another matrix with different element type */
+     * @brief Type conversion constructor from another matrix with different element type
+     */
     template<typename U>
     constexpr Matrix(const Matrix<Rows, Cols, U>& other) : Matrix() {
         for (size_t r = 0; r < Rows; ++r) {
@@ -117,7 +125,8 @@ public:
     }
 
     /**
-     * @brief Constructor from nested initializer list */
+     * @brief Constructor from nested initializer list
+     */
     constexpr Matrix(std::initializer_list<std::initializer_list<T>> init) : Matrix() {
         size_t r = 0;
         for (const auto& row : init) {
@@ -133,7 +142,8 @@ public:
     }
 
     /**
-     * @brief Constructor from std::array, enables class template argument deduction */
+     * @brief Constructor from std::array, enables class template argument deduction
+     */
     constexpr Matrix(const std::array<std::array<T, Cols>, Rows>& arr) : Matrix() {
         for (size_t i = 0; i < Rows; ++i) {
             for (size_t j = 0; j < Cols; ++j) {
@@ -143,10 +153,12 @@ public:
     }
 
     /**
-     * @brief Create a zero matrix */
+     * @brief Create a zero matrix
+     */
     [[nodiscard]] static constexpr Matrix zeros() { return Matrix{}; }
     /**
-     * @brief Create a matrix with all elements set to a constant value */
+     * @brief Create a matrix with all elements set to a constant value
+     */
     [[nodiscard]] static constexpr Matrix constant(const T& value) {
         Matrix result;
         for (auto& row : result.data_) {
@@ -167,7 +179,8 @@ public:
     }
 
     /**
-     * @brief Fill all elements with a constant value */
+     * @brief Fill all elements with a constant value
+     */
     constexpr void fill(const T& value) {
         for (auto& row : data_) {
             row.fill(value);
@@ -175,37 +188,51 @@ public:
     }
 
     /**
-     * @brief Type conversion method for converting to a different element type */
+     * @brief Type conversion method for converting to a different element type
+     */
     template<typename U>
     [[nodiscard]] constexpr Matrix<Rows, Cols, U> as() const {
         return Matrix<Rows, Cols, U>(*this);
     }
 
     /**
-     * @brief Get number of rows */
+     * @brief Get number of rows
+     */
     [[nodiscard]] static constexpr size_t rows() { return Rows; }
+
     /**
-     * @brief Get number of columns */
+     * @brief Get number of columns
+     */
     [[nodiscard]] static constexpr size_t cols() { return Cols; }
 
     /**
-     * @brief Get const pointer to data in row-major order */
+     * @brief Get const pointer to data in row-major order
+     */
     [[nodiscard]] constexpr const T* data() const { return &data_[0][0]; }
+
     /**
-     * @brief Get pointer to data in row-major order */
+     * @brief Get pointer to data in row-major order
+     */
     [[nodiscard]] constexpr T* data() { return &data_[0][0]; }
 
     /**
-     * @brief Iterator begin for range-based access */
+     * @brief Iterator begin for range-based access
+     */
     [[nodiscard]] constexpr const T* begin() const { return data(); }
+
     /**
-     * @brief Iterator end for range-based access */
+     * @brief Iterator end for range-based access
+     */
     [[nodiscard]] constexpr const T* end() const { return data() + (Rows * Cols); }
+
     /**
-     * @brief Iterator begin for range-based access */
+     * @brief Iterator begin for range-based access
+     */
     [[nodiscard]] constexpr T* begin() { return data(); }
+
     /**
-     * @brief Iterator end for range-based access */
+     * @brief Iterator end for range-based access
+     */
     [[nodiscard]] constexpr T* end() { return data() + (Rows * Cols); }
 
     /**
@@ -215,6 +242,7 @@ public:
      * @return Reference to element at (row, col)
      */
     constexpr T& operator()(size_t row, size_t col) { return data_[row][col]; }
+
     /**
      * @brief Element access operator (const)
      * @param row Row index
@@ -224,7 +252,8 @@ public:
     constexpr const T& operator()(size_t row, size_t col) const { return data_[row][col]; }
 
     /**
-     * @brief Compound addition operator */
+     * @brief Compound addition operator
+     */
     constexpr Matrix& operator+=(const Matrix& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
@@ -235,7 +264,8 @@ public:
     }
 
     /**
-     * @brief Compound subtraction operator */
+     * @brief Compound subtraction operator
+     */
     constexpr Matrix& operator-=(const Matrix& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
@@ -246,7 +276,8 @@ public:
     }
 
     /**
-     * @brief Compound scalar multiplication operator */
+     * @brief Compound scalar multiplication operator
+     */
     constexpr Matrix& operator*=(T scalar) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
@@ -257,7 +288,8 @@ public:
     }
 
     /**
-     * @brief Compound scalar division operator */
+     * @brief Compound scalar division operator
+     */
     constexpr Matrix& operator/=(T scalar) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
@@ -268,7 +300,8 @@ public:
     }
 
     /**
-     * @brief Equality comparison operator */
+     * @brief Equality comparison operator
+     */
     [[nodiscard]] constexpr bool operator==(const Matrix& other) const {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
@@ -281,11 +314,13 @@ public:
     }
 
     /**
-     * @brief Inequality comparison operator */
+     * @brief Inequality comparison operator
+     */
     [[nodiscard]] constexpr bool operator!=(const Matrix& other) const { return !(*this == other); }
 
     /**
-     * @brief Unary negation operator */
+     * @brief Unary negation operator
+     */
     [[nodiscard]] constexpr Matrix operator-() const {
         Matrix result;
         for (size_t r = 0; r < Rows; ++r) {
@@ -297,7 +332,8 @@ public:
     }
 
     /**
-     * @brief Binary addition operator */
+     * @brief Binary addition operator
+     */
     [[nodiscard]] constexpr Matrix operator+(const Matrix& other) const {
         Matrix result = *this;
         result += other;
@@ -305,7 +341,8 @@ public:
     }
 
     /**
-     * @brief Binary subtraction operator */
+     * @brief Binary subtraction operator
+     */
     [[nodiscard]] constexpr Matrix operator-(const Matrix& other) const {
         Matrix result = *this;
         result -= other;
@@ -622,22 +659,27 @@ template<typename T, size_t N, size_t M>
 template<size_t N, typename T = double>
 struct ColVec : public Matrix<N, 1, T> {
     /**
-     * @brief Default constructor */
+     * @brief Default constructor
+     */
     constexpr ColVec() = default;
     /**
-     * @brief Copy constructor and assignment */
+     * @brief Copy constructor and assignment
+     */
     constexpr ColVec(const ColVec&) = default;
     constexpr ColVec& operator=(const ColVec&) = default;
     /**
-     * @brief Move constructor and assignment */
+     * @brief Move constructor and assignment
+     */
     constexpr ColVec(ColVec&&) = default;
     constexpr ColVec& operator=(ColVec&&) = default;
     /**
-     * @brief Destructor */
+     * @brief Destructor
+     */
     constexpr ~ColVec() = default;
 
     /**
-     * @brief Constructor from initializer list */
+     * @brief Constructor from initializer list
+     */
     constexpr ColVec(std::initializer_list<T> values) : Matrix<N, 1, T>() {
         size_t i = 0;
         for (const auto& val : values) {
@@ -739,22 +781,27 @@ struct ColVec : public Matrix<N, 1, T> {
 template<size_t N, typename T = double>
 struct RowVec : public Matrix<1, N, T> {
     /**
-     * @brief Default constructor */
+     * @brief Default constructor
+     */
     constexpr RowVec() = default;
     /**
-     * @brief Copy constructor and assignment */
+     * @brief Copy constructor and assignment
+     */
     constexpr RowVec(const RowVec&) = default;
     constexpr RowVec& operator=(const RowVec&) = default;
     /**
-     * @brief Move constructor and assignment */
+     * @brief Move constructor and assignment
+     */
     constexpr RowVec(RowVec&&) = default;
     constexpr RowVec& operator=(RowVec&&) = default;
     /**
-     * @brief Destructor */
+     * @brief Destructor
+     */
     constexpr ~RowVec() = default;
 
     /**
-     * @brief Constructor from initializer list */
+     * @brief Constructor from initializer list
+     */
     constexpr RowVec(std::initializer_list<T> values) : Matrix<1, N, T>() {
         size_t i = 0;
         for (const auto& val : values) {
