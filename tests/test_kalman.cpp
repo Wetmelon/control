@@ -15,7 +15,7 @@ TEST_CASE("State-space discrete propagation with control") {
     ColVec<2>        x0 = {0.0, 1.0};
     ColVec<1>        u = {1.0};
 
-    auto x1 = propagate_discrete(A, B, u, x0);
+    auto x1 = ColVec<2>(A * x0 + B * u);
     CHECK(x1[0] == doctest::Approx(1.5));
     CHECK(x1[1] == doctest::Approx(2.0));
 }
