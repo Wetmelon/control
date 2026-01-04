@@ -5,4 +5,4 @@ all:
 	@tup --quiet compiledb
 	@tup
 	@./tests/build/test_runner.exe
-	@./examples/build/example_cart_pole.exe
+	@./examples/build/example_buck_converter.exe

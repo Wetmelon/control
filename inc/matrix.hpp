@@ -7,6 +7,7 @@
 #include <optional>
 #include <type_traits>
 
+#include "constexpr_complex.hpp"
 #include "constexpr_math.hpp"
 
 namespace wetmelon::control {
@@ -790,6 +791,8 @@ struct ColVec : public Matrix<N, 1, T> {
         }
         return *this * (T(1) / n);
     }
+
+    [[nodiscard]] constexpr size_t size() const { return N; }
 };
 
 /**

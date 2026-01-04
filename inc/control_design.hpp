@@ -4,6 +4,7 @@
 #include <limits>
 #include <utility>
 
+#include "constexpr_complex.hpp"
 #include "discretization.hpp"
 #include "eigen.hpp"
 #include "matrix.hpp"
@@ -40,9 +41,7 @@ template<size_t N, typename T = double>
         return false;
 
     for (size_t i = 0; i < N; ++i) {
-        T magnitude = wet::sqrt(
-            eigen.values[i].real() * eigen.values[i].real() + eigen.values[i].imag() * eigen.values[i].imag()
-        );
+        T magnitude = wet::abs(eigen.values[i]);
         if (magnitude >= T{1}) {
             return false;
         }
@@ -224,6 +223,22 @@ struct LQRResult {
             e.template as<wet::complex<U>>(),
             success
         };
+    }
+
+    /**
+     * @brief Check if the closed-loop system is stable
+     *
+     * Stability is determined by checking if all closed-loop lie within the unit circle.
+     *
+     * @return true if stable, false otherwise
+     */
+    [[nodiscard]] constexpr bool is_stable() const {
+        for (size_t i = 0; i < NX; ++i) {
+            if (e[i].abs() >= T{1.0}) {
+                return false;
+            }
+        }
+        return true;
     }
 };
 
@@ -1199,10 +1214,6 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     return online::LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kest, lqr_result.success && kest.success};
 }
-
-// ============================================================================
-// Long-Named Wrapper Functions (aliases for clarity)
-// ============================================================================
 
 /**
  * @brief Design discrete LQR for already-discrete system

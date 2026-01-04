@@ -189,8 +189,6 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
     bool          converged = false;
 
     for (int iter = 0; iter < max_iter; ++iter) {
-        Matrix X_prev = X;
-
         const Matrix At = A.transpose();
         const Matrix Bt = B.transpose();
 

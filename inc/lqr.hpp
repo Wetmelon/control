@@ -28,7 +28,6 @@ namespace wetmelon::control {
  */
 template<size_t NX, size_t NU, typename T = double>
 struct LQR {
-public:
     Matrix<NU, NX, T> K{};
 
     constexpr LQR() = default;
