@@ -326,8 +326,8 @@ TEST_SUITE("4x4 Kalman Filter Design") {
             {0.0, 0.0, 1.0, 0.0}
         };
         sys.D = Matrix<2, 1>::zeros();
-        sys.G = Matrix<4, 4>::identity();
-        sys.H = Matrix<2, 2>::identity();
+        Matrix G = Matrix<4, 4>::identity();
+        Matrix H = Matrix<2, 2>::identity();
         sys.Ts = 0.01;
 
         Matrix<4, 4> Q = Matrix<4, 4>::identity() * 0.01;

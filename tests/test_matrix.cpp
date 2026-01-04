@@ -345,3 +345,15 @@ TEST_CASE("Matrix trace") {
     Matrix<2, 2> mat = {{3, 1}, {2, 5}};
     CHECK(mat.trace() == 8);
 }
+
+TEST_CASE("Block Assignment") {
+    Matrix<4, 4> mat = Matrix<4, 4>::zeros();
+    Matrix<2, 2> block = {{1, 2}, {3, 4}};
+
+    mat.block<2, 2>(0, 0) = block;
+
+    CHECK(mat(0, 0) == 1);
+    CHECK(mat(0, 1) == 2);
+    CHECK(mat(1, 0) == 3);
+    CHECK(mat(1, 1) == 4);
+}
