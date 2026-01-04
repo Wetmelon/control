@@ -1,5 +1,6 @@
 #include "constexpr_math.hpp"
 #include "control_design.hpp"
+#include "control_online.hpp"
 #include "fmt/core.h"
 #include "lqr.hpp"
 

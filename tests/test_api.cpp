@@ -1,6 +1,7 @@
 #include <cmath>
 
 #include "control_design.hpp"
+#include "control_online.hpp"
 #include "doctest.h"
 
 using namespace wetmelon::control;

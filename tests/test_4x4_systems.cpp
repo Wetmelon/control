@@ -2,6 +2,7 @@
 #include <cmath>
 
 #include "control_design.hpp"
+#include "control_online.hpp"
 #include "doctest.h"
 #include "eigen.hpp"
 #include "matrix.hpp"

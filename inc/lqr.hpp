@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "control_design.hpp"
+#include "control_online.hpp"
 #include "kalman.hpp"
 #include "matrix.hpp"
 
