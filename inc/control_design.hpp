@@ -383,7 +383,7 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NU, NU, T>& R,
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
-    design::LQRResult<NX, NU, T> result{};
+    LQRResult<NX, NU, T> result{};
 
     const auto dare_opt = dare(A, B, Q, R, N);
     if (!dare_opt) {
@@ -973,14 +973,14 @@ struct LQGIResult {
  * @return LQRResult containing gain matrix and solution to DARE
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr online::LQRResult<NX, NU, T> dlqr(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> dlqr(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
     const Matrix<NU, NU, T>& R,
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
-    online::LQRResult<NX, NU, T> result{};
+    LQRResult<NX, NU, T> result{};
 
     const auto dare_opt = dare(A, B, Q, R, N);
     if (!dare_opt) {
@@ -998,7 +998,7 @@ template<size_t NX, size_t NU, typename T = double>
 
     Matrix<NU, NX, T> K = denom_inv.value() * (B.transpose() * S * A + N.transpose());
 
-    result = online::LQRResult<NX, NU, T>{K, S, stability::closed_loop_poles(A, B, K), true};
+    result = LQRResult<NX, NU, T>{K, S, stability::closed_loop_poles(A, B, K), true};
     return result;
 }
 
@@ -1015,7 +1015,7 @@ template<size_t NX, size_t NU, typename T = double>
  * @return LQRResult containing gain matrix and solution to DARE
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr online::LQRResult<NX, NU, T> lqrd(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> lqrd(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -1025,19 +1025,19 @@ template<size_t NX, size_t NU, typename T = double>
 ) {
     StateSpace<NX, NU, NX, NX, NX, T> sys_c{A, B, Matrix<NX, NX, T>::identity()};
     const auto                        sys_d = discretize(sys_c, Ts, DiscretizationMethod::ZOH);
-    return online::dlqr(sys_d.A, sys_d.B, Q, R, N);
+    return dlqr(sys_d.A, sys_d.B, Q, R, N);
 }
 
 // lqrd overload for StateSpace
 template<size_t NX, size_t NU, size_t NY, typename T = double>
-[[nodiscard]] constexpr online::LQRResult<NX, NU, T> lqrd(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> lqrd(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
     const Matrix<NX, NX, T>&                 Q,
     const Matrix<NU, NU, T>&                 R,
     T                                        Ts,
     const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
 ) {
-    return online::lqrd(sys.A, sys.B, Q, R, Ts, N);
+    return lqrd(sys.A, sys.B, Q, R, Ts, N);
 }
 
 /**
@@ -1051,7 +1051,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
  * @return LQIResult containing state and integral gains
  */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
-[[nodiscard]] constexpr online::LQIResult<NX, NU, NY, T> lqi(
+[[nodiscard]] constexpr LQIResult<NX, NU, NY, T> lqi(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q,
     const Matrix<NU, NU, T>&                 R
@@ -1080,7 +1080,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     // Solve DARE for augmented system
     const auto dare_opt = dare(A_aug, B_aug, Q, R);
     if (!dare_opt) {
-        return online::LQIResult<NX, NU, NY, T>{};
+        return LQIResult<NX, NU, NY, T>{};
     }
     Matrix<NX + NY, NX + NY, T> P_aug = dare_opt.value();
 
@@ -1089,7 +1089,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     const auto              denom_inv = denom.inverse();
 
     if (!denom_inv) {
-        return online::LQIResult<NX, NU, NY, T>{};
+        return LQIResult<NX, NU, NY, T>{};
     }
     Matrix<NU, NX + NY, T> K_aug{};
     K_aug = denom_inv.value() * B_aug.transpose() * P_aug * A_aug;
@@ -1106,7 +1106,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
     }
 
     ColVec<NX + NY, wet::complex<T>> poles = stability::closed_loop_poles(A_aug, B_aug, K_aug);
-    return online::LQIResult<NX, NU, NY, T>(Kx, Ki, P_aug, poles, true);
+    return LQIResult<NX, NU, NY, T>(Kx, Ki, P_aug, poles, true);
 }
 
 /**
@@ -1121,12 +1121,12 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
  * @return KalmanResult containing steady-state gain and covariance
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr online::KalmanResult<NX, NU, NY, NW, NV, T> kalman(
+[[nodiscard]] constexpr KalmanResult<NX, NU, NY, NW, NV, T> kalman(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NW, NW, T>&                 Q,
     const Matrix<NV, NV, T>&                 R
 ) {
-    online::KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
+    KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
 
     // Solve filter DARE: P = A*P*A' + Q - A*P*C'*(C*P*C' + R)^{-1}*C*P*A'
     // This is equivalent to dare(A', C', Q, R)
@@ -1161,7 +1161,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQGResult combining LQR and Kalman filter designs
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr online::LQGResult<NX, NU, NY, NW, NV, T> lqg(
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX, NX, T>&                 Q_lqr,
     const Matrix<NU, NU, T>&                 R_lqr,
@@ -1171,7 +1171,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     const auto lqr_result = dlqr(sys.A, sys.B, Q_lqr, R_lqr, N);
     const auto kalman_result = kalman(sys, Q_kf, R_kf);
-    return online::LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kalman_result, lqr_result.success && kalman_result.success};
+    return LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kalman_result, lqr_result.success && kalman_result.success};
 }
 
 /**
@@ -1187,7 +1187,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQGIResult with integral action for tracking
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr online::LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
+[[nodiscard]] constexpr LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q_aug,
     const Matrix<NU, NU, T>&                 R,
@@ -1196,7 +1196,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     const auto lqi_result = lqi(sys, Q_aug, R);
     const auto kalman_result = kalman(sys, Q_kf, R_kf);
-    return online::LQGIResult<NX, NU, NY, NW, NV, T>{lqi_result, kalman_result, lqi_result.success && kalman_result.success};
+    return LQGIResult<NX, NU, NY, NW, NV, T>{lqi_result, kalman_result, lqi_result.success && kalman_result.success};
 }
 
 /**
@@ -1208,11 +1208,11 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQGResult combining the provided Kalman and LQR designs
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr online::LQGResult<NX, NU, NY, NW, NV, T> lqgreg(
-    const online::KalmanResult<NX, NU, NY, NW, NV, T>& kest,
-    const online::LQRResult<NX, NU, T>&                lqr_result
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqgreg(
+    const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
+    const LQRResult<NX, NU, T>&                lqr_result
 ) {
-    return online::LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kest, lqr_result.success && kest.success};
+    return LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kest, lqr_result.success && kest.success};
 }
 
 /**
@@ -1227,7 +1227,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQRResult containing gain matrix and solution to DARE
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr design::LQRResult<NX, NU, T> discrete_lqr(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -1250,7 +1250,7 @@ template<size_t NX, size_t NU, typename T = double>
  * @return LQRResult containing gain matrix and solution to DARE
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr online::LQRResult<NX, NU, T> discrete_lqr_from_continuous(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -1273,7 +1273,7 @@ template<size_t NX, size_t NU, typename T = double>
  * @return LQRResult containing gain matrix and solution to DARE
  */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
-[[nodiscard]] constexpr online::LQRResult<NX, NU, T> discrete_lqr_from_continuous(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
     const Matrix<NX, NX, T>&                 Q,
     const Matrix<NU, NU, T>&                 R,
@@ -1294,7 +1294,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
  * @return LQIResult containing gains and solution to DARE
  */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
-[[nodiscard]] constexpr design::LQIResult<NX, NU, NY, T> lqr_with_integral(
+[[nodiscard]] constexpr LQIResult<NX, NU, NY, T> lqr_with_integral(
     const StateSpace<NX, NU, NY, NX, NY, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q,
     const Matrix<NU, NU, T>&                 R
@@ -1315,7 +1315,7 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
  * @return LQGResult combining LQR and Kalman filter designs
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqg_regulator(
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg_regulator(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX, NX, T>&                 Q_lqr,
     const Matrix<NU, NU, T>&                 R_lqr,
@@ -1339,7 +1339,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return  LQGIResult with integral action for tracking
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr design::LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
+[[nodiscard]] constexpr LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q_aug,
     const Matrix<NU, NU, T>&                 R,
@@ -1358,12 +1358,13 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQG Regulator combining the provided Kalman and LQR results
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr design::LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
-    const design::KalmanResult<NX, NU, NY, NW, NV, T>& kest,
-    const design::LQRResult<NX, NU, T>&                lqr_result
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
+    const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
+    const LQRResult<NX, NU, T>&                lqr_result
 ) {
     return lqgreg(kest, lqr_result);
 }
 
 } // namespace online
+
 } // namespace wetmelon::control
