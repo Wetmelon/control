@@ -24,6 +24,9 @@ struct is_matrix_element<wet::complex<T>> : std::bool_constant<std::is_floating_
 template<typename T>
 inline constexpr bool is_matrix_element_v = is_matrix_element<T>::value;
 
+template<size_t Rows, size_t Cols, size_t ParentCols, typename T>
+struct Block;
+
 /**
  * @ingroup linear_algebra
  * @brief Fixed-size, stack-allocated matrix for linear algebra operations
@@ -44,6 +47,8 @@ protected:
     friend struct Matrix;
 
 public:
+    typedef T value_type;
+
     static_assert(is_matrix_element_v<T>, "Matrix element type must be floating-point or complex<floating-point>");
 
     /**
@@ -150,6 +155,21 @@ public:
                 data_[i][j] = arr[i][j];
             }
         }
+    }
+
+    /**
+     * @brief Returns a view over a sub-block of the matrix
+     *
+     * @param start_row   Starting row index of the block
+     * @param start_col   Starting column index of the block
+     * @param block_rows  Number of rows in the block
+     * @param block_cols  Number of columns in the block
+     *
+     * @return a Matrix<block_rows, block_cols, T> view of the specified block
+     */
+    template<size_t Brows, size_t Bcols>
+    constexpr Block<Brows, Bcols, Cols, T> block(size_t start_row, size_t start_col) {
+        return Block<Brows, Bcols, Cols, T>{&data_[start_row][start_col]};
     }
 
     /**
@@ -1501,5 +1521,44 @@ template<typename T, size_t N>
     return true;
 }
 } // namespace mat
+
+template<size_t Rows, size_t Cols, size_t ParentCols, typename T>
+struct Block {
+private:
+    T* const start_ptr;
+
+public:
+    constexpr explicit Block(T* data_ptr) : start_ptr(data_ptr) {}
+    constexpr explicit Block(const T* data_ptr) : start_ptr(const_cast<T*>(data_ptr)) {}
+
+    constexpr Block(const Block& other) : start_ptr(other.start_ptr) {}
+    constexpr Block& operator=(const Block& other) {
+        // This assignment copies the pointer, not the data
+        // For data assignment, use the Matrix assignment below
+        return *this;
+    }
+
+    constexpr Block(Block&& other) noexcept : start_ptr(other.start_ptr) {}
+    constexpr Block& operator=(Block&& other) noexcept {
+        return *this;
+    }
+
+    [[nodiscard]] constexpr T& operator()(size_t r, size_t c) {
+        return start_ptr[r * ParentCols + c];
+    }
+
+    [[nodiscard]] constexpr const T& operator()(size_t r, size_t c) const {
+        return start_ptr[r * ParentCols + c];
+    }
+
+    constexpr Block& operator=(const Matrix<Rows, Cols, T>& mat) {
+        for (size_t i = 0; i < Rows; ++i) {
+            for (size_t j = 0; j < Cols; ++j) {
+                (*this)(i, j) = mat(i, j);
+            }
+        }
+        return *this;
+    }
+};
 
 }; // namespace wetmelon::control
