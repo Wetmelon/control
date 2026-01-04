@@ -43,7 +43,7 @@ ColVec<1> u = controller.control(x);  // u = -K*x
 ### Design API 
 
 | Function | MATLAB® compatible | Description |
-|----------|-------------|
+|----------|-------------| --- |
 | `discrete_lqr` |  `dlqr(A, B, Q, R)` | Discrete LQR from state matrices |
 | `discrete_lqr` |  `dlqr(A, B, Q, R, N)` | Discrete LQR with cross-term cost |
 | `discrete_lqr_from_continuous` |  `lqrd(A, B, Q, R, Ts)` | Discrete LQR from continuous plant |
