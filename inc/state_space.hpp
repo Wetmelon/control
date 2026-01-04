@@ -5,20 +5,30 @@
 #include "matrix.hpp"
 
 namespace wetmelon::control {
+
 /**
  * @brief State-space representation for linear time-invariant systems (discrete or continuous)
  *
  * Fixed-size, stack-allocated state-space container supporting both continuous and discrete systems.
  * No heap allocation, suitable for embedded systems.
  *
- * Discrete-time (Ts > 0):   x_{k+1} = A x_k + B u_k + G w_k;  y_k = C x_k + D u_k + H v_k
- * Continuous-time (Ts = 0): dx/dt = A x + B u + G w;           y = C x + D u + H v
+ * Discrete-time (Ts > 0):
+ * ```
+ *      x_{k+1} = A x_k + B u_k + G w_k;
+ *          y_k = C x_k + D u_k + H v_k
+ * ```
  *
- * @tparam NX Number of states
- * @tparam NU Number of control inputs
- * @tparam NY Number of outputs
- * @tparam NW Number of process noise inputs (default: NX)
- * @tparam NV Number of measurement noise inputs (default: NY)
+ * Continuous-time (Ts = 0):
+ * ```
+ *      dx/dt = A x + B u + G w;
+ *          y = C x + D u + H v
+ * ```
+ *
+ * @tparam NX Number of states (Rows and Cols of A)
+ * @tparam NU Number of control inputs (Cols of B and D)
+ * @tparam NY Number of outputs (Rows of C and D)
+ * @tparam NW Number of process noise inputs (Cols of G) (default: NX)
+ * @tparam NV Number of measurement noise inputs (Cols of H) (default: NY)
  * @tparam T  Scalar type (default: double)
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>

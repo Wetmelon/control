@@ -2,18 +2,19 @@
 
 ## Overview
 
-A header-only C++20 library for designing optimal controllers and observers **at compile time**. Features MATLAB®-style APIs (`dlqr`, `lqi`, `lqg`, `kalman`) with two evaluation modes:
+A header-only C++20 library for designing optimal controllers and observers **at compile time**, with extensive linear algebra and rotation utilities. Features optional MATLAB®-style APIs (`dlqr`, `lqi`, `lqg`, `kalman`) with two evaluation modes:
 
 - **`design::`** — `consteval` functions that **must** execute at compile time
 - **`online::`** — `constexpr` functions that **can** execute at runtime
 
-All designs produce fixed-size, stack-allocated artifacts suitable for embedded systems with zero dynamic allocation.
+All designs produce fixed-size, stack/statically-allocated artifacts suitable for embedded systems with zero dynamic allocation.
 
 ## Quick Start
 
 ```cpp
 #include "control_design.hpp"
 #include "lqr.hpp"
+#include "state_space.hpp"
 
 // Define a continuous double-integrator system
 // dx/dt = A*x + B*u,  y = C*x
@@ -39,20 +40,52 @@ ColVec<1> u = controller.control(x);  // u = -K*x
 
 ## Features
 
-### MATLAB®-Style Control Design API
+### Design API 
 
-| Function | Description |
+| Function | MATLAB® compatible | Description |
 |----------|-------------|
-| `dlqr(A, B, Q, R)` | Discrete LQR from state matrices |
-| `dlqr(A, B, Q, R, N)` | Discrete LQR with cross-term cost |
-| `lqrd(A, B, Q, R, Ts)` | Discrete LQR from continuous plant |
-| `lqi(sys, Q_aug, R)` | LQI with integral action for tracking |
-| `kalman(sys, Q, R)` | Steady-state Kalman filter design |
-| `lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf)` | LQG regulator (LQR + Kalman) |
-| `lqgtrack(sys, Q_aug, R, Q_kf, R_kf)` | LQG servo with integral action |
-| `lqgreg(kalman_result, lqr_result)` | Combine separate designs |
+| `discrete_lqr` |  `dlqr(A, B, Q, R)` | Discrete LQR from state matrices |
+| `discrete_lqr` |  `dlqr(A, B, Q, R, N)` | Discrete LQR with cross-term cost |
+| `discrete_lqr_from_continuous` |  `lqrd(A, B, Q, R, Ts)` | Discrete LQR from continuous plant |
+| `lqr_with_integral` |  `lqi(sys, Q_aug, R)` | LQI with integral action for tracking |
+| `lqg_regulator` |  `lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf)` | LQG regulator (LQR + Kalman) |
+| `lqg_servo` |  `lqgtrack(sys, Q_aug, R, Q_kf, R_kf)` | LQG servo with integral action |
+| `lqg_from_parts` |  `lqgreg(kalman_result, lqr_result)` | Combine separate designs |
+| `kalman` |  `kalman(sys, Q, R)` | Steady-state LTI Kalman filter design |
 
 All functions available in both `design::` and `online::` namespaces.
+
+Note: MATLAB® compatible API does not mean it has the full features of MATLAB®.
+
+### State-Space System Interconnections
+
+Interconnect systems using intuitive operators or explicit functions:
+
+| Operation | Operator | Function | Description |
+|-----------|----------|----------|-------------|
+| Series | `sys1 * sys2` | `series(sys1, sys2)` | Cascade: sys1 → sys2 |
+| Parallel | `sys1 + sys2` | `parallel(sys1, sys2)` | Summing: outputs add |
+| Subtract | `sys1 - sys2` | `subtract(sys1, sys2)` | Differencing: outputs subtract |
+| Feedback | `sys1 / sys2` | `feedback(sys1, sys2)` | Negative feedback loop |
+
+All interconnections preserve noise matrices and are fully `constexpr`.
+
+### Linear Algebra & Rotation Utilities
+
+**Compile-time Matrix Operations:**
+
+- `Matrix<N, M, T>` with arithmetic, transpose, trace, determinant, inversion
+- Block views via `.block<Rows, Cols>(r, c)` for non-owning sub-matrices
+- Vector types `ColVec<N>` and `RowVec<N>` with dot/cross products, norms
+- Optional returns for singular cases (inversion, axis-angle)
+
+**Rotations:**
+
+- `DCM<T>` (3×3 Direction Cosine Matrix) with axis-specific constructors
+- `Quaternion<T>` with SLERP, Hamilton product, axis-angle conversion
+- `Euler<T, Order>` for ZYX (yaw-pitch-roll) and XYZ (roll-pitch-yaw) orders
+- Gimbal-lock aware conversions between representations
+- `Vec3` operations for 3D vectors (cross product, rotation)
 
 ### Result Types with Type Conversion
 
@@ -147,34 +180,58 @@ void reconfigure(double new_weight) {
 }
 ```
 
+### Interconnecting Systems
+
+```cpp
+// Series connection: cascade G1 then G2
+constexpr auto G = series(G1, G2);  // or: G1 * G2
+
+// Parallel: sensor fusion
+constexpr auto fused = sensor1 + sensor2;
+
+// Differencing: error signal
+constexpr auto error = reference - measurement;
+
+// Feedback: closed-loop with observer
+constexpr auto closed_loop = plant / observer;
+
+// Complex networks at compile time
+constexpr auto system = (plant * controller) / observer + disturbance_model;
+```
+
 ## API Reference
 
 ### Result Structures
 
 #### `LQRResult<NX, NU, T>`
+
 - `.K` — Feedback gain (NU × NX)
 - `.S` — DARE solution / cost-to-go matrix (NX × NX)
 - `.success` — Convergence flag
 - `.as<U>()` — Convert to type U
 
 #### `LQIResult<NX, NU, NY, T>`
+
 - `.Kx` — State gain (NU × NX)
 - `.Ki` — Integral gain (NU × NY)
 - `.S` — Augmented DARE solution
 - `.success` — Convergence flag
 
 #### `KalmanResult<NX, NY, T>`
+
 - `.L` — Kalman gain (NX × NY)
 - `.P` — Steady-state covariance (NX × NX)
 - `.success` — Convergence flag
 
 #### `LQGResult<NX, NU, NY, T>`
+
 - `.lqr` — LQRResult
 - `.kalman` — KalmanResult
 - `.sys` — System copy
 - `.success` — Combined success flag
 
 #### `LQGIResult<NX, NU, NY, T>`
+
 - `.lqi` — LQIResult
 - `.kalman` — KalmanResult
 - `.sys` — System copy
@@ -186,6 +243,11 @@ Tests are organized by functionality:
 
 | File | Purpose |
 |------|---------|
+| `test_matrix.cpp` | Matrix arithmetic, block views, operations |
+| `test_vector.cpp` | Vector types, dot/cross products, norms |
+| `test_rotation.cpp` | DCM, Quaternion, Euler angle conversions |
+| `test_quaternion.cpp` | Quaternion SLERP, integration, axis-angle |
+| `test_state_space.cpp` | System interconnections (series, parallel, feedback, subtract) |
 | `test_discretization.cpp` | ZOH, Tustin discretization methods |
 | `test_api.cpp` | MATLAB®-style API (dlqr, lqi, lqg, etc.) |
 | `test_design.cpp` | Compile-time `design::` verification |
@@ -193,22 +255,30 @@ Tests are organized by functionality:
 | `test_integration.cpp` | Motor-coupling-mass system example |
 | `test_analysis.cpp` | Stability analysis functions |
 | `test_matrix_functions.cpp` | Matrix exp, sin, cos, sqrt, pow |
+| `test_constexpr_math.cpp` | Compile-time math functions |
+| `test_4x4_systems.cpp` | Larger 4×4 system tests |
+| `test_kalman.cpp` | Kalman filter design |
+| `test_eigen.cpp` | Eigenvalue/eigenvector computation |
+| `test_eskf.cpp` | Error-state Kalman filter |
 
-**Test Results:** 151 test cases, 732 assertions, all passing ✓
+**Test Results:** 184 test cases, 1000+ assertions, all passing ✓
 
 ## Header Organization
 
 | Header | Contents |
 |--------|----------|
-| `matrix.hpp` | Core `Matrix<N,M,T>` type |
-| `state_space.hpp` | `StateSpace<NX,NU,NY,T>` for discrete systems |
+| `matrix.hpp` | Core `Matrix<N,M,T>` type with block views, `Vec/ColVec/RowVec` |
+| `vector.hpp` | Vector operations (dot, cross, norm, normalization) |
+| `rotation.hpp` | `DCM<T>`, `Quaternion<T>`, `Euler<T, Order>` types |
+| `state_space.hpp` | `StateSpace<NX,NU,NY,T>`, system interconnections (series, parallel, feedback, subtract) |
 | `discretization.hpp` | `discretize()`, ZOH/Tustin methods |
 | `ricatti.hpp` | `dare()`, `care()` solvers |
 | `control_design.hpp` | `design::` and `online::` APIs, result types |
 | `lqr.hpp` | `LQR`, `LQI`, `LQG`, `LQGI` controller classes |
-| `kalman.hpp` | `KalmanFilter` class |
-| `matrix_functions.hpp` | `control::exp()`, `control::sin()`, etc. |
-| `eigenvalues.hpp` | Eigenvalue computation for stability |
+| `kalman.hpp` | `KalmanFilter`, `ExtendedKalmanFilter`, `ErrorStateKalmanFilter` classes |
+| `constexpr_math.hpp` | Compile-time math (exp, sin, sqrt, pow) |
+| `eigen.hpp` | Eigenvalue computation for stability |
+| `transfer_function.hpp` | Transfer function representations (placeholder) |
 
 ## Design Constraints
 
@@ -217,6 +287,7 @@ Tests are organized by functionality:
 - **Arithmetic types**: Supports `float` and `double`
 - **Maximum tested**: 4×4 systems (extensible to larger)
 - **Constexpr-compatible**: All algorithms work at compile time
+- **No Dynamic STL containers**: Uses `std::array` and `std::span` only
 
 ## Numerical Methods
 
@@ -224,15 +295,16 @@ Tests are organized by functionality:
 - **DARE/CARE**: Kleinman iteration with Joseph-form covariance update
 - **Matrix Inversion**: Gauss-Jordan with partial pivoting (up to 6×6)
 - **Eigenvalues**: QR iteration for stability analysis
+- **Rotations**: Rotation matrix/quaternion/Euler conversions with gimbal-lock handling
+- **System Interconnections**: Block-based state augmentation with noise matrix propagation
 
-## References
+## Formula References
 
 - Franklin, Powell & Workman: "Digital Control of Dynamic Systems"
 - Anderson & Moore: "Optimal Control: Linear Quadratic Methods"
 - Simon: "Optimal State Estimation" (Kalman filtering)
 
-## Version Information
+## Build Requirements
 
 - **C++ Standard**: C++20 (consteval, constexpr, concepts)
 - **Compilers**: GCC 10+, Clang 12+, MSVC 2022+
-- **Status**: Production-ready with comprehensive test coverage
