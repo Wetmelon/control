@@ -1,11 +1,12 @@
 #include <fmt/core.h>
-#include <matplot/matplot.h>
 
 #include <algorithm>
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 
 #include "control.hpp"
 #include "integrator.hpp"
-#include "matplot/freestanding/axes_lim.h"
 #include "types.hpp"
 
 // Monolithic simulation example for the hydraulic pressure-reducing valve.
@@ -13,7 +14,7 @@
 // (e.g. an implicit Euler / Rosenbrock / CVODE wrapper) for realistic stiff solves.
 
 using namespace control;
-namespace plt = matplot;
+using namespace plotlypp;
 
 // Combined state vector:
 // x = [ i, z, x_spool, v_spool, P ]
@@ -191,8 +192,7 @@ int main() {
     }
 
     // Plot results
-    auto fig = plt::figure(true);
-    fig->size(1920, 1080);
+    Figure fig;
 
     // Extract time and states
     std::vector<double> t      = result.t;
@@ -212,43 +212,73 @@ int main() {
         pressure[i]         = states[i](4) / 1e5;  // convert to bar
     }
 
-    // Plot solenoid current
-    plt::subplot(5, 1, 0);
-    plt::plot(t, current);
-    plt::title("Solenoid Current [mA]");
-    plt::xlabel("Time [s]");
-    plt::ylabel("i [mA]");
+    // Create traces for each subplot
+    auto trace_current = Scatter()
+                             .x(t)
+                             .y(current)
+                             .mode({Scatter::Mode::Lines})
+                             .name("Solenoid Current")
+                             .xaxis("x")
+                             .yaxis("y");
 
-    // Plot integrator state
-    plt::subplot(5, 1, 1);
-    plt::plot(t, integrator_state);
-    plt::title("PI Integrator State");
-    plt::xlabel("Time [s]");
-    plt::ylabel("z");
+    auto trace_integrator = Scatter()
+                                .x(t)
+                                .y(integrator_state)
+                                .mode({Scatter::Mode::Lines})
+                                .name("PI Integrator State")
+                                .xaxis("x2")
+                                .yaxis("y2");
 
-    // Plot spool position
-    plt::subplot(5, 1, 2);
-    plt::plot(t, spool_position);
-    plt::title("Spool Position [m]");
-    plt::xlabel("Time [s]");
-    plt::ylabel("x_spool [m]");
+    auto trace_spool_pos = Scatter()
+                               .x(t)
+                               .y(spool_position)
+                               .mode({Scatter::Mode::Lines})
+                               .name("Spool Position")
+                               .xaxis("x3")
+                               .yaxis("y3");
 
-    // Plot spool velocity
-    plt::subplot(5, 1, 3);
-    plt::plot(t, spool_velocity);
-    plt::title("Spool Velocity [m/s]");
-    plt::xlabel("Time [s]");
-    plt::ylabel("v_spool [m/s]");
+    auto trace_spool_vel = Scatter()
+                               .x(t)
+                               .y(spool_velocity)
+                               .mode({Scatter::Mode::Lines})
+                               .name("Spool Velocity")
+                               .xaxis("x4")
+                               .yaxis("y4");
 
-    // Plot chamber pressure
-    auto ax = plt::subplot(5, 1, 4);
-    plt::plot(t, pressure);
-    plt::title("Chamber Pressure [bar]");
-    plt::xlabel("Time [s]");
-    plt::ylabel("P [bar]");
-    ax->ylim({-2, 32});
-    plt::show();
+    auto trace_pressure = Scatter()
+                              .x(t)
+                              .y(pressure)
+                              .mode({Scatter::Mode::Lines})
+                              .name("Chamber Pressure")
+                              .xaxis("x5")
+                              .yaxis("y5");
 
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Hydraulic Valve Simulation"); })
+                      .height(1200)
+                      .width(1000)
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("i [mA]"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("z"); }).showgrid(true))
+                      .xaxis(3, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("x_spool [m]"); }).showgrid(true))
+                      .xaxis(4, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(4, Layout::Yaxis().title([](auto& t) { t.text("v_spool [m/s]"); }).showgrid(true))
+                      .xaxis(5, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(5, Layout::Yaxis().title([](auto& t) { t.text("P [bar]"); }).showgrid(true).range(std::vector<double>{-2, 32}))
+                      .grid(Layout::Grid{}
+                                .rows(5)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}, {"x3y3"}, {"x4y4"}, {"x5y5"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    fig.addTraces(std::vector<Trace>{trace_current, trace_integrator, trace_spool_pos, trace_spool_vel, trace_pressure});
+    fig.setLayout(layout);
+
+    fig.writeHtml("hydraulic_valve_simulation.html");
+
+    fmt::print("Plots saved to hydraulic_valve_simulation.html\n");
     fmt::print("Add your stiff integrator type to run the simulation (see comment).\n");
     return 0;
 }

@@ -1,12 +1,14 @@
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 #include <vector>
 
 #include "control.hpp"
-#include "matplot/matplot.h"
 #include "solver.hpp"
 
 int main() {
     using namespace control;
-    namespace plt = matplot;
+    using namespace plotlypp;
 
     // Bouncing ball simulation
     // State: [position, velocity]
@@ -69,40 +71,64 @@ int main() {
     }
 
     // Create plots
-    auto fig = plt::figure(true);
-    fig->size(1200, 1200);
+    Figure fig;
 
     // Position vs time
-    plt::subplot(3, 1, 0);
-    plt::plot(time, position)->line_width(2);
-    plt::xlabel("Time (s)");
-    plt::ylabel("Position (m)");
-    plt::title("Bouncing Ball - Position");
-    plt::grid(plt::on);
-    plt::ylim({-0.5, 11.0});
+    auto trace_pos = Scatter()
+                         .x(time)
+                         .y(position)
+                         .mode({Scatter::Mode::Lines})
+                         .name("Position")
+                         .line(Scatter::Line().width(2).color("blue"))
+                         .xaxis("x")
+                         .yaxis("y");
 
     // Velocity vs time
-    plt::subplot(3, 1, 1);
-    plt::plot(time, velocity)->line_width(2).color("red");
-    plt::xlabel("Time (s)");
-    plt::ylabel("Velocity (m/s)");
-    plt::title("Bouncing Ball - Velocity");
-    plt::grid(plt::on);
+    auto trace_vel = Scatter()
+                         .x(time)
+                         .y(velocity)
+                         .mode({Scatter::Mode::Lines})
+                         .name("Velocity")
+                         .line(Scatter::Line().width(2).color("red"))
+                         .xaxis("x2")
+                         .yaxis("y2");
 
     // Phase portrait (velocity vs position)
-    plt::subplot(3, 1, 2);
-    plt::plot(position, velocity)->line_width(1.5);
-    plt::xlabel("Position (m)");
-    plt::ylabel("Velocity (m/s)");
-    plt::title("Phase Portrait: Velocity vs Position");
-    plt::grid(plt::on);
+    auto trace_phase = Scatter()
+                           .x(position)
+                           .y(velocity)
+                           .mode({Scatter::Mode::Lines})
+                           .name("Phase Portrait")
+                           .line(Scatter::Line().width(1.5).color("green"))
+                           .xaxis("x3")
+                           .yaxis("y3");
+
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Bouncing Ball Simulation"); })
+                      .height(1200)
+                      .width(1000)
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Position (m)"); }).showgrid(true).range(std::vector<double>{-0.5, 11.0}))
+                      .xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Velocity (m/s)"); }).showgrid(true))
+                      .xaxis(3, Layout::Xaxis().title([](auto& t) { t.text("Position (m)"); }).showgrid(true))
+                      .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("Velocity (m/s)"); }).showgrid(true))
+                      .grid(Layout::Grid{}
+                                .rows(3)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}, {"x3y3"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    fig.addTraces(std::vector<Trace>{trace_pos, trace_vel, trace_phase});
+    fig.setLayout(layout);
+
+    fig.writeHtml("bouncing_ball_simulation.html");
 
     std::cout << "Bouncing ball simulation completed!\n";
     std::cout << "Simulation time: " << result.t.back() << " seconds\n";
     std::cout << "Time steps: " << result.t.size() << "\n";
     std::cout << "Final position: " << position.back() << " m\n";
     std::cout << "Final velocity: " << velocity.back() << " m/s\n";
-
-    // plt::show();
+    std::cout << "Plots saved to bouncing_ball_simulation.html\n";
     return 0;
 }

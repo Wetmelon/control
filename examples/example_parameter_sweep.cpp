@@ -4,16 +4,18 @@
 #include <future>
 #include <iostream>
 #include <mutex>
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 #include <sstream>
 #include <thread>
 #include <vector>
 
 #include "control.hpp"
-#include "matplot/matplot.h"
 #include "types.hpp"
 
 using namespace control;
-using namespace matplot;
+using namespace plotlypp;
 
 // Create two-mass plant with flexible coupling
 // System: Motor mass (m1) connected to load mass (m2) via flexible shaft (spring k, damper c)
@@ -83,17 +85,12 @@ struct SweepData {
     std::vector<BodeResponse> bode_responses_closed;
 };
 
-void plotSweep(figure_handle fig, const SweepData& data) {
+void plotSweep(Figure& fig, const SweepData& data) {
     const double fade_alpha = 0.15;
 
-    figure(fig);
+    std::vector<Trace> traces;
 
     // Bode Magnitude Plot (top)
-    subplot(2, 1, 0);
-    auto ax3 = gca();
-    ax3->clear();
-    hold(on);
-
     for (size_t i = 0; i < data.bode_responses_closed.size(); ++i) {
         const auto&         bode = data.bode_responses_closed[i];
         std::vector<double> freq_vec, mag_vec;
@@ -102,24 +99,18 @@ void plotSweep(figure_handle fig, const SweepData& data) {
             mag_vec.push_back(bode.magnitude[j]);
         }
 
-        auto p = plot(freq_vec, mag_vec, "-b");
-        p->line_width(1.5);
-        p->color({0.0f, 0.0f, 1.0f, static_cast<float>(fade_alpha)});
+        auto trace = Scatter()
+                         .x(freq_vec)
+                         .y(mag_vec)
+                         .mode({Scatter::Mode::Lines})
+                         .line(Scatter::Line().width(1.5).color("rgba(0,0,255,0.15)"))
+                         .xaxis("x")
+                         .yaxis("y")
+                         .showlegend(false);
+        traces.push_back(trace);
     }
 
-    hold(off);
-    xlabel("Frequency (Hz)");
-    ylabel("Magnitude (dB)");
-    title("Closed-Loop Bode - Magnitude");
-    grid(on);
-    ax3->x_axis().scale(axis_type::axis_scale::log);
-
     // Bode Phase Plot (bottom)
-    subplot(2, 1, 1);
-    auto ax4 = gca();
-    ax4->clear();
-    hold(on);
-
     for (size_t i = 0; i < data.bode_responses_closed.size(); ++i) {
         const auto&         bode = data.bode_responses_closed[i];
         std::vector<double> freq_vec, phase_vec;
@@ -128,19 +119,35 @@ void plotSweep(figure_handle fig, const SweepData& data) {
             phase_vec.push_back(bode.phase[j]);
         }
 
-        auto p = plot(freq_vec, phase_vec, "-b");
-        p->line_width(1.5);
-        p->color({0.0f, 0.0f, 1.0f, static_cast<float>(fade_alpha)});
+        auto trace = Scatter()
+                         .x(freq_vec)
+                         .y(phase_vec)
+                         .mode({Scatter::Mode::Lines})
+                         .line(Scatter::Line().width(1.5).color("rgba(0,0,255,0.15)"))
+                         .xaxis("x2")
+                         .yaxis("y2")
+                         .showlegend(false);
+        traces.push_back(trace);
     }
 
-    hold(off);
-    xlabel("Frequency (Hz)");
-    ylabel("Phase (degrees)");
-    title("Closed-Loop Bode - Phase");
-    grid(on);
-    ax4->x_axis().scale(axis_type::axis_scale::log);
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Closed-Loop Bode Diagram"); })
+                      .height(800)
+                      .width(800)
+                      .xaxis(1, Layout::Xaxis().type(Layout::Xaxis::Type::Log).title([](auto& t) { t.text("Frequency (Hz)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Magnitude (dB)"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().type(Layout::Xaxis::Type::Log).title([](auto& t) { t.text("Frequency (Hz)"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase (degrees)"); }).showgrid(true))
+                      .grid(Layout::Grid{}
+                                .rows(2)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
 
-    show();
+    fig.addTraces(traces);
+    fig.setLayout(layout);
+
+    fig.writeHtml("parameter_sweep_bode.html");
 }
 
 int main() {
@@ -223,9 +230,7 @@ int main() {
     fmt::print("\nDone!\n\n");
 
     // Create figure
-    auto fig = figure(true);
-    fig->size(800, 800);
-    fig->name("Closed-Loop Bode Diagram");
+    Figure fig;
 
     // Plot sweep
     plotSweep(fig, data);

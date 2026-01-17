@@ -1,14 +1,16 @@
 #include <fmt/core.h>
 
-#include <algorithm>
-#include <limits>
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
+#include <string>
+#include <vector>
 
 #include "control.hpp"
-#include "matplot/matplot.h"
 
 int main() {
     using namespace control;
-    namespace plt = matplot;
+    using namespace plotlypp;
 
     fmt::print("=== DC-DC Buck Converter Example ===\n");
     fmt::print("Average model with PI voltage control\n\n");
@@ -89,39 +91,35 @@ int main() {
     auto bode_cl = bode(cl_system, 1.0, 1e5, 200);   // Closed-loop
 
     // Plot Bode plots: overlay open-loop and closed-loop on the same axes
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
-    plt::sgtitle("Buck Converter - Bode Plots (Open vs Closed Loop)");
+    auto trace_ol_mag = Scatter()
+                            .x(bode_ol.freq)
+                            .y(bode_ol.magnitude)
+                            .mode({Scatter::Mode::Lines})
+                            .name("Open-Loop")
+                            .line(Scatter::Line().width(2).color("blue"));
 
-    // Magnitude (both on same axes)
-    plt::subplot(3, 1, 0);
-    plt::hold(plt::on);
-    auto l_ol_mag = plt::semilogx(bode_ol.freq, bode_ol.magnitude, "b-");
-    l_ol_mag->display_name("Open-Loop");
-    l_ol_mag->line_width(2);
-    auto l_cl_mag = plt::semilogx(bode_cl.freq, bode_cl.magnitude, "r--");
-    l_cl_mag->display_name("Closed-Loop");
-    l_cl_mag->line_width(2);
-    plt::hold(plt::off);
-    plt::ylabel("Magnitude [dB]");
-    plt::xlabel("Frequency [rad/s]");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(true);
+    auto trace_cl_mag = Scatter()
+                            .x(bode_cl.freq)
+                            .y(bode_cl.magnitude)
+                            .mode({Scatter::Mode::Lines})
+                            .name("Closed-Loop")
+                            .line(Scatter::Line().width(2).color("red").dash("dash"));
 
-    // Phase (both on same axes)
-    plt::subplot(3, 1, 1);
-    plt::hold(plt::on);
-    auto l_ol_ph = plt::semilogx(bode_ol.freq, bode_ol.phase, "b-");
-    l_ol_ph->display_name("Open-Loop");
-    l_ol_ph->line_width(2);
-    auto l_cl_ph = plt::semilogx(bode_cl.freq, bode_cl.phase, "r--");
-    l_cl_ph->display_name("Closed-Loop");
-    l_cl_ph->line_width(2);
-    plt::hold(plt::off);
-    plt::xlabel("Frequency [rad/s]");
-    plt::ylabel("Phase [deg]");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(true);
+    auto trace_ol_ph = Scatter()
+                           .x(bode_ol.freq)
+                           .y(bode_ol.phase)
+                           .mode({Scatter::Mode::Lines})
+                           .name("Open-Loop")
+                           .line(Scatter::Line().width(2).color("blue"))
+                           .yaxis("y2");
+
+    auto trace_cl_ph = Scatter()
+                           .x(bode_cl.freq)
+                           .y(bode_cl.phase)
+                           .mode({Scatter::Mode::Lines})
+                           .name("Closed-Loop")
+                           .line(Scatter::Line().width(2).color("red").dash("dash"))
+                           .yaxis("y2");
 
     // Step response analysis will be performed below (longer simulation)
     fmt::print("Step response analysis (reference change from 12V to 15V):\n");
@@ -159,7 +157,6 @@ int main() {
     double expected_ss = dc_gain * step_mag;
     fmt::print("Computed DC gain = {:.6e}, expected steady-state for step {:.3f} V = {:.6f} V\n", dc_gain, step_mag, expected_ss);
 
-    // Plot step responses below (open- and closed-loop)
     // Convert Matrix outputs to scalar vectors for plotting
     std::vector<double> t_ol = step_resp_ol.time;
     std::vector<double> y_ol;
@@ -171,35 +168,49 @@ int main() {
     y_cl.reserve(step_resp_cl.output.size());
     for (const auto& m : step_resp_cl.output) y_cl.push_back(m(0, 0));
 
-    plt::subplot(3, 1, 2);
-    plt::hold(plt::on);
-    auto l_ol = plt::plot(t_ol, y_ol, "b-");
-    l_ol->display_name("Open-Loop");
-    auto l_cl = plt::plot(t_cl, y_cl, "r-");
-    l_cl->display_name("Closed-Loop (ref step)");
-    plt::hold(plt::off);
-    plt::xlabel("Time [s]");
-    plt::ylabel("Output Voltage [V]");
-    // Add a small y-axis padding so the lines aren't clipped at the edges
-    if (!y_cl.empty() || !y_ol.empty()) {
-        double y_min = std::numeric_limits<double>::infinity();
-        double y_max = -std::numeric_limits<double>::infinity();
-        if (!y_cl.empty()) {
-            y_min = std::min(y_min, *std::min_element(y_cl.begin(), y_cl.end()));
-            y_max = std::max(y_max, *std::max_element(y_cl.begin(), y_cl.end()));
-        }
-        if (!y_ol.empty()) {
-            y_min = std::min(y_min, *std::min_element(y_ol.begin(), y_ol.end()));
-            y_max = std::max(y_max, *std::max_element(y_ol.begin(), y_ol.end()));
-        }
-        double y_range = y_max - y_min;
-        double pad     = (y_range == 0.0) ? 0.1 : 0.05 * y_range;
-        plt::ylim({y_min - pad, y_max + pad});
-    }
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(true);
+    // Plot step responses
+    auto trace_ol_step = Scatter()
+                             .x(t_ol)
+                             .y(y_ol)
+                             .mode({Scatter::Mode::Lines})
+                             .name("Open-Loop")
+                             .line(Scatter::Line().width(2).color("blue"))
+                             .xaxis("x2")
+                             .yaxis("y3");
 
-    plt::show();
+    auto trace_cl_step = Scatter()
+                             .x(t_cl)
+                             .y(y_cl)
+                             .mode({Scatter::Mode::Lines})
+                             .name("Closed-Loop (ref step)")
+                             .line(Scatter::Line().width(2).color("red"))
+                             .xaxis("x2")
+                             .yaxis("y3");
+
+    // Create figure with subplots using grid layout
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Buck Converter - Bode Plots and Step Response"); })
+                      .height(1200)
+                      .width(1000)
+                      .xaxis(1, Layout::Xaxis().type(Layout::Xaxis::Type::Log).title([](auto& t) { t.text("Frequency [rad/s]"); }))
+                      .xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Magnitude [dB]"); }))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase [deg]"); }))
+                      .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("Output Voltage [V]"); }))
+                      .grid(Layout::Grid{}
+                                .rows(3)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"xy2"}, {"x2y3"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    auto figure = Figure()
+                      .addTraces(std::vector<Trace>{trace_ol_mag, trace_cl_mag, trace_ol_ph, trace_cl_ph, trace_ol_step, trace_cl_step})
+                      .setLayout(layout);
+
+    // Save the plot as HTML
+    figure.show();
+    // figure.writeHtml("buck_converter_plots.html");
+    fmt::print("Plots saved to buck_converter_plots.html\n");
 
     return 0;
 }

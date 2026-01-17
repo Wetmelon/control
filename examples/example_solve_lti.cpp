@@ -1,10 +1,12 @@
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 #include <vector>
 
 #include "control.hpp"
 #include "integrator.hpp"
-#include "matplot/matplot.h"
 
-namespace plt = matplot;
+using namespace plotlypp;
 
 int main() {
     using namespace control;
@@ -57,44 +59,67 @@ int main() {
     }
 
     // Plot two subplots: x1 and x2 (Constant input vs Time-varying)
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+    Figure fig;
 
-    // Figure-level title
-    plt::sgtitle("Second-order LTI: State Responses");
-    plt::subplot(2, 1, 0);
-    auto le1 = plt::plot(t_plot_const, x1_plot_const);
-    le1->display_name("Constant input");
-    le1->line_width(2);
-    plt::hold(plt::on);
-    auto ln1 = plt::plot(t_plot_varying, x1_plot_varying);
-    ln1->display_name("Time-varying input");
-    ln1->line_style("--");
-    ln1->line_width(1);
-    plt::hold(plt::off);
-    plt::xlabel("Time (s)");
-    plt::ylabel("x1");
-    plt::title("Second-order LTI: x1 (position)");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(plt::on);
+    auto trace_x1_const = Scatter()
+                              .x(t_plot_const)
+                              .y(x1_plot_const)
+                              .name("Constant input")
+                              .mode({Scatter::Mode::Lines})
+                              .line(Scatter::Line().width(2))
+                              .xaxis("x")
+                              .yaxis("y");
 
-    plt::subplot(2, 1, 1);
-    auto le2 = plt::plot(t_plot_const, x2_plot_const);
-    le2->display_name("Constant input");
-    le2->line_width(2);
-    plt::hold(plt::on);
-    auto ln2 = plt::plot(t_plot_varying, x2_plot_varying);
-    ln2->display_name("Time-varying input");
-    ln2->line_style("--");
-    ln2->line_width(1);
-    plt::hold(plt::off);
-    plt::xlabel("Time (s)");
-    plt::ylabel("x2");
-    plt::title("Second-order LTI: x2 (velocity)");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(plt::on);
+    auto trace_x1_vary = Scatter()
+                             .x(t_plot_varying)
+                             .y(x1_plot_varying)
+                             .name("Time-varying input")
+                             .mode({Scatter::Mode::Lines})
+                             .line(Scatter::Line().width(1).dash("dash"))
+                             .xaxis("x")
+                             .yaxis("y");
 
-    plt::show();
+    auto trace_x2_const = Scatter()
+                              .x(t_plot_const)
+                              .y(x2_plot_const)
+                              .name("Constant input")
+                              .mode({Scatter::Mode::Lines})
+                              .line(Scatter::Line().width(2))
+                              .xaxis("x2")
+                              .yaxis("y2")
+                              .showlegend(false);
+
+    auto trace_x2_vary = Scatter()
+                             .x(t_plot_varying)
+                             .y(x2_plot_varying)
+                             .name("Time-varying input")
+                             .mode({Scatter::Mode::Lines})
+                             .line(Scatter::Line().width(1).dash("dash"))
+                             .xaxis("x2")
+                             .yaxis("y2")
+                             .showlegend(false);
+
+    fig.addTrace(trace_x1_const);
+    fig.addTrace(trace_x1_vary);
+    fig.addTrace(trace_x2_const);
+    fig.addTrace(trace_x2_vary);
+
+    fig.setLayout(Layout()
+                      .title([](auto& t) { t.text("Second-order LTI: State Responses"); })
+                      .grid(Layout::Grid{}
+                                .rows(2)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop))
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("x1"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("x2"); }).showgrid(true))
+                      .width(1200)
+                      .height(800)
+                      .showlegend(true));
+
+    fig.writeHtml("solve_lti_responses.html");
 
     return 0;
 }

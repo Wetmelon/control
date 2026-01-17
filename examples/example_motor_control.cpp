@@ -1,11 +1,14 @@
 #include <fmt/core.h>
 
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
+
 #include "control.hpp"
-#include "matplot/matplot.h"
 
 int main() {
     using namespace control;
-    namespace plt = matplot;
+    using namespace plotlypp;
 
     fmt::print("=== Motor Control with Rotating Load Example ===\n");
     fmt::print("DC motor with inertia load and viscous friction\n\n");
@@ -63,23 +66,41 @@ int main() {
     // Frequency response analysis
     auto bode_data = bode(motor_system, 0.01, 100.0, 100);
 
-    // Plot Bode magnitude
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+    // Plot Bode magnitude and phase
+    Figure fig;
 
-    plt::sgtitle("Motor Control - Frequency Response");
-    plt::subplot(2, 1, 0);
-    plt::semilogx(bode_data.freq, bode_data.magnitude);
-    plt::ylabel("Magnitude [dB]");
-    plt::grid(true);
+    auto mag_trace = Scatter()
+                         .x(bode_data.freq)
+                         .y(bode_data.magnitude)
+                         .mode({Scatter::Mode::Lines})
+                         .xaxis("x")
+                         .yaxis("y");
 
-    plt::subplot(2, 1, 1);
-    plt::semilogx(bode_data.freq, bode_data.phase);
-    plt::xlabel("Frequency [rad/s]");
-    plt::ylabel("Phase [deg]");
-    plt::grid(true);
+    auto phase_trace = Scatter()
+                           .x(bode_data.freq)
+                           .y(bode_data.phase)
+                           .mode({Scatter::Mode::Lines})
+                           .xaxis("x2")
+                           .yaxis("y2");
 
-    plt::show();
+    fig.addTrace(mag_trace);
+    fig.addTrace(phase_trace);
+
+    fig.setLayout(Layout()
+                      .title([](auto& t) { t.text("Motor Control - Frequency Response"); })
+                      .grid(Layout::Grid{}
+                                .rows(2)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop))
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Frequency [rad/s]"); }).type(Layout::Xaxis::Type::Log).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Magnitude [dB]"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().type(Layout::Xaxis::Type::Log).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase [deg]"); }).showgrid(true))
+                      .width(1200)
+                      .height(800));
+
+    fig.writeHtml("motor_control_bode.html");
 
     // Step response
     auto step_resp = step(motor_system, 0.0, 5.0, Matrix::Constant(1, 1, 12.0));  // 12V step

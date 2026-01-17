@@ -1,11 +1,14 @@
 #include <fmt/core.h>
 
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
+
 #include "control.hpp"
-#include "matplot/matplot.h"
 
 int main() {
     using namespace control;
-    namespace plt = matplot;
+    using namespace plotlypp;
 
     fmt::print("=== Inverted Pendulum on Cart Example ===\n");
     fmt::print("Balancing a pendulum using LQR control\n\n");
@@ -100,29 +103,55 @@ int main() {
         control_u.push_back((-K * x)(0, 0));
     }
 
-    // Plot results (use explicit axes to ensure labels map to correct subplot)
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+    // Plot results
+    Figure fig;
 
-    // Use a figure-level title so it doesn't conflict with subplot layout
-    plt::sgtitle("Inverted Pendulum - LQR Control");
-    auto ax1 = plt::subplot(3, 1, 1);
-    ax1->plot(time, cart_pos);
-    ax1->ylabel("Cart Position [m]");
-    ax1->grid(true);
+    auto trace_cart = Scatter()
+                          .x(time)
+                          .y(cart_pos)
+                          .mode({Scatter::Mode::Lines})
+                          .name("Cart Position")
+                          .xaxis("x")
+                          .yaxis("y");
 
-    auto ax2 = plt::subplot(3, 1, 2);
-    ax2->plot(time, pend_angle);
-    ax2->ylabel("Pendulum Angle [rad]");
-    ax2->grid(true);
+    auto trace_angle = Scatter()
+                           .x(time)
+                           .y(pend_angle)
+                           .mode({Scatter::Mode::Lines})
+                           .name("Pendulum Angle")
+                           .xaxis("x2")
+                           .yaxis("y2");
 
-    auto ax3 = plt::subplot(3, 1, 3);
-    ax3->plot(time, control_u);
-    ax3->xlabel("Time [s]");
-    ax3->ylabel("Control Force [N]");
-    ax3->grid(true);
+    auto trace_control = Scatter()
+                             .x(time)
+                             .y(control_u)
+                             .mode({Scatter::Mode::Lines})
+                             .name("Control Force")
+                             .xaxis("x3")
+                             .yaxis("y3");
 
-    plt::show();
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Inverted Pendulum - LQR Control"); })
+                      .height(800)
+                      .width(1000)
+                      .xaxis(1, Layout::Xaxis().showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Cart Position [m]"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Pendulum Angle [rad]"); }).showgrid(true))
+                      .xaxis(3, Layout::Xaxis().title([](auto& t) { t.text("Time [s]"); }).showgrid(true))
+                      .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("Control Force [N]"); }).showgrid(true))
+                      .grid(Layout::Grid{}
+                                .rows(3)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}, {"x3y3"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    fig.addTraces(std::vector<Trace>{trace_cart, trace_angle, trace_control});
+    fig.setLayout(layout);
+
+    fig.writeHtml("inverted_pendulum_lqr.html");
+
+    fmt::print("Plots saved to inverted_pendulum_lqr.html\n");
 
     // Analyze closed-loop poles
     auto poles = cl_system.poles();

@@ -4,9 +4,12 @@
 [submodule "libs/fmt"]
 	path = libs/fmt
 	url = git@github.com:fmtlib/fmt.git
-[submodule "libs/matplotplusplus"]
-	path = libs/matplotplusplus
-	url = git@github.com:alandefreitas/matplotplusplus.git
 [submodule "libs/eigen"]
 	path = libs/eigen
 	url = https://gitlab.com/libeigen/eigen.git
+[submodule "libs/plotlypp"]
+	path = libs/plotlypp
+	url = git@github.com:jimmyorourke/plotlypp.git
+[submodule "libs/json"]
+	path = libs/json
+	url = git@github.com:nlohmann/json.git

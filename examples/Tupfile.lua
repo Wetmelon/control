@@ -7,4 +7,5 @@ examples = tup.foreach_rule('*.cpp', '^j^'..CC_PATH..'g++ $(INCLUDES) '..CXXFLAG
 examples.extra_inputs = {ROOT..'/<libmatplot>', ROOT..'/<libcontrol>', ROOT..'/<libfmt>'}
 
 -- Link example executables
-tup.foreach_rule(examples, '^o^ g++ '..LDFLAGS..' %f %<libmatplot> %<libcontrol> %<libfmt> -lstdc++exp -lgdi32 -o %o', 'build/%B.exe')
+exes = tup.foreach_rule(examples, '^o^ g++ '..LDFLAGS..' %f %<libmatplot> %<libcontrol> %<libfmt> -lstdc++exp -lgdi32 -o %o', 'build/%B.exe')
+-- tup.foreach_rule(exes, '%f', 'build/%B.html')

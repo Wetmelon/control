@@ -1,13 +1,15 @@
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 #include <vector>
 
 #include "control.hpp"
 #include "integrator.hpp"
-#include "matplot/matplot.h"
 #include "solver.hpp"
 
 int main() {
     using namespace control;
-    namespace plt = matplot;
+    using namespace plotlypp;
 
     // Van der Pol oscillator (nonlinear ODE)
     // x1' = x2
@@ -48,8 +50,7 @@ int main() {
     }
 
     // Plot states over time and phase portrait
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+    Figure fig;
 
     // Compose a short info string for the figure
     std::string info = "Van der Pol oscillator (mu=" + std::to_string(mu) +
@@ -57,41 +58,56 @@ int main() {
                        "Solver: RK45, abs tol=1e-6, rel tol=1e-3, points=" +
                        std::to_string(N);
 
-    // Use a suptitle (supported by matplot++) and individual subplot titles/labels
-    plt::sgtitle(info);
+    // x1 over time
+    auto trace_x1 = Scatter()
+                        .x(t_plot)
+                        .y(x1_plot)
+                        .mode({Scatter::Mode::Lines})
+                        .name("x1")
+                        .line(Scatter::Line().width(1.5))
+                        .xaxis("x")
+                        .yaxis("y");
 
-    plt::subplot(3, 1, 0);
-    auto l1 = plt::plot(t_plot, x1_plot);
-    l1->display_name("x1");
-    l1->line_width(1.5);
-    plt::title("x1 over time");
-    plt::xlabel("Time (s)");
-    plt::ylabel("x1");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(plt::on);
-
-    plt::subplot(3, 1, 1);
-    auto l2 = plt::plot(t_plot, x2_plot);
-    l2->display_name("x2");
-    l2->line_width(1.5);
-    l2->line_style("--");
-    plt::title("x2 over time");
-    plt::xlabel("Time (s)");
-    plt::ylabel("x2");
-    plt::legend()->location(plt::legend::general_alignment::topright);
-    plt::grid(plt::on);
+    // x2 over time
+    auto trace_x2 = Scatter()
+                        .x(t_plot)
+                        .y(x2_plot)
+                        .mode({Scatter::Mode::Lines})
+                        .name("x2")
+                        .line(Scatter::Line().width(1.5).dash("dash"))
+                        .xaxis("x2")
+                        .yaxis("y2");
 
     // Phase portrait (x1 vs x2)
-    plt::subplot(3, 1, 2);
-    auto lp = plt::plot(x1_plot, x2_plot);
-    lp->display_name("phase");
-    lp->line_width(1.0);
-    plt::title("Phase portrait (x1 vs x2)");
-    plt::xlabel("x1");
-    plt::ylabel("x2");
-    plt::grid(plt::on);
+    auto trace_phase = Scatter()
+                           .x(x1_plot)
+                           .y(x2_plot)
+                           .mode({Scatter::Mode::Lines})
+                           .name("phase")
+                           .line(Scatter::Line().width(1.0))
+                           .xaxis("x3")
+                           .yaxis("y3");
 
-    plt::show();
+    auto layout = Layout()
+                      .title([&](auto& t) { t.text(info); })
+                      .height(800)
+                      .width(1200)
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("x1"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("x2"); }).showgrid(true))
+                      .xaxis(3, Layout::Xaxis().title([](auto& t) { t.text("x1"); }).showgrid(true))
+                      .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("x2"); }).showgrid(true))
+                      .grid(Layout::Grid{}
+                                .rows(3)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}, {"x3y3"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    fig.addTraces(std::vector<Trace>{trace_x1, trace_x2, trace_phase});
+    fig.setLayout(layout);
+
+    fig.writeHtml("van_der_pol_oscillator.html");
 
     return 0;
 }

@@ -1,60 +1,84 @@
 #include <numbers>
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
 #include <vector>
 
 #include "control.hpp"
-#include "matplot/matplot.h"
 
-namespace plt = matplot;
+using namespace control;
+using namespace plotlypp;
 
 void plotStepResponse(const std::vector<std::vector<double>>& times, const std::vector<std::vector<double>>& responses,
                       const std::vector<std::string>& labels, const std::string& title = "Step Response") {
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+    using namespace plotlypp;
 
-    plt::hold(plt::on);
+    Figure fig;
 
     for (size_t i = 0; i < responses.size(); ++i) {
-        plt::plot(times[i], responses[i])->display_name(labels[i]);
+        auto trace = Scatter()
+                         .x(times[i])
+                         .y(responses[i])
+                         .name(labels[i])
+                         .mode({Scatter::Mode::Lines});
+        fig.addTrace(trace);
     }
-    plt::xlabel("Time (s)");
-    plt::ylabel("Output");
-    plt::title(title);
-    plt::grid(plt::on);
-    plt::legend()->font_size(10);
-    plt::hold(plt::off);
 
-    plt::show();
+    fig.setLayout(Layout()
+                      .title([&](auto& t) { t.text(title); })
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Output"); }).showgrid(true))
+                      .width(1200)
+                      .height(800)
+                      .showlegend(true));
+
+    fig.writeHtml("second_order_step_response.html");
 }
 
-void plotBodePlot(const std::vector<control::BodeResponse>& responses, const std::vector<std::string>& labels, const std::string& title = "Bode Plot") {
-    auto fig = plt::figure(true);
-    fig->size(1200, 800);
+void plotBodePlot(const std::vector<BodeResponse>& responses, const std::vector<std::string>& labels, const std::string& title = "Bode Plot") {
+    using namespace plotlypp;
 
-    plt::sgtitle(title);
-    plt::subplot(2, 1, 0);
-    plt::hold(plt::on);
+    Figure fig;
+
     for (size_t i = 0; i < responses.size(); ++i) {
-        plt::semilogx(responses[i].freq, responses[i].magnitude)->display_name(labels[i]);
-    }
-    plt::ylabel("Magnitude (dB)");
-    plt::title(title + " - Magnitude");
-    plt::grid(plt::on);
-    plt::legend()->location(plt::legend::general_alignment::bottomleft);
-    plt::hold(plt::off);
+        // Magnitude plot
+        auto mag_trace = Scatter()
+                             .x(responses[i].freq)
+                             .y(responses[i].magnitude)
+                             .name(labels[i])
+                             .mode({Scatter::Mode::Lines})
+                             .xaxis("x")
+                             .yaxis("y");
+        fig.addTrace(mag_trace);
 
-    plt::subplot(2, 1, 1);
-    plt::hold(plt::on);
-    for (size_t i = 0; i < responses.size(); ++i) {
-        plt::semilogx(responses[i].freq, responses[i].phase)->display_name(labels[i]);
+        // Phase plot
+        auto phase_trace = Scatter()
+                               .x(responses[i].freq)
+                               .y(responses[i].phase)
+                               .name(labels[i])
+                               .mode({Scatter::Mode::Lines})
+                               .xaxis("x2")
+                               .yaxis("y2")
+                               .showlegend(false);  // Only show legend on first subplot
+        fig.addTrace(phase_trace);
     }
-    plt::xlabel("Frequency (Hz)");
-    plt::ylabel("Phase (deg)");
-    plt::title(title + " - Phase");
-    plt::grid(plt::on);
-    plt::legend()->location(plt::legend::general_alignment::bottomleft);
-    plt::hold(plt::off);
 
-    plt::show();
+    fig.setLayout(Layout()
+                      .title([&](auto& t) { t.text(title); })
+                      .grid(Layout::Grid{}
+                                .rows(2)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop))
+                      .xaxis(1, Layout::Xaxis().title([](auto& t) { t.text("Frequency (Hz)"); }).type(Layout::Xaxis::Type::Log).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Magnitude (dB)"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().type(Layout::Xaxis::Type::Log).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase (deg)"); }).showgrid(true))
+                      .width(1200)
+                      .height(800)
+                      .showlegend(true));
+
+    fig.writeHtml("second_order_bode_plot.html");
 }
 
 int main() {
@@ -76,9 +100,9 @@ int main() {
     std::vector<double> time;
 
     // Simulate for each damping ratio
-    std::vector<std::vector<double>>   times;
-    std::vector<std::vector<double>>   stepResponses;
-    std::vector<control::BodeResponse> freqResponses;
+    std::vector<std::vector<double>> times;
+    std::vector<std::vector<double>> stepResponses;
+    std::vector<BodeResponse>        freqResponses;
 
     std::vector<std::string> labels;
     for (double zeta : zetas) {
@@ -113,7 +137,7 @@ int main() {
 
     // Plot all step responses and Bode plots
     plotStepResponse(times, stepResponses, labels, "Step Response for Different Damping Ratios");
-    // plotBodePlot(freqResponses, labels, "Bode Plot for Different Damping Ratios");
+    plotBodePlot(freqResponses, labels, "Bode Plot for Different Damping Ratios");
 
     return 0;
 }

@@ -1,10 +1,14 @@
 #include <fmt/core.h>
 
+#include <plotlypp/figure.hpp>
+#include <plotlypp/trace.hpp>
+#include <plotlypp/traces/scatter.hpp>
+
 #include "control.hpp"
-#include "matplot/matplot.h"
 
 int main() {
     using namespace control;
+    using namespace plotlypp;
 
     fmt::print("=== Advanced Control System Example ===\n");
     fmt::print("Building a PID controller for a second-order plant\n\n");
@@ -140,31 +144,65 @@ int main() {
     fmt::print("Closed-loop bandwidth: {:.2f} rad/s\n", bandwidth * 2.0 * 3.14159);
 
     // Create figure for Bode plots
-    auto fig_mag = matplot::figure(true);
-    fig_mag->size(1200, 800);
+    Figure fig;
 
-    // Create magnitude plot
-    auto ax1 = fig_mag->add_subplot(2, 1, 0);
-    ax1->semilogx(bode_open.freq, bode_open.magnitude, "b-")->line_width(2).display_name("Open-Loop L(s)");
-    ax1->hold(matplot::on);
-    ax1->semilogx(bode_closed.freq, bode_closed.magnitude, "r-")->line_width(2).display_name("Closed-Loop T(s)");
-    ax1->grid(matplot::on);
-    ax1->ylabel("Magnitude (dB)");
-    ax1->title("Bode Plot: Open-Loop vs Closed-Loop");
-    ax1->legend();
+    // Magnitude plot
+    auto trace_open_mag = Scatter()
+                              .x(bode_open.freq)
+                              .y(bode_open.magnitude)
+                              .mode({Scatter::Mode::Lines})
+                              .name("Open-Loop L(s)")
+                              .line(Scatter::Line().width(2).color("blue"))
+                              .xaxis("x")
+                              .yaxis("y");
 
-    // Create phase plot
-    auto ax2 = fig_mag->add_subplot(2, 1, 1);
-    ax2->semilogx(bode_open.freq, bode_open.phase, "b-")->line_width(2).display_name("Open-Loop L(s)");
-    ax2->hold(matplot::on);
-    ax2->semilogx(bode_closed.freq, bode_closed.phase, "r-")->line_width(2).display_name("Closed-Loop T(s)");
-    ax2->grid(matplot::on);
-    ax2->xlabel("Frequency (Hz)");
-    ax2->ylabel("Phase (deg)");
-    ax2->legend();
+    auto trace_closed_mag = Scatter()
+                                .x(bode_closed.freq)
+                                .y(bode_closed.magnitude)
+                                .mode({Scatter::Mode::Lines})
+                                .name("Closed-Loop T(s)")
+                                .line(Scatter::Line().width(2).color("red"))
+                                .xaxis("x")
+                                .yaxis("y");
 
-    matplot::show();
-    fmt::print("Bode plots displayed.\n");
+    // Phase plot
+    auto trace_open_ph = Scatter()
+                             .x(bode_open.freq)
+                             .y(bode_open.phase)
+                             .mode({Scatter::Mode::Lines})
+                             .name("Open-Loop L(s)")
+                             .line(Scatter::Line().width(2).color("blue"))
+                             .xaxis("x2")
+                             .yaxis("y2");
+
+    auto trace_closed_ph = Scatter()
+                               .x(bode_closed.freq)
+                               .y(bode_closed.phase)
+                               .mode({Scatter::Mode::Lines})
+                               .name("Closed-Loop T(s)")
+                               .line(Scatter::Line().width(2).color("red"))
+                               .xaxis("x2")
+                               .yaxis("y2");
+
+    auto layout = Layout()
+                      .title([](auto& t) { t.text("Bode Plot: Open-Loop vs Closed-Loop"); })
+                      .height(800)
+                      .width(1200)
+                      .xaxis(1, Layout::Xaxis().type(Layout::Xaxis::Type::Log).title([](auto& t) { t.text("Frequency (Hz)"); }).showgrid(true))
+                      .yaxis(1, Layout::Yaxis().title([](auto& t) { t.text("Magnitude (dB)"); }).showgrid(true))
+                      .xaxis(2, Layout::Xaxis().type(Layout::Xaxis::Type::Log).title([](auto& t) { t.text("Frequency (Hz)"); }).showgrid(true))
+                      .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase (deg)"); }).showgrid(true))
+                      .grid(Layout::Grid{}
+                                .rows(2)
+                                .columns(1)
+                                .subplots(std::vector<std::vector<std::string>>{{"xy"}, {"x2y2"}})
+                                .roworder(Layout::Grid::Roworder::BottomToTop));
+
+    fig.addTraces(std::vector<Trace>{trace_open_mag, trace_closed_mag, trace_open_ph, trace_closed_ph});
+    fig.setLayout(layout);
+
+    fig.writeHtml("pid_design_bode_plots.html");
+    fmt::print("Bode plots saved to pid_design_bode_plots.html\n");
 
     fmt::print("\n=== Analysis Complete ===\n");
     return 0;

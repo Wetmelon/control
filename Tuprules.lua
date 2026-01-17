@@ -5,6 +5,8 @@ INCLUDES = {
      'libs/eigen',
      'libs/fmt/include',
      'libs/matplotplusplus/source',
+     'libs/plotlypp/include',
+     'libs/json/include'
 }
 
 WARNINGS = '-Wall -Wextra'
