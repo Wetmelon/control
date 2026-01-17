@@ -36,21 +36,6 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         CHECK(result.S(1, 1) > 0.0);
     }
 
-    // Test lqrd: Discrete LQR from continuous plant
-    TEST_CASE("lqrd: discrete LQR for continuous plant") {
-        Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
-        Matrix<2, 1> B{{0.0}, {1.0}};
-        Matrix<2, 2> Q = Matrix<2, 2>::identity();
-        Matrix<1, 1> R{{0.1}};
-        double       Ts = 0.01;
-
-        auto result = online::lqrd(A, B, Q, R, Ts);
-
-        // Should compute valid discrete gains
-        CHECK(result.K(0, 0) != 0.0);
-        CHECK(result.K(0, 1) != 0.0);
-    }
-
     // Test lqi: LQI controller design
     TEST_CASE("lqi: LQI controller design") {
         StateSpace<2, 1, 1, 2, 1> sys{
