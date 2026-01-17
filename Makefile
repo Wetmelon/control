@@ -1,13 +1,11 @@
-.PHONY: all compile format test
+.PHONY: all clean test docs
 
-all: format compile test
-
-compile:
+all:
+	@clang-format -i inc/*.hpp tests/*.cpp examples/*.cpp
 	@tup --quiet compiledb
-	@tup --quiet
+	@tup
+	@./tests/build/test_runner.exe
 
-format:
-	@clang-format -i source/*.cpp source/*.hpp examples/*.cpp
-
-test:
-	@./test/build/test_lti_operations.exe
+docs:
+	@mkdir -p docs/html
+	@doxygen Doxyfile
