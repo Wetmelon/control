@@ -2,7 +2,7 @@
 
 ## Overview
 
-A header-only C++20 library for designing optimal controllers and observers **at compile time**, with extensive linear algebra, rotation utilities, digital filters, IEC 61131-3 function blocks, and embedded control algorithms. Features optional MATLAB®-style APIs (`dlqr`, `lqi`, `lqg`, `kalman`) with two evaluation modes:
+A header-only C++20 library for designing optimal controllers and observers **at compile time**, with extensive linear algebra, rotation utilities, digital filters, IEC 61131-3 function blocks, and embedded control algorithms. Two evaluation modes:
 
 - **`design::`** — `consteval` functions that **must** execute at compile time
 - **`online::`** — `constexpr` functions that **can** execute at runtime
@@ -42,7 +42,7 @@ ColVec<1> u = controller.control(x);  // u = -K*x
 
 ### Design API
 
-| Function | MATLAB® compatible | Description |
+| Function | Shorthand | Description |
 |----------|-------------| --- |
 | `discrete_lqr` |  `dlqr(A, B, Q, R)` | Discrete LQR from state matrices |
 | `discrete_lqr` |  `dlqr(A, B, Q, R, N)` | Discrete LQR with cross-term cost |
@@ -55,16 +55,25 @@ ColVec<1> u = controller.control(x);  // u = -K*x
 
 All functions available in both `design::` and `online::` namespaces.
 
-Note: MATLAB® compatible API does not mean it has the full features of MATLAB®.
-
 ### Additional Capabilities
 
-- **IEC 61131-3 Function Blocks**: Complete PLC-standard bistables, edge detectors, timers, and counters
+- **Frequency-Domain Analysis**: Bode plots, gain/phase margins, bandwidth, DC gain, controllability/observability matrices and rank tests
+- **PID Design**: Ziegler-Nichols (ultimate gain & step response), Cohen-Coon, Lambda tuning, SIMC, Tyreus-Luyben, bandwidth-based, and pole placement methods
+- **PID Controller**: Runtime `PIDController` class with anti-windup, output/integrator saturation, and configurable gains
+- **Lead-Lag Compensators**: Phase lead/lag design from crossover specs, with `LeadLagController` runtime class (Tustin-discretized IIR)
+- **Proportional-Resonant Control**: Ideal and non-ideal PR for AC reference tracking, multi-harmonic compensation, frequency adaptation
+- **Sliding Mode Control**: Configurable sliding surface, switching gain, and plant gain for robust nonlinear control
+- **Active Disturbance Rejection**: ESO-based disturbance estimation and PD feedback with pole placement
+- **Middlebrook Impedance Analysis**: Input/output impedance stability via gain/phase margin criteria
 - **Digital Filters**: LowPass, SOGI, and notch filters with compile-time design
+- **IEC 61131-3 Function Blocks**: PLC-standard bistables, edge detectors, timers, and counters
 - **Motor Control**: Clarke/Park transforms and Field-Oriented Control (FOC)
-- **Sensor Fusion**: ESKF, Madgwick, and Mahony orientation estimation
+- **Sensor Fusion**: ESKF, EKF, Madgwick, and Mahony orientation estimation
+- **ODE Solvers**: Fixed-step (RK4) and adaptive (RK45) with event detection and zero-crossing
+- **Simulation**: Closed-loop simulation of nonlinear plants with linear/nonlinear controllers
+- **Visualization**: CSV/Gnuplot export and interactive HTML plots via plotlypp
 - **Extended Math**: Comprehensive constexpr math library (exp, log, trig, floor, ceil)
-- **Stability Analysis**: Eigenvalue-based stability checking and margins
+- **Utility Wrappers**: `c2d()`, `blkdiag()`, `diag()`
 
 ### State-Space System Interconnections
 
@@ -338,73 +347,116 @@ Tests are organized by functionality:
 |------|---------|
 | `test_matrix.cpp` | Matrix arithmetic, block views, operations |
 | `test_vector.cpp` | Vector types, dot/cross products, norms |
+| `test_views.cpp` | Block, diagonal, triangular views |
+| `test_cholesky.cpp` | Cholesky decomposition |
+| `test_matrix_functions.cpp` | Matrix exp, sin, cos, sqrt, pow |
 | `test_rotation.cpp` | DCM, Quaternion, Euler angle conversions |
 | `test_quaternion.cpp` | Quaternion SLERP, integration, axis-angle |
 | `test_state_space.cpp` | System interconnections (series, parallel, feedback, subtract) |
+| `test_transfer_function.cpp` | Transfer function representations |
 | `test_discretization.cpp` | ZOH, Tustin discretization methods |
-| `test_api.cpp` | MATLAB®-style API (dlqr, lqi, lqg, etc.) |
+| `test_analysis.cpp` | Bode, margins, controllability, observability |
+| `test_analysis_extended.cpp` | Extended frequency-domain analysis |
+| `test_middlebrook.cpp` | Middlebrook impedance stability |
+| `test_api.cpp` | Design API (dlqr, lqi, lqg) |
 | `test_design.cpp` | Compile-time `design::` verification |
 | `test_online.cpp` | Runtime `online::` controller construction |
-| `test_integration.cpp` | Motor-coupling-mass system example |
-| `test_analysis.cpp` | Stability analysis functions |
-| `test_matrix_functions.cpp` | Matrix exp, sin, cos, sqrt, pow |
-| `test_constexpr_math.cpp` | Compile-time math functions |
-| `test_4x4_systems.cpp` | Larger 4×4 system tests |
+| `test_lqi.cpp` | LQI integral action |
 | `test_kalman.cpp` | Kalman filter design |
 | `test_eigen.cpp` | Eigenvalue/eigenvector computation |
 | `test_eskf.cpp` | Error-state Kalman filter |
+| `test_pid_design.cpp` | PID tuning methods |
+| `test_lead_lag.cpp` | Lead-lag compensator design |
+| `test_pr.cpp` | Proportional-resonant controller |
+| `test_smc.cpp` | Sliding mode control |
+| `test_adrc.cpp` | Active disturbance rejection |
 | `test_filters.cpp` | Digital filters (LowPass, SOGI, notch) |
 | `test_iec61131.cpp` | IEC 61131-3 PLC function blocks |
 | `test_motor_control.cpp` | Clarke/Park transforms, FOC |
 | `test_sensor_fusion.cpp` | ESKF, Madgwick, Mahony filters |
-
-**Test Results:** 253 test cases, 4491 assertions, all passing ✓
+| `test_solver.cpp` | ODE solvers (RK4, RK45, events) |
+| `test_simulate.cpp` | Closed-loop simulation |
+| `test_matlab.cpp` | Utility wrappers (c2d, blkdiag, diag) |
+| `test_constexpr_math.cpp` | Compile-time math functions |
+| `test_4x4_systems.cpp` | Larger 4×4 system tests |
+| `test_integration.cpp` | Motor-coupling-mass system example |
 
 ## Header Organization
 
 | Header | Contents |
 |--------|----------|
 | `matrix.hpp` | Core `Matrix<N,M,T>` type with block views, `Vec/ColVec/RowVec` |
-| `matrix_functions.hpp` | Matrix operations (exponential, norms, functions) |
-| `vector.hpp` | Vector operations (dot, cross, norm, normalization) |
-| `rotation.hpp` | `DCM<T>`, `Quaternion<T>`, `Euler<T, Order>` types |
-| `state_space.hpp` | `StateSpace<NX,NU,NY,T>`, system interconnections (series, parallel, feedback, subtract) |
+| `matrix_functions.hpp` | Matrix exponential, norms, sin, cos, sqrt, pow |
+| `cholesky.hpp` | Cholesky decomposition and triangular solves |
+| `state_space.hpp` | `StateSpace<NX,NU,NY,T>`, system interconnections |
 | `transfer_function.hpp` | Transfer function representations |
-| `discretization.hpp` | `discretize()`, ZOH/Tustin methods |
-| `ricatti.hpp` | `dare()`, `care()` solvers |
-| `eigen.hpp` | Eigenvalue computation for stability |
-| `stability.hpp` | Stability analysis functions |
-| `control_design.hpp` | `design::` and `online::` APIs, result types |
-| `control_online.hpp` | Runtime control and linearization functions |
-| `lqr.hpp` | `LQR`, `LQI`, `LQG`, `LQGI` controller classes |
-| `kalman.hpp` | `KalmanFilter`, `ExtendedKalmanFilter`, `ErrorStateKalmanFilter` classes |
-| `filters.hpp` | Digital filters (LowPass, SOGI, notch, design/online namespaces) |
-| `iec61131.hpp` | IEC 61131-3 PLC function blocks (SR, RS, R_TRIG, F_TRIG, timers, counters) |
+| `discretization.hpp` | `discretize()`: Forward Euler, ZOH, Tustin methods |
+| `ricatti.hpp` | `dare()` (SDA), `care()` solvers |
+| `analysis.hpp` | Bode plots, margins, bandwidth, DC gain, controllability, observability |
+| `stability.hpp` | Eigenvalue-based stability checking |
+| `eigen.hpp` | Eigenvalue/eigenvector computation (QR iteration) |
+| `lqr.hpp` | `LQR` controller class, `design::dlqr`, `design::lqrd` |
+| `lqi.hpp` | `LQI` controller class with integral action |
+| `lqg.hpp` | `LQG` regulator (LQR + Kalman) |
+| `lqgi.hpp` | `LQGI` servo (LQG + integral action) |
+| `kalman.hpp` | Steady-state Kalman filter design |
+| `ekf.hpp` | Extended Kalman Filter for nonlinear systems |
+| `eskf.hpp` | Error-State Kalman Filter for attitude estimation |
+| `pid.hpp` | `PIDController` runtime class with anti-windup |
+| `pid_design.hpp` | Modelless PID tuning: Z-N, Cohen-Coon, Lambda, SIMC, pole placement |
+| `lead_lag.hpp` | Lead-lag compensator design and `LeadLagController` class |
+| `pr.hpp` | Proportional-Resonant controller, multi-harmonic compensation |
+| `smc.hpp` | Sliding Mode Control with configurable surface and switching gain |
+| `adrc.hpp` | Active Disturbance Rejection Control with ESO |
+| `filters.hpp` | Digital filters: LowPass, SOGI, notch |
+| `iec61131.hpp` | IEC 61131-3 function blocks: SR, RS, R_TRIG, F_TRIG, timers, counters |
 | `motor_control.hpp` | Clarke/Park transforms, Field-Oriented Control (FOC) |
-| `sensor_fusion.hpp` | Sensor fusion algorithms (ESKF, Madgwick, Mahony) |
-| `constexpr_math.hpp` | Compile-time math functions (exp, log, sin, cos, sqrt, pow, floor, ceil) |
+| `rotation.hpp` | `DCM<T>`, `Quaternion<T>`, `Euler<T, Order>` rotations |
+| `sensor_fusion.hpp` | ESKF, Madgwick, Mahony orientation estimation |
+| `integrator.hpp` | Low-level integrators: Discrete, Exact (LTI), RK4/RK45 |
+| `solver.hpp` | `FixedStepSolver`, `AdaptiveStepSolver` with event detection |
+| `simulate.hpp` | Closed-loop nonlinear plant simulation |
+| `plot.hpp` | CSV/Gnuplot export, step/impulse response generation |
+| `plot_plotly.hpp` | Interactive HTML plotting via plotlypp |
+| `matlab.hpp` | Utility wrappers: `c2d()`, `blkdiag()`, `diag()` |
+| `constexpr_math.hpp` | Compile-time math: exp, log, sin, cos, tan, sqrt, pow, floor, ceil |
 | `constexpr_complex.hpp` | Complex number operations for eigenvalue computations |
-| `utility.hpp` | Utility functions (linspace, conversions) |
+| `utility.hpp` | Utility functions: linspace, conversions |
 
 ## Design Constraints
 
 - **Fixed-size only**: No dynamic allocation, all sizes known at compile time
 - **Stack-allocated**: Suitable for embedded systems without heap
-- **Arithmetic types**: Supports `float` and `double`
-- **Maximum tested**: 4×4 systems (extensible to larger)
+- **Arithmetic types**: Supports `float`, `double`, `wet::complex<float>`, `wet::complex<double>`
 - **Constexpr-compatible**: All algorithms work at compile time
-- **No Dynamic STL containers**: Uses `std::array` and `std::span` only
+- **No Dynamic STL containers**: Uses `std::array` and `std::optional` only
 
 ## Numerical Methods
 
-- **Matrix Operations**: Padé approximation exponential, Gauss-Jordan inversion, QR decomposition
-- **DARE/CARE**: Kleinman iteration with Joseph-form covariance update
+- **Matrix Operations**: Padé approximation exponential, Gauss-Jordan inversion, Cholesky decomposition, QR decomposition
+- **DARE**: Structure-preserving Doubling Algorithm (SDA) with quadratic convergence — works for open-loop unstable plants
+- **CARE**: Continuous Algebraic Riccati Equation solver
 - **Eigenvalues**: QR iteration for stability analysis
-- **Rotations**: Rotation matrix/quaternion/Euler conversions with gimbal-lock handling
+- **ODE Integration**: RK4 (fixed-step), RK45 (adaptive with error control), event detection with zero-crossing
+- **Rotations**: DCM/quaternion/Euler conversions with gimbal-lock handling, SLERP interpolation
 - **System Interconnections**: Block-based state augmentation with noise matrix propagation
-- **Filters**: Bilinear transform design, SOGI implementation
+- **Discretization**: Forward Euler, ZOH (matrix exponential), Tustin (bilinear transform)
+- **Filters**: Bilinear transform design, SOGI implementation, PR resonant controllers
 - **IEC 61131-3**: Standard PLC timing and counting logic
 - **Sensor Fusion**: Extended Kalman filtering, gradient descent orientation estimation
+
+## Examples
+
+| Example | Description |
+|---------|-------------|
+| `example_servo_drive.cpp` | PMSM servo drive with P-PI-PI cascade (position/speed/current), flexible coupling, load disturbance |
+| `servo_drive/` | Interactive real-time GUI simulator (C++ DLL + Python/dearpygui) with live parameter tuning |
+| `example_buck_converter.cpp` | DC-DC buck converter LQR control from continuous LC filter dynamics |
+| `example_cart_pole.cpp` | Inverted pendulum-on-cart LQR stabilization of nonlinear Lagrangian system |
+| `example_lqr_pendulum.cpp` | LQR pendulum swing-up and balance |
+| `example_pendulum_sim.cpp` | Pendulum simulation with adaptive ODE solver |
+| `example_lpf.cpp` | Low-pass filter design and application |
+| `example_eskf_arduino.cpp` | ESKF attitude estimation targeting Arduino |
 
 ## Formula References
 

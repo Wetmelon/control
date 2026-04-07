@@ -11,3 +11,5 @@ docs
 examples/servo_drive/servo_sim.dll
 examples/servo_drive.html
 examples/js/plotly.min.js
+
+COPILOT_LOG.md
