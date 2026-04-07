@@ -1,6 +1,6 @@
 [submodule "libs/fmt"]
 	path = libs/fmt
-	url = git@github.com:fmtlib/fmt.git
+	url = https://github.com/fmtlib/fmt.git
 [submodule "libs/plotlypp"]
 	path = libs/plotlypp
 	url = https://github.com/jimmyorourke/plotlypp.git
