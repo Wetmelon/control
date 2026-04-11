@@ -4,6 +4,7 @@
 
 #include "discretization.hpp"
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 #include "ricatti.hpp"
 #include "stability.hpp"
 #include "state_space.hpp"
@@ -79,15 +80,16 @@ template<size_t NX, size_t NU, typename T = double>
     }
     const Matrix<NX, NX, T> S = dare_opt.value();
 
-    //! Compute (R + B'SB) and invert - skip expensive condition number check at runtime
+    //! Solve (R + BᵀSB) K = BᵀSA + Nᵀ via Cholesky (R + BᵀSB is positive definite)
     const Matrix<NU, NU, T> denom = R + B.transpose() * S * B;
-    const auto              denom_inv = denom.inverse();
+    const Matrix<NU, NX, T> rhs = B.transpose() * S * A + N.transpose();
+    const auto              K_opt = mat::cholesky_solve(denom, rhs);
 
-    if (!denom_inv) {
+    if (!K_opt) {
         return result;
     }
 
-    Matrix<NU, NX, T> K = denom_inv.value() * (B.transpose() * S * A + N.transpose());
+    Matrix<NU, NX, T> K = K_opt.value();
 
     result = LQRResult<NX, NU, T>{K, S, stability::closed_loop_poles(A, B, K), true};
     return result;
@@ -216,13 +218,14 @@ template<size_t NX, size_t NU, typename T = double>
 
     const Matrix<NX, NX, T> S = dare_opt.value();
     const Matrix<NU, NU, T> denom = R + B.transpose() * S * B;
-    const auto              denom_inv = denom.inverse();
+    const Matrix<NU, NX, T> rhs = B.transpose() * S * A + N.transpose();
+    const auto              K_opt = mat::cholesky_solve(denom, rhs);
 
-    if (!denom_inv) {
+    if (!K_opt) {
         return result;
     }
 
-    Matrix<NU, NX, T> K = denom_inv.value() * (B.transpose() * S * A + N.transpose());
+    Matrix<NU, NX, T> K = K_opt.value();
     return LQRResult<NX, NU, T>{K, S, stability::closed_loop_poles(A, B, K), true};
 }
 

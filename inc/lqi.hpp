@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 #include "ricatti.hpp"
 #include "stability.hpp"
 #include "state_space.hpp"
@@ -83,15 +84,15 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     }
     Matrix<NX + NY, NX + NY, T> P_aug = dare_opt.value();
 
-    // Compute augmented gain
+    // Solve (R + BᵀPB) K = BᵀPA via Cholesky (R + BᵀPB is positive definite)
     const Matrix denom = R + B_aug.transpose() * P_aug * B_aug;
-    const auto   denom_inv = denom.inverse();
+    const Matrix rhs = B_aug.transpose() * P_aug * A_aug;
+    const auto   K_opt = mat::cholesky_solve(denom, rhs);
 
-    if (!denom_inv) {
+    if (!K_opt) {
         return LQIResult<NX, NU, NY, T>{};
     }
-    Matrix<NU, NX + NY, T> K_aug{};
-    K_aug = denom_inv.value() * B_aug.transpose() * P_aug * A_aug;
+    Matrix<NU, NX + NY, T> K_aug = K_opt.value();
 
     ColVec<NX + NY, wet::complex<T>> poles = stability::closed_loop_poles(A_aug, B_aug, K_aug);
     return LQIResult<NX, NU, NY, T>{K_aug, P_aug, poles, true};

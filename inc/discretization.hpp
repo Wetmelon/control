@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 #include "state_space.hpp"
 
 namespace wetmelon::control {
@@ -101,17 +102,16 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     const Matrix A_scaled = sys.A * sampling_time;
     const Matrix exp_A_Ts = mat::expm(A_scaled);
 
-    // Compute B_d using: B_d = A^{-1} * (exp(A*Ts) - I) * B
-    // For numerical stability, use the integral formula when A is near singular
-    const auto A_inv = sys.A.inverse();
+    // Compute B_d = A⁻¹ * (exp(A*Ts) - I) * B  via solve: A * B_d = (exp(A*Ts) - I) * B
+    const Matrix I = Matrix<NX, NX, T>::identity();
+    const Matrix rhs = (exp_A_Ts - I) * sys.B;
+    const auto   B_d_opt = mat::lu_solve(sys.A, rhs);
 
     Matrix<NX, NU, T> B_d;
-    if (A_inv) {
-        //! Standard formula: B_d = A⁻¹ * (exp(A*Ts) - I) * B
-        const Matrix I = Matrix<NX, NX, T>::identity();
-        B_d = A_inv.value() * (exp_A_Ts - I) * sys.B;
+    if (B_d_opt) {
+        B_d = B_d_opt.value();
     } else {
-        //! Fallback: Use series expansion directly
+        //! Fallback: Use series expansion directly (A may be singular)
         //! B_d ≈ (I*Ts + A*Ts²/2 + A²*Ts³/6 + ...) * B
         B_d = sys.B * sampling_time;
         Matrix A_power = sys.A;

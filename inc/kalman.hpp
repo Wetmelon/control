@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 #include "state_space.hpp"
 
 namespace wetmelon::control {
@@ -66,13 +67,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     }
     result.P = dare_opt.value();
 
-    // Compute Kalman gain: L = P*C'*(C*P*C' + R_eff)^{-1}
+    // Compute Kalman gain: L = PCᵀS⁻¹ rearranged as L = (S.solve(C * P))ᵀ
+    // S and P are symmetric, so we solve S * Lᵀ = C * P via Cholesky
     const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
-    const auto              S_inv = S.inverse();
-    if (!S_inv) {
+    const auto              L_opt = mat::cholesky_solve(S, sys.C * result.P);
+    if (!L_opt) {
         return result;
     }
-    result.L = result.P * sys.C.transpose() * S_inv.value();
+    result.L = L_opt.value().transpose();
 
     result.success = true;
     return result;
@@ -141,13 +143,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     }
     result.P = dare_opt.value();
 
-    // Compute Kalman gain: L = P*C'*(C*P*C' + R_eff)^{-1}
+    // Compute Kalman gain: L = PCᵀS⁻¹ rearranged as L = (S.solve(C * P))ᵀ
+    // S and P are symmetric, so we solve S * Lᵀ = C * P via Cholesky
     const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
-    const auto              S_inv = S.inverse();
-    if (!S_inv) {
+    const auto              L_opt = mat::cholesky_solve(S, sys.C * result.P);
+    if (!L_opt) {
         return result;
     }
-    result.L = result.P * sys.C.transpose() * S_inv.value();
+    result.L = L_opt.value().transpose();
 
     result.success = true;
     return result;
@@ -194,12 +197,13 @@ struct KalmanFilter {
         const auto              Ht = sys.H.transpose();
         const Matrix<NY, NY, T> S = sys.C * P * Ct + sys.H * R * Ht;
 
-        const auto S_inv = S.inverse();
-        if (!S_inv) {
+        // K = PCᵀS⁻¹ → solve S Kᵀ = C P via Cholesky (S is symmetric positive definite)
+        const auto K_opt = mat::cholesky_solve(S, sys.C * P);
+        if (!K_opt) {
             return false;
         }
 
-        const Matrix<NX, NY, T> K = P * Ct * S_inv.value();
+        const Matrix<NX, NY, T> K = K_opt.value().transpose();
         x = x + K * y;
 
         // Joseph form: P = (I - K*C) * P * (I - K*C)' + K*H*R*H'*K'
