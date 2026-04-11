@@ -274,7 +274,7 @@ struct LQG {
     constexpr LQG(const LQG<NX, NU, NY, NW, NV, U>& other) : lqr(other.lqr), kf(other.kf) {}
 
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) { kf.predict(u); }
-    constexpr bool update(const ColVec<NY, T>& z, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(z, u); }
+    constexpr bool update(const ColVec<NY, T>& y, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(y, u); }
 
     [[nodiscard]] constexpr ColVec<NU, T> control() const { return lqr.control(kf.state()); }
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x_ref) const { return lqr.control(kf.state(), x_ref); }

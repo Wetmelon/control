@@ -4,6 +4,7 @@
 #include <cstddef>
 
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 
 namespace wetmelon::control {
 namespace online {
@@ -28,10 +29,10 @@ concept EKFStateFn = requires(Fn&& fn, const ColVec<NX, T>& x, const ColVec<NU, 
     { fn(x, u) } -> std::convertible_to<StateJacobian<T, NX>>;
 };
 
-// EKF/ESKF measurement result: z_pred = h(x), with Jacobians H = ∂h/∂x, M = ∂h/∂v
+// EKF/ESKF measurement result: y_pred = h(x), with Jacobians H = ∂h/∂x, M = ∂h/∂v
 template<typename T, size_t NY, size_t NX>
 struct MeasJacobian {
-    ColVec<NY, T>     z_pred{};                         // Predicted measurement
+    ColVec<NY, T>     y_pred{};                         // Predicted measurement
     Matrix<NY, NX, T> H{};                              // Measurement Jacobian ∂h/∂x
     Matrix<NY, NY, T> M{Matrix<NY, NY, T>::identity()}; // Measurement noise Jacobian ∂h/∂v
 };
@@ -44,7 +45,7 @@ concept EKFMeasFn = requires(Fn&& fn, const ColVec<NX, T>& x, const ColVec<NU, T
 
 // For nonlinear systems on embedded hardware. User provides discrete-time Jacobians:
 //   state_fn: (x, u) -> StateJacobian{x_next, F, G}  (F = df/dx, G = df/dw)
-//   meas_fn:  (x, u) -> MeasJacobian{z_pred, H, M}   (H = dh/dx, M = dh/dv)
+//   meas_fn:  (x, u) -> MeasJacobian{y_pred, H, M}   (H = dh/dx, M = dh/dv)
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct ExtendedKalmanFilter {
     constexpr ExtendedKalmanFilter() = default;
@@ -52,39 +53,43 @@ struct ExtendedKalmanFilter {
     constexpr ExtendedKalmanFilter(
         const ColVec<NX, T>&     x0,
         const Matrix<NX, NX, T>& P0,
-        const Matrix<NX, NX, T>& Q_,
-        const Matrix<NY, NY, T>& R_
-    ) : x(x0), P(P0), Q(Q_), R(R_) {}
+        const Matrix<NX, NX, T>& Q_
+    ) : x(x0), P(P0), Q(Q_) {}
 
     // Type conversion constructor
     template<typename U>
     constexpr ExtendedKalmanFilter(const ExtendedKalmanFilter<NX, NU, NY, U>& other)
-        : x(other.state()), P(other.covariance()), Q(other.process_noise_covariance()), R(other.measurement_noise_covariance()), y(other.innovation()) {}
+        : x(other.state()), P(other.covariance()), Q(other.process_noise_covariance()), innov(other.innovation()) {}
 
     // Predict: x[k+1|k] = f(x[k|k], u[k]), P[k+1|k] = F*P*F' + G*Q*G'
+    //   state_fn: callable (x, u) -> StateJacobian{x_pred, F, G}
     template<typename StateFn>
         requires EKFStateFn<StateFn, T, NX, NU>
-    constexpr void predict(StateFn&& f, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
-        StateJacobian<T, NX> sj = f(x, u);
+    constexpr void predict(StateFn&& state_fn, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
+        StateJacobian<T, NX> sj = state_fn(x, u);
         x = sj.x_pred;
         P = sj.F * P * sj.F.transpose() + sj.G * Q * sj.G.transpose();
     }
 
     // Measurement update: returns false if innovation covariance is singular
+    //   meas_fn: callable (x, u) -> MeasJacobian{y_pred, H, M}
+    //   R:       measurement noise covariance (must match the sensor model in meas_fn)
     template<typename MeasFn>
         requires EKFMeasFn<MeasFn, T, NX, NU, NY>
-    constexpr bool update(MeasFn&& h, const ColVec<NY, T>& z, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
-        MeasJacobian<T, NY, NX> mj = h(x, u);
+    constexpr bool update(MeasFn&& meas_fn, const ColVec<NY, T>& y, const Matrix<NY, NY, T>& R, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
+        MeasJacobian<T, NY, NX> mj = meas_fn(x, u);
         const auto              Ht = mj.H.transpose();
-        y = z - mj.z_pred;
+        innov = y - mj.y_pred;
         const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.transpose();
 
-        const auto S_inv = S.inverse();
-        if (!S_inv)
+        // K = PHᵀS⁻¹ → solve S Kᵀ = H P via Cholesky (S is symmetric positive definite)
+        const auto K_opt = mat::cholesky_solve(S, mj.H * P);
+        if (!K_opt) {
             return false;
+        }
 
-        const Matrix<NX, NY, T> K = P * Ht * S_inv.value();
-        x = x + K * y;
+        const Matrix<NX, NY, T> K = K_opt.value().transpose();
+        x = x + K * innov;
 
         // Joseph form
         const auto I_KH = Matrix<NX, NX, T>::identity() - K * mj.H;
@@ -94,18 +99,16 @@ struct ExtendedKalmanFilter {
     }
 
     // Accessors
-    [[nodiscard]] constexpr const auto& innovation() const { return y; }
+    [[nodiscard]] constexpr const auto& innovation() const { return innov; }
     [[nodiscard]] constexpr const auto& state() const { return x; }
     [[nodiscard]] constexpr const auto& covariance() const { return P; }
     [[nodiscard]] constexpr const auto& process_noise_covariance() const { return Q; }
-    [[nodiscard]] constexpr const auto& measurement_noise_covariance() const { return R; }
 
 private:
     ColVec<NX, T>     x{};
     Matrix<NX, NX, T> P{};
     Matrix<NX, NX, T> Q{};
-    Matrix<NY, NY, T> R{};
-    ColVec<NY, T>     y{};
+    ColVec<NY, T>     innov{};
 };
 
 } // namespace wetmelon::control

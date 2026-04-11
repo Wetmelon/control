@@ -182,7 +182,7 @@ struct KalmanFilter {
           P(other.covariance()),
           Q(other.process_noise_covariance()),
           R(other.measurement_noise_covariance()),
-          y(other.innovation()) {}
+          innov(other.innovation()) {}
 
     // Predict: x[k+1|k] = A*x[k|k] + B*u[k], P[k+1|k] = A*P*A' + G*Q*G'
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) {
@@ -191,9 +191,9 @@ struct KalmanFilter {
     }
 
     // Measurement update: returns false if innovation covariance is singular
-    constexpr bool update(const ColVec<NY, T>& z, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
-        const auto z_pred = sys.C * x + sys.D * u;
-        y = z - z_pred;
+    constexpr bool update(const ColVec<NY, T>& y, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
+        const auto y_pred = sys.C * x + sys.D * u;
+        innov = y - y_pred;
 
         const auto              Ct = sys.C.transpose();
         const auto              Ht = sys.H.transpose();
@@ -206,7 +206,7 @@ struct KalmanFilter {
         }
 
         const Matrix<NX, NY, T> K = K_opt.value().transpose();
-        x = x + K * y;
+        x = x + K * innov;
 
         // Joseph form: P = (I - K*C) * P * (I - K*C)' + K*H*R*H'*K'
         const auto I_KC = Matrix<NX, NX, T>::identity() - K * sys.C;
@@ -217,7 +217,7 @@ struct KalmanFilter {
 
     // Accessors
     [[nodiscard]] constexpr const auto& model() const { return sys; }
-    [[nodiscard]] constexpr const auto& innovation() const { return y; }
+    [[nodiscard]] constexpr const auto& innovation() const { return innov; }
     [[nodiscard]] constexpr const auto& state() const { return x; }
     [[nodiscard]] constexpr const auto& covariance() const { return P; }
     [[nodiscard]] constexpr const auto& process_noise_covariance() const { return Q; }
@@ -229,7 +229,7 @@ private:
     Matrix<NX, NX, T>                 P{};
     Matrix<NW, NW, T>                 Q{};
     Matrix<NV, NV, T>                 R{};
-    ColVec<NY, T>                     y{};
+    ColVec<NY, T>                     innov{};
 };
 
 } // namespace wetmelon::control

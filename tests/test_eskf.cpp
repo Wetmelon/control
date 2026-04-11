@@ -123,15 +123,15 @@ TEST_SUITE("Error-State Kalman Filter (ESKF)") {
         // Predicted measurements (from nominal state - assuming upright)
         Vec3d     accel_pred{0.0, 0.0, 9.81};
         Vec3d     mag_pred{0.0, 1.0, 0.0};
-        ColVec<6> z_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
+        ColVec<6> y_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
 
         // Return explicit MeasJacobian type (concept-checked)
-        auto h = [H, M, z_pred]() -> MeasJac6x6 {
-            return {.z_pred = z_pred, .H = H, .M = M};
+        auto meas_fn = [H, M, y_pred]() -> MeasJac6x6 {
+            return {.y_pred = y_pred, .H = H, .M = M};
         };
 
-        ColVec<6> z_meas{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
-        bool      success = eskf.update(h, z_meas);
+        ColVec<6> y{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
+        bool      success = eskf.update(meas_fn, y);
         REQUIRE(success);
 
         // Error state should remain small (no significant error detected)
@@ -179,15 +179,15 @@ TEST_SUITE("Error-State Kalman Filter (ESKF)") {
             1.0,
             0.0
         };
-        ColVec<6> z_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
+        ColVec<6> y_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
 
         // Return explicit MeasJacobian type (concept-checked)
-        auto h = [H, M, z_pred]() -> MeasJac6x6 {
-            return {.z_pred = z_pred, .H = H, .M = M};
+        auto meas_fn = [H, M, y_pred]() -> MeasJac6x6 {
+            return {.y_pred = y_pred, .H = H, .M = M};
         };
 
-        ColVec<6> z_meas{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
-        bool      success = eskf.update(h, z_meas);
+        ColVec<6> y{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
+        bool      success = eskf.update(meas_fn, y);
         REQUIRE(success);
 
         // Error state should detect the tilt error
@@ -233,19 +233,19 @@ TEST_SUITE("Error-State Kalman Filter (ESKF)") {
         Vec3d     mag_meas{0.0, 1.0, 0.0};
         Vec3d     accel_pred{0.0, 0.0, g};
         Vec3d     mag_pred{0.0, 1.0, 0.0};
-        ColVec<6> z_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
+        ColVec<6> y_pred{accel_pred[0], accel_pred[1], accel_pred[2], mag_pred[0], mag_pred[1], mag_pred[2]};
 
         // Return explicit MeasJacobian type (concept-checked)
-        auto h = [H, M, z_pred]() -> MeasJac6x6 {
-            return {.z_pred = z_pred, .H = H, .M = M};
+        auto meas_fn = [H, M, y_pred]() -> MeasJac6x6 {
+            return {.y_pred = y_pred, .H = H, .M = M};
         };
 
-        ColVec<6> z_meas{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
+        ColVec<6> y{accel_meas[0], accel_meas[1], accel_meas[2], mag_meas[0], mag_meas[1], mag_meas[2]};
 
         // Run several iterations
         for (int i = 0; i < 5; ++i) {
             eskf.predict(propagate, dt);
-            [[maybe_unused]] bool success = eskf.update(h, z_meas);
+            [[maybe_unused]] bool success = eskf.update(meas_fn, y);
             REQUIRE(success);
 
             // Error state should stay bounded

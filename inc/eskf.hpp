@@ -253,7 +253,7 @@ struct ErrorStateKalmanFilter {
           Q(other.process_noise_covariance()),
           R(other.measurement_noise_covariance()),
           delta_x(other.error_state()),
-          y(other.innovation()) {}
+          innov(other.innovation()) {}
 
     consteval ErrorStateKalmanFilter(
         const design::ESKFResult<NDX, NY, T>& result
@@ -275,30 +275,32 @@ struct ErrorStateKalmanFilter {
     }
 
     // Measurement update: Correct error state from innovation
-    // User provides: () -> MeasJacobian{z_pred, H, M}
-    //   z_pred = h(nominal_state) - predicted measurement
+    // User provides: () -> MeasJacobian{y_pred, H, M}
+    //   y_pred = h(nominal_state) - predicted measurement
     //   H = measurement Jacobian (∂h/∂δx)
     //   M = measurement noise Jacobian (∂h/∂v, usually identity)
     // P update: P = (I - K*H) * P * (I - K*H)' + K*M*R*M'*K'  (Joseph form)
     template<typename MeasFn>
         requires ESKFMeasFn<MeasFn, T, NDX, NY>
-    constexpr bool update(MeasFn&& h, const ColVec<NY, T>& z_meas) {
-        MeasJacobian<T, NY, NDX> mj = h();
+    constexpr bool update(MeasFn&& meas_fn, const ColVec<NY, T>& y) {
+        MeasJacobian<T, NY, NDX> mj = meas_fn();
 
-        y = z_meas - mj.z_pred; // Innovation
+        innov = y - mj.y_pred; // Innovation
 
         const auto              Ht = mj.H.transpose();
         const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.transpose();
 
-        const auto S_inv = S.inverse();
-        if (!S_inv)
+        // K = PHᵀS⁻¹ → solve S Kᵀ = H P via Cholesky (S is symmetric positive definite)
+        const auto K_opt = mat::cholesky_solve(S, mj.H * P);
+        if (!K_opt) {
             return false;
+        }
 
         // Kalman gain
-        const Matrix K = P * Ht * S_inv.value();
+        const Matrix K = K_opt.value().transpose();
 
         // Update error state: δx = K * δz
-        delta_x = ColVec(K * y);
+        delta_x = ColVec(K * innov);
 
         // Covariance update (Joseph form for numerical stability)
         const auto I_KH = Matrix<NDX, NDX, T>::identity() - K * mj.H;
@@ -321,7 +323,7 @@ struct ErrorStateKalmanFilter {
     [[nodiscard]] constexpr const auto& covariance() const { return P; }
     [[nodiscard]] constexpr const auto& process_noise_covariance() const { return Q; }
     [[nodiscard]] constexpr const auto& measurement_noise_covariance() const { return R; }
-    [[nodiscard]] constexpr const auto& innovation() const { return y; }
+    [[nodiscard]] constexpr const auto& innovation() const { return innov; }
 
     // Setters for runtime tuning
     constexpr void set_process_noise_covariance(const Matrix<NDX, NDX, T>& Q_new) { Q = Q_new; }
@@ -333,7 +335,7 @@ private:
     Matrix<NDX, NDX, T> Q{};       // Process noise covariance
     Matrix<NY, NY, T>   R{};       // Measurement noise covariance
     ColVec<NDX, T>      delta_x{}; // Error state δx
-    ColVec<NY, T>       y{};       // Innovation
+    ColVec<NY, T>       innov{};   // Innovation
 };
 
 // CTAD deduction guide for ErrorStateKalmanFilter
