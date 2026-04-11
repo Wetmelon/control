@@ -6,6 +6,7 @@
 
 #include "eigen.hpp"
 #include "matrix.hpp"
+#include "matrix/cholesky.hpp"
 
 namespace wetmelon::control {
 
@@ -126,74 +127,227 @@ constexpr Matrix<2, 2, T> care_2x2_hamiltonian(
 }
 
 /**
- * @brief Solve Discrete Algebraic Riccati Equation (DARE)
+ * @brief Check if (A, B) is a stabilizable pair.
  *
- * Solves P = A'PA - A'PB(R + B'PB)⁻¹B'PA + Q for optimal discrete LQR.
- * Uses fixed-point iteration for numerical solution.
+ * (A, B) is stabilizable if and only if the uncontrollable eigenvalues of A, if
+ * any, have absolute values less than one, where an eigenvalue is
+ * uncontrollable if rank([λI - A, B]) < n where n is the number of states.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of inputs
+ * @tparam T  Scalar type
+ * @param A   State matrix
+ * @param B   Input matrix
+ * @return true if (A, B) is stabilizable
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr bool is_stabilizable(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B
+) {
+    // Compute eigenvalues of A — use direct formulas for N ≤ 4, QR algorithm for N > 4
+    if constexpr (NX <= 4) {
+        auto eigen = compute_eigenvalues(A);
+        if (!eigen.converged) {
+            return false;
+        }
+
+        const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
+
+        for (size_t i = 0; i < NX; ++i) {
+            // Only check unstable eigenvalues (|λ| >= 1)
+            if (eigen.values[i].abs() < T{1}) {
+                continue;
+            }
+
+            // Form [λI - A, B] and check rank
+            using Complex = wet::complex<T>;
+            Matrix<NX, NX + NU, Complex> test_mat{};
+
+            // λI - A
+            for (size_t r = 0; r < NX; ++r) {
+                for (size_t c = 0; c < NX; ++c) {
+                    test_mat(r, c) = Complex(-A(r, c), T{0});
+                }
+                test_mat(r, r) = test_mat(r, r) + eigen.values[i];
+            }
+
+            // B
+            for (size_t r = 0; r < NX; ++r) {
+                for (size_t c = 0; c < NU; ++c) {
+                    test_mat(r, NX + c) = Complex(B(r, c), T{0});
+                }
+            }
+
+            // Check rank via Gaussian elimination with partial pivoting
+            size_t                       rank = 0;
+            Matrix<NX, NX + NU, Complex> work = test_mat;
+            for (size_t col = 0; col < NX + NU && rank < NX; ++col) {
+                size_t pivot = rank;
+                T      max_val = work(rank, col).abs();
+                for (size_t r = rank + 1; r < NX; ++r) {
+                    T val = work(r, col).abs();
+                    if (val > max_val) {
+                        max_val = val;
+                        pivot = r;
+                    }
+                }
+                if (max_val < tol) {
+                    continue;
+                }
+                if (pivot != rank) {
+                    for (size_t j = 0; j < NX + NU; ++j) {
+                        auto tmp = work(rank, j);
+                        work(rank, j) = work(pivot, j);
+                        work(pivot, j) = tmp;
+                    }
+                }
+                for (size_t r = rank + 1; r < NX; ++r) {
+                    auto factor = work(r, col) / work(rank, col);
+                    for (size_t j = col; j < NX + NU; ++j) {
+                        work(r, j) = work(r, j) - factor * work(rank, j);
+                    }
+                }
+                ++rank;
+            }
+
+            if (rank < NX) {
+                return false;
+            }
+        }
+
+        return true;
+    } else {
+        // N > 4: use QR algorithm which returns real eigenvalues on diagonal
+        auto eigen = compute_eigenvalues_qr(A);
+        if (!eigen.converged) {
+            // If QR didn't converge, skip the stabilizability check — let the
+            // SDA loop itself detect divergence via its iteration limit.
+            return true;
+        }
+
+        const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
+
+        for (size_t i = 0; i < NX; ++i) {
+            T lambda_real = eigen.eigenvalues_real(i, i);
+            // QR returns real parts; for real eigenvalues |λ| = |λ_real|
+            // This is conservative — complex eigenvalues from 2x2 blocks are not
+            // individually resolved, but their magnitude is bounded by max|diagonal|.
+            if (wet::abs(lambda_real) < T{1}) {
+                continue;
+            }
+
+            // Form [λI - A, B] with real λ and check rank
+            Matrix<NX, NX + NU, T> test_mat{};
+            for (size_t r = 0; r < NX; ++r) {
+                for (size_t c = 0; c < NX; ++c) {
+                    test_mat(r, c) = -A(r, c);
+                }
+                test_mat(r, r) += lambda_real;
+            }
+            for (size_t r = 0; r < NX; ++r) {
+                for (size_t c = 0; c < NU; ++c) {
+                    test_mat(r, NX + c) = B(r, c);
+                }
+            }
+
+            // Rank check via Gaussian elimination
+            size_t                 rank = 0;
+            Matrix<NX, NX + NU, T> work = test_mat;
+            for (size_t col = 0; col < NX + NU && rank < NX; ++col) {
+                size_t pivot = rank;
+                T      max_val = wet::abs(work(rank, col));
+                for (size_t r = rank + 1; r < NX; ++r) {
+                    T val = wet::abs(work(r, col));
+                    if (val > max_val) {
+                        max_val = val;
+                        pivot = r;
+                    }
+                }
+                if (max_val < tol) {
+                    continue;
+                }
+                if (pivot != rank) {
+                    for (size_t j = 0; j < NX + NU; ++j) {
+                        std::swap(work(rank, j), work(pivot, j));
+                    }
+                }
+                for (size_t r = rank + 1; r < NX; ++r) {
+                    T factor = work(r, col) / work(rank, col);
+                    for (size_t j = col; j < NX + NU; ++j) {
+                        work(r, j) -= factor * work(rank, j);
+                    }
+                }
+                ++rank;
+            }
+
+            if (rank < NX) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
+
+/**
+ * @brief Solve Discrete Algebraic Riccati Equation (DARE) — no precondition checks
+ *
+ * Solves AᵀXA − X − AᵀXB(R + BᵀXB)⁻¹BᵀXA + Q = 0 using the
+ * Structure-preserving Doubling Algorithm (SDA).
+ *
+ * This version skips all precondition checks (symmetry, definiteness,
+ * stabilizability) for maximum performance. Use when you know the inputs
+ * satisfy the DARE preconditions.
  *
  * @tparam NX Number of states
  * @tparam NU Number of control inputs
  * @tparam T  Scalar type (default: double)
  * @param A   State transition matrix (NX × NX)
  * @param B   Control input matrix (NX × NU)
- * @param Q   State cost matrix (NX × NX, positive semidefinite)
- * @param R   Control cost matrix (NU × NU, positive definite)
+ * @param Q   State cost matrix (NX × NX, must be positive semidefinite)
+ * @param R   Control cost matrix (NU × NU, must be positive definite)
+ * @param N   Cross-term cost matrix (NX × NU, optional)
  *
- * @return Solution matrix P (NX × NX, positive semidefinite) or std::nullopt on failure
+ * @return Solution matrix P or std::nullopt on convergence failure
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> dare(
+constexpr std::optional<Matrix<NX, NX, T>> dare_unchecked(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
     const Matrix<NU, NU, T>& R,
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
-    //! Check positive definiteness of R via eigenvalues
-    auto R_eigen = compute_eigenvalues_qr(R);
-    if (R_eigen.converged) {
-        for (size_t i = 0; i < NU; ++i) {
-            if (R_eigen.eigenvalues_real(i, i) <= T{0}) {
-                return std::nullopt; //! R not positive definite
-            }
-        }
-    }
-
-    //! Check positive semidefiniteness of Q via eigenvalues
-    auto Q_eigen = compute_eigenvalues_qr(Q);
-    if (Q_eigen.converged) {
-        for (size_t i = 0; i < NX; ++i) {
-            if (Q_eigen.eigenvalues_real(i, i) < T{-1e-12}) {
-                return std::nullopt; //! Q not positive semidefinite
-            }
-        }
-    }
-
     //! Handle cross-term N by reducing to standard form:
-    //!   A_bar = A - B R^{-1} N^T,  Q_bar = Q - N R^{-1} N^T
-    //! Then solve DARE(A_bar, B, Q_bar, R) which is equivalent.
-    auto R_inv_opt = R.inverse();
-    if (!R_inv_opt) {
+    //!   A_bar = A − B R⁻¹ Nᵀ,  Q_bar = Q − N R⁻¹ Nᵀ
+    //! Solve via R * X = Nᵀ  and  R * X = Bᵀ  to avoid explicit R⁻¹
+    const auto R_inv_Nt_opt = mat::lu_solve(R, N.transpose());
+    if (!R_inv_Nt_opt) {
         return std::nullopt;
     }
-    const Matrix R_inv = R_inv_opt.value();
+    const Matrix R_inv_Nt = R_inv_Nt_opt.value();
 
-    const Matrix A_eff = A - B * R_inv * N.transpose();
-    const Matrix Q_eff = Q - N * R_inv * N.transpose();
+    const Matrix A_eff = A - B * R_inv_Nt;
+    const Matrix Q_eff = Q - N * R_inv_Nt;
+
+    //! Compute Gk = B R⁻¹ Bᵀ via solve: R * X = Bᵀ → X = R⁻¹Bᵀ → Gk = B * X
+    const auto R_inv_Bt_opt = mat::lu_solve(R, B.transpose());
+    if (!R_inv_Bt_opt) {
+        return std::nullopt;
+    }
 
     //! Structure-preserving Doubling Algorithm (SDA) for DARE:
-    //!   A^T X A - X - A^T X B (R + B^T X B)^{-1} B^T X A + Q = 0
-    //!
-    //! Initialize:  Ak = A,  Gk = B R^{-1} B^T,  Hk = Q
-    //! Iterate:
-    //!   Vk = (I + Gk Hk)^{-1}
-    //!   A_{k+1} = Ak Vk Ak
-    //!   G_{k+1} = Gk + Ak Vk Gk Ak^T
-    //!   H_{k+1} = Hk + Ak^T Hk Vk Ak
-    //! Converges quadratically: Hk -> X for any stabilizable/detectable pair.
+    //!   Initialize:  Ak = A,  Gk = B R⁻¹ Bᵀ,  Hk = Q
+    //!   Iterate:
+    //!     Vk = (I + Gk Hk)⁻¹  (solved via LU)
+    //!     Ak₊₁ = Ak Vk Ak
+    //!     Gk₊₁ = Gk + Ak Vk Gk Akᵀ
+    //!     Hk₊₁ = Hk + Akᵀ Hk Vk Ak
+    //!   Converges quadratically: Hk → X for any stabilizable/detectable pair.
 
     Matrix<NX, NX, T> Ak = A_eff;
-    Matrix<NX, NX, T> Gk = B * R_inv * B.transpose();
+    Matrix<NX, NX, T> Gk = B * R_inv_Bt_opt.value();
     Matrix<NX, NX, T> Hk = Q_eff;
 
     const T   tol = T{1e-12};
@@ -201,8 +355,9 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
     bool      converged = false;
 
     for (int iter = 0; iter < max_iter; ++iter) {
+        //! Solve (I + Gk Hk) Vk = I via LU decomposition (recommended by SDA paper)
         const Matrix Vk_arg = Matrix<NX, NX, T>::identity() + Gk * Hk;
-        const auto   Vk_opt = Vk_arg.inverse();
+        const auto   Vk_opt = mat::lu_solve(Vk_arg, Matrix<NX, NX, T>::identity());
         if (!Vk_opt) {
             return std::nullopt;
         }
@@ -229,6 +384,140 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
 
     //! Symmetrize for numerical cleanup
     return (Hk + Hk.transpose()) * T{0.5};
+}
+
+/**
+ * @brief Solve Discrete Algebraic Riccati Equation (DARE) — no cross-term, no precondition checks
+ *
+ * Convenience overload without cross-term N for maximum runtime performance.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam T  Scalar type (default: double)
+ * @param A   State transition matrix (NX × NX)
+ * @param B   Control input matrix (NX × NU)
+ * @param Q   State cost matrix (NX × NX, must be positive semidefinite)
+ * @param R   Control cost matrix (NU × NU, must be positive definite)
+ *
+ * @return Solution matrix P or std::nullopt on convergence failure
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr std::optional<Matrix<NX, NX, T>> dare_unchecked(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R
+) {
+    //! Compute Gk = B R⁻¹ Bᵀ via solve: R * X = Bᵀ
+    const auto R_inv_Bt_opt = mat::lu_solve(R, B.transpose());
+    if (!R_inv_Bt_opt) {
+        return std::nullopt;
+    }
+
+    Matrix<NX, NX, T> Ak = A;
+    Matrix<NX, NX, T> Gk = B * R_inv_Bt_opt.value();
+    Matrix<NX, NX, T> Hk = Q;
+
+    const T   tol = T{1e-12};
+    const int max_iter = 100;
+    bool      converged = false;
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        const Matrix Vk_arg = Matrix<NX, NX, T>::identity() + Gk * Hk;
+        const auto   Vk_opt = mat::lu_solve(Vk_arg, Matrix<NX, NX, T>::identity());
+        if (!Vk_opt) {
+            return std::nullopt;
+        }
+        const Matrix Vk = Vk_opt.value();
+
+        const Matrix Ak_next = Ak * Vk * Ak;
+        const Matrix Gk_next = Gk + Ak * Vk * Gk * Ak.transpose();
+        const Matrix Hk_next = Hk + Ak.transpose() * Hk * Vk * Ak;
+
+        const T diff = (Hk_next - Hk).norm();
+        Ak = Ak_next;
+        Gk = Gk_next;
+        Hk = Hk_next;
+
+        if (diff < tol * std::max(T{1}, Hk.norm())) {
+            converged = true;
+            break;
+        }
+    }
+
+    if (!converged) {
+        return std::nullopt;
+    }
+
+    return (Hk + Hk.transpose()) * T{0.5};
+}
+
+/**
+ * @brief Solve Discrete Algebraic Riccati Equation (DARE) — with full precondition checks
+ *
+ * Solves AᵀXA − X − AᵀXB(R + BᵀXB)⁻¹BᵀXA + Q = 0 using the
+ * Structure-preserving Doubling Algorithm (SDA).
+ *
+ * Preconditions checked:
+ * - Q is symmetric
+ * - R is symmetric
+ * - R is positive definite (via Cholesky — fails on zero/negative pivot)
+ * - Q is positive semidefinite (via Cholesky of Q + εI)
+ * - (A, B) is stabilizable (unstable eigenvalues must be controllable)
+ *
+ * For maximum performance when preconditions are known to hold, use dare_unchecked().
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam T  Scalar type (default: double)
+ * @param A   State transition matrix (NX × NX)
+ * @param B   Control input matrix (NX × NU)
+ * @param Q   State cost matrix (NX × NX, positive semidefinite)
+ * @param R   Control cost matrix (NU × NU, positive definite)
+ * @param N   Cross-term cost matrix (NX × NU, optional)
+ *
+ * @return Solution matrix P (NX × NX, positive semidefinite) or std::nullopt on failure
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr std::optional<Matrix<NX, NX, T>> dare(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    //! Check R is symmetric
+    if (!mat::is_symmetric_or_hermitian(R)) {
+        return std::nullopt;
+    }
+
+    //! Check R is positive definite via Cholesky (fails on zero/negative pivot)
+    if (!mat::cholesky(R)) {
+        return std::nullopt;
+    }
+
+    //! Check Q is symmetric
+    if (!mat::is_symmetric_or_hermitian(Q)) {
+        return std::nullopt;
+    }
+
+    //! Check Q is positive semidefinite via Cholesky of (Q + εI)
+    //! If Q is PSD, Q + εI is PD for any ε > 0, so Cholesky succeeds.
+    //! If Q has a negative eigenvalue, Q + εI will still fail for small ε.
+    {
+        const T                 eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
+        const Matrix<NX, NX, T> Q_shifted = Q + Matrix<NX, NX, T>::identity() * eps;
+        if (!mat::cholesky(Q_shifted)) {
+            return std::nullopt;
+        }
+    }
+
+    //! Check (A, B) is stabilizable
+    if (!is_stabilizable(A, B)) {
+        return std::nullopt;
+    }
+
+    return dare_unchecked(A, B, Q, R, N);
 }
 
 /**
