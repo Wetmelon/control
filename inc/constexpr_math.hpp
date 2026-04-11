@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <numbers>
+#include <type_traits>
 
 namespace wetmelon::control::wet {
 
@@ -18,6 +19,9 @@ namespace wetmelon::control::wet {
  */
 template<typename T>
 constexpr T sqrt(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::sqrt(x);
+    }
     if (x == T{0})
         return T{0};
     if (x < T{0})
@@ -44,6 +48,9 @@ constexpr T sqrt(T x) {
  */
 template<typename T>
 constexpr T abs(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::abs(x);
+    }
     return x >= T{0} ? x : -x;
 }
 
@@ -60,6 +67,9 @@ constexpr T abs(T x) {
  */
 template<typename T>
 constexpr T cbrt(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::cbrt(x);
+    }
     if (x == T{0})
         return T{0};
 
@@ -95,6 +105,9 @@ constexpr T cbrt(T x) {
  */
 template<typename T>
 constexpr T atan2(T y, T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::atan2(y, x);
+    }
     constexpr T pi = std::numbers::pi_v<T>;
 
     if (x == T{0}) {
@@ -175,6 +188,9 @@ constexpr T atan2(T y, T x) {
  */
 template<typename T>
 constexpr T cos(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::cos(x);
+    }
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T two_pi = T{2} * pi;
 
@@ -208,6 +224,9 @@ constexpr T cos(T x) {
  */
 template<typename T>
 constexpr T sin(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::sin(x);
+    }
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T two_pi = T{2} * pi;
 
@@ -227,9 +246,11 @@ constexpr T sin(T x) {
 }
 
 /**
- * @brief Compute tangent (constexpr)
+ * @brief Compute tangent using continued fraction (constexpr)
  *
- * Computes tan(x) = sin(x) / cos(x).
+ * Uses range reduction to [-π/2, π/2] followed by a continued fraction
+ * expansion that avoids the numerical instability of sin(x)/cos(x) near
+ * odd multiples of π/2.
  *
  * @tparam T Numeric type (floating-point)
  * @param x  Angle in radians
@@ -238,7 +259,43 @@ constexpr T sin(T x) {
  */
 template<typename T>
 constexpr T tan(T x) {
-    return sin(x) / cos(x);
+    if (!std::is_constant_evaluated()) {
+        return std::tan(x);
+    }
+    constexpr T pi = std::numbers::pi_v<T>;
+
+    // Reduce to [-π/2, π/2]
+    // Compute k = round(x / π)
+    T   k_real = x / pi;
+    int k = static_cast<int>(k_real >= T{0} ? k_real + T{0.5} : k_real - T{0.5});
+    T   r = x - static_cast<T>(k) * pi; // r ∈ [-π/2, π/2]
+
+    // Taylor series for tan(r), valid for |r| < π/2
+    // tan(x) = x + x³/3 + 2x⁵/15 + 17x⁷/315 + 62x⁹/2835 + ...
+    // Using Bernoulli number coefficients via Horner-like accumulation
+    T x2 = r * r;
+    T result = r;
+    T term = r;
+
+    // Coefficients: 1/3, 2/15, 17/315, 62/2835, 1382/155925, 21844/6081075, ...
+    constexpr T coeffs[] = {
+        T{1} / T{3},
+        T{2} / T{15},
+        T{17} / T{315},
+        T{62} / T{2835},
+        T{1382} / T{155925},
+        T{21844} / T{6081075},
+        T{929569} / T{638512875},
+        T{6404582} / T{10854718875},
+        T{443861162} / T{1856156927625},
+    };
+
+    for (size_t i = 0; i < sizeof(coeffs) / sizeof(coeffs[0]); ++i) {
+        term *= x2;
+        result += coeffs[i] * term;
+    }
+
+    return result;
 }
 
 /**
@@ -253,6 +310,9 @@ constexpr T tan(T x) {
  */
 template<typename T>
 constexpr T exp(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::exp(x);
+    }
     T result = T{1};
     T term = T{1};
     for (int n = 1; n <= 20; ++n) {
@@ -277,6 +337,9 @@ constexpr T exp(T x) {
  */
 template<typename T>
 constexpr T log(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::log(x);
+    }
     if (x <= T{0}) {
         return T{0};
     }
@@ -324,6 +387,9 @@ constexpr T log(T x) {
  */
 template<typename T>
 constexpr T pow(T base, T exp) {
+    if (!std::is_constant_evaluated()) {
+        return std::pow(base, exp);
+    }
     if (exp == T{0})
         return T{1};
     if (base <= T{0})
@@ -409,6 +475,9 @@ constexpr T ceil(T x) {
  */
 template<typename T>
 constexpr T log10(T x) {
+    if (!std::is_constant_evaluated()) {
+        return std::log10(x);
+    }
     if (x <= T{0})
         return T{0};
     return wet::log(x) / wet::log(T{10});
