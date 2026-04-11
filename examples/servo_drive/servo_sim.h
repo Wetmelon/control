@@ -10,6 +10,9 @@
  *
  * Build (Linux, GCC):
  *   g++ -std=c++20 -O2 -shared -fPIC -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o libservo_sim.so
+ *
+ * Build (macOS, clang):
+ *   clang++ -std=c++20 -O2 -shared -fPIC -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o libservo_sim.dylib
  */
 
 #ifdef _WIN32

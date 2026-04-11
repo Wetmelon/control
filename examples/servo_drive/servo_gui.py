@@ -817,6 +817,7 @@ def main():
         # Look next to this script
         script_dir = Path(__file__).parent
         candidates = [
+            script_dir / "libservo_sim.dylib",
             script_dir / "servo_sim.dll",
             script_dir / "libservo_sim.so",
             script_dir / "servo_sim.so",
@@ -827,9 +828,12 @@ def main():
                 dll_path = str(c)
                 break
         if dll_path is None:
-            print("ERROR: Could not find servo_sim.dll. Build it first or pass --dll path.")
-            print("  Build command (Windows/GCC):")
-            print("    g++ -std=c++20 -O2 -shared -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o servo_sim.dll")
+            print("ERROR: Could not find servo_sim shared library. Build it first or pass --dll path.")
+            print("  Build with: make gui")
+            print("  Or manually:")
+            print("    macOS:   clang++ -std=c++20 -O2 -shared -fPIC -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o libservo_sim.dylib")
+            print("    Linux:   g++ -std=c++20 -O2 -shared -fPIC -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o libservo_sim.so")
+            print("    Windows: g++ -std=c++20 -O2 -shared -DBUILD_DLL -I../../inc -I../../inc/matrix servo_sim.cpp -o servo_sim.dll")
             sys.exit(1)
 
     print(f"Loading DLL: {dll_path}")
