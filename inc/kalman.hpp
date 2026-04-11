@@ -39,7 +39,9 @@ struct KalmanResult {
 /**
  * @brief Steady-state Kalman filter design (runtime version)
  *
- * Designs optimal steady-state Kalman gain for discrete system: x[k+1] = A*x[k] + B*u[k] + G*w[k], y[k] = C*x[k] + D*u[k] + H*v[k]
+ * Designs optimal steady-state Kalman gain for discrete system: 
+ * x[k+1] = A*x[k] + B*u[k] + G*w[k]
+ * y[k]   = C*x[k] + D*u[k] + H*v[k]
  *
  * @param sys  State-space system (discrete-time)
  * @param Q    Process noise covariance (covariance of w[k])
