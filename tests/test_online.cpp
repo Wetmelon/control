@@ -176,8 +176,8 @@ TEST_SUITE("Online: LQG Regulator") {
         lqg.predict(u_init);
 
         // Update
-        ColVec<1> z = {0.5};
-        bool      ok = lqg.update(z);
+        ColVec<1> y = {0.5};
+        bool      ok = lqg.update(y);
         CHECK(ok);
 
         // Control
@@ -251,8 +251,8 @@ TEST_SUITE("Online: LQGI Servo") {
         lqgi.predict(u_init);
 
         // Update
-        ColVec<1> z = {0.0};
-        bool      ok = lqgi.update(z);
+        ColVec<1> y = {0.0};
+        bool      ok = lqgi.update(y);
         CHECK(ok);
 
         // Control with reference

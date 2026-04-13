@@ -203,7 +203,7 @@ struct LQGI {
     constexpr LQGI(const LQGI<NX, NU, NY, NW, NV, U>& other) : lqi(other.lqi), kf(other.kf) {}
 
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) { kf.predict(u); }
-    constexpr bool update(const ColVec<NY, T>& z, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(z, u); }
+    constexpr bool update(const ColVec<NY, T>& y, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(y, u); }
 
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NY, T>& x_aug) {
         return lqi.control(x_aug);

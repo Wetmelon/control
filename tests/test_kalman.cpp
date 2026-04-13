@@ -36,8 +36,8 @@ TEST_CASE("Kalman predict/update 1D") {
     ColVec<1> u = {0.0};
     kf.predict(u);
 
-    ColVec<1> z = {1.2};
-    bool      ok = kf.update(z, u);
+    ColVec<1> y = {1.2};
+    bool      ok = kf.update(y, u);
     CHECK(ok);
     CHECK(kf.state()[0] == doctest::Approx(0.978).epsilon(1e-3));
     CHECK(kf.covariance()(0, 0) == doctest::Approx(0.204).epsilon(1e-3));
@@ -53,7 +53,7 @@ TEST_CASE("EKF range-only measurement") {
     Matrix<1, 1, double> R{};
     R(0, 0) = 0.04;
 
-    ExtendedKalmanFilter<2, 0, 1> ekf(x0, P0, Q, R);
+    ExtendedKalmanFilter<2, 0, 1> ekf(x0, P0, Q);
 
     auto state_fn = [](const ColVec<2, double>& x_in, const ColVec<0, double>&) {
         StateJacobian<double, 2> sj;
@@ -67,28 +67,28 @@ TEST_CASE("EKF range-only measurement") {
 
     auto meas_fn = [](const ColVec<2, double>& x_in, const ColVec<0, double>&) {
         double               r = std::sqrt(x_in[0] * x_in[0] + x_in[1] * x_in[1]);
-        ColVec<1, double>    z_pred{r};
+        ColVec<1, double>    y_pred{r};
         Matrix<1, 2, double> H{};
         if (r > 1e-9) {
             H(0, 0) = x_in[0] / r;
             H(0, 1) = x_in[1] / r;
         }
         MeasJacobian<double, 1, 2> mj;
-        mj.z_pred = z_pred;
+        mj.y_pred = y_pred;
         mj.H = H;
         mj.M = Matrix<1, 1, double>::identity();
         return mj;
     };
 
-    ColVec<1> z = {std::sqrt(1.0 * 1.0 + 1.0 * 1.0)}; // target at (1,1)
+    ColVec<1> y = {std::sqrt(1.0 * 1.0 + 1.0 * 1.0)}; // target at (1,1)
 
-    bool ok = ekf.update(meas_fn, z, ColVec<0>{});
+    bool ok = ekf.update(meas_fn, y, R, ColVec<0>{});
     CHECK(ok);
 
     // Updated state should be closer (in range space) to the measured radius
     const auto& x_hat = ekf.state();
     double      r_est = std::sqrt(x_hat[0] * x_hat[0] + x_hat[1] * x_hat[1]);
-    CHECK(r_est == doctest::Approx(z[0]).epsilon(2e-2));
+    CHECK(r_est == doctest::Approx(y[0]).epsilon(2e-2));
 
     // Covariance should contract after incorporating the measurement
     CHECK(ekf.covariance()(0, 0) < 1.01);
@@ -132,8 +132,8 @@ TEST_CASE("LQG combines LQR and KF") {
 
     LQG lqg = online::lqg(sys, Qlqr, Rlqr, Qkf, Rkf);
 
-    ColVec<1> z = {1.0};
-    bool      ok = lqg.update(z);
+    ColVec<1> y = {1.0};
+    bool      ok = lqg.update(y);
     CHECK(ok);
 
     auto u = lqg.control();
@@ -158,8 +158,8 @@ TEST_CASE("LQG servo (LQI + KF) tracks reference") {
 
     LQGI lqgs = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
 
-    ColVec<1> z = {0.0};
-    lqgs.update(z);
+    ColVec<1> y = {0.0};
+    lqgs.update(y);
 
     ColVec<1> r = {1.0};
     // auto      u = lqgs.control(r);

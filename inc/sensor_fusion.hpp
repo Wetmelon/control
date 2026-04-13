@@ -149,16 +149,16 @@ constexpr void eskf_update_imu(
     eskf.predict(predict_fn, dt);
 
     // 2. Update step: Correct with measurements (standard Kalman update)
-    ColVec<NY, T>      z_pred{};
-    ColVec<NY, T>      z_meas{};
+    ColVec<NY, T>      y_pred{};
+    ColVec<NY, T>      y_meas{};
     Matrix<NY, NDX, T> H = Matrix<NY, NDX, T>::zeros();
 
     size_t idx = 0;
 
     // Accelerometer measurement
     Vec3<T> accel_pred = q_nom.rotate(g_vec);
-    z_pred.template block<3, 1>(idx, 0) = accel_pred;
-    z_meas.template block<3, 1>(idx, 0) = accel_meas;
+    y_pred.template block<3, 1>(idx, 0) = accel_pred;
+    y_meas.template block<3, 1>(idx, 0) = accel_meas;
 
     const Vec3<T>   g_body = q_nom.rotate(g_vec);
     Matrix<3, 2, T> H_accel{};
@@ -173,8 +173,8 @@ constexpr void eskf_update_imu(
 
     // Magnetometer measurement
     const Vec3<T> mag_pred = q_nom.rotate(m_vec);
-    z_pred.template block<3, 1>(idx, 0) = mag_pred;
-    z_meas.template block<3, 1>(idx, 0) = mag_meas;
+    y_pred.template block<3, 1>(idx, 0) = mag_pred;
+    y_meas.template block<3, 1>(idx, 0) = mag_meas;
 
     const Vec3<T>   m_body = q_nom.rotate(m_vec);
     Matrix<3, 2, T> H_mag{};
@@ -188,11 +188,11 @@ constexpr void eskf_update_imu(
 
     Matrix<NY, NY, T> M = Matrix<NY, NY, T>::identity();
 
-    auto meas_fn = [z_pred, H, M]() -> MeasJacobian<T, NY, NDX> {
-        return {z_pred, H, M};
+    auto meas_fn = [y_pred, H, M]() -> MeasJacobian<T, NY, NDX> {
+        return {y_pred, H, M};
     };
 
-    eskf.update(meas_fn, z_meas);
+    eskf.update(meas_fn, y_meas);
 
     // 3. Inject errors into nominal state (Sola's reset step)
     const auto    delta_x = eskf.error_state();
