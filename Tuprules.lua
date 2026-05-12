@@ -11,6 +11,6 @@ end
 CXX =  compiler_path .. tup.getconfig('CONFIG_COMPILER_PREFIX', '') .. 'g++'
 
 WARNINGS = '-Wall -Wextra -Wdouble-promotion'
-CXXFLAGS = '-O3 -std=c++20 -march=native -ffunction-sections -fdata-sections -fconstexpr-ops-limit=100000000'
+CXXFLAGS = '-O3 -std=c++20 -march=native -ffunction-sections -fdata-sections '
 LDFLAGS = '-O3 -march=native -ffunction-sections -fdata-sections -Wl,--gc-sections'
 

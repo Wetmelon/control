@@ -37,7 +37,7 @@ if(CONTROL_BUILD_TESTS)
         libs/json/single_include
     )
     target_compile_options(test_runner PRIVATE
-        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wdouble-promotion -fconstexpr-ops-limit=100000000>
+        $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wdouble-promotion >
         $<$<CXX_COMPILER_ID:MSVC>:/W4 /constexpr:steps100000000>
     )
 
@@ -58,7 +58,7 @@ if(CONTROL_BUILD_EXAMPLES)
             libs/json/single_include
         )
         target_compile_options(${name} PRIVATE
-            $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wdouble-promotion -fconstexpr-ops-limit=100000000>
+            $<$<CXX_COMPILER_ID:GNU,Clang>:-Wall -Wextra -Wdouble-promotion >
             $<$<CXX_COMPILER_ID:MSVC>:/W4 /constexpr:steps100000000>
         )
     endforeach()
