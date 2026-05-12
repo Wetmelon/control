@@ -15,7 +15,7 @@ fmt_sources = {'../libs/fmt/src/format.cc', '../libs/fmt/src/os.cc'}
 objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/fmt/%B.o')
 
 -- Link with g++
-tup.rule(objs, CXX..' '..CXXFLAGS..' '..LDFLAGS..' %f -o %o', 'build/test_runner.exe')
+tup.rule(objs, CXX..' '..CXXFLAGS..' '..LDFLAGS..' -static %f -o %o', 'build/test_runner.exe')
 
 -- Run test executable
 -- tup.frule{inputs = 'build/test_runner.exe', command = './%f', outputs = {}}
