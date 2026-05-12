@@ -456,3 +456,53 @@ TEST_CASE("Kalman design R=0, non-square C (NY=2, NX=4)") {
     CHECK(result.L(3, 0) == doctest::Approx(0.0).epsilon(1e-8));
     CHECK(result.L(3, 1) == doctest::Approx(9.512492197250375e-01).epsilon(1e-8));
 }
+
+TEST_CASE("Kalman design R=0 (NY=1, NX=4)") {
+    StateSpace<4, 1, 1, 4, 1> sys{};
+
+    sys.A = {
+        {1.0000000000000000e+00, 1.2500000000000003e-04, 0.0, 0.0},
+        {0.0, 1.0000000000000000e+00, 0.0, 0.0},
+        {1.2044286656514691e-01, 7.6886479655468900e-06, 8.7955713343485309e-01, 0.0},
+        {7.5633576541031576e-03, 3.2193761045041167e-07, 1.1287950891104376e-01, 8.7955713343485309e-01},
+    };
+
+    sys.B = {
+        {7.8125000000000030e-09},
+        {1.2500000000000003e-04},
+        {3.2375688155733029e-10},
+        {1.0189648978629236e-11},
+    };
+
+    sys.C = {{0.0, 0.0, 2.0, -1.0}};
+
+    sys.G = Matrix<4, 4, double>::identity();
+    sys.H = Matrix<1, 1, double>::identity();
+    sys.Ts = 1.25e-4;
+
+    // Qd from Van Loan discretization of continuous-time noise model
+    Matrix<4, 4> Qd = {
+        {6.5104166666666704e-13, 7.8125000000000046e-09, 3.0287979498172528e-14, 1.0167935310197761e-15},
+        {7.8125000000000030e-09, 1.2500000000000003e-04, 3.2375688155733029e-10, 1.0189648978629238e-11},
+        {3.0287979498172516e-14, 3.2375688155733013e-10, 2.7948205317517660e-10, 1.7167518071887303e-11},
+        {1.0167935310197763e-15, 1.0189648978629233e-11, 1.7167518071887290e-11, 1.4368706442600565e-12},
+    };
+
+    Matrix<1, 1> R_zero = Matrix<1, 1, double>::zeros();
+
+    auto result = online::kalman(sys, Qd, R_zero);
+    REQUIRE(result.success);
+
+    // Kalman gain (4x1): scipy reference
+    CHECK(result.L(0, 0) == doctest::Approx(5.860848699642386e-01).epsilon(1e-4));
+    CHECK(result.L(1, 0) == doctest::Approx(3.213133860108700e+02).epsilon(1e-4));
+    CHECK(result.L(2, 0) == doctest::Approx(5.158533783244187e-01).epsilon(1e-4));
+    CHECK(result.L(3, 0) == doctest::Approx(3.170675664883725e-02).epsilon(1e-4));
+
+    // Covariance P (spot checks on diagonal and key off-diagonals)
+    CHECK(result.P(0, 0) == doctest::Approx(3.1493750780952886e-09).epsilon(1e-4));
+    CHECK(result.P(1, 1) == doctest::Approx(1.8865288001709108e-03).epsilon(1e-4));
+    CHECK(result.P(2, 2) == doctest::Approx(3.2303061178439298e-10).epsilon(1e-4));
+    CHECK(result.P(3, 3) == doctest::Approx(4.6007682900265547e-12).epsilon(1e-4));
+    CHECK(result.P(0, 1) == doctest::Approx(1.7788444152705028e-06).epsilon(1e-4));
+}
