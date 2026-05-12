@@ -294,7 +294,7 @@ TEST_CASE("Kalman design with R=0 (perfect measurements)") {
     CHECK(result.L(0, 1) == doctest::Approx(0.0).epsilon(1e-12));
     CHECK(result.L(1, 0) == doctest::Approx(0.0).epsilon(1e-12));
 
-    // Non-square C with R=0 is unsupported — should return failure
+    // Non-square C with R=0 now works via RDE fallback
     StateSpace<2, 1, 1, 2, 1> sys1d{};
     sys1d.A = {{0.9, 0.1}, {0.0, 0.8}};
     sys1d.B = {{0.0}, {1.0}};
@@ -306,7 +306,7 @@ TEST_CASE("Kalman design with R=0 (perfect measurements)") {
     Matrix<2, 2> Q2 = {{0.01, 0.0}, {0.0, 0.01}};
     Matrix<1, 1> R1_zero = Matrix<1, 1, double>::zeros();
     auto         result1d = online::kalman(sys1d, Q2, R1_zero);
-    CHECK_FALSE(result1d.success);
+    CHECK(result1d.success);
 }
 
 TEST_CASE("Kalman design R!=0, non-square C (NY=2, NX=4)") {

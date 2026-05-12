@@ -383,14 +383,43 @@ TEST_SUITE("DARE: R=0 (Positive Semidefinite R)") {
         CHECK(Pv(1, 1) > 0.0);
     }
 
-    TEST_CASE("dare_unchecked still rejects R=0") {
+    TEST_CASE("DareMethod::SDA rejects R=0") {
         Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
         Matrix<2, 1> B{{0.1}, {0.2}};
         Matrix<2, 2> Q = Matrix<2, 2>::identity();
         Matrix<1, 1> R{{0.0}};
 
-        auto P = dare_unchecked(A, B, Q, R, Matrix<2, 1>{});
+        auto P = dare(A, B, Q, R, Matrix<2, 1>{}, DareMethod::SDA);
         CHECK_FALSE(P.has_value());
+    }
+
+    TEST_CASE("DareMethod::RDE succeeds for R=0") {
+        Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        Matrix<2, 1> B{{0.1}, {0.2}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{0.0}};
+
+        auto P = dare(A, B, Q, R, Matrix<2, 1>{}, DareMethod::RDE);
+        REQUIRE(P.has_value());
+    }
+
+    TEST_CASE("SDA and RDE agree for R>0") {
+        Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        Matrix<2, 1> B{{0.1}, {0.2}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{1.0}};
+
+        auto P_sda = dare(A, B, Q, R, Matrix<2, 1>{}, DareMethod::SDA);
+        auto P_rde = dare(A, B, Q, R, Matrix<2, 1>{}, DareMethod::RDE);
+
+        REQUIRE(P_sda.has_value());
+        REQUIRE(P_rde.has_value());
+
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                CHECK(doctest::Approx(P_sda.value()(i, j)).epsilon(1e-8) == P_rde.value()(i, j));
+            }
+        }
     }
 
     TEST_CASE("dare with R>0 regression (SDA path unchanged)") {
