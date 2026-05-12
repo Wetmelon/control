@@ -27,7 +27,7 @@
 - **output folders**:  Output paths in Tupfiles are relative to the Tupfile location.  E.g. `tests/Tupfile` outputs to `tests/build`, so test_runner is at `tests/build/test_runner.exe`
 
 ## Project-Specific Conventions
-**Constexpr-first design**: All algorithms must work at compile-time; prefer `consteval` for design functions. Heavy matrix operations (e.g., LQR gain computation) are expected to evaluate at compile-time, while simple operations on small matrices may occur at runtime (e.g., single matrix multiplication in a control loop)
+**Constexpr-first design**: All algorithms must support compile-time evaluation; prefer `consteval` for design functions. Treat matrix decompositions/solves, Riccati/LQR/Kalman design steps, eigen-analysis, and full matrix-matrix products as compile-time design work. Runtime use is limited to lightweight controller-loop operations such as one state update, one matrix-vector multiply, and simple scalar arithmetic on already-designed gains.
 **Failure handling**: Return `std::optional<T>` for operations that can fail (matrix inversion, DARE convergence, axis-angle conversion)
 **Dimension safety**: Template constraints prevent invalid operations at compile-time
 **Numerical precision**: Maintain machine precision accuracy for compile-time matrix math, equivalent to SciPy or MATLAB; use `doctest::Approx().epsilon(1e-12)` or appropriate tolerance in tests for double precision
@@ -35,7 +35,8 @@
 **Controller classes**: `LQR<NX,NU,T>`, `LQI<NX,NU,NY,T>`, `LQG<NX,NU,NY,T>`, `LQGI<NX,NU,NY,T>` for runtime use
 **Test organization**: One `.cpp` file per header, descriptive `TEST_CASE` names, mix of unit and integration tests
 
-**Type support**: All matrix and control algorithms must support `float`, `double`, `wet::complex<float>`, `wet::complex<double>`, and their `const` versions. Use type traits to ensure correct overloads and conversions. Always maintain and test for `wet::complex` support in all new features and bugfixes.
+**Priority checklist (must always hold)**:
+- **Type support**: All matrix and control algorithms must support `float`, `double`, `wet::complex<float>`, `wet::complex<double>`, and their `const` versions. Use type traits to ensure correct overloads and conversions. Always maintain and test for `wet::complex` support in all new features and bugfixes.
 
 ## Integration Points and Data Flow
 - **System interconnections**: Block matrix augmentation preserves noise matrices (`G`, `H`) through all operations
@@ -58,5 +59,4 @@
 - **Backards compatibility**: Do *not* maintain backwards compatibility; prefer clarity and correctness.
 
 ## Human Factors
-- **Changlog**: After each prompt, update the `COPILOT_LOG.md` with a 1-2 sentence summary of the change. This helps maintain a clear history of modifications and their rationale.  No need for headers, just use a bullet point for each entry.
 - **Code style**: Follow the existing code style and formatting conventions; use `clang-format` for consistency. This includes naming conventions, indentation, and comment style.  Always use brackets after `if`, `for`, `while`, even for single-line bodies, to prevent bugs and improve readability.

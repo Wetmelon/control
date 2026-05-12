@@ -1,12 +1,14 @@
 .cache
 .tup
+.claude
+
 *.o
 *.exe
+
 build/
 compile_commands.json
 *.log
 tup.config
-docs
 
 examples/servo_drive/servo_sim.dll
 examples/servo_drive.html
