@@ -8,11 +8,11 @@ INCLUDES += '-I../libs/plotlypp/include'
 INCLUDES += '-I../libs/json/single_include'
 
 -- Compile all .cpp files in the tests directory
-objs = tup.foreach_rule('*.cpp', '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/%B.o')
+objs = tup.foreach_rule('*.cpp', '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/objs/%B.o')
 
 -- Compile all fmt source files
 fmt_sources = {'../libs/fmt/src/format.cc', '../libs/fmt/src/os.cc'}
-objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/fmt/%B.o')
+objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/objs/fmt/%B.o')
 
 -- Link with g++
 tup.rule(objs, CXX..' '..CXXFLAGS..' '..LDFLAGS..' -static %f -o %o', 'build/test_runner.exe')
