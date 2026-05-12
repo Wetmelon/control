@@ -334,3 +334,75 @@ TEST_SUITE("Design: Result Type Conversions") {
         CHECK(eskf_f.R(0, 0) > 0.0f);
     }
 }
+
+TEST_SUITE("DARE: R=0 (Positive Semidefinite R)") {
+    TEST_CASE("dare with R=0, scalar system (deadbeat)") {
+        // A=1, B=1, Q=1, R=0 → X = A'XA + Q - A'XB(B'XB)⁻¹B'XA = X - X + 1 = 1
+        Matrix<1, 1> A{{1.0}};
+        Matrix<1, 1> B{{1.0}};
+        Matrix<1, 1> Q{{1.0}};
+        Matrix<1, 1> R{{0.0}};
+
+        auto P = dare(A, B, Q, R);
+        REQUIRE(P.has_value());
+        CHECK(P.value()(0, 0) == doctest::Approx(1.0).epsilon(1e-10));
+    }
+
+    TEST_CASE("dare with R=0, 2x2 system") {
+        // scipy: solve_discrete_are(A.T, B.T, Q, zeros(1,1))
+        // A = [[0.9, 0.1],[0, 0.8]], B = [[0.1],[0.2]], Q = I, R = 0
+        Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        Matrix<2, 1> B{{0.1}, {0.2}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{0.0}};
+
+        auto P = dare(A, B, Q, R);
+        REQUIRE(P.has_value());
+        // Verify DARE residual: A'PA - P - A'PB(B'PB)⁻¹B'PA + Q ≈ 0
+        auto Pv = P.value();
+        auto BtP = B.transpose() * Pv;
+        auto BtPB = BtP * B;
+        auto BtPA = BtP * A;
+        auto residual = A.transpose() * Pv * A - Pv
+                      - A.transpose() * Pv * B * (BtPA * (1.0 / BtPB(0, 0))) + Q;
+        CHECK(residual.norm() < 1e-8);
+    }
+
+    TEST_CASE("dare with diagonal PSD R (partially singular)") {
+        Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        Matrix<2, 2> B{{1.0, 0.0}, {0.0, 1.0}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<2, 2> R{{1.0, 0.0}, {0.0, 0.0}};
+
+        auto P = dare(A, B, Q, R);
+        REQUIRE(P.has_value());
+        // Verify symmetry and positive semidefiniteness
+        auto Pv = P.value();
+        CHECK(Pv(0, 1) == doctest::Approx(Pv(1, 0)).epsilon(1e-10));
+        CHECK(Pv(0, 0) > 0.0);
+        CHECK(Pv(1, 1) > 0.0);
+    }
+
+    TEST_CASE("dare_unchecked still rejects R=0") {
+        Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        Matrix<2, 1> B{{0.1}, {0.2}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{0.0}};
+
+        auto P = dare_unchecked(A, B, Q, R, Matrix<2, 1>{});
+        CHECK_FALSE(P.has_value());
+    }
+
+    TEST_CASE("dare with R>0 regression (SDA path unchanged)") {
+        constexpr Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
+        constexpr Matrix<2, 1> B{{0.1}, {0.2}};
+        constexpr Matrix<2, 2> Q{{1.0, 0.0}, {0.0, 1.0}};
+        constexpr Matrix<1, 1> R{{1.0}};
+
+        constexpr auto P = dare(A, B, Q, R);
+        static_assert(P.has_value());
+        CHECK(doctest::Approx(P.value()(0, 0)).epsilon(1e-6) == 4.201439333611463);
+        CHECK(doctest::Approx(P.value()(0, 1)).epsilon(1e-6) == 0.5954889098912259);
+        CHECK(doctest::Approx(P.value()(1, 1)).epsilon(1e-6) == 2.543807455993601);
+    }
+}

@@ -39,7 +39,7 @@ struct KalmanResult {
 /**
  * @brief Steady-state Kalman filter design (runtime version)
  *
- * Designs optimal steady-state Kalman gain for discrete system: 
+ * Designs optimal steady-state Kalman gain for discrete system:
  * x[k+1] = A*x[k] + B*u[k] + G*w[k]
  * y[k]   = C*x[k] + D*u[k] + H*v[k]
  *
@@ -61,18 +61,35 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.transpose();
     const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.transpose();
 
+    // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
+    const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
+    if (R_eff.norm() < r_eps) {
+        if constexpr (NY == NX) {
+            const auto C_inv = sys.C.inverse();
+            if (C_inv.has_value()) {
+                result.P = Q_eff;
+                result.L = C_inv.value();
+                result.success = true;
+                return result;
+            }
+        }
+    }
+
     // Solve filter DARE: P = A*P*A' + Q_eff - A*P*C'*(C*P*C' + R_eff)^{-1}*C*P*A'
-    // This is equivalent to dare(A', C', Q_eff, R_eff)
+    // dare() handles R ≥ 0 (falls back to RDE iteration when R is singular)
     const auto dare_opt = dare(sys.A.transpose(), sys.C.transpose(), Q_eff, R_eff);
     if (!dare_opt) {
         return result;
     }
     result.P = dare_opt.value();
 
-    // Compute Kalman gain: L = PCᵀS⁻¹ rearranged as L = (S.solve(C * P))ᵀ
-    // S and P are symmetric, so we solve S * Lᵀ = C * P via Cholesky
+    // Compute Kalman gain: L = PCᵀS⁻¹ → solve S Lᵀ = CP
     const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
-    const auto              L_opt = mat::cholesky_solve(S, sys.C * result.P);
+    const Matrix<NY, NX, T> CP = sys.C * result.P;
+    auto                    L_opt = mat::cholesky_solve(S, CP);
+    if (!L_opt) {
+        L_opt = mat::lu_solve(S, CP);
+    }
     if (!L_opt) {
         return result;
     }
@@ -137,18 +154,35 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.transpose();
     const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.transpose();
 
+    // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
+    const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
+    if (R_eff.norm() < r_eps) {
+        if constexpr (NY == NX) {
+            const auto C_inv = sys.C.inverse();
+            if (C_inv.has_value()) {
+                result.P = Q_eff;
+                result.L = C_inv.value();
+                result.success = true;
+                return result;
+            }
+        }
+    }
+
     // Solve filter DARE: P = A*P*A' + Q_eff - A*P*C'*(C*P*C' + R_eff)^{-1}*C*P*A'
-    // This is equivalent to dare(A', C', Q_eff, R_eff)
+    // dare() handles R ≥ 0 (falls back to RDE iteration when R is singular)
     const auto dare_opt = dare(sys.A.transpose(), sys.C.transpose(), Q_eff, R_eff);
     if (!dare_opt) {
         return result;
     }
     result.P = dare_opt.value();
 
-    // Compute Kalman gain: L = PCᵀS⁻¹ rearranged as L = (S.solve(C * P))ᵀ
-    // S and P are symmetric, so we solve S * Lᵀ = C * P via Cholesky
+    // Compute Kalman gain: L = PCᵀS⁻¹ → solve S Lᵀ = CP
     const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
-    const auto              L_opt = mat::cholesky_solve(S, sys.C * result.P);
+    const Matrix<NY, NX, T> CP = sys.C * result.P;
+    auto                    L_opt = mat::cholesky_solve(S, CP);
+    if (!L_opt) {
+        L_opt = mat::lu_solve(S, CP);
+    }
     if (!L_opt) {
         return result;
     }

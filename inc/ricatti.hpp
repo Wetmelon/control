@@ -453,15 +453,148 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_unchecked(
 }
 
 /**
+ * @brief Solve DARE via Riccati Difference Equation iteration — handles R ≥ 0
+ *
+ * Iterates X_{k+1} = AᵀX_kA + Q − AᵀX_kB(R + BᵀX_kB)⁻¹BᵀX_kA until convergence.
+ * Only requires (R + BᵀXB) to be invertible, so R = 0 is valid.
+ * Linear convergence (vs quadratic for SDA). No precondition checks.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of control inputs
+ * @tparam T  Scalar type (default: double)
+ * @param A   State transition matrix (NX × NX)
+ * @param B   Control input matrix (NX × NU)
+ * @param Q   State cost matrix (NX × NX, positive semidefinite)
+ * @param R   Control cost matrix (NU × NU, positive semidefinite)
+ * @param N   Cross-term cost matrix (NX × NU, optional). Must be zero when R is singular.
+ *
+ * @return Solution matrix P or std::nullopt on convergence failure
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    //! Handle cross-term N by reducing to standard form (requires R invertible)
+    Matrix<NX, NX, T> A_eff = A;
+    Matrix<NX, NX, T> Q_eff = Q;
+
+    bool n_is_zero = true;
+    for (size_t i = 0; i < NX && n_is_zero; ++i) {
+        for (size_t j = 0; j < NU; ++j) {
+            if (wet::abs(N(i, j)) > T{1e-15}) {
+                n_is_zero = false;
+                break;
+            }
+        }
+    }
+
+    if (!n_is_zero) {
+        const auto R_inv_Nt_opt = mat::lu_solve(R, N.transpose());
+        if (!R_inv_Nt_opt) {
+            return std::nullopt; // singular R with non-zero N is unsupported
+        }
+        const Matrix R_inv_Nt = R_inv_Nt_opt.value();
+        A_eff = A - B * R_inv_Nt;
+        Q_eff = Q - N * R_inv_Nt;
+    }
+
+    //! Riccati Difference Equation iteration
+    Matrix<NX, NX, T> X = Q_eff;
+    const T           tol = T{1e-12};
+    const int         max_iter = 500;
+    const T           guard = T{1e150};
+
+    bool converged = false;
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        const Matrix BtX = B.transpose() * X;
+        const Matrix BtXA = BtX * A_eff;
+        const Matrix S = R + BtX * B;
+
+        const auto M_opt = mat::lu_solve(S, BtXA);
+        if (!M_opt) {
+            //! First-iteration kick: if S = R + B'QB is singular, try X₀ = Q + αI
+            if (iter == 0) {
+                T trace_q = T{0};
+                for (size_t i = 0; i < NX; ++i) {
+                    trace_q += wet::abs(Q_eff(i, i));
+                }
+                X = Q_eff + Matrix<NX, NX, T>::identity() * (trace_q / T(NX) + T{1});
+                continue;
+            }
+            return std::nullopt;
+        }
+        const Matrix M = M_opt.value();
+
+        const Matrix X_next = A_eff.transpose() * X * A_eff + Q_eff
+                            - A_eff.transpose() * X * B * M;
+
+        //! Divergence guard (matches dlyap pattern)
+        bool diverged = false;
+        for (size_t i = 0; i < NX && !diverged; ++i) {
+            for (size_t j = 0; j < NX; ++j) {
+                if (!std::isfinite(X_next(i, j)) || wet::abs(X_next(i, j)) > guard) {
+                    diverged = true;
+                    break;
+                }
+            }
+        }
+        if (diverged) {
+            return std::nullopt;
+        }
+
+        //! Convergence check (Frobenius norm with guard clamping)
+        T diff_norm_sq = T{0};
+        T x_norm_sq = T{0};
+        for (size_t i = 0; i < NX; ++i) {
+            for (size_t j = 0; j < NX; ++j) {
+                T diff = X_next(i, j) - X(i, j);
+                if (diff > guard)
+                    diff = guard;
+                else if (diff < -guard)
+                    diff = -guard;
+                diff_norm_sq += diff * diff;
+
+                T xval = X_next(i, j);
+                if (xval > guard)
+                    xval = guard;
+                else if (xval < -guard)
+                    xval = -guard;
+                x_norm_sq += xval * xval;
+            }
+        }
+
+        X = X_next;
+
+        if (wet::sqrt(diff_norm_sq) < tol * std::max(T{1}, wet::sqrt(x_norm_sq))) {
+            converged = true;
+            break;
+        }
+    }
+
+    if (!converged) {
+        return std::nullopt;
+    }
+
+    return (X + X.transpose()) * T{0.5};
+}
+
+/**
  * @brief Solve Discrete Algebraic Riccati Equation (DARE) — with full precondition checks
  *
- * Solves AᵀXA − X − AᵀXB(R + BᵀXB)⁻¹BᵀXA + Q = 0 using the
- * Structure-preserving Doubling Algorithm (SDA).
+ * Solves AᵀXA − X − AᵀXB(R + BᵀXB)⁻¹BᵀXA + Q = 0.
+ * Uses SDA (quadratic convergence) when R is positive definite,
+ * falls back to Riccati Difference Equation iteration (linear convergence)
+ * when R is positive semidefinite (including R = 0).
  *
  * Preconditions checked:
  * - Q is symmetric
  * - R is symmetric
- * - R is positive definite (via Cholesky — fails on zero/negative pivot)
+ * - R is positive semidefinite (via Cholesky of R + εI)
  * - Q is positive semidefinite (via Cholesky of Q + εI)
  * - (A, B) is stabilizable (unstable eigenvalues must be controllable)
  *
@@ -473,7 +606,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_unchecked(
  * @param A   State transition matrix (NX × NX)
  * @param B   Control input matrix (NX × NU)
  * @param Q   State cost matrix (NX × NX, positive semidefinite)
- * @param R   Control cost matrix (NU × NU, positive definite)
+ * @param R   Control cost matrix (NU × NU, positive semidefinite)
  * @param N   Cross-term cost matrix (NX × NU, optional)
  *
  * @return Solution matrix P (NX × NX, positive semidefinite) or std::nullopt on failure
@@ -491,11 +624,6 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
         return std::nullopt;
     }
 
-    //! Check R is positive definite via Cholesky (fails on zero/negative pivot)
-    if (!mat::cholesky(R)) {
-        return std::nullopt;
-    }
-
     //! Check Q is symmetric
     if (!mat::is_symmetric_or_hermitian(Q)) {
         return std::nullopt;
@@ -504,8 +632,8 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
     //! Check Q is positive semidefinite via Cholesky of (Q + εI)
     //! If Q is PSD, Q + εI is PD for any ε > 0, so Cholesky succeeds.
     //! If Q has a negative eigenvalue, Q + εI will still fail for small ε.
+    const T eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
     {
-        const T                 eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
         const Matrix<NX, NX, T> Q_shifted = Q + Matrix<NX, NX, T>::identity() * eps;
         if (!mat::cholesky(Q_shifted)) {
             return std::nullopt;
@@ -517,7 +645,21 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
         return std::nullopt;
     }
 
-    return dare_unchecked(A, B, Q, R, N);
+    //! R positive definite → SDA (quadratic convergence)
+    if (mat::cholesky(R)) {
+        return dare_unchecked(A, B, Q, R, N);
+    }
+
+    //! R not PD — check it is at least positive semidefinite
+    {
+        const Matrix<NU, NU, T> R_shifted = R + Matrix<NU, NU, T>::identity() * eps;
+        if (!mat::cholesky(R_shifted)) {
+            return std::nullopt;
+        }
+    }
+
+    //! R is PSD but singular → RDE iteration (linear convergence)
+    return dare_rde(A, B, Q, R, N);
 }
 
 /**
