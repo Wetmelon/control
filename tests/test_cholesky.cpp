@@ -445,4 +445,84 @@ TEST_SUITE("cholesky") {
         // We can't access .value() in constexpr context for static_assert,
         // but we can verify the function compiles
     }
+
+    TEST_CASE("Triangular solve - lower triangular 3x3") {
+        // L * x = b  →  x = [1, 2, 3]
+        // L = [[2,0,0],[1,3,0],[4,2,5]], b = L * [1,2,3]
+        Matrix<3, 3, double> A = {{2.0, 0.0, 0.0}, {1.0, 3.0, 0.0}, {4.0, 2.0, 5.0}};
+        Matrix<3, 1, double> B = {{2.0}, {7.0}, {23.0}};
+
+        auto L = A.lower_triangle();
+        auto X_opt = solve(L, B);
+        REQUIRE(X_opt.has_value());
+
+        const auto& X = X_opt.value();
+        CHECK(X(0, 0) == doctest::Approx(1.0));
+        CHECK(X(1, 0) == doctest::Approx(2.0));
+        CHECK(X(2, 0) == doctest::Approx(3.0));
+
+        // Verify L * X = B
+        auto LX = A * X;
+        CHECK(LX(0, 0) == doctest::Approx(B(0, 0)));
+        CHECK(LX(1, 0) == doctest::Approx(B(1, 0)));
+        CHECK(LX(2, 0) == doctest::Approx(B(2, 0)));
+    }
+
+    TEST_CASE("Triangular solve - upper triangular 3x3") {
+        // U * x = b  →  x = [1, 2, 3]
+        // U = [[2,1,4],[0,3,2],[0,0,5]], b = U * [1,2,3]
+        Matrix<3, 3, double> A = {{2.0, 1.0, 4.0}, {0.0, 3.0, 2.0}, {0.0, 0.0, 5.0}};
+        Matrix<3, 1, double> B = {{16.0}, {12.0}, {15.0}};
+
+        auto U = A.upper_triangle();
+        auto X_opt = solve(U, B);
+        REQUIRE(X_opt.has_value());
+
+        const auto& X = X_opt.value();
+        CHECK(X(0, 0) == doctest::Approx(1.0));
+        CHECK(X(1, 0) == doctest::Approx(2.0));
+        CHECK(X(2, 0) == doctest::Approx(3.0));
+
+        // Verify U * X = B
+        auto UX = A * X;
+        CHECK(UX(0, 0) == doctest::Approx(B(0, 0)));
+        CHECK(UX(1, 0) == doctest::Approx(B(1, 0)));
+        CHECK(UX(2, 0) == doctest::Approx(B(2, 0)));
+    }
+
+    TEST_CASE("Triangular solve - singular lower triangular") {
+        Matrix<2, 2, double> A = {{0.0, 0.0}, {1.0, 2.0}}; // zero on diagonal
+        Matrix<2, 1, double> B = {{1.0}, {3.0}};
+
+        auto L = A.lower_triangle();
+        auto X_opt = solve(L, B);
+        CHECK(!X_opt.has_value());
+    }
+
+    TEST_CASE("Triangular solve - singular upper triangular") {
+        Matrix<2, 2, double> A = {{1.0, 2.0}, {0.0, 0.0}}; // zero on diagonal
+        Matrix<2, 1, double> B = {{3.0}, {0.0}};
+
+        auto U = A.upper_triangle();
+        auto X_opt = solve(U, B);
+        CHECK(!X_opt.has_value());
+    }
+
+    TEST_CASE("Triangular solve - constexpr lower triangular") {
+        static constexpr Matrix<2, 2, double> A = {{2.0, 0.0}, {1.0, 3.0}};
+        static constexpr Matrix<2, 1, double> B = {{4.0}, {7.0}};
+
+        constexpr auto L = A.lower_triangle();
+        constexpr auto X_opt = solve(L, B);
+        static_assert(X_opt.has_value(), "Lower triangular solve should succeed at compile time");
+    }
+
+    TEST_CASE("Triangular solve - constexpr upper triangular") {
+        static constexpr Matrix<2, 2, double> A = {{2.0, 1.0}, {0.0, 3.0}};
+        static constexpr Matrix<2, 1, double> B = {{5.0}, {6.0}};
+
+        constexpr auto U = A.upper_triangle();
+        constexpr auto X_opt = solve(U, B);
+        static_assert(X_opt.has_value(), "Upper triangular solve should succeed at compile time");
+    }
 }

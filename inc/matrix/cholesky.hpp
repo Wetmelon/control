@@ -146,6 +146,78 @@ constexpr ColVec<N, T> backward_substitute_upper(const Matrix<N, N, T>& U, const
 }
 
 /**
+ * @brief Solve lower-triangular system L * X = B via forward substitution
+ *
+ * Requires that L is a non-singular lower-triangular matrix (all diagonal
+ * elements non-zero). Returns std::nullopt if any diagonal element is zero.
+ */
+template<size_t N, size_t M, typename T>
+constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
+solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& B) {
+    using VT     = std::remove_const_t<T>;
+    using real_t = decltype(wet::abs(VT{}));
+    constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
+
+    Matrix<N, M, VT> X;
+    for (size_t col = 0; col < M; ++col) {
+        ColVec<N, VT> b;
+        for (size_t i = 0; i < N; ++i)
+            b(i) = B(i, col);
+
+        ColVec<N, VT> x;
+        for (size_t i = 0; i < N; ++i) {
+            if (wet::abs(L(i, i)) < tol) {
+                return std::nullopt;
+            }
+            VT sum = b(i);
+            for (size_t j = 0; j < i; ++j)
+                sum -= L(i, j) * x(j);
+            x(i) = sum / L(i, i);
+        }
+
+        for (size_t i = 0; i < N; ++i)
+            X(i, col) = x(i);
+    }
+    return X;
+}
+
+/**
+ * @brief Solve upper-triangular system U * X = B via backward substitution
+ *
+ * Requires that U is a non-singular upper-triangular matrix (all diagonal
+ * elements non-zero). Returns std::nullopt if any diagonal element is zero.
+ */
+template<size_t N, size_t M, typename T>
+constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
+solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& B) {
+    using VT     = std::remove_const_t<T>;
+    using real_t = decltype(wet::abs(VT{}));
+    constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
+
+    Matrix<N, M, VT> X;
+    for (size_t col = 0; col < M; ++col) {
+        ColVec<N, VT> b;
+        for (size_t i = 0; i < N; ++i)
+            b(i) = B(i, col);
+
+        ColVec<N, VT> x;
+        for (int i = int(N) - 1; i >= 0; --i) {
+            if (wet::abs(U(size_t(i), size_t(i))) < tol) {
+                return std::nullopt;
+            }
+            VT sum = b(i);
+            for (size_t j = size_t(i) + 1; j < N; ++j)
+                sum -= U(size_t(i), j) * x(j);
+            x(i) = sum / U(size_t(i), size_t(i));
+        }
+
+        for (size_t i = 0; i < N; ++i)
+            X(i, col) = x(i);
+    }
+    return X;
+}
+
+/**
  * @brief Solve linear system A * X = B using Cholesky decomposition
  */
 template<size_t N, size_t M, typename T>
@@ -154,22 +226,16 @@ constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A
     if (!Lopt)
         return std::nullopt;
 
-    const auto&     L = Lopt.value();
-    Matrix<N, M, T> X;
+    const auto& L = Lopt.value();
 
-    for (size_t col = 0; col < M; ++col) {
-        ColVec<N, T> b;
-        for (size_t i = 0; i < N; ++i)
-            b(i) = B(i, col);
+    // Forward substitution: solve L * Y = B
+    auto Y_opt = solve(L.lower_triangle(), B);
+    if (!Y_opt)
+        return std::nullopt;
 
-        auto y = forward_substitute(L, b);
-        auto x = backward_substitute_transpose(L, y);
-
-        for (size_t i = 0; i < N; ++i)
-            X(i, col) = x(i);
-    }
-
-    return X;
+    // Backward substitution: solve L^T * X = Y
+    const auto Lt = L.transpose();
+    return solve(Lt.upper_triangle(), Y_opt.value());
 }
 
 /**
@@ -240,21 +306,20 @@ constexpr std::optional<Matrix<N, M, T>> lu_solve(const Matrix<N, N, T>& A, cons
         return std::nullopt;
 
     const auto& [L, U, piv] = lu_opt.value();
-    Matrix<N, M, T> X;
 
-    for (size_t col = 0; col < M; ++col) {
-        ColVec<N, T> b_permuted;
-        for (size_t r = 0; r < N; ++r)
-            b_permuted(r) = B(piv[r], col);
+    // Apply row permutation to B
+    Matrix<N, M, T> B_perm;
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < M; ++c)
+            B_perm(r, c) = B(piv[r], c);
 
-        auto y = forward_substitute(L, b_permuted);
-        auto x = backward_substitute_upper(U, y);
+    // Forward substitution: solve L * Y = P*B
+    auto Y_opt = solve(L.lower_triangle(), B_perm);
+    if (!Y_opt)
+        return std::nullopt;
 
-        for (size_t r = 0; r < N; ++r)
-            X(r, col) = x(r);
-    }
-
-    return X;
+    // Backward substitution: solve U * X = Y
+    return solve(U.upper_triangle(), Y_opt.value());
 }
 
 /**

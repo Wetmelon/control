@@ -7,6 +7,7 @@
 #include <initializer_list>
 #include <optional>
 #include <type_traits>
+#include <utility>
 
 #include "constexpr_complex.hpp"
 #include "constexpr_math.hpp"
@@ -80,9 +81,23 @@ public:
 
     /**
      * @brief Copy constructor and assignment operator
+     *
+     * Uses index_sequence fold expression so that individual element assignments
+     * are visible at constant offsets in the AST before GCC's SRA pass runs,
+     * enabling full scalar replacement of local Matrix variables.
      */
-    constexpr Matrix(const Matrix&) = default;
-    constexpr Matrix& operator=(const Matrix&) = default;
+    constexpr Matrix(const Matrix& other) {
+        [&]<size_t... I>(std::index_sequence<I...>) {
+            ((data_[I] = other.data_[I]), ...);
+        }(std::make_index_sequence<Rows * Cols>{});
+    }
+
+    constexpr Matrix& operator=(const Matrix& other) {
+        [&]<size_t... I>(std::index_sequence<I...>) {
+            ((data_[I] = other.data_[I]), ...);
+        }(std::make_index_sequence<Rows * Cols>{});
+        return *this;
+    }
 
     /**
      * @brief Move constructor and assignment operator
@@ -425,17 +440,17 @@ public:
      * @brief Element access operator
      * @param row Row index
      * @param col Column index
+     * @return Value of element at (row, col)
+     */
+    constexpr T operator()(size_t row, size_t col) const { return data_[row * Cols + col]; }
+
+    /**
+     * @brief Element access operator
+     * @param row Row index
+     * @param col Column index
      * @return Reference to element at (row, col)
      */
     constexpr T& operator()(size_t row, size_t col) { return data_[row * Cols + col]; }
-
-    /**
-     * @brief Element access operator (const)
-     * @param row Row index
-     * @param col Column index
-     * @return Const reference to element at (row, col)
-     */
-    constexpr const T& operator()(size_t row, size_t col) const { return data_[row * Cols + col]; }
 
     /**
      * @brief Equality comparison operator
@@ -483,8 +498,6 @@ public:
         }
         return *this;
     }
-
-
 
     /**
      * @brief In-place addition with scalar
@@ -829,12 +842,11 @@ template<MatrixLike A, MatrixLike B>
     using T = typename A::value_type;
     Matrix<A::rows(), B::cols(), T> result;
     for (size_t i = 0; i < A::rows(); ++i) {
-        for (size_t j = 0; j < B::cols(); ++j) {
-            T sum = T{0};
-            for (size_t k = 0; k < A::cols(); ++k) {
-                sum += static_cast<T>(a(i, k)) * static_cast<T>(b(k, j));
+        for (size_t k = 0; k < A::cols(); ++k) {
+            T aik = static_cast<T>(a(i, k));
+            for (size_t j = 0; j < B::cols(); ++j) {
+                result(i, j) += aik * static_cast<T>(b(k, j));
             }
-            result(i, j) = sum;
         }
     }
     return result;
