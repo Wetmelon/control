@@ -246,7 +246,6 @@ template<size_t N, size_t Cols, typename T, typename U>
     return result;
 }
 
-
 // Deduce RowVec<N, T> from variadic constructor arguments, e.g. RowVec vec{1.0f, 2.0f, 3.0f};
 // Integer literals deduce to double
 template<typename T, typename... Args>

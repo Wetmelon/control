@@ -86,24 +86,30 @@ template<typename T, size_t N>
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr T two_norm(const Matrix<N, N, T>& A) {
-    constexpr T tol = default_tol<T>();
+    constexpr T      tol = default_tol<T>();
     constexpr size_t max_iter = 100;
 
     Matrix<N, N, T> AtA = A.transpose() * A;
 
     // Initial vector: all ones, then normalize
     ColVec<N, T> v;
-    for (size_t i = 0; i < N; ++i) v[i] = T{1};
+    for (size_t i = 0; i < N; ++i) {
+        v[i] = T{1};
+    }
+
     {
         auto n = v.norm();
-        if (n > tol) v = v * (T{1} / n);
+        if (n > tol) {
+            v = v * (T{1} / n);
+        }
     }
 
     T lambda = T{0};
     for (size_t iter = 0; iter < max_iter; ++iter) {
         ColVec<N, T> w = AtA * v;
-        T new_lambda = w.norm();
-        if (new_lambda < tol) return T{0};
+        T            new_lambda = w.norm();
+        if (new_lambda < tol)
+            return T{0};
 
         v = w * (T{1} / new_lambda);
 
@@ -133,36 +139,42 @@ template<typename T, size_t N>
              - A(0, 1) * (A(1, 0) * A(2, 2) - A(1, 2) * A(2, 0))
              + A(0, 2) * (A(1, 0) * A(2, 1) - A(1, 1) * A(2, 0));
     } else if constexpr (N == 4) {
-        T d = A(0,0) * det(Matrix<3,3,T>{
-            {A(1,1), A(1,2), A(1,3)},
-            {A(2,1), A(2,2), A(2,3)},
-            {A(3,1), A(3,2), A(3,3)}
-        });
-        d -= A(0,1) * det(Matrix<3,3,T>{
-            {A(1,0), A(1,2), A(1,3)},
-            {A(2,0), A(2,2), A(2,3)},
-            {A(3,0), A(3,2), A(3,3)}
-        });
-        d += A(0,2) * det(Matrix<3,3,T>{
-            {A(1,0), A(1,1), A(1,3)},
-            {A(2,0), A(2,1), A(2,3)},
-            {A(3,0), A(3,1), A(3,3)}
-        });
-        d -= A(0,3) * det(Matrix<3,3,T>{
-            {A(1,0), A(1,1), A(1,2)},
-            {A(2,0), A(2,1), A(2,2)},
-            {A(3,0), A(3,1), A(3,2)}
-        });
+        T d = A(0, 0) * det(Matrix<3, 3, T>{
+                  {A(1, 1), A(1, 2), A(1, 3)},
+                  {A(2, 1), A(2, 2), A(2, 3)},
+                  {A(3, 1), A(3, 2), A(3, 3)},
+              });
+
+        d -= A(0, 1) * det(Matrix<3, 3, T>{
+                 {A(1, 0), A(1, 2), A(1, 3)},
+                 {A(2, 0), A(2, 2), A(2, 3)},
+                 {A(3, 0), A(3, 2), A(3, 3)},
+             });
+
+        d += A(0, 2) * det(Matrix<3, 3, T>{
+                 {A(1, 0), A(1, 1), A(1, 3)},
+                 {A(2, 0), A(2, 1), A(2, 3)},
+                 {A(3, 0), A(3, 1), A(3, 3)},
+             });
+
+        d -= A(0, 3) * det(Matrix<3, 3, T>{
+                 {A(1, 0), A(1, 1), A(1, 2)},
+                 {A(2, 0), A(2, 1), A(2, 2)},
+                 {A(3, 0), A(3, 1), A(3, 2)},
+             });
+
         return d;
     } else {
         // General case: det(A) = det(P) * det(L) * det(U) = sign * product(U_ii)
         auto lu = lu_decomposition(A);
-        if (!lu) return T{0}; // singular
+        if (!lu) {
+            return T{0}; // singular
+        }
 
         const auto& [L, U, piv] = lu.value();
 
         // Compute sign from permutation parity
-        auto p = piv;
+        auto   p = piv;
         size_t swaps = 0;
         for (size_t i = 0; i < N; ++i) {
             while (p[i] != i) {
@@ -260,11 +272,11 @@ template<typename T, size_t N>
         Matrix A5 = A4 * A;
         Matrix A6 = A5 * A;
         return I + A
-            + A2 * (T{1} / T{2})
-            + A3 * (T{1} / T{6})
-            + A4 * (T{1} / T{24})
-            + A5 * (T{1} / T{120})
-            + A6 * (T{1} / T{720});
+             + A2 * (T{1} / T{2})
+             + A3 * (T{1} / T{6})
+             + A4 * (T{1} / T{24})
+             + A5 * (T{1} / T{120})
+             + A6 * (T{1} / T{720});
     }
 
     // 2️⃣ Scaling for Pade13
@@ -538,7 +550,7 @@ template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> pow(const Matrix<N, N, T>& A, T p) {
     // Check for integer case (constexpr-safe, no std::modf)
     int p_int = static_cast<int>(p);
-    T p_frac = p - static_cast<T>(p_int);
+    T   p_frac = p - static_cast<T>(p_int);
     if (wet::abs(p_frac) < default_tol<T>()) {
         return pow(A, p_int);
     }

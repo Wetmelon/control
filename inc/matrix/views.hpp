@@ -119,7 +119,7 @@ public:
         return static_cast<const T&>(mat_ptr->data()[r * N + c]);
     }
 
-    [[nodiscard]] constexpr auto* data() { return detail::view_data<is_const>(mat_ptr->data()); }
+    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data()); }
     [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data(); }
     [[nodiscard]] static constexpr size_t rows() { return N; }
     [[nodiscard]] static constexpr size_t cols() { return N; }
@@ -158,7 +158,7 @@ public:
         return static_cast<const T&>(mat_ptr->data()[r * N + c]);
     }
 
-    [[nodiscard]] constexpr auto* data() { return detail::view_data<is_const>(mat_ptr->data()); }
+    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data()); }
     [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data(); }
     [[nodiscard]] static constexpr size_t rows() { return N; }
     [[nodiscard]] static constexpr size_t cols() { return N; }
@@ -200,7 +200,7 @@ public:
         return operator()(c);
     }
 
-    [[nodiscard]] constexpr auto* data() { return detail::view_data<is_const>(mat_ptr->data() + row_index * Cols); }
+    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data() + row_index * Cols); }
     typedef std::remove_const_t<T>        value_type;
     [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data() + row_index * Cols; }
     [[nodiscard]] static constexpr size_t size() { return Cols; }
@@ -267,7 +267,7 @@ public:
         return operator()(r);
     }
 
-    [[nodiscard]] constexpr auto* data() { return detail::view_data<is_const>(mat_ptr->data() + col_index); }
+    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data() + col_index); }
     typedef std::remove_const_t<T>        value_type;
     [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data() + col_index; }
     [[nodiscard]] static constexpr size_t size() { return Rows; }

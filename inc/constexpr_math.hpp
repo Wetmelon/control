@@ -246,15 +246,21 @@ constexpr T sin(T x) {
 }
 
 /**
- * @brief Compute tangent using continued fraction (constexpr)
+ * @brief Compute tangent via continued fraction (constexpr)
  *
- * Uses range reduction to [-π/2, π/2] followed by a continued fraction
- * expansion that avoids the numerical instability of sin(x)/cos(x) near
- * odd multiples of π/2.
+ * Reduces x to r ∈ [-π/2, π/2], then evaluates:
+ *
+ *     tan(r) = r / (1 − r² / (3 − r² / (5 − r² / (7 − ⋯))))
+ *
+ * using bottom-up (backward) recurrence. For |r| close to π/2 where the
+ * continued fraction converges slowly, uses the identity
+ * tan(r) = −1/tan(π/2 − r) with the complementary angle.
+ *
+ * @note Equivalent to MATLAB's tan(x).
+ * @see Cuyt et al., "Handbook of Continued Fractions for Special Functions" (2008), §12.1
  *
  * @tparam T Numeric type (floating-point)
  * @param x  Angle in radians
- *
  * @return tan(x)
  */
 template<typename T>
@@ -263,39 +269,42 @@ constexpr T tan(T x) {
         return std::tan(x);
     }
     constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T half_pi = pi / T{2};
 
-    // Reduce to [-π/2, π/2]
-    // Compute k = round(x / π)
+    // Reduce to r ∈ [-π/2, π/2] via k = round(x / π)
     T   k_real = x / pi;
     int k = static_cast<int>(k_real >= T{0} ? k_real + T{0.5} : k_real - T{0.5});
-    T   r = x - static_cast<T>(k) * pi; // r ∈ [-π/2, π/2]
+    T   r = x - static_cast<T>(k) * pi;
 
-    // Taylor series for tan(r), valid for |r| < π/2
-    // tan(x) = x + x³/3 + 2x⁵/15 + 17x⁷/315 + 62x⁹/2835 + ...
-    // Using Bernoulli number coefficients via Horner-like accumulation
-    T x2 = r * r;
-    T result = r;
-    T term = r;
+    // Near ±π/2 the continued fraction converges slowly.
+    // Use tan(r) = −1/tan(π/2 − r) to work with the complementary angle.
+    T abs_r = r >= T{0} ? r : -r;
+    if (abs_r > T{1.2}) {
+        T comp = half_pi - abs_r;
+        // Evaluate tan(comp) via continued fraction (comp is small here)
+        constexpr int N = 20;
 
-    // Coefficients: 1/3, 2/15, 17/315, 62/2835, 1382/155925, 21844/6081075, ...
-    constexpr T coeffs[] = {
-        T{1} / T{3},
-        T{2} / T{15},
-        T{17} / T{315},
-        T{62} / T{2835},
-        T{1382} / T{155925},
-        T{21844} / T{6081075},
-        T{929569} / T{638512875},
-        T{6404582} / T{10854718875},
-        T{443861162} / T{1856156927625},
-    };
-
-    for (size_t i = 0; i < sizeof(coeffs) / sizeof(coeffs[0]); ++i) {
-        term *= x2;
-        result += coeffs[i] * term;
+        T x2 = comp * comp;
+        T cf = T(2 * N + 1);
+        for (int i = N - 1; i >= 0; --i) {
+            cf = T(2 * i + 1) - x2 / cf;
+        }
+        T tan_comp = comp / cf;
+        T result = -T{1} / tan_comp;
+        return r >= T{0} ? result : -result;
     }
 
-    return result;
+    // Continued fraction: tan(r) = r / (1 − r²/(3 − r²/(5 − ⋯)))
+    // Evaluate bottom-up from depth N
+    constexpr int N = 20;
+
+    T x2 = r * r;
+    T cf = T(2 * N + 1);
+    for (int i = N - 1; i >= 0; --i) {
+        cf = T(2 * i + 1) - x2 / cf;
+    }
+
+    return r / cf;
 }
 
 /**

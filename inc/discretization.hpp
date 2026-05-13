@@ -144,16 +144,21 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @brief Discretize a continuous-time state-space system using Tustin method
  *
  * Tustin (Bilinear Transform) implementation
- *    Maps: `s -> (2/Ts) * (z - 1) / (z + 1)`
- *    For A, B, C, D matrices (let M = (I - A*Ts/2)⁻¹):
- *      `A_d = M * (I + A*Ts/2)`
- *      `B_d = Ts * M * B`
- *      `C_d = C * M`
- *      `D_d = D + (Ts/2) * C * M * B`
+ *    Maps: s → (2/Ts) · (z − 1) / (z + 1)
+ *
+ *    Let L = (I − A·Ts/2). All results are computed via LU solve
+ *    against L rather than forming L⁻¹ explicitly:
+ *      A_d:  solve L · A_d = (I + A·Ts/2)
+ *      B_d:  solve L · X = B,  then B_d = Ts · X
+ *      C_d:  solve Lᵀ · X = Cᵀ, then C_d = Xᵀ
+ *      D_d = D + (Ts/2) · C_d · B
+ *
+ * @note Equivalent to MATLAB's c2d(sys, Ts, 'tustin').
+ * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), §8.6
  *
  * @param sys             Continuous-time state-space model
  * @param sampling_time   Desired sampling period for discrete system
- * @return constexpr StateSpace<NX, NU, NY, NW, NV, T>
+ * @return Discretized state-space system
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_tustin_impl(
@@ -162,31 +167,38 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     const T      ts_half = sampling_time / T{2};
     const Matrix I = Matrix<NX, NX, T>::identity();
+    const Matrix L = I - sys.A * ts_half;
 
-    //! Compute M = (I - A*Ts/2)⁻¹
-    const Matrix I_minus_A_ts2 = I - sys.A * ts_half;
-    const auto   M = I_minus_A_ts2.inverse();
-
-    if (!M) {
-        //! Fallback to ZOH if Tustin matrix is singular
+    //! A_d: solve L · A_d = (I + A·Ts/2)
+    const auto A_d_opt = mat::lu_solve(L, I + sys.A * ts_half);
+    if (!A_d_opt) {
         return discretize_zoh_impl(sys, sampling_time);
     }
+    const Matrix A_d = A_d_opt.value();
 
-    //! A_d = M * (I + A*Ts/2)
-    const Matrix I_plus_A_ts2 = I + sys.A * ts_half;
-    const Matrix A_d = M.value() * I_plus_A_ts2;
+    //! B_d: solve L · X = B, then B_d = Ts · X
+    const auto B_d_opt = mat::lu_solve(L, sys.B);
+    if (!B_d_opt) {
+        return discretize_zoh_impl(sys, sampling_time);
+    }
+    const Matrix B_d = B_d_opt.value() * sampling_time;
 
-    //! B_d = Ts * M * B
-    const Matrix B_d = M.value() * sys.B * sampling_time;
+    //! C_d = C · L⁻¹ → solve Lᵀ · X = Cᵀ, then C_d = Xᵀ
+    const auto C_d_t_opt = mat::lu_solve(L.transpose(), sys.C.transpose());
+    if (!C_d_t_opt) {
+        return discretize_zoh_impl(sys, sampling_time);
+    }
+    const Matrix C_d = C_d_t_opt.value().transpose();
 
-    //! C_d = C * M
-    const Matrix C_d = sys.C * M.value();
-
-    //! D_d = D + (Ts/2) * C_d * B  (where C_d already contains M)
+    //! D_d = D + (Ts/2) · C_d · B
     const Matrix D_d = sys.D + C_d * sys.B * ts_half;
 
-    //! Noise input: G_d = Ts * M * G  (same transformation as B)
-    const Matrix G_d = M.value() * sys.G * sampling_time;
+    //! G_d: solve L · X = G, then G_d = Ts · X (same transform as B)
+    const auto G_d_opt = mat::lu_solve(L, sys.G);
+    if (!G_d_opt) {
+        return discretize_zoh_impl(sys, sampling_time);
+    }
+    const Matrix G_d = G_d_opt.value() * sampling_time;
     const Matrix H_d = sys.H;
 
     return StateSpace{A_d, B_d, C_d, D_d, G_d, H_d, sampling_time};

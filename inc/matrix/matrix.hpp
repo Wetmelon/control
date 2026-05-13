@@ -545,8 +545,9 @@ public:
     }
 
     /**
-     * @brief Matrix transpose
+     * @brief Matrix transpose (concrete copy)
      * @return Transposed matrix (Cols × Rows)
+     * @see t() for a zero-copy TransposeView
      */
     [[nodiscard]] constexpr Matrix<Cols, Rows, T> transpose() const {
         Matrix<Cols, Rows, T> result;

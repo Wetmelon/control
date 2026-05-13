@@ -156,6 +156,42 @@ TEST_SUITE("constexpr_math") {
         CHECK(wet::sin(3.0) == doctest::Approx(std::sin(3.0)));
     }
 
+    TEST_CASE("wet::tan matches std::tan") {
+        constexpr double pi = std::numbers::pi;
+
+        // Small angles (direct continued fraction path)
+        CHECK(wet::tan(0.0) == doctest::Approx(std::tan(0.0)));
+        CHECK(wet::tan(0.1) == doctest::Approx(std::tan(0.1)));
+        CHECK(wet::tan(0.5) == doctest::Approx(std::tan(0.5)));
+        CHECK(wet::tan(1.0) == doctest::Approx(std::tan(1.0)));
+
+        // Standard angles
+        CHECK(wet::tan(pi / 6) == doctest::Approx(std::tan(pi / 6))); // 30°
+        CHECK(wet::tan(pi / 4) == doctest::Approx(std::tan(pi / 4))); // 45°
+        CHECK(wet::tan(pi / 3) == doctest::Approx(std::tan(pi / 3))); // 60°
+
+        // Near π/2 (complementary angle path)
+        CHECK(wet::tan(1.5) == doctest::Approx(std::tan(1.5)).epsilon(1e-8));
+        CHECK(wet::tan(1.55) == doctest::Approx(std::tan(1.55)).epsilon(1e-6));
+        CHECK(wet::tan(1.57) == doctest::Approx(std::tan(1.57)).epsilon(1e-4));
+
+        // Negative angles
+        CHECK(wet::tan(-pi / 4) == doctest::Approx(std::tan(-pi / 4)));
+        CHECK(wet::tan(-pi / 3) == doctest::Approx(std::tan(-pi / 3)));
+        CHECK(wet::tan(-1.5) == doctest::Approx(std::tan(-1.5)).epsilon(1e-8));
+
+        // Beyond first period (range reduction)
+        CHECK(wet::tan(pi) == doctest::Approx(std::tan(pi)).epsilon(1e-10));
+        CHECK(wet::tan(2.0) == doctest::Approx(std::tan(2.0)));
+        CHECK(wet::tan(3.0) == doctest::Approx(std::tan(3.0)));
+        CHECK(wet::tan(5.0) == doctest::Approx(std::tan(5.0)));
+        CHECK(wet::tan(-5.0) == doctest::Approx(std::tan(-5.0)));
+
+        // Constexpr verification
+        constexpr double tan_val = wet::tan(pi / 4);
+        CHECK(tan_val == doctest::Approx(1.0));
+    }
+
     TEST_CASE("constexpr verification") {
         // Verify all functions can be used in constexpr context
         constexpr double sqrt_val = wet::sqrt(4.0);

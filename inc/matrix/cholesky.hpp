@@ -154,7 +154,7 @@ constexpr ColVec<N, T> backward_substitute_upper(const Matrix<N, N, T>& U, const
 template<size_t N, size_t M, typename T>
 constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& B) {
-    using VT     = std::remove_const_t<T>;
+    using VT = std::remove_const_t<T>;
     using real_t = decltype(wet::abs(VT{}));
     constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
 
@@ -190,7 +190,7 @@ solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& 
 template<size_t N, size_t M, typename T>
 constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& B) {
-    using VT     = std::remove_const_t<T>;
+    using VT = std::remove_const_t<T>;
     using real_t = decltype(wet::abs(VT{}));
     constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
 
