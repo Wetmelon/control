@@ -1,7 +1,7 @@
 .PHONY: all clean tests docs gui
 
 all:
-	@clang-format -i inc/*.hpp tests/*.cpp examples/*.cpp
+	@clang-format -i inc/*.hpp inc/matrix/*.hpp tests/*.cpp examples/*.cpp
 	@tup --quiet compiledb
 	@tup
 	@./tests/build/test_runner.exe
