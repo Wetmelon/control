@@ -57,4 +57,17 @@ concept MatrixLike = requires(const M& m, size_t i, size_t j) {
 template<typename M, size_t R, size_t C>
 concept MatrixLikeOf = MatrixLike<M> && (M::rows() == R) && (M::cols() == C);
 
+/// Type-appropriate default tolerance for floating-point comparisons.
+/// float  ~7 decimal digits  → 1e-6
+/// double ~15 decimal digits → 1e-12
+template<typename T>
+constexpr scalar_type_t<std::remove_const_t<T>> default_tol() {
+    using real_t = scalar_type_t<std::remove_const_t<T>>;
+    if constexpr (std::is_same_v<real_t, float>) {
+        return real_t{1e-6f};
+    } else {
+        return real_t{1e-12};
+    }
+}
+
 } // namespace wetmelon::control

@@ -87,15 +87,22 @@ struct ColVec : public Matrix<N, 1, T> {
     constexpr T& operator()(size_t idx) { return this->data_[idx]; }
 
     /**
-     * @brief Dot product (inner product)
-     * @param vec1 First vector
+     * @brief Inner product of two column vectors
+     *
+     * For real vectors:    dot(u,v) = sum( u_i * v_i )
+     * For complex vectors: dot(u,v) = sum( conj(u_i) * v_i )
+     *
+     * This is the standard sesquilinear inner product, conjugate-linear
+     * in the first argument. For real types conj is a no-op.
+     *
+     * @param vec1 First vector (conjugated)
      * @param vec2 Second vector
-     * @return Scalar dot product
+     * @return Scalar inner product
      */
     [[nodiscard]] friend constexpr T dot(const ColVec<N, T>& vec1, const ColVec<N, T>& vec2) {
-        T result = 0;
+        T result = T{0};
         for (std::size_t i = 0; i < N; ++i) {
-            result += vec1.data_[i] * vec2.data_[i];
+            result += wet::conj(vec1.data_[i]) * vec2.data_[i];
         }
         return result;
     }
@@ -119,20 +126,33 @@ struct ColVec : public Matrix<N, 1, T> {
 
     /**
      * @brief Euclidean norm (magnitude) of the vector
-     * @return Vector magnitude
+     *
+     * ||v|| = sqrt( sum |v_i|^2 )
+     *
+     * Always returns a real value, even for complex-valued vectors.
+     *
+     * @return Vector magnitude (real scalar)
      */
-    [[nodiscard]] constexpr T norm() const { return wet::sqrt(dot(*this, *this)); }
+    [[nodiscard]] constexpr scalar_type_t<T> norm() const {
+        using real_t = scalar_type_t<T>;
+        real_t sum_sq = real_t{0};
+        for (size_t i = 0; i < N; ++i) {
+            auto abs_val = wet::abs(this->data_[i]);
+            sum_sq += abs_val * abs_val;
+        }
+        return wet::sqrt(sum_sq);
+    }
 
     /**
      * @brief Normalized vector (unit length)
      * @return Normalized vector
      */
     [[nodiscard]] constexpr ColVec normalized() const {
-        T n = norm();
-        if (n == 0) {
-            return *this; // Avoid division by zero
+        auto n = norm();
+        if (n == scalar_type_t<T>{0}) {
+            return *this;
         }
-        return *this * (T(1) / n);
+        return *this * (T{1} / static_cast<T>(n));
     }
 
     [[nodiscard]] constexpr size_t size() const { return N; }

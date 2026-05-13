@@ -71,21 +71,48 @@ template<typename T, size_t N>
 }
 
 /**
- * @brief Two norm (spectral norm): largest singular value
+ * @brief Spectral norm (2-norm): largest singular value of A
  *
- * For square matrices, this is the square root of the largest eigenvalue of A^H * A.
- * This is a simplified approximation using power iteration for small matrices.
+ * ||A||_2 = sigma_max(A) = sqrt( lambda_max(A^H A) )
+ *
+ * Computed via power iteration on A^H A, which converges geometrically
+ * at a rate proportional to sigma_1 / sigma_2. Reliable for the small,
+ * fixed-size matrices typical in control systems (state dimensions ≤~20).
  *
  * @tparam T Element type
  * @tparam N Matrix dimension
  * @param A Square matrix
- * @return Approximation of the spectral norm
+ * @return Spectral norm
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr T two_norm(const Matrix<N, N, T>& A) {
-    // For small matrices, use Frobenius norm as approximation
-    // A more accurate implementation would use SVD or eigenvalue decomposition
-    return frobenius_norm(A);
+    constexpr T tol = default_tol<T>();
+    constexpr size_t max_iter = 100;
+
+    Matrix<N, N, T> AtA = A.transpose() * A;
+
+    // Initial vector: all ones, then normalize
+    ColVec<N, T> v;
+    for (size_t i = 0; i < N; ++i) v[i] = T{1};
+    {
+        auto n = v.norm();
+        if (n > tol) v = v * (T{1} / n);
+    }
+
+    T lambda = T{0};
+    for (size_t iter = 0; iter < max_iter; ++iter) {
+        ColVec<N, T> w = AtA * v;
+        T new_lambda = w.norm();
+        if (new_lambda < tol) return T{0};
+
+        v = w * (T{1} / new_lambda);
+
+        if (wet::abs(new_lambda - lambda) < tol * wet::abs(new_lambda)) {
+            return wet::sqrt(new_lambda);
+        }
+        lambda = new_lambda;
+    }
+    return wet::sqrt(lambda);
 }
 
 /**
@@ -106,29 +133,49 @@ template<typename T, size_t N>
              - A(0, 1) * (A(1, 0) * A(2, 2) - A(1, 2) * A(2, 0))
              + A(0, 2) * (A(1, 0) * A(2, 1) - A(1, 1) * A(2, 0));
     } else if constexpr (N == 4) {
-        // Use cofactor expansion along first row for 4x4
-        T det = T{0};
-        for (size_t j = 0; j < 4; ++j) {
-            Matrix<3, 3, T> minor;
-            size_t          minor_row = 0;
-            for (size_t i = 1; i < 4; ++i) {
-                size_t minor_col = 0;
-                for (size_t k = 0; k < 4; ++k) {
-                    if (k != j) {
-                        minor(minor_row, minor_col) = A(i, k);
-                        ++minor_col;
-                    }
-                }
-                ++minor_row;
-            }
-            T cofactor = ((j % 2 == 0) ? T{1} : T{-1}) * det(minor);
-            det += A(0, j) * cofactor;
-        }
-        return det;
+        T d = A(0,0) * det(Matrix<3,3,T>{
+            {A(1,1), A(1,2), A(1,3)},
+            {A(2,1), A(2,2), A(2,3)},
+            {A(3,1), A(3,2), A(3,3)}
+        });
+        d -= A(0,1) * det(Matrix<3,3,T>{
+            {A(1,0), A(1,2), A(1,3)},
+            {A(2,0), A(2,2), A(2,3)},
+            {A(3,0), A(3,2), A(3,3)}
+        });
+        d += A(0,2) * det(Matrix<3,3,T>{
+            {A(1,0), A(1,1), A(1,3)},
+            {A(2,0), A(2,1), A(2,3)},
+            {A(3,0), A(3,1), A(3,3)}
+        });
+        d -= A(0,3) * det(Matrix<3,3,T>{
+            {A(1,0), A(1,1), A(1,2)},
+            {A(2,0), A(2,1), A(2,2)},
+            {A(3,0), A(3,1), A(3,2)}
+        });
+        return d;
     } else {
-        // For larger matrices, this would need a more sophisticated implementation
-        // For now, return 0 as unsupported
-        return T{0};
+        // General case: det(A) = det(P) * det(L) * det(U) = sign * product(U_ii)
+        auto lu = lu_decomposition(A);
+        if (!lu) return T{0}; // singular
+
+        const auto& [L, U, piv] = lu.value();
+
+        // Compute sign from permutation parity
+        auto p = piv;
+        size_t swaps = 0;
+        for (size_t i = 0; i < N; ++i) {
+            while (p[i] != i) {
+                std::swap(p[i], p[p[i]]);
+                ++swaps;
+            }
+        }
+
+        T d = (swaps % 2 == 0) ? T{1} : T{-1};
+        for (size_t i = 0; i < N; ++i) {
+            d *= U(i, i);
+        }
+        return d;
     }
 }
 
@@ -144,7 +191,7 @@ template<typename T, size_t N>
     // Create a copy for Gaussian elimination
     Matrix<N, N, T> temp = A;
     size_t          rank = 0;
-    const T         epsilon = T{1e-10}; // Tolerance for zero
+    constexpr T     epsilon = default_tol<T>();
 
     for (size_t col = 0; col < N; ++col) {
         // Find pivot row
@@ -205,16 +252,19 @@ template<typename T, size_t N>
     // Compute infinity norm
     T norm = mat::infinity_norm(A);
 
-    // 1️⃣ Tiny/nilpotent matrix shortcut (Taylor series)
-    // Exact for small norms
-    if (norm <= T(1e-12)) {
-        // tiny matrix: Taylor to 6th is plenty
+    // Tiny/nilpotent matrix shortcut (Taylor series)
+    if (norm <= default_tol<T>()) {
         Matrix A2 = A * A;
         Matrix A3 = A2 * A;
         Matrix A4 = A3 * A;
         Matrix A5 = A4 * A;
         Matrix A6 = A5 * A;
-        return I + A + A2 * (1.0 / 2.0) + A3 * (1.0 / 6.0) + A4 * (1.0 / 24.0) + A5 * (1.0 / 120.0) + A6 * (1.0 / 720.0);
+        return I + A
+            + A2 * (T{1} / T{2})
+            + A3 * (T{1} / T{6})
+            + A4 * (T{1} / T{24})
+            + A5 * (T{1} / T{120})
+            + A6 * (T{1} / T{720});
     }
 
     // 2️⃣ Scaling for Pade13
@@ -335,7 +385,7 @@ template<typename T, size_t N>
             Y = Y_next;
             Z = Z_next;
 
-            if (diff < T{1e-12})
+            if (diff < default_tol<T>())
                 break;
         }
         return Y;
@@ -423,7 +473,7 @@ template<typename T, size_t N>
         Y = Y_next;
         Z = Z_next;
 
-        if (diff < T{1e-12})
+        if (diff < default_tol<T>())
             break;
     }
 
@@ -486,11 +536,11 @@ template<typename T, size_t N>
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> pow(const Matrix<N, N, T>& A, T p) {
-    // Check for integer case
-    T p_int;
-    T p_frac = std::modf(p, &p_int);
-    if (wet::abs(p_frac) < T{1e-10}) {
-        return pow(A, static_cast<int>(p_int));
+    // Check for integer case (constexpr-safe, no std::modf)
+    int p_int = static_cast<int>(p);
+    T p_frac = p - static_cast<T>(p_int);
+    if (wet::abs(p_frac) < default_tol<T>()) {
+        return pow(A, p_int);
     }
 
     // General case: A^p = exp(p * log(A))

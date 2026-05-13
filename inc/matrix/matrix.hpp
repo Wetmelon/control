@@ -607,34 +607,45 @@ public:
     }
 
     /**
-     * @brief Frobenius norm of the matrix
+     * @brief Frobenius norm (generalized "length") of the matrix
      *
-     * @return Frobenius norm
+     * The Frobenius norm is the square root of the sum of the absolute squares
+     * of every element: ||A||_F = sqrt( sum |a_ij|^2 ).
+     *
+     * For a column vector this is the Euclidean length. For a matrix it is
+     * a measure of overall magnitude, analogous to the Euclidean norm but
+     * applied to all entries.
+     *
+     * Always returns a real value, even for complex-valued matrices.
+     *
+     * @return Frobenius norm (real scalar)
      */
-    [[nodiscard]] constexpr T norm() const {
-        T sum_sq = T{0};
+    [[nodiscard]] constexpr scalar_type_t<T> norm() const {
+        using real_t = scalar_type_t<T>;
+        real_t sum_sq = real_t{0};
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                sum_sq += data_[r * Cols + c] * data_[r * Cols + c];
+                auto abs_val = wet::abs(data_[r * Cols + c]);
+                sum_sq += abs_val * abs_val;
             }
         }
         return wet::sqrt(sum_sq);
     }
 
     /**
-     * @brief Dot product (Frobenius inner product) with another matrix
+     * @brief Frobenius inner product with another matrix
      *
-     * Computes the sum of element-wise products between this matrix and another matrix
-     * of the same dimensions.
+     * For real matrices:   dot(A,B) = sum( a_ij * b_ij )
+     * For complex matrices: dot(A,B) = sum( conj(a_ij) * b_ij )  (=trace(A^H B))
      *
-     * @param other Matrix to compute dot product with
-     * @return Scalar dot product
+     * @param other Matrix to compute inner product with
+     * @return Scalar inner product
      */
     [[nodiscard]] constexpr T dot(const Matrix& other) const {
         T result = T{0};
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                result += data_[r * Cols + c] * other.data_[r * Cols + c];
+                result += wet::conj(data_[r * Cols + c]) * other.data_[r * Cols + c];
             }
         }
         return result;
