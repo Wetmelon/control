@@ -432,28 +432,29 @@ template<typename T, size_t N>
 }
 
 /**
- * @brief Matrix square root using Denman-Beavers iteration
+ * @brief Matrix square root via Denman–Beavers iteration
  *
- * Computes the principal matrix square root S = sqrt(A) that satisfies S*S = A.
+ * Computes the principal matrix square root S = √A satisfying S·S = A.
  *
- * Uses Denman-Beavers iteration:
- *   Y_{k+1} = (Y_k + Z_k^{-1}) / 2
- *   Z_{k+1} = (Z_k + Y_k^{-1}) / 2
+ * Uses Denman–Beavers iteration:
+ *     Yₖ₊₁ = (Yₖ + Zₖ⁻¹) / 2
+ *     Zₖ₊₁ = (Zₖ + Yₖ⁻¹) / 2
  *
- * Requirements: A should have no real negative eigenvalues.
+ * Converges: Y → √A, Z → (√A)⁻¹.
+ *
+ * Returns std::nullopt if the iteration fails to converge or encounters
+ * a singular iterate (e.g., A has a real negative eigenvalue).
+ *
+ * @note Equivalent to MATLAB's sqrtm(A).
+ * @see Higham, "Functions of Matrices" (2008), §6.3
  *
  * @tparam T Element type
  * @tparam N Matrix dimension
- * @param A Square matrix
- * @return Principal matrix square root sqrt(A)
+ * @param A Square matrix (must have no real negative eigenvalues)
+ * @return Principal matrix square root √A, or std::nullopt on failure
  */
 template<typename T, size_t N>
-[[nodiscard]] constexpr Matrix<N, N, T> sqrt(const Matrix<N, N, T>& A) {
-    // Denman-Beavers iteration:
-    // Y_{k+1} = (Y_k + Z_k^{-1}) / 2
-    // Z_{k+1} = (Z_k + Y_k^{-1}) / 2
-    // Converges: Y -> sqrt(A), Z -> sqrt(A)^{-1}
-
+[[nodiscard]] constexpr std::optional<Matrix<N, N, T>> sqrt(const Matrix<N, N, T>& A) {
     Matrix<N, N, T> Y = A;
     Matrix<N, N, T> Z = Matrix<N, N, T>::identity();
 
@@ -462,19 +463,12 @@ template<typename T, size_t N>
         auto Z_inv = Z.inverse();
 
         if (!Y_inv || !Z_inv) {
-            // Fallback: return identity scaled by sqrt of trace/N
-            T trace_avg = T{0};
-            for (size_t i = 0; i < N; ++i) {
-                trace_avg += A(i, i);
-            }
-            trace_avg /= static_cast<T>(N);
-            return Matrix<N, N, T>::identity() * wet::sqrt(trace_avg);
+            return std::nullopt;
         }
 
         Matrix<N, N, T> Y_next = (Y + Z_inv.value()) * T{0.5};
         Matrix<N, N, T> Z_next = (Z + Y_inv.value()) * T{0.5};
 
-        // Check convergence
         T diff = T{0};
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j) {
@@ -485,11 +479,12 @@ template<typename T, size_t N>
         Y = Y_next;
         Z = Z_next;
 
-        if (diff < default_tol<T>())
-            break;
+        if (diff < default_tol<T>()) {
+            return Y;
+        }
     }
 
-    return Y;
+    return std::nullopt;
 }
 
 /**

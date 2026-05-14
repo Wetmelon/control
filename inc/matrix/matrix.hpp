@@ -572,6 +572,24 @@ public:
     }
 
     /**
+     * @brief Conjugate transpose (Hermitian adjoint, concrete copy)
+     *
+     * Returns Aᴴ where Aᴴ(i,j) = conj(A(j,i)). For real types, identical
+     * to transpose().
+     *
+     * @return Conjugate-transposed matrix (Cols × Rows)
+     */
+    [[nodiscard]] constexpr Matrix<Cols, Rows, T> conjugate_transpose() const {
+        Matrix<Cols, Rows, T> result;
+        for (size_t r = 0; r < Rows; ++r) {
+            for (size_t c = 0; c < Cols; ++c) {
+                result.data_[c * Rows + r] = wet::conj(data_[r * Cols + c]);
+            }
+        }
+        return result;
+    }
+
+    /**
      * @brief Reshape the matrix to new dimensions (total elements must match)
      * @tparam NewRows New number of rows
      * @tparam NewCols New number of columns

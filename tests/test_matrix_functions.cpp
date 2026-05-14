@@ -68,9 +68,9 @@ TEST_SUITE("Matrix Functions") {
         auto I = Matrix<2, 2>::identity();
         auto sqrt_I = mat::sqrt(I);
 
-        // sqrt(I) = I
-        CHECK(doctest::Approx(sqrt_I(0, 0)).epsilon(1e-6) == 1.0);
-        CHECK(doctest::Approx(sqrt_I(1, 1)).epsilon(1e-6) == 1.0);
+        REQUIRE(sqrt_I.has_value());
+        CHECK(doctest::Approx(sqrt_I.value()(0, 0)).epsilon(1e-6) == 1.0);
+        CHECK(doctest::Approx(sqrt_I.value()(1, 1)).epsilon(1e-6) == 1.0);
     }
 
     TEST_CASE("Matrix power - integer") {

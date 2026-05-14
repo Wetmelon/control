@@ -8,6 +8,7 @@
 
 #include "constexpr_complex.hpp"
 #include "matrix.hpp"
+#include "matrix_traits.hpp"
 
 namespace wetmelon::control {
 
@@ -16,27 +17,33 @@ namespace mat {
 template<size_t N, typename T>
 constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
     if constexpr (std::is_floating_point_v<T>) {
-        T tol = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
+        constexpr auto tol = default_tol<T>();
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = i + 1; j < N; ++j) {
-                if (wet::abs(A(i, j) - A(j, i)) > tol)
+                if (wet::abs(A(i, j) - A(j, i)) > tol) {
                     return false;
+                }
             }
         }
         return true;
     } else {
-        // Complex: check A(i,j) == conj(A(j,i)) within tolerance using squared magnitude
-        using real_t = typename T::value_type;
-        real_t     tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
-        const auto tol_sq = tol * tol;
-
+        constexpr auto tol = default_tol<T>();
+        constexpr auto tol_sq = tol * tol;
+        // Hermitian requires real diagonal elements
+        for (size_t i = 0; i < N; ++i) {
+            auto imag_diag = wet::imag(A(i, i));
+            if (imag_diag * imag_diag > tol_sq) {
+                return false;
+            }
+        }
+        // Off-diagonal: A(i,j) == conj(A(j,i))
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = i + 1; j < N; ++j) {
                 auto diff = A(i, j) - wet::conj(A(j, i));
-                // diff * conj(diff) is real and equals |diff|^2
                 auto mag_sq = wet::real(diff * wet::conj(diff));
-                if (mag_sq > tol_sq)
+                if (mag_sq > tol_sq) {
                     return false;
+                }
             }
         }
         return true;
@@ -44,18 +51,19 @@ constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
 }
 
 /**
- * @brief Cholesky decomposition for symmetric positive-definite matrices
+ * @brief Cholesky decomposition for positive-definite matrices
  *
- * @param A Input SPD matrix
+ * For real matrices, computes L such that A = LLᵀ (A must be symmetric).
+ * For complex matrices, computes L such that A = LLᴴ (A must be Hermitian).
  *
- * @return Lower-triangular matrix L such that A = L * Lᵀ, or std::nullopt if A is not SPD
+ * @note Equivalent to MATLAB's chol(A, 'lower').
+ * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §4.2
+ *
+ * @param A Symmetric positive-definite (real) or Hermitian positive-definite (complex) matrix
+ * @return Lower-triangular L, or std::nullopt if A is not PD or not symmetric/Hermitian
  */
 template<size_t N, typename T>
 constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
-    // Cholesky only works for real matrices
-    if constexpr (!std::is_floating_point_v<T>)
-        return std::nullopt;
-
     if (!is_symmetric_or_hermitian(A)) {
         return std::nullopt;
     }
@@ -155,14 +163,14 @@ template<size_t N, size_t M, typename T>
 constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& B) {
     using VT = std::remove_const_t<T>;
-    using real_t = decltype(wet::abs(VT{}));
-    constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
+    constexpr auto tol = default_tol<VT>();
 
     Matrix<N, M, VT> X;
     for (size_t col = 0; col < M; ++col) {
         ColVec<N, VT> b;
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < N; ++i) {
             b(i) = B(i, col);
+        }
 
         ColVec<N, VT> x;
         for (size_t i = 0; i < N; ++i) {
@@ -170,13 +178,15 @@ solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& 
                 return std::nullopt;
             }
             VT sum = b(i);
-            for (size_t j = 0; j < i; ++j)
+            for (size_t j = 0; j < i; ++j) {
                 sum -= L(i, j) * x(j);
+            }
             x(i) = sum / L(i, i);
         }
 
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < N; ++i) {
             X(i, col) = x(i);
+        }
     }
     return X;
 }
@@ -191,14 +201,14 @@ template<size_t N, size_t M, typename T>
 constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& B) {
     using VT = std::remove_const_t<T>;
-    using real_t = decltype(wet::abs(VT{}));
-    constexpr real_t tol = std::is_same_v<real_t, float> ? real_t{1e-6} : real_t{1e-12};
+    constexpr auto tol = default_tol<VT>();
 
     Matrix<N, M, VT> X;
     for (size_t col = 0; col < M; ++col) {
         ColVec<N, VT> b;
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < N; ++i) {
             b(i) = B(i, col);
+        }
 
         ColVec<N, VT> x;
         for (int i = int(N) - 1; i >= 0; --i) {
@@ -206,13 +216,15 @@ solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& 
                 return std::nullopt;
             }
             VT sum = b(i);
-            for (size_t j = size_t(i) + 1; j < N; ++j)
+            for (size_t j = size_t(i) + 1; j < N; ++j) {
                 sum -= U(size_t(i), j) * x(j);
+            }
             x(i) = sum / U(size_t(i), size_t(i));
         }
 
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < N; ++i) {
             X(i, col) = x(i);
+        }
     }
     return X;
 }
@@ -233,9 +245,9 @@ constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A
     if (!Y_opt)
         return std::nullopt;
 
-    // Backward substitution: solve L^T * X = Y
-    const auto Lt = L.transpose();
-    return solve(Lt.upper_triangle(), Y_opt.value());
+    // Backward substitution: solve Lᴴ * X = Y
+    const auto Lh = L.conjugate_transpose();
+    return solve(Lh.upper_triangle(), Y_opt.value());
 }
 
 /**

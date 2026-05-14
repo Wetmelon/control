@@ -525,4 +525,87 @@ TEST_SUITE("cholesky") {
         constexpr auto X_opt = solve(U, B);
         static_assert(X_opt.has_value(), "Upper triangular solve should succeed at compile time");
     }
+
+    TEST_CASE("Cholesky decomposition - complex Hermitian positive-definite") {
+        using C = complex<double>;
+        // Hermitian PD matrix: A = [[2, 1-j], [1+j, 3]]
+        // Diagonal is real, A(0,1) == conj(A(1,0))
+        Matrix<2, 2, C> A{
+            {C{2.0, 0.0}, C{1.0, -1.0}},
+            {C{1.0, 1.0}, C{3.0, 0.0}}
+        };
+
+        auto L_opt = cholesky(A);
+        REQUIRE(L_opt.has_value());
+
+        // Verify A = L * Lᴴ
+        auto L = L_opt.value();
+        auto reconstructed = L * L.conjugate_transpose();
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                CHECK(wet::abs(reconstructed(i, j) - A(i, j)) < 1e-10);
+            }
+        }
+    }
+
+    TEST_CASE("Cholesky decomposition - complex non-Hermitian rejected") {
+        using C = complex<double>;
+        // Non-Hermitian: diagonal has imaginary component
+        Matrix<2, 2, C> A{
+            {C{2.0, 0.5}, C{1.0, -1.0}},
+            {C{1.0, 1.0}, C{3.0, 0.0}}
+        };
+
+        auto L_opt = cholesky(A);
+        CHECK_FALSE(L_opt.has_value());
+    }
+
+    TEST_CASE("Cholesky solve - complex Hermitian system") {
+        using C = complex<double>;
+        Matrix<2, 2, C> A{
+            {C{4.0, 0.0}, C{1.0, -1.0}},
+            {C{1.0, 1.0}, C{3.0, 0.0}}
+        };
+        Matrix<2, 1, C> B{
+            {C{3.0, 1.0}},
+            {C{2.0, -1.0}}
+        };
+
+        auto X_opt = cholesky_solve(A, B);
+        REQUIRE(X_opt.has_value());
+
+        // Verify A * X ≈ B
+        auto AX = A * X_opt.value();
+        for (size_t i = 0; i < 2; ++i) {
+            CHECK(wet::abs(AX(i, 0) - B(i, 0)) < 1e-10);
+        }
+    }
+
+    TEST_CASE("Hermitian check - 1x1 complex with imaginary part rejected") {
+        using C = complex<double>;
+        // A 1x1 complex matrix with nonzero imaginary part is NOT Hermitian
+        Matrix<1, 1, C> A{{C{1.0, 0.5}}};
+        CHECK_FALSE(is_symmetric_or_hermitian(A));
+    }
+
+    TEST_CASE("LU solve - complex non-Hermitian system") {
+        using C = complex<double>;
+        // Non-Hermitian complex matrix — must use LU path
+        Matrix<2, 2, C> A{
+            {C{1.0, 1.0}, C{2.0, 0.0}},
+            {C{0.0, 1.0}, C{3.0, -1.0}}
+        };
+        Matrix<2, 1, C> B{
+            {C{5.0, 1.0}},
+            {C{3.0, 2.0}}
+        };
+
+        auto X_opt = lu_solve(A, B);
+        REQUIRE(X_opt.has_value());
+
+        auto AX = A * X_opt.value();
+        for (size_t i = 0; i < 2; ++i) {
+            CHECK(wet::abs(AX(i, 0) - B(i, 0)) < 1e-10);
+        }
+    }
 }
