@@ -58,8 +58,8 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
 
     // Compute effective noise covariances accounting for G and H
-    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.transpose();
-    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.transpose();
+    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.t();
+    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.t();
 
     // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
     const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
@@ -84,7 +84,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     result.P = dare_opt.value();
 
     // Compute Kalman gain: L = PCᵀS⁻¹ → solve S Lᵀ = CP
-    const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
+    const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.t() + R_eff;
     const Matrix<NY, NX, T> CP = sys.C * result.P;
     auto                    L_opt = mat::cholesky_solve(S, CP);
     if (!L_opt) {
@@ -151,8 +151,8 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
 
     // Compute effective noise covariances accounting for G and H
-    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.transpose();
-    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.transpose();
+    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.t();
+    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.t();
 
     // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
     const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
@@ -177,7 +177,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     result.P = dare_opt.value();
 
     // Compute Kalman gain: L = PCᵀS⁻¹ → solve S Lᵀ = CP
-    const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.transpose() + R_eff;
+    const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.t() + R_eff;
     const Matrix<NY, NX, T> CP = sys.C * result.P;
     auto                    L_opt = mat::cholesky_solve(S, CP);
     if (!L_opt) {
@@ -221,7 +221,7 @@ struct KalmanFilter {
     // Predict: x[k+1|k] = A*x[k|k] + B*u[k], P[k+1|k] = A*P*A' + G*Q*G'
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) {
         x = sys.A * x + sys.B * u;
-        P = sys.A * P * sys.A.transpose() + sys.G * Q * sys.G.transpose();
+        P = sys.A * P * sys.A.t() + sys.G * Q * sys.G.t();
     }
 
     // Measurement update: returns false if innovation covariance is singular
@@ -245,7 +245,7 @@ struct KalmanFilter {
         // Joseph form: P = (I - K*C) * P * (I - K*C)' + K*H*R*H'*K'
         const auto I_KC = Matrix<NX, NX, T>::identity() - K * sys.C;
         const auto KH = K * sys.H;
-        P = I_KC * P * I_KC.transpose() + KH * R * KH.transpose();
+        P = I_KC * P * I_KC.t() + KH * R * KH.t();
         return true;
     }
 

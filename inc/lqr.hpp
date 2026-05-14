@@ -81,8 +81,8 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NX, T> S = dare_opt.value();
 
     //! Solve (R + BᵀSB) K = BᵀSA + Nᵀ via Cholesky (R + BᵀSB is positive definite)
-    const Matrix<NU, NU, T> denom = R + B.transpose() * S * B;
-    const Matrix<NU, NX, T> rhs = B.transpose() * S * A + N.transpose();
+    const Matrix<NU, NU, T> denom = R + B.t() * S * B;
+    const Matrix<NU, NX, T> rhs = B.t() * S * A + N.t();
     const auto              K_opt = mat::cholesky_solve(denom, rhs);
 
     if (!K_opt) {
@@ -217,8 +217,8 @@ template<size_t NX, size_t NU, typename T = double>
     }
 
     const Matrix<NX, NX, T> S = dare_opt.value();
-    const Matrix<NU, NU, T> denom = R + B.transpose() * S * B;
-    const Matrix<NU, NX, T> rhs = B.transpose() * S * A + N.transpose();
+    const Matrix<NU, NU, T> denom = R + B.t() * S * B;
+    const Matrix<NU, NX, T> rhs = B.t() * S * A + N.t();
     const auto              K_opt = mat::cholesky_solve(denom, rhs);
 
     if (!K_opt) {

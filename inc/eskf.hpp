@@ -268,7 +268,7 @@ struct ErrorStateKalmanFilter {
         requires ESKFPredictFn<PredictFn, T, NDX>
     constexpr void predict(PredictFn&& propagate_nominal, const T dt) {
         ErrorStateJacobian<T, NDX> ej = propagate_nominal(dt);
-        P = ej.F * P * ej.F.transpose() + ej.G * Q * ej.G.transpose();
+        P = ej.F * P * ej.F.t() + ej.G * Q * ej.G.t();
 
         // Error state decays naturally (doesn't accumulate without measurement correction)
         // δx[k+1|k] ≈ 0 (optional: can decay via F matrix if modeling error dynamics)
@@ -288,7 +288,7 @@ struct ErrorStateKalmanFilter {
         innov = y - mj.y_pred; // Innovation
 
         const auto              Ht = mj.H.transpose();
-        const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.transpose();
+        const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.t();
 
         // K = PHᵀS⁻¹ → solve S Kᵀ = H P via Cholesky (S is symmetric positive definite)
         const auto K_opt = mat::cholesky_solve(S, mj.H * P);
@@ -305,7 +305,7 @@ struct ErrorStateKalmanFilter {
         // Covariance update (Joseph form for numerical stability)
         const auto I_KH = Matrix<NDX, NDX, T>::identity() - K * mj.H;
         const auto KM = K * mj.M;
-        P = I_KH * P * I_KH.transpose() + KM * R * KM.transpose();
+        P = I_KH * P * I_KH.t() + KM * R * KM.t();
 
         return true;
     }
@@ -315,7 +315,7 @@ struct ErrorStateKalmanFilter {
     // Optionally provide a G matrix to adjust covariance (e.g., for attitude reset)
     constexpr void reset_error_state(const Matrix<NDX, NDX, T>& G = Matrix<NDX, NDX, T>::identity()) {
         delta_x = ColVec<NDX, T>{};
-        P = G * P * G.transpose();
+        P = G * P * G.t();
     }
 
     // Accessors

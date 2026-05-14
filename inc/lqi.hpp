@@ -85,8 +85,8 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     Matrix<NX + NY, NX + NY, T> P_aug = dare_opt.value();
 
     // Solve (R + BᵀPB) K = BᵀPA via Cholesky (R + BᵀPB is positive definite)
-    const Matrix denom = R + B_aug.transpose() * P_aug * B_aug;
-    const Matrix rhs = B_aug.transpose() * P_aug * A_aug;
+    const Matrix denom = R + B_aug.t() * P_aug * B_aug;
+    const Matrix rhs = B_aug.t() * P_aug * A_aug;
     const auto   K_opt = mat::cholesky_solve(denom, rhs);
 
     if (!K_opt) {

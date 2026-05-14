@@ -89,7 +89,7 @@ template<typename T, size_t N>
     constexpr T      tol = default_tol<T>();
     constexpr size_t max_iter = 100;
 
-    Matrix<N, N, T> AtA = A.transpose() * A;
+    Matrix<N, N, T> AtA = A.t() * A;
 
     // Initial vector: all ones, then normalize
     ColVec<N, T> v;

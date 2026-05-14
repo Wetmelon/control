@@ -68,7 +68,7 @@ struct ExtendedKalmanFilter {
     constexpr void predict(StateFn&& state_fn, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
         StateJacobian<T, NX> sj = state_fn(x, u);
         x = sj.x_pred;
-        P = sj.F * P * sj.F.transpose() + sj.G * Q * sj.G.transpose();
+        P = sj.F * P * sj.F.t() + sj.G * Q * sj.G.t();
     }
 
     // Measurement update: returns false if innovation covariance is singular
@@ -80,7 +80,7 @@ struct ExtendedKalmanFilter {
         MeasJacobian<T, NY, NX> mj = meas_fn(x, u);
         const auto              Ht = mj.H.transpose();
         innov = y - mj.y_pred;
-        const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.transpose();
+        const Matrix<NY, NY, T> S = mj.H * P * Ht + mj.M * R * mj.M.t();
 
         // K = PHᵀS⁻¹ → solve S Kᵀ = H P via Cholesky (S is symmetric positive definite)
         const auto K_opt = mat::cholesky_solve(S, mj.H * P);
@@ -94,7 +94,7 @@ struct ExtendedKalmanFilter {
         // Joseph form
         const auto I_KH = Matrix<NX, NX, T>::identity() - K * mj.H;
         const auto KM = K * mj.M;
-        P = I_KH * P * I_KH.transpose() + KM * R * KM.transpose();
+        P = I_KH * P * I_KH.t() + KM * R * KM.t();
         return true;
     }
 

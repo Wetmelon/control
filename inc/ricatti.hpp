@@ -235,8 +235,8 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
         const Matrix Vk = Vk_opt.value();
 
         const Matrix Ak_next = Ak * Vk * Ak;
-        const Matrix Gk_next = Gk + Ak * Vk * Gk * Ak.transpose();
-        const Matrix Hk_next = Hk + Ak.transpose() * Hk * Vk * Ak;
+        const Matrix Gk_next = Gk + Ak * Vk * Gk * Ak.t();
+        const Matrix Hk_next = Hk + Ak.t() * Hk * Vk * Ak;
 
         const T diff = (Hk_next - Hk).norm();
         Ak = Ak_next;
@@ -254,7 +254,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
     }
 
     //! Symmetrize for numerical cleanup
-    return (Hk + Hk.transpose()) * T{0.5};
+    return (Hk + Hk.t()) * T{0.5};
 }
 
 /**
@@ -304,7 +304,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
     bool converged = false;
 
     for (int iter = 0; iter < max_iter; ++iter) {
-        const Matrix BtX = B.transpose() * X;
+        const Matrix BtX = B.t() * X;
         const Matrix BtXA = BtX * A_eff;
         const Matrix S = R + BtX * B;
 
@@ -323,8 +323,8 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
         }
         const Matrix M = M_opt.value();
 
-        const Matrix X_next = A_eff.transpose() * X * A_eff + Q_eff
-                            - A_eff.transpose() * X * B * M;
+        const Matrix X_next = A_eff.t() * X * A_eff + Q_eff
+                            - A_eff.t() * X * B * M;
 
         //! Divergence guard (matches dlyap pattern)
         bool diverged = false;
@@ -373,7 +373,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
         return std::nullopt;
     }
 
-    return (X + X.transpose()) * T{0.5};
+    return (X + X.t()) * T{0.5};
 }
 
 } // namespace detail
