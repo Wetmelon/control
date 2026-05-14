@@ -64,6 +64,40 @@ TEST_SUITE("Matrix Functions") {
         }
     }
 
+    TEST_CASE("Matrix sin/cos - diagonal, large norm") {
+        // sin/cos of a diagonal matrix = diagonal of sin/cos of eigenvalues
+        // Norm ≈ 10, exercises the scaling-and-doubling path
+        Matrix<2, 2> A{{5.0, 0.0}, {0.0, 10.0}};
+
+        auto sinA = mat::sin(A);
+        auto cosA = mat::cos(A);
+
+        CHECK(doctest::Approx(sinA(0, 0)).epsilon(1e-6) == std::sin(5.0));
+        CHECK(doctest::Approx(sinA(0, 1)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(sinA(1, 0)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(sinA(1, 1)).epsilon(1e-6) == std::sin(10.0));
+
+        CHECK(doctest::Approx(cosA(0, 0)).epsilon(1e-6) == std::cos(5.0));
+        CHECK(doctest::Approx(cosA(0, 1)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(cosA(1, 0)).epsilon(1e-10) == 0.0);
+        CHECK(doctest::Approx(cosA(1, 1)).epsilon(1e-6) == std::cos(10.0));
+    }
+
+    TEST_CASE("Matrix trig identity: large norm sin^2 + cos^2 = I") {
+        Matrix<2, 2> A{{3.0, 1.5}, {-1.0, 4.0}};
+
+        auto sinA = mat::sin(A);
+        auto cosA = mat::cos(A);
+        auto sum = sinA * sinA + cosA * cosA;
+        auto I = Matrix<2, 2>::identity();
+
+        for (size_t i = 0; i < 2; ++i) {
+            for (size_t j = 0; j < 2; ++j) {
+                CHECK(doctest::Approx(sum(i, j)).epsilon(1e-6) == I(i, j));
+            }
+        }
+    }
+
     TEST_CASE("Matrix sqrt - identity") {
         auto I = Matrix<2, 2>::identity();
         auto sqrt_I = mat::sqrt(I);

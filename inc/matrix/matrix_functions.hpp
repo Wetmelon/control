@@ -1,6 +1,7 @@
 #pragma once
 
 #include <algorithm>
+#include <utility>
 
 #include "matrix.hpp"
 
@@ -555,70 +556,120 @@ template<typename T, size_t N>
 }
 
 /**
- * @brief Matrix sine using Taylor series approximation
+ * @brief Compute sin(A) and cos(A) together via scaling and double-angle reconstruction
  *
- * Computes sin(A) = A - A³/3! + A⁵/5! - A⁷/7! + ...
+ * More efficient than calling sin() and cos() separately — computes both
+ * with one scaling pass and shared Taylor series evaluation.
  *
- * @tparam T Element type
- * @tparam N Matrix dimension
+ * Scales A down so ||A/2ˢ|| < 0.5 (where the Taylor series converges
+ * accurately), then recovers via repeated double-angle formulas:
+ *
+ *     sin(2A) = 2·sin(A)·cos(A)
+ *     cos(2A) = 2·cos²(A) − I
+ *
+ * Since sin(A) and cos(A) are polynomials in A, they commute with each other,
+ * so the scalar double-angle formulas apply directly.
+ *
+ * @see Higham, "Functions of Matrices" (2008), §12.3
+ *
+ * @param A Square matrix
+ * @return {sin(A), cos(A)}
+ */
+template<typename T, size_t N>
+[[nodiscard]] constexpr std::pair<Matrix<N, N, T>, Matrix<N, N, T>> sincos(const Matrix<N, N, T>& A) {
+    Matrix<N, N, T> I = Matrix<N, N, T>::identity();
+
+    // Scale down until ||A/2^s|| < 0.5
+    T      norm = infinity_norm(A);
+    size_t s = 0;
+    T      scaled_norm = norm;
+    while (scaled_norm > T{0.5}) {
+        scaled_norm *= T{0.5};
+        ++s;
+    }
+
+    T scale = T{1};
+    for (size_t i = 0; i < s; ++i) {
+        scale *= T{0.5};
+    }
+
+    Matrix<N, N, T> As = A * scale;
+    Matrix<N, N, T> As2 = As * As;
+
+    // Taylor series for sin(As) = As - As³/3! + As⁵/5! - ...
+    Matrix<N, N, T> sinA = As;
+    {
+        Matrix<N, N, T> A_power = As;
+        T               factorial = T{1};
+        T               sign = T{-1};
+        for (size_t n = 3; n <= 21; n += 2) {
+            factorial *= static_cast<T>(n - 1) * static_cast<T>(n);
+            A_power = A_power * As2;
+            sinA = sinA + A_power * (sign / factorial);
+            sign = -sign;
+        }
+    }
+
+    // Taylor series for cos(As) = I - As²/2! + As⁴/4! - ...
+    Matrix<N, N, T> cosA = I;
+    {
+        Matrix<N, N, T> A_power = I;
+        T               factorial = T{1};
+        T               sign = T{-1};
+        for (size_t n = 2; n <= 20; n += 2) {
+            factorial *= static_cast<T>(n - 1) * static_cast<T>(n);
+            A_power = A_power * As2;
+            cosA = cosA + A_power * (sign / factorial);
+            sign = -sign;
+        }
+    }
+
+    // Double-angle reconstruction: s iterations
+    for (size_t i = 0; i < s; ++i) {
+        Matrix<N, N, T> new_sin = sinA * cosA * T{2};
+        Matrix<N, N, T> new_cos = cosA * cosA * T{2} - I;
+        sinA = new_sin;
+        cosA = new_cos;
+    }
+
+    return {sinA, cosA};
+}
+
+/**
+ * @brief Matrix sine via scaling and double-angle reconstruction
+ *
+ * @note Equivalent to MATLAB's funm(A, @sin).
+ * @see sincos() to compute both sin(A) and cos(A) in one call
+ * @see Higham, "Functions of Matrices" (2008), §12.3
+ *
  * @param A Square matrix
  * @return Matrix sine sin(A)
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> sin(const Matrix<N, N, T>& A) {
-    Matrix<N, N, T> result = A;
-    Matrix<N, N, T> A2 = A * A;
-    Matrix<N, N, T> A_power = A;
-
-    T factorial = T{1};
-    T sign = T{-1};
-
-    for (size_t n = 3; n <= 21; n += 2) {
-        factorial *= static_cast<T>(n - 1) * static_cast<T>(n);
-        A_power = A_power * A2;
-        result = result + A_power * (sign / factorial);
-        sign = -sign;
-    }
-
-    return result;
+    return sincos(A).first;
 }
 
 /**
- * @brief Matrix cosine using Taylor series approximation
+ * @brief Matrix cosine via scaling and double-angle reconstruction
  *
- * Computes cos(A) = I - A²/2! + A⁴/4! - A⁶/6! + ...
+ * @note Equivalent to MATLAB's funm(A, @cos).
+ * @see sincos() to compute both sin(A) and cos(A) in one call
+ * @see Higham, "Functions of Matrices" (2008), §12.3
  *
- * @tparam T Element type
- * @tparam N Matrix dimension
  * @param A Square matrix
  * @return Matrix cosine cos(A)
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> cos(const Matrix<N, N, T>& A) {
-    Matrix<N, N, T> result = Matrix<N, N, T>::identity();
-    Matrix<N, N, T> A_power = Matrix<N, N, T>::identity();
-
-    T factorial = T{1};
-    T sign = T{-1};
-
-    const Matrix<N, N, T> A2 = A * A;
-    for (size_t n = 2; n <= 20; n += 2) {
-        factorial *= static_cast<T>(n - 1) * static_cast<T>(n);
-        A_power = A_power * A2;
-        result = result + A_power * (sign / factorial);
-        sign = -sign;
-    }
-
-    return result;
+    return sincos(A).second;
 }
 
 /**
  * @brief Matrix hyperbolic sine
  *
- * Computes sinh(A) = (exp(A) - exp(-A)) / 2
+ * Computes sinh(A) = (exp(A) − exp(−A)) / 2
  *
- * @tparam T Element type
- * @tparam N Matrix dimension
  * @param A Square matrix
  * @return Matrix hyperbolic sine sinh(A)
  */
@@ -632,10 +683,8 @@ template<typename T, size_t N>
 /**
  * @brief Matrix hyperbolic cosine
  *
- * Computes cosh(A) = (exp(A) + exp(-A)) / 2
+ * Computes cosh(A) = (exp(A) + exp(−A)) / 2
  *
- * @tparam T Element type
- * @tparam N Matrix dimension
  * @param A Square matrix
  * @return Matrix hyperbolic cosine cosh(A)
  */
@@ -644,32 +693,6 @@ template<typename T, size_t N>
     Matrix<N, N, T> exp_A = expm(A);
     Matrix<N, N, T> exp_neg_A = expm(A * T{-1});
     return (exp_A + exp_neg_A) * T{0.5};
-}
-
-/**
- * @brief Verify trigonometric identity sin²(A) + cos²(A) ≈ I
- *
- * @tparam T Element type
- * @tparam N Matrix dimension
- * @param A Square matrix
- * @param tol Tolerance for identity verification
- * @return True if identity holds within tolerance
- */
-template<typename T, size_t N>
-[[nodiscard]] constexpr bool verify_trig_identity(const Matrix<N, N, T>& A, T tol = T{1e-6}) {
-    Matrix<N, N, T> sinA = sin(A);
-    Matrix<N, N, T> cosA = cos(A);
-    Matrix<N, N, T> sum = sinA * sinA + cosA * cosA;
-    Matrix<N, N, T> I = Matrix<N, N, T>::identity();
-
-    for (size_t i = 0; i < N; ++i) {
-        for (size_t j = 0; j < N; ++j) {
-            if (wet::abs(sum(i, j) - I(i, j)) > tol) {
-                return false;
-            }
-        }
-    }
-    return true;
 }
 } // namespace mat
 }; // namespace wetmelon::control
