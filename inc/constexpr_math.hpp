@@ -1,4 +1,16 @@
-#pragma once
+﻿#pragma once
+
+/**
+ * @file constexpr_math.hpp
+ * @brief Constexpr math primitives with runtime delegation to <cmath>
+ *
+ * Each function uses std::is_constant_evaluated() to dispatch:
+ * - At compile time: series expansions / Newton-Raphson (necessary for constexpr)
+ * - At runtime: hardware-accelerated std:: functions
+ *
+ * This ensures consteval design functions work while runtime controllers
+ * get full hardware math performance.
+ */
 
 #include <cmath>
 #include <numbers>
@@ -92,16 +104,19 @@ constexpr T cbrt(T x) {
 /**
  * @brief Compute two-argument arctangent (constexpr)
  *
- * Computes atan2(y, x) = angle in radians from positive x-axis to point (x, y).
- * Uses Taylor series with range reduction for better convergence:
- * atan(x) ≈ π/4 + atan((x-1)/(x+1)) for |x| > 0.414
- * Result is in range [-π, π].
+ * Computes atan2(y, x) ∈ [−π, π] using Taylor series with three-interval
+ * range reduction:
+ *
+ *     |t| ≤ tan(π/8):           atan(t) directly
+ *     tan(π/8) < |t| ≤ tan(3π/8): atan(t) = π/4 + atan((t−1)/(t+1))
+ *     |t| > tan(3π/8):          atan(t) = π/2 − atan(1/t)
+ *
+ * @see Cody & Waite, "Software Manual for the Elementary Functions" (1980)
  *
  * @tparam T Numeric type (floating-point)
- * @param y  Y-coordinate (numerator)
- * @param x  X-coordinate (denominator)
- *
- * @return Angle in radians from positive x-axis to point (x, y)
+ * @param y  Y-coordinate
+ * @param x  X-coordinate
+ * @return Angle in radians ∈ [−π, π]
  */
 template<typename T>
 constexpr T atan2(T y, T x) {
@@ -256,7 +271,7 @@ constexpr T sin(T x) {
  * continued fraction converges slowly, uses the identity
  * tan(r) = −1/tan(π/2 − r) with the complementary angle.
  *
- * @note Equivalent to MATLAB's tan(x).
+ * @note Compare with MATLAB's tan(x).
  * @see Cuyt et al., "Handbook of Continued Fractions for Special Functions" (2008), §12.1
  *
  * @tparam T Numeric type (floating-point)
@@ -334,15 +349,13 @@ constexpr T exp(T x) {
 /**
  * @brief Compute natural logarithm using Newton-Raphson (constexpr)
  *
- * Computes ln(x) using Newton-Raphson method solving exp(y) = x.
- * Uses argument reduction by powers of e to keep the reduced argument
- * in [e^{-1}, e], where Newton-Raphson converges quickly.
- * Assumes x > 0.
+ * Solves eʸ = x via Newton-Raphson: y[n+1] = y[n] − (eʸⁿ − x)/eʸⁿ.
+ * Argument reduction by powers of e keeps the iterate in [e⁻¹, e]
+ * where convergence is quadratic.
  *
  * @tparam T Numeric type (floating-point)
- * @param x  Value to compute logarithm of (must be > 0)
- *
- * @return ln(x), or 0 if x <= 0
+ * @param x  Value (must be > 0)
+ * @return ln(x), or 0 if x ≤ 0
  */
 template<typename T>
 constexpr T log(T x) {

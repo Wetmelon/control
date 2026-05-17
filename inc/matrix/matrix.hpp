@@ -986,7 +986,7 @@ template<MatrixLike A, typename Scalar>
     }
 }
 
-}; // namespace wetmelon::control
+} // namespace wetmelon::control
 
 #include "block.hpp"            // IWYU pragma: keep
 #include "cholesky.hpp"         // IWYU pragma: keep

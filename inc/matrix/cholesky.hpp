@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cmath>
@@ -56,7 +56,7 @@ constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
  * For real matrices, computes L such that A = LLᵀ (A must be symmetric).
  * For complex matrices, computes L such that A = LLᴴ (A must be Hermitian).
  *
- * @note Equivalent to MATLAB's chol(A, 'lower').
+ * @note Compare with MATLAB's chol(A, 'lower').
  * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §4.2
  *
  * @param A Symmetric positive-definite (real) or Hermitian positive-definite (complex) matrix

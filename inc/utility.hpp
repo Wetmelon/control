@@ -63,4 +63,4 @@ constexpr double deg2rad(double deg) {
 constexpr double wrap(double x, double min, double max) {
     return x - (max - min) * wet::floor((x - min) / (max - min));
 }
-}; // namespace wetmelon::control
+} // namespace wetmelon::control

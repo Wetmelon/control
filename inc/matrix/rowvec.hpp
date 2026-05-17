@@ -271,4 +271,4 @@ using RowVec3 = RowVec<3, T>;
 template<typename T>
 using RowVec4 = RowVec<4, T>;
 
-}; // namespace wetmelon::control
+} // namespace wetmelon::control

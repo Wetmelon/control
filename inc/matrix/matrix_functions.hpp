@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <algorithm>
 #include <utility>
@@ -446,7 +446,7 @@ template<typename T, size_t N>
  * Returns std::nullopt if the iteration fails to converge or encounters
  * a singular iterate (e.g., A has a real negative eigenvalue).
  *
- * @note Equivalent to MATLAB's sqrtm(A).
+ * @note Compare with MATLAB's sqrtm(A).
  * @see Higham, "Functions of Matrices" (2008), §6.3
  *
  * @tparam T Element type
@@ -638,7 +638,7 @@ template<typename T, size_t N>
 /**
  * @brief Matrix sine via scaling and double-angle reconstruction
  *
- * @note Equivalent to MATLAB's funm(A, @sin).
+ * @note Compare with MATLAB's funm(A, @sin).
  * @see sincos() to compute both sin(A) and cos(A) in one call
  * @see Higham, "Functions of Matrices" (2008), §12.3
  *
@@ -653,7 +653,7 @@ template<typename T, size_t N>
 /**
  * @brief Matrix cosine via scaling and double-angle reconstruction
  *
- * @note Equivalent to MATLAB's funm(A, @cos).
+ * @note Compare with MATLAB's funm(A, @cos).
  * @see sincos() to compute both sin(A) and cos(A) in one call
  * @see Higham, "Functions of Matrices" (2008), §12.3
  *
@@ -695,4 +695,4 @@ template<typename T, size_t N>
     return (exp_A + exp_neg_A) * T{0.5};
 }
 } // namespace mat
-}; // namespace wetmelon::control
+} // namespace wetmelon::control

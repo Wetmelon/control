@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cmath>
 #include <cstddef>
@@ -11,17 +11,22 @@
 namespace wetmelon::control {
 
 /**
- * @brief Check if (A, B) is a stabilizable pair.
+ * @brief Check if (A, B) is a stabilizable pair
  *
- * (A, B) is stabilizable if and only if the uncontrollable eigenvalues of A, if
- * any, have absolute values less than one, where an eigenvalue is
- * uncontrollable if rank([λI - A, B]) < n where n is the number of states.
+ * (A, B) is stabilizable iff every uncontrollable eigenvalue of A lies strictly
+ * inside the unit circle. An eigenvalue λ is uncontrollable when
+ * rank([λI − A, B]) < n.
+ *
+ * Stabilizability is weaker than controllability — it permits uncontrollable
+ * modes as long as they are already stable (|λ| < 1).
+ *
+ * @see "Optimal Control" (Anderson & Moore, 1990), §2.4
  *
  * @tparam NX Number of states
  * @tparam NU Number of inputs
  * @tparam T  Scalar type
- * @param A   State matrix
- * @param B   Input matrix
+ * @param A   State matrix (NX × NX)
+ * @param B   Input matrix (NX × NU)
  * @return true if (A, B) is stabilizable
  */
 template<size_t NX, size_t NU, typename T = double>
@@ -177,10 +182,16 @@ constexpr bool is_stabilizable(
 namespace detail {
 
 /**
- * @brief Solve DARE via Structure-preserving Doubling Algorithm (SDA)
+ * @brief Solve DARE via Structure-Preserving Doubling Algorithm (SDA)
  *
- * Quadratic convergence. Requires R positive definite (needs R⁻¹).
+ * Solves AᵀXA − X − (AᵀXB + N)(R + BᵀXB)⁻¹(BᵀXA + Nᵀ) + Q = 0
+ *
+ * Quadratic convergence (doubles correct digits each iteration).
+ * Requires R positive definite (needs R⁻¹ for cross-term reduction).
  * No precondition checks — use dare() for validated entry point.
+ *
+ * @see Chu et al., "Structure-Preserving Algorithms for Periodic DRE" (2004)
+ * @see "Optimal Control" (Anderson & Moore, 1990), §4.3
  */
 template<size_t NX, size_t NU, typename T = double>
 constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
@@ -260,8 +271,17 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
 /**
  * @brief Solve DARE via Riccati Difference Equation (RDE) iteration
  *
- * Linear convergence. Handles R >= 0 (only requires R + B'XB invertible).
+ * Iterates the discrete Riccati recursion to steady state:
+ *
+ *     X[k+1] = AᵀX[k]A + Q − AᵀX[k]B(R + BᵀX[k]B)⁻¹BᵀX[k]A
+ *
+ * Linear convergence. Handles R ≥ 0 (only requires R + BᵀXB invertible at
+ * each step, not R itself). Useful when R is singular (e.g., cheap-control
+ * problems or minimum-energy estimation).
+ *
  * No precondition checks — use dare() for validated entry point.
+ *
+ * @see "Optimal Control" (Anderson & Moore, 1990), §4.2
  */
 template<size_t NX, size_t NU, typename T = double>
 constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
@@ -383,15 +403,32 @@ enum class DareMethod { Auto,
                         RDE };
 
 /**
- * @brief Solve Discrete Algebraic Riccati Equation (DARE)
+ * @brief Solve the Discrete Algebraic Riccati Equation (DARE)
  *
- * Solves AᵀXA − X − AᵀXB(R + BᵀXB)⁻¹BᵀXA + Q = 0.
+ * Finds the unique stabilizing solution X to:
  *
- * @param method  DareMethod::Auto (default) selects SDA when R > 0, RDE when R >= 0.
+ *     AᵀXA − X − (AᵀXB + N)(R + BᵀXB)⁻¹(BᵀXA + Nᵀ) + Q = 0
+ *
+ * Preconditions (checked internally):
+ * - Q symmetric positive semidefinite
+ * - R symmetric (positive definite for SDA, positive semidefinite for RDE)
+ * - (A, B) stabilizable
+ *
+ * @note Compare with MATLAB's idare(A, B, Q, R, N).
+ *
+ * @see dare_sda() — quadratic convergence, requires R > 0
+ * @see dare_rde() — linear convergence, handles R ≥ 0
+ * @see "Optimal Control" (Anderson & Moore, 1990), Chapter 4
+ *
+ * @param A       State transition matrix (NX × NX)
+ * @param B       Input matrix (NX × NU)
+ * @param Q       State cost matrix (NX × NX, positive semidefinite)
+ * @param R       Input cost matrix (NU × NU, positive definite or semidefinite)
+ * @param N       Cross-term matrix (NX × NU, default: zero)
+ * @param method  DareMethod::Auto (default) selects SDA when R > 0, RDE when R ≥ 0.
  *                DareMethod::SDA forces SDA (requires R positive definite).
  *                DareMethod::RDE forces RDE (handles R positive semidefinite).
- *
- * @return Solution matrix P (NX × NX, positive semidefinite) or std::nullopt on failure
+ * @return Solution matrix X (NX × NX, positive semidefinite) or std::nullopt on failure
  */
 template<size_t NX, size_t NU, typename T = double>
 constexpr std::optional<Matrix<NX, NX, T>> dare(

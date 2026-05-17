@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <array>
 #include <cstddef>
@@ -261,7 +261,7 @@ constexpr std::optional<Matrix<NU, NX, T>> place(
 
 /**
  * @brief Discrete-time Linear-Quadratic Regulator design
- * @note Alias for design::discrete_lqr. Equivalent to MATLAB's dlqr(A, B, Q, R, N).
+ * @note Alias for design::discrete_lqr. Compare with MATLAB's dlqr(A, B, Q, R, N).
  */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr auto dlqr(
@@ -276,7 +276,7 @@ template<size_t NX, size_t NU, typename T = double>
 
 /**
  * @brief Design discrete LQR from continuous-time system via discretization
- * @note Alias for design::discrete_lqr_from_continuous. Equivalent to MATLAB's lqrd(A, B, Q, R, Ts).
+ * @note Alias for design::discrete_lqr_from_continuous. Compare with MATLAB's lqrd(A, B, Q, R, Ts).
  */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr auto lqrd(
@@ -292,7 +292,7 @@ template<size_t NX, size_t NU, typename T = double>
 
 /**
  * @brief Design discrete LQR from continuous state-space system via discretization
- * @note Alias for design::discrete_lqr_from_continuous. Equivalent to MATLAB's lqrd(sys, Q, R, Ts).
+ * @note Alias for design::discrete_lqr_from_continuous. Compare with MATLAB's lqrd(sys, Q, R, Ts).
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 [[nodiscard]] constexpr auto lqrd(

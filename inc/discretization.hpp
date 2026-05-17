@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cmath>
 
@@ -7,36 +7,29 @@
 #include "state_space.hpp"
 
 namespace wetmelon::control {
+
 /**
  * @brief Discretization methods for continuous-time state-space systems
+ *
+ * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), Chapter 8
  */
 enum class DiscretizationMethod {
-    ForwardEuler, //!< Explicit Euler method (simple, low overhead)
-    ZOH,          //!< Zero-Order Hold (exact for piecewise constant inputs)
-    Tustin,       //!< Bilinear Transform (preserves stability, good for filters)
+    ForwardEuler, //!< Explicit Euler: Ad = I + ATs (first-order, simple, low overhead)
+    ZOH,          //!< Zero-Order Hold: Ad = e^(ATs), exact for piecewise-constant inputs
+    Tustin,       //!< Bilinear transform: s → (2/Ts)(z−1)/(z+1), preserves stability
 };
 
 namespace detail {
 
 /**
- * @brief Discretize a continuous-time state-space system using Forward Euler method
+ * @brief Discretize using Forward Euler (explicit Euler)
  *
- * Forward Euler implementation where:
- * ```latex
- * A_d = I + A*Ts
- * B_d = B*Ts
- * C_d = C
- * D_d = D
- * ```
- * @tparam NX number of states
- * @tparam NU number of inputs
- * @tparam NY number of outputs
- * @tparam NW number of process noise inputs
- * @tparam NV number of measurement noise inputs
- * @tparam T scalar type
- * @param sys continuous-time state-space system
- * @param sampling_time sampling period for discrete system
- * @return constexpr StateSpace<NX, NU, NY, NW, NV, T>
+ *     A_d = I + ATs,  B_d = BTs,  C_d = C,  D_d = D
+ *
+ * First-order approximation of the matrix exponential. Simple and fast but
+ * only accurate when ‖A‖��Ts ≪ 1. Does not preserve stability for stiff systems.
+ *
+ * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), §8.3
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_forward_euler_impl(
@@ -74,24 +67,18 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 }
 
 /**
- * @brief Discretize a continuous-time state-space system using Zero-Order Hold (ZOH) method
+ * @brief Discretize using Zero-Order Hold (ZOH)
  *
- * Zero-Order Hold (ZOH) implementation where:
- * ```latex
- * A_d = exp(A*Ts)
- * B_d = integral from 0 to Ts of exp(A*tau)*B*dtau
- *     = A^{-1} * (exp(A*Ts) - I) * B  [if A is invertible]
- *     = (A*Ts + (A*Ts)^2/2! + ...) * B [via series expansion]
- * ```
- * @tparam NX number of states
- * @tparam NU number of inputs
- * @tparam NY number of outputs
- * @tparam NW number of process noise inputs
- * @tparam NV number of measurement noise inputs
- * @tparam T scalar type
- * @param sys continuous-time state-space system
- * @param sampling_time sampling period for discrete system
- * @return constexpr StateSpace<NX, NU, NY, NW, NV, T>
+ *     A_d = e^(ATs)
+ *     B_d = A⁻¹(e^(ATs) − I)B   [or series expansion if A is singular]
+ *
+ * Exact discretization assuming piecewise-constant input between samples.
+ * Uses matrix exponential for A_d and LU solve for B_d (avoids forming A⁻¹).
+ * Falls back to Taylor series B_d ≈ (ITs + ATs²/2! + A²Ts³/3! + ⋯)B when
+ * A is singular.
+ *
+ * @note Compare with MATLAB's c2d(sys, Ts, 'zoh').
+ * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), §8.3
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize_zoh_impl(
@@ -153,7 +140,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  *      C_d:  solve Lᵀ · X = Cᵀ, then C_d = Xᵀ
  *      D_d = D + (Ts/2) · C_d · B
  *
- * @note Equivalent to MATLAB's c2d(sys, Ts, 'tustin').
+ * @note Compare with MATLAB's c2d(sys, Ts, 'tustin').
  * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), §8.6
  *
  * @param sys             Continuous-time state-space model
@@ -209,10 +196,16 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 /**
  * @brief Discretize a continuous-time state-space system
  *
- * @param sys           Continuous-time state-space model (Ts should be 0)
- * @param sampling_time Desired sampling period for discrete system
- * @param method        Discretization method (ZOH or Tustin)
- * @return constexpr StateSpace<NX, NU, NY, NW, NV, T>
+ * Converts ẋ = Ax + Bu to x[k+1] = A_d x[k] + B_d u[k] using the
+ * specified discretization method.
+ *
+ * @note Compare with MATLAB's c2d(sys, Ts, method).
+ * @see "Feedback Control of Dynamic Systems" (Franklin et al., 2015), Chapter 8
+ *
+ * @param sys           Continuous-time state-space model (Ts = 0)
+ * @param sampling_time Desired sampling period [s]
+ * @param method        Discretization method (ForwardEuler, ZOH, or Tustin)
+ * @return Discrete-time state-space system with Ts set
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 [[nodiscard]] constexpr StateSpace<NX, NU, NY, NW, NV, T> discretize(

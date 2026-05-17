@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cstddef>
 
@@ -17,15 +17,18 @@ namespace design {
  * @struct LQRResult
  * @brief Linear-Quadratic Regulator design result
  *
- * Mirrors MATLAB®'s [K,S,P] = lqr(...) output structure, containing optimal gain,
- * Riccati solution, and closed-loop pole information.
+ * Contains the optimal gain K, Riccati solution S, and closed-loop poles.
+ * Use .as<float>() to convert for embedded deployment.
+ *
+ * @note Mirrors MATLAB's [K,S,P] = dlqr(...) output structure.
+ * @see "Optimal Control" (Anderson & Moore, 1990), §4.3
  */
 template<size_t NX, size_t NU, typename T = double>
 struct LQRResult {
-    Matrix<NU, NX, T>           K{}; //!< Optimal gain: u = -K*x
-    Matrix<NX, NX, T>           S{}; //!< Solution to Riccati equation
-    ColVec<NX, wet::complex<T>> e{}; //!< Full complex closed-loop poles (eigenvalues)
-    bool                        success{false};
+    Matrix<NU, NX, T>           K{};            ///< Optimal gain: u = −Kx
+    Matrix<NX, NX, T>           S{};            ///< DARE solution (positive semidefinite)
+    ColVec<NX, wet::complex<T>> e{};            ///< Closed-loop poles (eigenvalues of A − BK)
+    bool                        success{false}; ///< true if DARE converged
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
@@ -66,7 +69,7 @@ struct LQRResult {
  * The gain is applied as u = -Kx. The solution is found via the Discrete
  * Algebraic Riccati Equation (DARE).
  *
- * @note Equivalent to MATLAB's dlqr(A, B, Q, R, N).
+ * @note Compare with MATLAB's dlqr(A, B, Q, R, N).
  *
  * @see dare() for the underlying Riccati solver
  * @see discrete_lqr_from_continuous() to design from a continuous-time system
@@ -116,7 +119,7 @@ template<size_t NX, size_t NU, typename T = double>
  * Discretizes the continuous-time system (A, B) using ZOH, then solves the
  * discrete LQR problem on the resulting system.
  *
- * @note Equivalent to MATLAB's lqrd(A, B, Q, R, Ts).
+ * @note Compare with MATLAB's lqrd(A, B, Q, R, Ts).
  *
  * @see discrete_lqr() for the discrete-time design
  * @see discretize() for the ZOH discretization step
@@ -167,10 +170,13 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 } // namespace design
 /**
  * @ingroup discrete_controllers
- * @brief Discrete Linear-Quadratic Regulator (LQR)
+ * @brief Runtime Linear-Quadratic Regulator
  *
- * State-feedback controller u = -K*x that minimizes a quadratic cost function.
- * Designed for regulation (driving state to zero) or tracking (following state reference).
+ * Lightweight state-feedback controller: u = −Kx (regulation) or u = −K(x − x_ref) (tracking).
+ * Stores only the gain matrix K. One matrix-vector multiply per call — suitable for ISR.
+ *
+ * @see design::discrete_lqr() to compute K
+ * @see "Optimal Control" (Anderson & Moore, 1990), §4.1
  *
  * @tparam NX Number of states
  * @tparam NU Number of control inputs

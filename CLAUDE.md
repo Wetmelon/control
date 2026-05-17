@@ -270,7 +270,7 @@ Every public function, type, and concept must be documented. The audience is a s
  * The gain is applied as u = -Kx. The solution is found via the Discrete
  * Algebraic Riccati Equation (DARE).
  *
- * @note Equivalent to MATLAB's dlqr(A, B, Q, R, N).
+ * @note Compare with MATLAB's dlqr(A, B, Q, R, N).
  *
  * @see dare() for the underlying Riccati solver
  * @see lqrd() to design from a continuous-time system
@@ -288,7 +288,7 @@ Every public function, type, and concept must be documented. The audience is a s
 Rules:
 
 - **State the math.** Write the equation being solved, the cost function being minimized, or the identity being exploited. Use Unicode math (`xᵀQx`, `Σ`, `∈`) — it renders in IDEs, tooltips, and Doxygen output.
-- **State the MATLAB equivalent** with `@note Equivalent to MATLAB's ...` when one exists. This is how both students and PhDs will search for the function.
+- **State the MATLAB equivalent** with `@note Compare with MATLAB's ...` when one exists. This is how both students and PhDs will search for the function.
 - **Link related functions** with `@see`. Always link the underlying solver, the convenience overload, and any design-to-controller path.
 - **Document matrix requirements** in `@param` — say "positive semidefinite", "positive definite", "must be square", "must be invertible" when applicable. This is the single most common mistake students make.
 - **Don't restate the signature.** `@param A State transition matrix` is useful; `@param A The A matrix` is noise.

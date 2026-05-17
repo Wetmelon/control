@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <cmath>
 
@@ -12,9 +12,13 @@ namespace design {
 
 /**
  * @struct KalmanResult
- * @brief Kalman filter design result
+ * @brief Steady-state Kalman filter design result
  *
- * Contains filter gains and covariance matrices for optimal state estimation.
+ * Contains the optimal estimator gain L and steady-state error covariance P
+ * that minimize E[‖x − x̂‖²] for the given noise statistics.
+ * Use .as<float>() to convert for embedded deployment.
+ *
+ * @see "Optimal State Estimation" (Simon, 2006), §5.3
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 struct KalmanResult {
@@ -41,13 +45,27 @@ struct KalmanResult {
 /**
  * @brief Steady-state Kalman filter design
  *
- * Designs optimal steady-state Kalman gain for discrete system: x[k+1] = A*x[k] + B*u[k] + G*w[k], y[k] = C*x[k] + D*u[k] + H*v[k]
+ * Computes the optimal steady-state estimator gain L for the discrete system:
  *
- * @param sys  State-space system (discrete-time)
- * @param Q    Process noise covariance (covariance of w[k])
- * @param R    Measurement noise covariance (covariance of v[k])
+ *     x[k+1] = Ax[k] + Bu[k] + Gw[k]
+ *     y[k]   = Cx[k] + Du[k] + Hv[k]
  *
- * @return KalmanResult containing steady-state gain and covariance
+ * where w ~ N(0, Q) and v ~ N(0, R). The gain minimizes the steady-state
+ * error covariance P = E[(x − x̂)(x − x̂)ᵀ] by solving the filter DARE:
+ *
+ *     P = APAᵀ + GQGᵀ − APCᵀ(CPCᵀ + HRHᵀ)⁻¹CPAᵀ
+ *
+ * then computing L = PCᵀ(CPCᵀ + HRHᵀ)⁻¹.
+ *
+ * @note Compare with MATLAB's kalman(sys, Q, R) or dlqe(A, G, C, Q, R).
+ *
+ * @see dare() for the underlying Riccati solver
+ * @see "Optimal State Estimation" (Simon, 2006), §5.3–5.4
+ *
+ * @param sys  Discrete-time state-space system
+ * @param Q    Process noise covariance (NW × NW, positive semidefinite)
+ * @param R    Measurement noise covariance (NV × NV, positive definite)
+ * @return KalmanResult containing steady-state gain L and error covariance P
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 [[nodiscard]] constexpr KalmanResult<NX, NU, NY, NW, NV, T> kalman(
@@ -100,8 +118,30 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 }
 } // namespace design
 
-// For embedded systems running in ISR or RTOS scheduler.
-// Assumes sys contains discrete-time matrices (use discretization functions to discretize).
+/**
+ * @brief Runtime Kalman filter for embedded systems
+ *
+ * Implements the standard predict/update cycle:
+ *
+ *     Predict:  x̂[k|k−1] = Ax̂[k−1] + Bu[k−1]
+ *               P[k|k−1]  = AP[k−1]Aᵀ + GQGᵀ
+ *
+ *     Update:   K = P[k|k−1]Cᵀ(CP[k|k−1]Cᵀ + HRHᵀ)⁻¹
+ *               x̂[k|k] = x̂[k|k−1] + K(y[k] − Cx̂[k|k−1])
+ *               P[k|k]  = (I − KC)P(I − KC)ᵀ + KHRHᵀKᵀ   [Joseph form]
+ *
+ * The Joseph form update is used for numerical stability (maintains P symmetry
+ * and positive-definiteness even with finite-precision arithmetic).
+ *
+ * @see "Optimal State Estimation" (Simon, 2006), §5.1, §7.6.2 (Joseph form)
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of inputs
+ * @tparam NY Number of outputs
+ * @tparam NW Number of process noise inputs
+ * @tparam NV Number of measurement noise inputs
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 struct KalmanFilter {
     constexpr KalmanFilter() = default;

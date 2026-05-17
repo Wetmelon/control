@@ -499,4 +499,4 @@ struct Integrator : public std::variant<
                         DP5<NX, T>,
                         Exact<NX, T> > {};
 
-}; // namespace wetmelon::control
+} // namespace wetmelon::control
