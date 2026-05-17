@@ -1,8 +1,8 @@
-#pragma once
+﻿#pragma once
 
 #include <vector>
 
-#include "constexpr_math.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 constexpr std::vector<double> linspace(double start, double end, size_t num) {

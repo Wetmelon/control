@@ -1,7 +1,7 @@
-﻿#include "constexpr_math.hpp"
-#include "lqr.hpp"
+﻿#include "lqr.hpp"
 #include "simulate.hpp"
 #include "solver.hpp"
+#include "wetmelon_math.hpp"
 
 using namespace wetmelon::control;
 

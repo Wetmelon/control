@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /**
  * @defgroup lead_lag Lead-Lag Compensator
@@ -28,10 +28,10 @@
 
 #include <cmath>
 
-#include "constexpr_math.hpp"
 #include "discretization.hpp"
 #include "state_space.hpp"
 #include "transfer_function.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 

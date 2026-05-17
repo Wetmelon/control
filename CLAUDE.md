@@ -11,10 +11,16 @@ Header-only C++20 control systems library (`wetmelon::control`) targeting embedd
 Build system is [tup](https://gittup.org/tup/) with a Makefile convenience wrapper. Compiler path configured in `tup.config` (see `tup.config.default`).
 
 ```bash
-make            # format + build + run all tests
+make            # format + compiledb + build + run all tests
 make tests      # build tests only, then run
 tup --quiet tests   # compile tests without running
 ./tests/build/test_runner.exe   # run already-built tests
+```
+
+Regenerate `compile_commands.json` for IDE support (clangd, VS Code intellisense):
+
+```bash
+tup --quiet compiledb
 ```
 
 Run a single test suite or case with doctest filters:
