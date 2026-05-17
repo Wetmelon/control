@@ -24,7 +24,7 @@ struct PIDResult {
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
-        return PIDResult<U>{Kp, Ki, Kd, Ts, u_min, u_max, i_min, i_max, Kbc};
+        return PIDResult<U>{(U)Kp, (U)Ki, (U)Kd, (U)Ts, (U)u_min, (U)u_max, (U)i_min, (U)i_max, (U)Kbc};
     }
 };
 
