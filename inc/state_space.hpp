@@ -133,18 +133,18 @@ constexpr auto series(const auto& sys1, const auto& sys2)
     requires StateSpaceSystem<decltype(sys1)>
           && StateSpaceSystem<decltype(sys2)>
           && std::same_as<decltype(sys1.Ts), decltype(sys2.Ts)>
-          && (sys1.C.rows() == sys2.B.cols())
+          && (decltype(sys1.C)::rows() == decltype(sys2.B)::cols())
 {
     using T = decltype(sys1.Ts);
 
-    constexpr size_t n1 = sys1.A.rows();
-    constexpr size_t n2 = sys2.A.rows();
-    constexpr size_t m = sys1.B.cols();
-    constexpr size_t p = sys2.C.rows();
-    constexpr size_t nw1 = sys1.G.cols();
-    constexpr size_t nw2 = sys2.G.cols();
-    constexpr size_t nv1 = sys1.H.cols();
-    constexpr size_t nv2 = sys2.H.cols();
+    constexpr size_t n1 = decltype(sys1.A)::rows();
+    constexpr size_t n2 = decltype(sys2.A)::rows();
+    constexpr size_t m = decltype(sys1.B)::cols();
+    constexpr size_t p = decltype(sys2.C)::rows();
+    constexpr size_t nw1 = decltype(sys1.G)::cols();
+    constexpr size_t nw2 = decltype(sys2.G)::cols();
+    constexpr size_t nv1 = decltype(sys1.H)::cols();
+    constexpr size_t nv2 = decltype(sys2.H)::cols();
 
     Matrix<n1 + n2, n1 + n2, T>   A{};
     Matrix<n1 + n2, m, T>         B{};
@@ -200,19 +200,19 @@ constexpr auto parallel(const auto& sys1, const auto& sys2)
     requires StateSpaceSystem<decltype(sys1)>
           && StateSpaceSystem<decltype(sys2)>
           && std::same_as<decltype(sys1.Ts), decltype(sys2.Ts)>
-          && (sys1.B.cols() == sys2.B.cols())
-          && (sys1.C.rows() == sys2.C.rows())
+          && (decltype(sys1.B)::cols() == decltype(sys2.B)::cols())
+          && (decltype(sys1.C)::rows() == decltype(sys2.C)::rows())
 {
     using T = decltype(sys1.Ts);
 
-    constexpr size_t n1 = sys1.A.rows();
-    constexpr size_t n2 = sys2.A.rows();
-    constexpr size_t m = sys1.B.cols();
-    constexpr size_t p = sys1.C.rows();
-    constexpr size_t nw1 = sys1.G.cols();
-    constexpr size_t nw2 = sys2.G.cols();
-    constexpr size_t nv1 = sys1.H.cols();
-    constexpr size_t nv2 = sys2.H.cols();
+    constexpr size_t n1 = decltype(sys1.A)::rows();
+    constexpr size_t n2 = decltype(sys2.A)::rows();
+    constexpr size_t m = decltype(sys1.B)::cols();
+    constexpr size_t p = decltype(sys1.C)::rows();
+    constexpr size_t nw1 = decltype(sys1.G)::cols();
+    constexpr size_t nw2 = decltype(sys2.G)::cols();
+    constexpr size_t nv1 = decltype(sys1.H)::cols();
+    constexpr size_t nv2 = decltype(sys2.H)::cols();
 
     Matrix<n1 + n2, n1 + n2, T>   A{};
     Matrix<n1 + n2, m, T>         B{};
@@ -266,19 +266,19 @@ constexpr auto feedback(const auto& sys1, const auto& sys2)
     requires StateSpaceSystem<decltype(sys1)>
           && StateSpaceSystem<decltype(sys2)>
           && std::same_as<decltype(sys1.Ts), decltype(sys2.Ts)>
-          && (sys1.B.cols() == sys2.B.cols())
-          && (sys1.C.rows() == sys2.C.rows())
+          && (decltype(sys1.B)::cols() == decltype(sys2.B)::cols())
+          && (decltype(sys1.C)::rows() == decltype(sys2.C)::rows())
 {
     using T = decltype(sys1.Ts);
 
-    constexpr size_t n1 = sys1.A.rows();
-    constexpr size_t n2 = sys2.A.rows();
-    constexpr size_t m = sys1.B.cols();
-    constexpr size_t p = sys1.C.rows();
-    constexpr size_t nw1 = sys1.G.cols();
-    constexpr size_t nw2 = sys2.G.cols();
-    constexpr size_t nv1 = sys1.H.cols();
-    constexpr size_t nv2 = sys2.H.cols();
+    constexpr size_t n1 = decltype(sys1.A)::rows();
+    constexpr size_t n2 = decltype(sys2.A)::rows();
+    constexpr size_t m = decltype(sys1.B)::cols();
+    constexpr size_t p = decltype(sys1.C)::rows();
+    constexpr size_t nw1 = decltype(sys1.G)::cols();
+    constexpr size_t nw2 = decltype(sys2.G)::cols();
+    constexpr size_t nv1 = decltype(sys1.H)::cols();
+    constexpr size_t nv2 = decltype(sys2.H)::cols();
 
     Matrix<n1 + n2, n1 + n2, T>   A{};
     Matrix<n1 + n2, m, T>         B{};
@@ -335,19 +335,19 @@ constexpr auto subtract(const auto& sys1, const auto& sys2)
     requires StateSpaceSystem<decltype(sys1)>
           && StateSpaceSystem<decltype(sys2)>
           && std::same_as<decltype(sys1.Ts), decltype(sys2.Ts)>
-          && (sys1.B.cols() == sys2.B.cols())
-          && (sys1.C.rows() == sys2.C.rows())
+          && (decltype(sys1.B)::cols() == decltype(sys2.B)::cols())
+          && (decltype(sys1.C)::rows() == decltype(sys2.C)::rows())
 {
     using T = decltype(sys1.Ts);
 
-    constexpr size_t n1 = sys1.A.rows();
-    constexpr size_t n2 = sys2.A.rows();
-    constexpr size_t m = sys1.B.cols();
-    constexpr size_t p = sys1.C.rows();
-    constexpr size_t nw1 = sys1.G.cols();
-    constexpr size_t nw2 = sys2.G.cols();
-    constexpr size_t nv1 = sys1.H.cols();
-    constexpr size_t nv2 = sys2.H.cols();
+    constexpr size_t n1 = decltype(sys1.A)::rows();
+    constexpr size_t n2 = decltype(sys2.A)::rows();
+    constexpr size_t m = decltype(sys1.B)::cols();
+    constexpr size_t p = decltype(sys1.C)::rows();
+    constexpr size_t nw1 = decltype(sys1.G)::cols();
+    constexpr size_t nw2 = decltype(sys2.G)::cols();
+    constexpr size_t nv1 = decltype(sys1.H)::cols();
+    constexpr size_t nv2 = decltype(sys2.H)::cols();
 
     Matrix<n1 + n2, n1 + n2, T>   A{};
     Matrix<n1 + n2, m, T>         B{};
