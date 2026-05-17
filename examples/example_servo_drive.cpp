@@ -168,12 +168,12 @@ int main() {
         // Speed loop (PI, decimated)
         if (++speed_decim >= speed_ratio) {
             speed_decim = 0;
-            iq_ref = pi_spd.control(omega_ref_cmd - omega_m);
+            iq_ref = pi_spd.control(omega_ref_cmd, omega_m);
         }
 
         // Current loops
-        double vd = pi_d.control(0.0 - id);
-        double vq = pi_q.control(iq_ref - iq);
+        double vd = pi_d.control(0.0, id);
+        double vq = pi_q.control(iq_ref, iq);
 
         // Cross-coupling decoupling and back-EMF feedforward
         const double omega_e = P * omega_m;

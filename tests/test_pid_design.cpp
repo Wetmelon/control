@@ -258,7 +258,7 @@ TEST_SUITE("PID Design - Type Conversion") {
     TEST_CASE("Runtime design feeds into PIDController") {
         auto          result = design::simc(1.0, 0.5, 2.0, 1.0, 0.01);
         PIDController controller(result);
-        float         u = controller.control(1.0);
+        float         u = controller.control(1.0f, 0.0f);
         CHECK(u != 0.0f); // Non-zero output for non-zero error
     }
 }
