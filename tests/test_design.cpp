@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 
 #include "doctest.h"
 #include "eskf.hpp"
@@ -57,16 +57,16 @@ TEST_SUITE("DARE: Cross-Term N Support") {
 }
 
 TEST_SUITE("Design: Compile-Time LQR with Cross-Term N") {
-    TEST_CASE("design::dlqr with cross-term N at compile time") {
+    TEST_CASE("design::discrete_lqr with cross-term N at compile time") {
         // Use constexpr to ensure compile-time evaluation
-        constexpr auto result_no_N = design::dlqr(
+        constexpr auto result_no_N = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}}
         );
 
-        constexpr auto result_with_N = design::dlqr(
+        constexpr auto result_with_N = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -89,7 +89,7 @@ TEST_SUITE("Design: Compile-Time LQR with Cross-Term N") {
 
 TEST_SUITE("Design: Compile-Time Result Type Conversions") {
     TEST_CASE("LQRResult::as<U>() at compile time") {
-        constexpr auto lqr_d = design::dlqr(
+        constexpr auto lqr_d = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -109,7 +109,7 @@ TEST_SUITE("Design: Compile-Time Result Type Conversions") {
 
 TEST_SUITE("Design: Compile-Time Success Flags") {
     TEST_CASE("LQRResult::success at compile time") {
-        constexpr auto result = design::dlqr(
+        constexpr auto result = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -125,14 +125,14 @@ TEST_SUITE("Design: Compile-Time Success Flags") {
 }
 
 TEST_SUITE("Design: Golden Data Tests") {
-    TEST_CASE("design::dlqr matches scipy/control golden data") {
+    TEST_CASE("design::discrete_lqr matches scipy/control golden data") {
         // Test case from Python scipy/control
         constexpr Matrix<2, 2> A{{0.9, 0.1}, {0.0, 0.8}};
         constexpr Matrix<2, 1> B{{0.1}, {0.2}};
         constexpr Matrix<2, 2> Q{{1.0, 0.0}, {0.0, 1.0}};
         constexpr Matrix<1, 1> R{{1.0}};
 
-        constexpr auto result = design::dlqr(A, B, Q, R);
+        constexpr auto result = design::discrete_lqr(A, B, Q, R);
 
         static_assert(result.success);
 
@@ -151,7 +151,7 @@ TEST_SUITE("Design: Golden Data Tests") {
         CHECK(doctest::Approx(result.e[1].real()).epsilon(1e-6) == 0.7610831951563004);
     }
 
-    TEST_CASE("design::lqrd matches scipy/control golden data") {
+    TEST_CASE("design::discrete_lqr_from_continuous matches scipy/control golden data") {
         // Continuous system
         constexpr Matrix<2, 2> A_c{{-1.0, 1.0}, {0.0, -2.0}};
         constexpr Matrix<2, 1> B_c{{1.0}, {0.5}};
@@ -159,7 +159,7 @@ TEST_SUITE("Design: Golden Data Tests") {
         constexpr Matrix<1, 1> R{{1.0}};
         constexpr double       Ts = 0.1;
 
-        constexpr auto result = design::lqrd(A_c, B_c, Q, R, Ts);
+        constexpr auto result = design::discrete_lqr_from_continuous(A_c, B_c, Q, R, Ts);
 
         static_assert(result.success);
 

@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 
 #include "doctest.h"
 #include "kalman.hpp"
@@ -19,15 +19,15 @@ using namespace wetmelon::control;
  */
 
 TEST_SUITE("Online: LQR with Cross-Term N") {
-    TEST_CASE("design::dlqr with cross-term N") {
-        auto result_no_N = design::dlqr(
+    TEST_CASE("design::discrete_lqr with cross-term N") {
+        auto result_no_N = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}}
         );
 
-        auto result_with_N = design::dlqr(
+        auto result_with_N = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -288,7 +288,7 @@ TEST_SUITE("Online: LQGI Servo") {
 
 TEST_SUITE("Online: Success Flag Propagation") {
     TEST_CASE("LQRResult success reflects DARE convergence") {
-        auto result = design::dlqr(
+        auto result = design::discrete_lqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},

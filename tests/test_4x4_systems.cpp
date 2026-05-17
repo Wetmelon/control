@@ -1,4 +1,4 @@
-#include <algorithm>
+﻿#include <algorithm>
 #include <cmath>
 
 #include "doctest.h"
@@ -171,7 +171,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<1, 1> R = {{1.0}};
 
-        auto result = design::dlqr(A_d, B_d, Q, R);
+        auto result = design::discrete_lqr(A_d, B_d, Q, R);
         CHECK(result.success);
 
         if (result.success) {
@@ -199,7 +199,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<1, 1> R = {{0.1}}; // Lower control cost to enable stabilization
 
-        auto result = design::dlqr(A_d, B_d, Q, R);
+        auto result = design::discrete_lqr(A_d, B_d, Q, R);
         CHECK(result.success);
 
         if (result.success) {
@@ -275,7 +275,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         constexpr Matrix<4, 4> Q = Matrix<4, 4>::identity();
         constexpr Matrix<1, 1> R = {{1.0}};
 
-        constexpr auto result = design::dlqr(A, B, Q, R);
+        constexpr auto result = design::discrete_lqr(A, B, Q, R);
 
         static_assert(result.success, "Compile-time 4x4 LQR should succeed");
         static_assert(result.K(0, 0) != 0.0, "K should have non-zero elements");
@@ -302,7 +302,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<2, 2> R = Matrix<2, 2>::identity();
 
-        auto result = design::dlqr(A, B, Q, R);
+        auto result = design::discrete_lqr(A, B, Q, R);
         CHECK(result.success);
 
         // Verify closed-loop stability

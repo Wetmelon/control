@@ -1,4 +1,4 @@
-#include "constexpr_math.hpp"
+﻿#include "constexpr_math.hpp"
 #include "fmt/core.h"
 #include "lqr.hpp"
 #include "plot_plotly.hpp"
@@ -32,7 +32,7 @@ constexpr auto sys = linearize_pendulum();
 constexpr auto Q = Matrix<2, 2>::identity() * 10.0;
 constexpr auto R = Matrix<1, 1>{{1.0}};
 constexpr auto Ts = 0.01;
-constexpr auto lqr_d = design::lqrd(sys.A, sys.B, Q, R, Ts);
+constexpr auto lqr_d = design::discrete_lqr_from_continuous(sys.A, sys.B, Q, R, Ts);
 
 int main() {
     fmt::print("===== Pendulum Simulation Example =====\n\n");
@@ -83,7 +83,7 @@ int main() {
     // ===== Demonstrate runtime redesign with design:: =====
     fmt::print("\n===== Runtime LQR Redesign =====\n");
     auto Q2 = Matrix<2, 2>::identity() * 50.0; // Higher state penalty
-    auto lqr_d2 = design::lqrd(sys.A, sys.B, Q2, R, Ts);
+    auto lqr_d2 = design::discrete_lqr_from_continuous(sys.A, sys.B, Q2, R, Ts);
     LQR  controller2{lqr_d2};
     fmt::print("New LQR Gain K = [{:.4f}, {:.4f}]\n", lqr_d2.K(0, 0), lqr_d2.K(0, 1));
 

@@ -6,6 +6,7 @@
 
 #include "constexpr_complex.hpp"
 #include "discretization.hpp"
+#include "lqr.hpp"
 #include "matrix.hpp"
 #include "pid.hpp"
 #include "state_space.hpp"
@@ -256,6 +257,52 @@ constexpr std::optional<Matrix<NU, NX, T>> place(
 
         return temp;
     }
+}
+
+/**
+ * @brief Discrete-time Linear-Quadratic Regulator design
+ * @note Alias for design::discrete_lqr. Equivalent to MATLAB's dlqr(A, B, Q, R, N).
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr auto dlqr(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    return design::discrete_lqr(A, B, Q, R, N);
+}
+
+/**
+ * @brief Design discrete LQR from continuous-time system via discretization
+ * @note Alias for design::discrete_lqr_from_continuous. Equivalent to MATLAB's lqrd(A, B, Q, R, Ts).
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr auto lqrd(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    T                        Ts,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    return design::discrete_lqr_from_continuous(A, B, Q, R, Ts, N);
+}
+
+/**
+ * @brief Design discrete LQR from continuous state-space system via discretization
+ * @note Alias for design::discrete_lqr_from_continuous. Equivalent to MATLAB's lqrd(sys, Q, R, Ts).
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
+[[nodiscard]] constexpr auto lqrd(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const Matrix<NX, NX, T>&                 Q,
+    const Matrix<NU, NU, T>&                 R,
+    T                                        Ts,
+    const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
+) {
+    return design::discrete_lqr_from_continuous(sys, Q, R, Ts, N);
 }
 
 /**

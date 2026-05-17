@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 
 #include "doctest.h"
 #include "lqg.hpp"
@@ -25,7 +25,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2>     Q{{1.0, 0.0}, {0.0, 1.0}};
         Matrix<1, 1>     R{{0.1}};
 
-        auto result = design::dlqr(Ad, Bd, Q, R);
+        auto result = design::discrete_lqr(Ad, Bd, Q, R);
 
         // Should produce non-zero gain
         CHECK(result.K(0, 0) != 0.0);
@@ -128,7 +128,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         // Create LQR result using dlqr free function
         Matrix<2, 2> Q_lqr = Matrix<2, 2>::identity();
         Matrix<1, 1> R_lqr{{0.1}};
-        auto         lqr_result = design::dlqr(sys.A, sys.B, Q_lqr, R_lqr);
+        auto         lqr_result = design::discrete_lqr(sys.A, sys.B, Q_lqr, R_lqr);
 
         // Combine into LQGResult
         auto lqg_result = design::lqgreg(kf_result, lqr_result);
@@ -148,7 +148,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
 
         // Note: We can't use consteval directly in runtime CHECK, but we can
         // verify the design functions work at compile time by using constexpr
-        constexpr auto result = design::dlqr(Ad, Bd, Q, R);
+        constexpr auto result = design::discrete_lqr(Ad, Bd, Q, R);
 
         // At runtime, verify the compile-time result
         CHECK(result.K(0, 0) != 0.0);

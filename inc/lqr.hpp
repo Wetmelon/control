@@ -57,16 +57,30 @@ struct LQRResult {
 /**
  * @brief Discrete-time Linear-Quadratic Regulator design
  *
- * @param A  State transition matrix
- * @param B  Control input matrix
- * @param Q  State cost matrix
- * @param R  Input cost matrix
- * @param N  (optional) Cross-term cost matrix
+ * Computes the optimal state-feedback gain K that minimizes the cost function:
  *
- * @return LQRResult containing gain matrix and solution to DARE
+ *     J = Σ [ xᵀQx + uᵀRu + 2xᵀNu ]
+ *
+ * subject to the discrete-time dynamics x[k+1] = Ax[k] + Bu[k].
+ *
+ * The gain is applied as u = -Kx. The solution is found via the Discrete
+ * Algebraic Riccati Equation (DARE).
+ *
+ * @note Equivalent to MATLAB's dlqr(A, B, Q, R, N).
+ *
+ * @see dare() for the underlying Riccati solver
+ * @see discrete_lqr_from_continuous() to design from a continuous-time system
+ * @see "Optimal Control" (Anderson & Moore, 1990), Chapter 4
+ *
+ * @param A  State transition matrix (NX × NX)
+ * @param B  Control input matrix (NX × NU)
+ * @param Q  State cost matrix (NX × NX, positive semidefinite)
+ * @param R  Input cost matrix (NU × NU, positive definite)
+ * @param N  Cross-term cost matrix (NX × NU, default: zero)
+ * @return LQRResult with gain K, Riccati solution S, and closed-loop poles
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr LQRResult<NX, NU, T> dlqr(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -99,17 +113,24 @@ template<size_t NX, size_t NU, typename T = double>
 /**
  * @brief Design discrete LQR from continuous-time system via discretization
  *
- * @param A   State transition matrix (continuous-time)
- * @param B   Control input matrix (continuous-time)
- * @param Q   State cost matrix
- * @param R   Input cost matrix
- * @param Ts  Sampling time
- * @param N   (optional) Cross-term cost matrix
+ * Discretizes the continuous-time system (A, B) using ZOH, then solves the
+ * discrete LQR problem on the resulting system.
  *
- * @return LQRResult containing gain matrix and solution to DARE
+ * @note Equivalent to MATLAB's lqrd(A, B, Q, R, Ts).
+ *
+ * @see discrete_lqr() for the discrete-time design
+ * @see discretize() for the ZOH discretization step
+ *
+ * @param A   State transition matrix (continuous-time, NX × NX)
+ * @param B   Control input matrix (continuous-time, NX × NU)
+ * @param Q   State cost matrix (NX × NX, positive semidefinite)
+ * @param R   Input cost matrix (NU × NU, positive definite)
+ * @param Ts  Sampling time [s]
+ * @param N   Cross-term cost matrix (NX × NU, default: zero)
+ * @return LQRResult with gain K, Riccati solution S, and closed-loop poles
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr LQRResult<NX, NU, T> lqrd(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -119,29 +140,28 @@ template<size_t NX, size_t NU, typename T = double>
 ) {
     StateSpace<NX, NU, NX, NX, NX, T> sys_c{A, B, Matrix<NX, NX, T>::identity()};
     const auto                        sys_d = discretize(sys_c, Ts, DiscretizationMethod::ZOH);
-    return dlqr(sys_d.A, sys_d.B, Q, R, N);
+    return discrete_lqr(sys_d.A, sys_d.B, Q, R, N);
 }
 
 /**
  * @brief LQR from continuous state-space system via discretization
  *
  * @param sys State-space system (continuous-time)
- * @param Q   State cost matrix
- * @param R   Input cost matrix
- * @param Ts  Sampling time
- * @param N   (optional) Cross-term cost matrix
- *
- * @return LQRResult containing gain matrix and solution to DARE
+ * @param Q   State cost matrix (NX × NX, positive semidefinite)
+ * @param R   Input cost matrix (NU × NU, positive definite)
+ * @param Ts  Sampling time [s]
+ * @param N   Cross-term cost matrix (NX × NU, default: zero)
+ * @return LQRResult with gain K, Riccati solution S, and closed-loop poles
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] constexpr LQRResult<NX, NU, T> lqrd(
+[[nodiscard]] constexpr LQRResult<NX, NU, T> discrete_lqr_from_continuous(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX, NX, T>&                 Q,
     const Matrix<NU, NU, T>&                 R,
     T                                        Ts,
     const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
 ) {
-    return lqrd(sys.A, sys.B, Q, R, Ts, N);
+    return discrete_lqr_from_continuous(sys.A, sys.B, Q, R, Ts, N);
 }
 
 } // namespace design

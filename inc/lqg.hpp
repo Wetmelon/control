@@ -95,7 +95,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     const Matrix<NV, NV, T>&                 R_kf,
     const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
 ) {
-    const auto lqr_result = dlqr(sys.A, sys.B, Q_lqr, R_lqr, N);
+    const auto lqr_result = discrete_lqr(sys.A, sys.B, Q_lqr, R_lqr, N);
     const auto kalman_result = kalman(sys, Q_kf, R_kf);
     return LQGResult<NX, NU, NY, NW, NV, T>{lqr_result, kalman_result, lqr_result.success && kalman_result.success};
 }

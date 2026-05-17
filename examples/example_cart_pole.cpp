@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @file example_cart_pole.cpp
  * @brief Inverted pendulum on cart (cart-pole) LQR control example
  *
@@ -99,7 +99,7 @@ constexpr auto Ts = 0.01;               // 100Hz control loop
 constexpr auto R = Matrix<1, 1>{{1.0}}; // Control effort penalty
 
 // Design compile-time discrete LQR controller for cart-pole
-LQR controller_eq = design::lqrd(sys_eq.A, sys_eq.B, Q, R, Ts).as<float>();
+LQR controller_eq = design::discrete_lqr_from_continuous(sys_eq.A, sys_eq.B, Q, R, Ts).as<float>();
 
 /**
  * @brief Main function demonstrating cart-pole LQR control

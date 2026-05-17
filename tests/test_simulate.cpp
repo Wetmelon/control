@@ -1,4 +1,4 @@
-#include "constexpr_math.hpp"
+﻿#include "constexpr_math.hpp"
 #include "lqr.hpp"
 #include "simulate.hpp"
 #include "solver.hpp"
@@ -22,7 +22,7 @@ TEST_CASE("simulate_state_feedback - pendulum converges under LQR") {
     auto R = Matrix<1, 1>{{1.0}};
     auto Ts = 0.01;
 
-    auto lqr_result = design::lqrd(A, B, Q, R, Ts);
+    auto lqr_result = design::discrete_lqr_from_continuous(A, B, Q, R, Ts);
     CHECK(lqr_result.success);
     LQR controller{lqr_result};
 

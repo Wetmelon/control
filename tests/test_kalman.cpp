@@ -1,4 +1,4 @@
-#include <cmath>
+﻿#include <cmath>
 
 #include "doctest.h"
 #include "ekf.hpp"
@@ -101,7 +101,7 @@ TEST_CASE("LQR scalar DARE solution") {
     Matrix<1, 1> Q = {{1.0}};
     Matrix<1, 1> R = {{1.0}};
 
-    auto result = design::dlqr(A, B, Q, R);
+    auto result = design::discrete_lqr(A, B, Q, R);
 
     // Known solution: P = (1+sqrt(5))/2, K = P/(1+P)
     double P_expected = (1.0 + std::sqrt(5.0)) * 0.5;

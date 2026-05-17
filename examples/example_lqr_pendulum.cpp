@@ -1,4 +1,4 @@
-#include "constexpr_math.hpp"
+﻿#include "constexpr_math.hpp"
 #include "fmt/core.h"
 #include "lqr.hpp"
 
@@ -37,13 +37,13 @@ constexpr auto R = Matrix<1, 1>{{1.0}};               // Penalize torque
 constexpr auto Ts = 0.01;                             // 100Hz control loop
 
 // Design at compile time - guaranteed zero runtime overhead
-constexpr auto res_eq = design::lqrd(sys_eq.A, sys_eq.B, Q, R, Ts);
+constexpr auto res_eq = design::discrete_lqr_from_continuous(sys_eq.A, sys_eq.B, Q, R, Ts);
 LQR            controller_eq = res_eq.as<float>();
 
 // ===== B) RUNTIME LQR: Linearize about current state =====
 static LQR<2, 1> design_lqr_at_state(double theta, double theta_dot) {
     auto sys = linearize_pendulum(theta, theta_dot);
-    auto res = design::lqrd(sys.A, sys.B, Q, R, Ts);
+    auto res = design::discrete_lqr_from_continuous(sys.A, sys.B, Q, R, Ts);
     return LQR{res};
 }
 
