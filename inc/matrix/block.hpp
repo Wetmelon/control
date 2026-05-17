@@ -205,7 +205,7 @@ public:
      * @brief Convert row block to RowVec
      */
     template<size_t R = Rows, size_t C = Cols>
-        requires(R == 1)
+        requires(R == 1 && C > 1)
     [[nodiscard]] constexpr RowVec<C, value_type> to_vector() const {
         RowVec<C, value_type> result;
         for (size_t i = 0; i < C; ++i) {

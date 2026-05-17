@@ -243,9 +243,7 @@ public:
         return operator()(r);
     }
 
-    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data() + col_index); }
     typedef std::remove_const_t<T>        value_type;
-    [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data() + col_index; }
     [[nodiscard]] static constexpr size_t size() { return Rows; }
     [[nodiscard]] static constexpr size_t rows() { return Rows; }
     [[nodiscard]] static constexpr size_t cols() { return 1; }
