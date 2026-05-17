@@ -242,16 +242,10 @@ public:
      *
      * @return UpperTriangle view of the matrix
      */
-    constexpr UpperTriangle<Rows, T> upper_triangle()
+    constexpr UpperTriangle<Rows, T> upper_triangle() const
         requires(Rows == Cols)
     {
         return UpperTriangle<Rows, T>{*this};
-    }
-
-    constexpr UpperTriangle<Rows, const T> upper_triangle() const
-        requires(Rows == Cols)
-    {
-        return UpperTriangle<Rows, const T>{*this};
     }
 
     /**
@@ -259,16 +253,10 @@ public:
      *
      * @return LowerTriangle view of the matrix
      */
-    constexpr LowerTriangle<Rows, T> lower_triangle()
+    constexpr LowerTriangle<Rows, T> lower_triangle() const
         requires(Rows == Cols)
     {
         return LowerTriangle<Rows, T>{*this};
-    }
-
-    constexpr LowerTriangle<Rows, const T> lower_triangle() const
-        requires(Rows == Cols)
-    {
-        return LowerTriangle<Rows, const T>{*this};
     }
 
     /**

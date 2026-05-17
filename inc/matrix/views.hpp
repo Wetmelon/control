@@ -104,30 +104,18 @@ template<size_t N, typename T>
 struct UpperTriangle {
 private:
     const Matrix<N, N, std::remove_const_t<T>>* mat_ptr;
-    static constexpr bool                       is_const = std::is_const_v<T>;
 
 public:
     using value_type = std::remove_const_t<T>;
 
     constexpr explicit UpperTriangle(const Matrix<N, N, std::remove_const_t<T>>& mat) : mat_ptr(&mat) {}
 
-    [[nodiscard]] constexpr auto& operator()(size_t r, size_t c) {
-        return detail::view_element<is_const>(mat_ptr->data(), r * N + c);
+    [[nodiscard]] constexpr value_type operator()(size_t r, size_t c) const {
+        return r <= c ? mat_ptr->data()[r * N + c] : value_type{0};
     }
 
-    [[nodiscard]] constexpr auto& operator()(size_t r, size_t c) const {
-        return static_cast<const T&>(mat_ptr->data()[r * N + c]);
-    }
-
-    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data()); }
-    [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data(); }
     [[nodiscard]] static constexpr size_t rows() { return N; }
     [[nodiscard]] static constexpr size_t cols() { return N; }
-
-    // Check if position is in upper triangle
-    [[nodiscard]] static constexpr bool is_upper(size_t r, size_t c) {
-        return r <= c;
-    }
 };
 
 /**
@@ -143,30 +131,18 @@ template<size_t N, typename T>
 struct LowerTriangle {
 private:
     const Matrix<N, N, std::remove_const_t<T>>* mat_ptr;
-    static constexpr bool                       is_const = std::is_const_v<T>;
 
 public:
     using value_type = std::remove_const_t<T>;
 
     constexpr explicit LowerTriangle(const Matrix<N, N, std::remove_const_t<T>>& mat) : mat_ptr(&mat) {}
 
-    [[nodiscard]] constexpr auto& operator()(size_t r, size_t c) {
-        return detail::view_element<is_const>(mat_ptr->data(), r * N + c);
+    [[nodiscard]] constexpr value_type operator()(size_t r, size_t c) const {
+        return r >= c ? mat_ptr->data()[r * N + c] : value_type{0};
     }
 
-    [[nodiscard]] constexpr auto& operator()(size_t r, size_t c) const {
-        return static_cast<const T&>(mat_ptr->data()[r * N + c]);
-    }
-
-    [[nodiscard]] constexpr auto*         data() { return detail::view_data<is_const>(mat_ptr->data()); }
-    [[nodiscard]] constexpr const T*      data() const { return mat_ptr->data(); }
     [[nodiscard]] static constexpr size_t rows() { return N; }
     [[nodiscard]] static constexpr size_t cols() { return N; }
-
-    // Check if position is in lower triangle
-    [[nodiscard]] static constexpr bool is_lower(size_t r, size_t c) {
-        return r >= c;
-    }
 };
 
 /**

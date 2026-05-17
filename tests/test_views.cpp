@@ -114,8 +114,9 @@ TEST_CASE("Upper triangle view basic functionality") {
         {7, 8, 9}
     };
 
-    // Test upper triangle view
     auto upper = mat.upper_triangle();
+
+    // On-triangle elements return stored values
     CHECK(upper(0, 0) == 1);
     CHECK(upper(0, 1) == 2);
     CHECK(upper(0, 2) == 3);
@@ -123,31 +124,10 @@ TEST_CASE("Upper triangle view basic functionality") {
     CHECK(upper(1, 2) == 6);
     CHECK(upper(2, 2) == 9);
 
-    // Test upper triangle modification
-    upper(1, 2) = 99;
-    CHECK(mat(1, 2) == 99);
-    CHECK(upper(1, 2) == 99);
-
-    // Test static methods
-    CHECK(UpperTriangle<3, double>::is_upper(0, 1) == true);
-    CHECK(UpperTriangle<3, double>::is_upper(1, 0) == false);
-    CHECK(UpperTriangle<3, double>::is_upper(1, 1) == true);
-}
-
-TEST_CASE("Upper triangle view const correctness") {
-    const Matrix<3, 3, double> mat = {
-        {1, 2, 3},
-        {4, 5, 6},
-        {7, 8, 9}
-    };
-
-    auto upper = mat.upper_triangle();
-    CHECK(upper(0, 0) == 1);
-    CHECK(upper(0, 1) == 2);
-    CHECK(upper(0, 2) == 3);
-    CHECK(upper(1, 1) == 5);
-    CHECK(upper(1, 2) == 6);
-    CHECK(upper(2, 2) == 9);
+    // Off-triangle elements return zero
+    CHECK(upper(1, 0) == 0);
+    CHECK(upper(2, 0) == 0);
+    CHECK(upper(2, 1) == 0);
 }
 
 TEST_CASE("Lower triangle view basic functionality") {
@@ -157,8 +137,9 @@ TEST_CASE("Lower triangle view basic functionality") {
         {7, 8, 9}
     };
 
-    // Test lower triangle view
     auto lower = mat.lower_triangle();
+
+    // On-triangle elements return stored values
     CHECK(lower(0, 0) == 1);
     CHECK(lower(1, 0) == 4);
     CHECK(lower(1, 1) == 5);
@@ -166,15 +147,10 @@ TEST_CASE("Lower triangle view basic functionality") {
     CHECK(lower(2, 1) == 8);
     CHECK(lower(2, 2) == 9);
 
-    // Test lower triangle modification
-    lower(2, 1) = 99;
-    CHECK(mat(2, 1) == 99);
-    CHECK(lower(2, 1) == 99);
-
-    // Test static methods
-    CHECK(LowerTriangle<3, double>::is_lower(1, 0) == true);
-    CHECK(LowerTriangle<3, double>::is_lower(0, 1) == false);
-    CHECK(LowerTriangle<3, double>::is_lower(1, 1) == true);
+    // Off-triangle elements return zero
+    CHECK(lower(0, 1) == 0);
+    CHECK(lower(0, 2) == 0);
+    CHECK(lower(1, 2) == 0);
 }
 
 TEST_CASE("Lower triangle view const correctness") {
