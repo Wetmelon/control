@@ -3,7 +3,7 @@
 
 #include "doctest.h"
 #include "eskf.hpp"
-#include "rotation.hpp"
+#include "geometry.hpp"
 
 using namespace wetmelon::control;
 

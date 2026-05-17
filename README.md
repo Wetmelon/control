@@ -68,7 +68,7 @@ Include only what you need:
 #include "kalman.hpp"       // Kalman filter design
 #include "pid.hpp"          // PID controller with anti-windup
 #include "filters.hpp"      // LowPass, SOGI, notch filters
-#include "rotation.hpp"     // DCM, Quaternion, Euler angles
+#include "geometry.hpp"     // DCM, Quaternion, Euler angles, Transform4
 #include "state_space.hpp"  // StateSpace type and interconnections
 ```
 

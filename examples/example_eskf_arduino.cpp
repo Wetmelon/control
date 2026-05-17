@@ -3,9 +3,9 @@
 
 // Include the library headers (adjust paths as needed for your project structure)
 
+#include "geometry.hpp"
 #include "kalman.hpp"
 #include "matrix.hpp"
-#include "rotation.hpp"
 #include "sensor_fusion.hpp"
 
 using namespace wetmelon::control;

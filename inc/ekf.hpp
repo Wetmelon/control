@@ -1,5 +1,21 @@
 #pragma once
 
+/**
+ * @file ekf.hpp
+ * @brief Extended Kalman Filter for nonlinear systems
+ *
+ * The user provides callable objects that compute both the nonlinear
+ * prediction/measurement AND the corresponding Jacobians in one call.
+ * This avoids redundant computation when the Jacobians share intermediate
+ * terms with the function evaluation.
+ *
+ * @note The callable returns a struct containing the function value and its
+ *       Jacobians — it is NOT the Jacobian function itself.
+ *
+ * @see "Optimal State Estimation" (Simon, 2006), Chapter 13
+ * @see Solà et al., "Quaternion kinematics for the error-state Kalman filter" (2017)
+ */
+
 #include <concepts>
 #include <cstddef>
 
@@ -8,37 +24,86 @@
 
 namespace wetmelon::control {
 
-// EKF state prediction result: x_next = f(x, u), with Jacobians F = ∂f/∂x, G = ∂f/∂w
+/**
+ * @brief State prediction result from the user's dynamics function
+ *
+ * The user's state function computes x[k+1] = f(x[k], u[k]) and returns
+ * both the predicted state and the Jacobians needed for covariance propagation.
+ *
+ * @tparam T  Scalar type
+ * @tparam NX Number of states
+ */
 template<typename T, size_t NX>
 struct StateJacobian {
-    ColVec<NX, T>     x_pred{};                         // Predicted state
-    Matrix<NX, NX, T> F{};                              // State transition Jacobian ∂f/∂x
-    Matrix<NX, NX, T> G{Matrix<NX, NX, T>::identity()}; // Process noise Jacobian ∂f/∂w
+    ColVec<NX, T>     x_pred{};                         ///< Predicted state x[k+1] = f(x[k], u[k])
+    Matrix<NX, NX, T> F{};                              ///< State Jacobian ∂f/∂x
+    Matrix<NX, NX, T> G{Matrix<NX, NX, T>::identity()}; ///< Process noise Jacobian ∂f/∂w
 };
 
-// EKF state function: (x, u) -> StateJacobian
+/**
+ * @brief Concept for EKF state functions
+ *
+ * A valid state function takes (x, u) and returns a StateJacobian containing
+ * the predicted state and linearization Jacobians F, G.
+ */
 template<typename Fn, typename T, size_t NX, size_t NU>
 concept EKFStateFn = requires(Fn&& fn, const ColVec<NX, T>& x, const ColVec<NU, T>& u) {
     { fn(x, u) } -> std::convertible_to<StateJacobian<T, NX>>;
 };
 
-// EKF/ESKF measurement result: y_pred = h(x), with Jacobians H = ∂h/∂x, M = ∂h/∂v
+/**
+ * @brief Measurement prediction result from the user's observation function
+ *
+ * The user's measurement function computes y_pred = h(x, u) and returns
+ * both the predicted measurement and the Jacobians needed for the Kalman update.
+ *
+ * @tparam T  Scalar type
+ * @tparam NY Number of outputs
+ * @tparam NX Number of states
+ */
 template<typename T, size_t NY, size_t NX>
 struct MeasJacobian {
-    ColVec<NY, T>     y_pred{};                         // Predicted measurement
-    Matrix<NY, NX, T> H{};                              // Measurement Jacobian ∂h/∂x
-    Matrix<NY, NY, T> M{Matrix<NY, NY, T>::identity()}; // Measurement noise Jacobian ∂h/∂v
+    ColVec<NY, T>     y_pred{};                         ///< Predicted measurement y = h(x, u)
+    Matrix<NY, NX, T> H{};                              ///< Measurement Jacobian ∂h/∂x
+    Matrix<NY, NY, T> M{Matrix<NY, NY, T>::identity()}; ///< Measurement noise Jacobian ∂h/∂v
 };
 
-// EKF measurement function: (x, u) -> MeasJacobian
+/**
+ * @brief Concept for EKF measurement functions
+ *
+ * A valid measurement function takes (x, u) and returns a MeasJacobian
+ * containing the predicted measurement and linearization Jacobians H, M.
+ */
 template<typename Fn, typename T, size_t NX, size_t NU, size_t NY>
 concept EKFMeasFn = requires(Fn&& fn, const ColVec<NX, T>& x, const ColVec<NU, T>& u) {
     { fn(x, u) } -> std::convertible_to<MeasJacobian<T, NY, NX>>;
 };
 
-// For nonlinear systems on embedded hardware. User provides discrete-time Jacobians:
-//   state_fn: (x, u) -> StateJacobian{x_next, F, G}  (F = df/dx, G = df/dw)
-//   meas_fn:  (x, u) -> MeasJacobian{y_pred, H, M}   (H = dh/dx, M = dh/dv)
+/**
+ * @brief Extended Kalman Filter for nonlinear discrete-time systems
+ *
+ * Implements the standard EKF predict/update cycle for systems of the form:
+ *
+ *     x[k+1] = f(x[k], u[k]) + G·w[k],   w ~ N(0, Q)
+ *     y[k]   = h(x[k], u[k]) + M·v[k],   v ~ N(0, R)
+ *
+ * The user provides two callables:
+ *   - state_fn(x, u) → StateJacobian{x_pred, F, G}
+ *   - meas_fn(x, u)  → MeasJacobian{y_pred, H, M}
+ *
+ * Each callable evaluates the nonlinear function AND returns its Jacobians
+ * in one call. This is more efficient than separate function/Jacobian calls
+ * when they share intermediate computations.
+ *
+ * The covariance update uses the Joseph form for numerical stability.
+ *
+ * @see "Optimal State Estimation" (Simon, 2006), §13.3
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of inputs
+ * @tparam NY Number of outputs
+ * @tparam T  Scalar type (default: double)
+ */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct ExtendedKalmanFilter {
     constexpr ExtendedKalmanFilter() = default;
@@ -54,8 +119,15 @@ struct ExtendedKalmanFilter {
     constexpr ExtendedKalmanFilter(const ExtendedKalmanFilter<NX, NU, NY, U>& other)
         : x(other.state()), P(other.covariance()), Q(other.process_noise_covariance()), innov(other.innovation()) {}
 
-    // Predict: x[k+1|k] = f(x[k|k], u[k]), P[k+1|k] = F*P*F' + G*Q*G'
-    //   state_fn: callable (x, u) -> StateJacobian{x_pred, F, G}
+    /**
+     * @brief Predict step: propagate state and covariance through dynamics
+     *
+     *     x[k+1|k] = f(x[k|k], u[k])
+     *     P[k+1|k] = F·P[k|k]·Fᵀ + G·Q·Gᵀ
+     *
+     * @param state_fn Callable (x, u) → StateJacobian{x_pred, F, G}
+     * @param u        Control input vector
+     */
     template<typename StateFn>
         requires EKFStateFn<StateFn, T, NX, NU>
     constexpr void predict(StateFn&& state_fn, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
@@ -64,9 +136,20 @@ struct ExtendedKalmanFilter {
         P = sj.F * P * sj.F.t() + sj.G * Q * sj.G.t();
     }
 
-    // Measurement update: returns false if innovation covariance is singular
-    //   meas_fn: callable (x, u) -> MeasJacobian{y_pred, H, M}
-    //   R:       measurement noise covariance (must match the sensor model in meas_fn)
+    /**
+     * @brief Update step: correct state estimate from measurement
+     *
+     *     S = H·P·Hᵀ + M·R·Mᵀ
+     *     K = P·Hᵀ·S⁻¹  (computed via Cholesky solve)
+     *     x[k|k] = x[k|k−1] + K·(y − ŷ)
+     *     P[k|k] = (I − KH)·P·(I − KH)ᵀ + K·M·R·Mᵀ·Kᵀ  [Joseph form]
+     *
+     * @param meas_fn Callable (x, u) → MeasJacobian{y_pred, H, M}
+     * @param y       Actual measurement vector
+     * @param R       Measurement noise covariance (must match sensor model)
+     * @param u       Control input vector
+     * @return true if update succeeded, false if S is singular
+     */
     template<typename MeasFn>
         requires EKFMeasFn<MeasFn, T, NX, NU, NY>
     constexpr bool update(MeasFn&& meas_fn, const ColVec<NY, T>& y, const Matrix<NY, NY, T>& R, const ColVec<NU, T>& u = ColVec<NU, T>{}) {

@@ -1,5 +1,18 @@
 #pragma once
 
+/**
+ * @file eskf.hpp
+ * @brief Error-State Kalman Filter (ESKF) for attitude estimation
+ *
+ * Implements the indirect (error-state) Kalman filter formulation where
+ * the filter estimates small error states δx rather than the full state.
+ * This avoids singularities in quaternion-based attitude estimation and
+ * provides better linearization accuracy for small errors.
+ *
+ * @see Solà et al., "Quaternion kinematics for the error-state Kalman filter" (2017)
+ * @see "Optimal State Estimation" (Simon, 2006), §14.2
+ */
+
 #include <cstddef>
 
 #include "ekf.hpp"
@@ -102,34 +115,63 @@ template<size_t NDX = 6, size_t NY = 6, typename T = double>
 
 } // namespace design
 
-// ESKF error-state prediction result: Jacobians only (nominal state updated externally)
+/**
+ * @brief Error-state prediction Jacobians (nominal state updated externally)
+ *
+ * @tparam T   Scalar type
+ * @tparam NDX Error state dimension
+ */
 template<typename T, size_t NDX>
 struct ErrorStateJacobian {
-    Matrix<NDX, NDX, T> F{}; // Error state transition Jacobian ∂(δx_next)/∂(δx)
-    Matrix<NDX, NDX, T> G{}; // Process noise Jacobian (maps Q to error state)
+    Matrix<NDX, NDX, T> F{}; ///< Error state transition Jacobian ∂(δx[k+1])/∂(δx[k])
+    Matrix<NDX, NDX, T> G{}; ///< Process noise Jacobian (maps Q to error covariance)
 };
 
-// ESKF predict function: (dt) -> ErrorStateJacobian
+/**
+ * @brief Concept for ESKF predict functions
+ *
+ * Takes dt (timestep) and returns the error-state propagation Jacobians.
+ * The nominal state is updated externally by the user (e.g., quaternion
+ * integration from gyro), so only Jacobians are needed here.
+ */
 template<typename Fn, typename T, size_t NDX>
 concept ESKFPredictFn = requires(Fn&& fn, T dt) {
     { fn(dt) } -> std::convertible_to<ErrorStateJacobian<T, NDX>>;
 };
 
-// ESKF measurement function: () -> MeasJacobian (no state arg - user captures nominal state)
+/**
+ * @brief Concept for ESKF measurement functions
+ *
+ * Takes no arguments (captures nominal state externally) and returns
+ * a MeasJacobian with predicted measurement and linearization.
+ */
 template<typename Fn, typename T, size_t NDX, size_t NY>
 concept ESKFMeasFn = requires(Fn&& fn) {
     { fn() } -> std::convertible_to<MeasJacobian<T, NY, NDX>>;
 };
 
-// Indirect KF for attitude estimation. Estimates small errors δx rather than full state.
-// Perfect for IMU fusion: propagates quaternion via gyro integration, corrects with accel/mag.
-//
-// Error state: δx = [δθ (3 dof), δb_g (3 dof), δb_a (3 dof), ...]
-// Nominal state: q_nom (quaternion), b_g_nom, b_a_nom
-//
-// User provides:
-//   f_nominal: (q_nom, b_g, b_a, gyro_meas, accel_meas, dt) -> (q_new, error_jacobian F, noise_jacobian G)
-//   h_meas:    (q_nom, accel_meas) -> (accel_predicted, H_matrix, M_matrix)
+/**
+ * @brief Error-State Kalman Filter for attitude estimation
+ *
+ * Estimates small error states δx rather than the full state. The nominal
+ * state (quaternion, biases) is tracked externally by the user and updated
+ * via standard integration. The ESKF only estimates the error δx and its
+ * covariance P, then injects corrections into the nominal state.
+ *
+ * Typical error state: δx = [δθ(3), δb_gyro(3), δb_accel(3), ...]
+ *
+ * Workflow:
+ *   1. User integrates nominal state (e.g., q ← q ⊗ Δq from gyro)
+ *   2. predict() propagates error covariance: P = F·P·Fᵀ + G·Q·Gᵀ
+ *   3. update() computes correction: δx = K·(y − h(x_nom))
+ *   4. User injects δx into nominal state and calls reset_error_state()
+ *
+ * @see Solà et al., "Quaternion kinematics for the error-state Kalman filter" (2017), §5–6
+ *
+ * @tparam NDX Error state dimension
+ * @tparam NY  Measurement dimension
+ * @tparam T   Scalar type (default: double)
+ */
 template<size_t NDX, size_t NY, typename T = double>
 struct ErrorStateKalmanFilter {
     // Error state dimension typically: 3 (attitude) + 3 (gyro bias) + 3 (accel bias) = 9

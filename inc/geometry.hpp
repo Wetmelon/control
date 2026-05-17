@@ -1,5 +1,16 @@
 #pragma once
 
+/**
+ * @file geometry.hpp
+ * @brief 3D geometry types: DCM, Quaternion, Euler angles, Transform4
+ *
+ * Provides rotation representations and conversions for embedded attitude
+ * estimation and robotics applications.
+ *
+ * @see Solà et al., "Quaternion kinematics for the error-state Kalman filter" (2017)
+ * @see Diebel, "Representing Attitude: Euler Angles, Unit Quaternions, and Rotation Vectors" (2006)
+ */
+
 #include <cmath>
 #include <optional>
 #include <span>
@@ -9,7 +20,7 @@
 
 namespace wetmelon::control {
 
-// Euler rotation order enumeration
+/// Euler rotation order enumeration
 enum class EulerOrder {
     XYZ, // Roll-Pitch-Yaw (aerospace)
     ZYX, // Yaw-Pitch-Roll

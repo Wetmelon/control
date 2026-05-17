@@ -9,7 +9,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         ComplementaryFilter<float> filter(0.98f);
 
         // Test initial orientation is identity
-        auto q_init = filter.getOrientation();
+        auto q_init = filter.orientation();
         CHECK(q_init.w() == doctest::Approx(1.0));
         CHECK(q_init.x() == doctest::Approx(0.0));
         CHECK(q_init.y() == doctest::Approx(0.0));
@@ -21,7 +21,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         float       dt = 0.01f;
 
         filter.update(accel, gyro, dt);
-        auto q = filter.getOrientation();
+        auto q = filter.orientation();
 
         // Should remain close to identity (normalized quaternion)
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
@@ -31,7 +31,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         Vec3<float> gyro_z{0.0f, 0.0f, 1.57f};        // 90 deg/s around Z
 
         filter.update(accel_rotated, gyro_z, dt);
-        q = filter.getOrientation();
+        q = filter.orientation();
 
         // Should have some rotation component
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
@@ -42,7 +42,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         MadgwickFilter<float> filter(0.1f);
 
         // Test initial orientation
-        auto q_init = filter.getOrientation();
+        auto q_init = filter.orientation();
         CHECK(q_init.w() == doctest::Approx(1.0));
         CHECK(q_init.x() == doctest::Approx(0.0));
         CHECK(q_init.y() == doctest::Approx(0.0));
@@ -55,7 +55,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         float       dt = 0.01f;
 
         filter.update(accel, gyro, mag, dt);
-        auto q = filter.getOrientation();
+        auto q = filter.orientation();
 
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
     }
@@ -64,7 +64,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         MahonyFilter<float> filter(0.5f, 0.0f);
 
         // Test initial orientation
-        auto q_init = filter.getOrientation();
+        auto q_init = filter.orientation();
         CHECK(q_init.w() == doctest::Approx(1.0));
         CHECK(q_init.x() == doctest::Approx(0.0));
         CHECK(q_init.y() == doctest::Approx(0.0));
@@ -77,7 +77,7 @@ TEST_SUITE("Sensor Fusion Filters") {
         float       dt = 0.01f;
 
         filter.update(accel, gyro, mag, dt);
-        auto q = filter.getOrientation();
+        auto q = filter.orientation();
 
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
     }
@@ -86,14 +86,14 @@ TEST_SUITE("Sensor Fusion Filters") {
         ESKFOrientationFilter filter;
 
         // Test initial orientation
-        auto q_init = filter.getOrientation();
+        auto q_init = filter.orientation();
         CHECK(q_init.w() == doctest::Approx(1.0));
         CHECK(q_init.x() == doctest::Approx(0.0));
         CHECK(q_init.y() == doctest::Approx(0.0));
         CHECK(q_init.z() == doctest::Approx(0.0));
 
         // Test gyro bias initialization
-        auto bias_init = filter.getGyroBias();
+        auto bias_init = filter.gyro_bias();
         CHECK(bias_init[0] == doctest::Approx(0.0));
         CHECK(bias_init[1] == doctest::Approx(0.0));
         CHECK(bias_init[2] == doctest::Approx(0.0));
@@ -105,8 +105,8 @@ TEST_SUITE("Sensor Fusion Filters") {
         float       dt = 0.01f;
 
         filter.update(accel, gyro, mag, dt);
-        auto q = filter.getOrientation();
-        auto bias = filter.getGyroBias();
+        auto q = filter.orientation();
+        auto bias = filter.gyro_bias();
 
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
         // Bias should remain close to zero for stationary case
@@ -128,7 +128,7 @@ TEST_SUITE("Sensor Fusion Filters") {
             filter.update(accel, gyro, dt);
         }
 
-        auto q = filter.getOrientation();
+        auto q = filter.orientation();
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
 
         // For stationary case, should converge to orientation that aligns gravity with -Z
@@ -156,10 +156,10 @@ TEST_SUITE("Sensor Fusion Filters") {
         eskf_filter.update(accel, gyro, mag, dt);
 
         // Check all produce valid unit quaternions
-        CHECK(comp_filter.getOrientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
-        CHECK(madgwick_filter.getOrientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
-        CHECK(mahony_filter.getOrientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
-        CHECK(eskf_filter.getOrientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
+        CHECK(comp_filter.orientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
+        CHECK(madgwick_filter.orientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
+        CHECK(mahony_filter.orientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
+        CHECK(eskf_filter.orientation().norm() == doctest::Approx(1.0).epsilon(1e-6));
     }
 
     TEST_CASE("ESKF basic operation") {
@@ -176,8 +176,8 @@ TEST_SUITE("Sensor Fusion Filters") {
             filter.update(accel, gyro, mag, dt);
         }
 
-        auto q = filter.getOrientation();
-        auto bias = filter.getGyroBias();
+        auto q = filter.orientation();
+        auto bias = filter.gyro_bias();
 
         // Check that orientation remains valid
         CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-6));
@@ -213,7 +213,7 @@ TEST_SUITE("Sensor Fusion Filters") {
             filter.update(noisy_accel, noisy_gyro, dt);
 
             // Check quaternion remains valid
-            auto q = filter.getOrientation();
+            auto q = filter.orientation();
             CHECK(q.norm() == doctest::Approx(1.0).epsilon(1e-5));
         }
     }
