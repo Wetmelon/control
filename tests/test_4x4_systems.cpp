@@ -172,7 +172,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<1, 1> R = {{1.0}};
 
-        auto result = online::dlqr(A_d, B_d, Q, R);
+        auto result = design::dlqr(A_d, B_d, Q, R);
         CHECK(result.success);
 
         if (result.success) {
@@ -200,7 +200,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<1, 1> R = {{0.1}}; // Lower control cost to enable stabilization
 
-        auto result = online::dlqr(A_d, B_d, Q, R);
+        auto result = design::dlqr(A_d, B_d, Q, R);
         CHECK(result.success);
 
         if (result.success) {
@@ -303,7 +303,7 @@ TEST_SUITE("4x4 DARE and LQR") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity();
         Matrix<2, 2> R = Matrix<2, 2>::identity();
 
-        auto result = online::dlqr(A, B, Q, R);
+        auto result = design::dlqr(A, B, Q, R);
         CHECK(result.success);
 
         // Verify closed-loop stability
@@ -335,7 +335,7 @@ TEST_SUITE("4x4 Kalman Filter Design") {
         Matrix<4, 4> Q = Matrix<4, 4>::identity() * 0.01;
         Matrix<2, 2> R = Matrix<2, 2>::identity() * 0.1;
 
-        auto result = online::kalman(sys, Q, R);
+        auto result = design::kalman(sys, Q, R);
         CHECK(result.success);
 
         // Verify L is non-zero

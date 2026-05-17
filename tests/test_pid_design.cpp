@@ -49,7 +49,7 @@ TEST_SUITE("PID Design - Ziegler-Nichols Ultimate Gain") {
 
     TEST_CASE("Runtime ZN matches compile-time") {
         auto ct = design::ziegler_nichols(10.0, 2.0, 0.01, design::PIDType::PID);
-        auto rt = online::ziegler_nichols(10.0, 2.0, 0.01, design::PIDType::PID);
+        auto rt = design::ziegler_nichols(10.0, 2.0, 0.01, design::PIDType::PID);
         CHECK(ct.Kp == doctest::Approx(rt.Kp));
         CHECK(ct.Ki == doctest::Approx(rt.Ki));
         CHECK(ct.Kd == doctest::Approx(rt.Kd));
@@ -119,7 +119,7 @@ TEST_SUITE("PID Design - Cohen-Coon") {
 
     TEST_CASE("Runtime Cohen-Coon matches compile-time") {
         auto ct = design::cohen_coon(1.0, 1.0, 4.0, 0.01);
-        auto rt = online::cohen_coon(1.0, 1.0, 4.0, 0.01);
+        auto rt = design::cohen_coon(1.0, 1.0, 4.0, 0.01);
         CHECK(ct.Kp == doctest::Approx(rt.Kp).epsilon(1e-12));
         CHECK(ct.Ki == doctest::Approx(rt.Ki).epsilon(1e-12));
         CHECK(ct.Kd == doctest::Approx(rt.Kd).epsilon(1e-12));
@@ -256,7 +256,7 @@ TEST_SUITE("PID Design - Type Conversion") {
     }
 
     TEST_CASE("Runtime design feeds into PIDController") {
-        auto          result = online::simc(1.0, 0.5, 2.0, 1.0, 0.01);
+        auto          result = design::simc(1.0, 0.5, 2.0, 1.0, 0.01);
         PIDController controller(result);
         float         u = controller.control(1.0);
         CHECK(u != 0.0f); // Non-zero output for non-zero error

@@ -80,10 +80,10 @@ int main() {
     fig.writeHtml("pendulum_sim.html");
     fmt::print("\nPlot written to pendulum_sim.html\n");
 
-    // ===== Demonstrate runtime redesign with online:: =====
+    // ===== Demonstrate runtime redesign with design:: =====
     fmt::print("\n===== Runtime LQR Redesign =====\n");
     auto Q2 = Matrix<2, 2>::identity() * 50.0; // Higher state penalty
-    auto lqr_d2 = online::lqrd(sys.A, sys.B, Q2, R, Ts);
+    auto lqr_d2 = design::lqrd(sys.A, sys.B, Q2, R, Ts);
     LQR  controller2{lqr_d2};
     fmt::print("New LQR Gain K = [{:.4f}, {:.4f}]\n", lqr_d2.K(0, 0), lqr_d2.K(0, 1));
 

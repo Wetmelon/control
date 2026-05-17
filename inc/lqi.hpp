@@ -9,21 +9,21 @@
 #include "state_space.hpp"
 
 namespace wetmelon::control {
-
-// Result type goes here
-
-namespace online {
+namespace design {
 
 /**
  * @struct LQIResult
- * @brief Runtime LQI design result (online namespace)
+ * @brief LQI design result
+ *
+ * Contains the optimal gain for integral tracking control.
+ * Use `.as<float>()` to convert for embedded deployment.
  */
-template<size_t NX, size_t NU, size_t NY, typename T>
+template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct LQIResult {
-    Matrix<NU, NX + NY, T>           K{};
-    Matrix<NX + NY, NX + NY, T>      S{};
-    ColVec<NX + NY, wet::complex<T>> e{};
-    bool                             success{false};
+    Matrix<NU, NX + NY, T>           K{};            ///< Optimal gain: u = -K*[x; xi]
+    Matrix<NX + NY, NX + NY, T>      S{};            ///< Riccati equation solution
+    ColVec<NX + NY, wet::complex<T>> e{};            ///< Closed-loop poles
+    bool                             success{false}; ///< true if DARE converged
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
@@ -37,12 +37,11 @@ struct LQIResult {
 };
 
 /**
- * @brief Linear-Quadratic Integral design for tracking with servo action (runtime version)
+ * @brief Linear-Quadratic Integral design for tracking with servo action
  *
  * @param sys  State-space system
  * @param Q    Augmented state cost matrix (state + integral error)
  * @param R    Input cost matrix
- * @param dof  Servo degrees of freedom (1DOF or 2DOF)
  *
  * @return LQIResult containing state and integral gains
  */
@@ -116,77 +115,6 @@ template<size_t NX, size_t NU, size_t NY, typename T = double>
 ) {
     return lqi(sys, Q, R);
 }
-
-} // namespace online
-
-namespace design {
-
-/**
- * @struct LQIResult
- * @brief Linear-Quadratic Integral controller design result
- *
- * Contains gains and Riccati solution for servo control with integral action.
- */
-template<size_t NX, size_t NU, size_t NY, typename T = double>
-struct LQIResult {
-    Matrix<NU, NX + NY, T>           K{};
-    Matrix<NX + NY, NX + NY, T>      S{};
-    ColVec<NX + NY, wet::complex<T>> e{};
-    bool                             success{false};
-
-    template<typename U>
-    [[nodiscard]] consteval auto as() const {
-        return LQIResult<NX, NU, NY, U>{
-            K.template as<U>(),
-            S.template as<U>(),
-            e.template as<wet::complex<U>>(),
-            success
-        };
-    }
-};
-
-/**
- * @brief Linear-Quadratic Integral design for tracking with servo action
- *
- * @param sys  State-space system
- * @param Q    Augmented state cost matrix (state + integral error)
- * @param R    Input cost matrix
- * @return LQIResult containing state and integral gains
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] consteval LQIResult<NX, NU, NY, T> lqi(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q,
-    const Matrix<NU, NU, T>&                 R
-) {
-    auto result = online::lqi(sys, Q, R);
-    return LQIResult<NX, NU, NY, T>{
-        result.K,
-        result.S,
-        result.e,
-        result.success
-    };
-}
-
-/**
- * @brief Alias for LQR with integral action for tracking (consteval version)
- *
- * @param sys  State-space system
- * @param Q    Augmented state cost matrix (state + integral error)
- * @param R    Input cost matrix
- * @param dof  Servo degrees of freedom (1DOF or 2DOF)
- *
- * @return LQIResult containing state and integral gains
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] consteval LQIResult<NX, NU, NY, T> lqr_with_integral(
-    const StateSpace<NX, NU, NY, NX, NY, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q,
-    const Matrix<NU, NU, T>&                 R
-) {
-    return lqi(sys, Q, R);
-}
-
 } // namespace design
 
 /**
@@ -211,11 +139,7 @@ public:
     constexpr LQI() = default;
     constexpr LQI(const Matrix<NU, NX + NY, T>& K_) : K(K_) {}
 
-    // Compile-time only constructor for design:: results
-    consteval LQI(const design::LQIResult<NX, NU, NY, T>& result) : K(result.K) {}
-
-    // Runtime constructor for online:: results
-    constexpr LQI(const online::LQIResult<NX, NU, NY, T>& result) : K(result.K) {}
+    constexpr LQI(const design::LQIResult<NX, NU, NY, T>& result) : K(result.K) {}
 
     template<typename U>
     constexpr LQI(const LQI<NX, NU, NY, U>& other) : K(other.getK()) {}

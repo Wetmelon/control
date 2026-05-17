@@ -93,9 +93,9 @@ int main() {
 
     // Create PI controllers
     const double          v_lim = Vdc / 2.0;
-    PIDController<double> pi_d{online::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
-    PIDController<double> pi_q{online::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
-    PIDController<double> pi_spd{online::pid(Kp_speed, Ki_speed, 0.0, dt * speed_ratio, -i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
+    PIDController<double> pi_d{design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
+    PIDController<double> pi_q{design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
+    PIDController<double> pi_spd{design::pid(Kp_speed, Ki_speed, 0.0, dt * speed_ratio, -i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
 
     // Controller state
     double theta_ref = 0.0; // Position reference [rad]

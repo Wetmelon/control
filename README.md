@@ -7,8 +7,6 @@ A header-only C++20 library for control system design targeting embedded systems
 **Key design choices:**
 
 - **Fixed-size `Matrix<N,M,T>`** — stack-allocated, fully `constexpr`
-- **`design::` namespace** — `consteval` functions that execute at compile time only
-- **`online::` namespace** — `constexpr` functions that can also run at runtime
 - **`.as<float>()`** — design in `double`, convert results to `float` for embedded deployment
 - **`std::optional`** — returned for operations that can fail (matrix inversion, DARE convergence)
 - **Operator overloads** — `sys1 * sys2` (series), `sys1 + sys2` (parallel), `sys1 / sys2` (feedback)
@@ -47,12 +45,12 @@ constexpr auto R  = Matrix<1, 1>{{0.1}};
 constexpr auto Ts = 0.01;  // 100 Hz
 
 // Design at compile time, convert to float for embedded use
-auto result = design::lqrd(sys.A, sys.B, Q, R, Ts).as<float>();
+constexpr auto result = lqrd(sys.A, sys.B, Q, R, Ts).as<float>();
 static_assert(result.success);
 
-// Runtime control loop
-LQR controller(result);
-ColVec<1> u = controller.control(x);  // u = -K*x
+// constinit ensures gain matrix K is computed at compile time
+constinit LQR lqr = result;
+ColVec<1> u = lqr.control(x);  // u = -K*x
 ```
 
 ## Using in Your Project

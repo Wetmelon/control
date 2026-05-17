@@ -3,7 +3,6 @@
 ## Project Overview
 - **Header-only C++20 library** for compile-time control design and linear algebra, targeting embedded systems with zero dynamic allocation
 - **Core architecture**: Fixed-size `Matrix<N,M,T>`, `StateSpace<NX,NU,NY>`, rotation types (DCM/Quaternion/Euler), and MATLAB®-style control APIs
-- **Two evaluation modes**: `design::` (consteval/compile-time only) and `online::` (constexpr/runtime-capable)
 - **Focus**: Robotics/attitude control with arbitrarily large matrices at compile-time, extensive compile-time verification, and embedded suitability
 
 ## Key Types and Patterns
@@ -40,7 +39,7 @@
 
 ## Integration Points and Data Flow
 - **System interconnections**: Block matrix augmentation preserves noise matrices (`G`, `H`) through all operations
-- **Control design flow**: `StateSpace` → `design::function()` → `Result.as<float>()` → `ControllerClass()` → runtime control loop
+- **Control design flow**: `StateSpace` → `function()` → `Result.as<float>()` → `ControllerClass()` → runtime control loop
 - **Noise propagation**: Process noise `Q` and measurement noise `R` flow through discretization and interconnections
 - **Type conversion chain**: Design in `double` precision → convert to `float` for embedded use → instantiate controller classes
 
@@ -51,7 +50,7 @@
 - **Platform**: Windows development environment with PowerShell terminal
 
 ## Extending the Codebase
-- **New control algorithms**: Follow `design::`/`online::` pattern, return result structs with `.as<U>()` conversion
+- **New control algorithms**: Return result structs with `.as<U>()` conversion
 - **Matrix operations**: Build on existing `Matrix` primitives, document dimensional constraints
 - **Rotation utilities**: Express in terms of DCM/Quaternion/Euler, handle gimbal-lock cases
 - **Test additions**: Use descriptive names, include both `static_assert` compile-time checks and runtime numerical validation

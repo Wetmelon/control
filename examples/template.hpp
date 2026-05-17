@@ -28,7 +28,7 @@ struct ResultType {
 
 // Example consteval factory function (placeholder, give it a better name))
 consteval ResultType makeResultType(int parameter) {
-    // Heavy compile-time computations go here.  May delegate to online::makeResultType
+    // Heavy compile-time computations go here.  May delegate to design::makeResultType
     return ResultType{};
 };
 
@@ -39,7 +39,7 @@ class TemplateItem {
     // Don't include all result data here; only what is necessary for computations
 
 public:
-    using OnlineType = online::ResultType;
+    using OnlineType = design::ResultType;
     using DesignType = design::ResultType;
 
     consteval TemplateItem(DesignType /* possibly more parameters */)

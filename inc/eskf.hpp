@@ -6,109 +6,6 @@
 #include "matrix.hpp"
 
 namespace wetmelon::control {
-namespace online {
-/**
- * @struct ESKFResult
- * @brief Runtime Error-State Kalman Filter design result (online namespace)
- */
-template<size_t NDX, size_t NY, typename T>
-struct ESKFResult {
-    Matrix<NDX, NDX, T> Q{};
-    Matrix<NY, NY, T>   R{};
-    Matrix<NDX, NDX, T> P0{};
-    bool                success{false};
-
-    template<typename U>
-    [[nodiscard]] constexpr auto as() const {
-        return ESKFResult<NDX, NY, U>{
-            Q.template as<U>(),
-            R.template as<U>(),
-            P0.template as<U>(),
-            success
-        };
-    }
-};
-
-/**
- * @brief Error-State Kalman Filter design from IMU sensor specifications (runtime version)
- *
- * Computes process and measurement noise covariances for ESKF from sensor noise densities.
- * Assumes 9D error state: [attitude errors (3), gyro biases (3), accel biases (3)]
- * and 9D measurements: [accel (3), gyro (3), mag (3)] - though gyro not used in update.
- *
- * @param gyro_noise_density   Gyroscope noise density [rad/s/sqrt(Hz)]
- * @param accel_noise_density  Accelerometer noise density [m/s^2/sqrt(Hz)]
- * @param mag_noise_density    Magnetometer noise density [unit/sqrt(Hz)]
- * @param gyro_bias_rw         Gyroscope bias random walk [rad/s^1.5]
- * @param accel_bias_rw        Accelerometer bias random walk [m/s^2.5]
- * @param mag_bias_rw          Magnetometer bias random walk [unit/s^1.5]
- * @param dt                   Sampling time [s]
- * @param initial_attitude_uncertainty  Initial attitude uncertainty [rad]
- * @param initial_bias_uncertainty      Initial bias uncertainty [rad/s or m/s^2]
- *
- * @return ESKFResult with computed covariances
- */
-template<typename T = double>
-[[nodiscard]] constexpr ESKFResult<9, 9, T> eskf_design(
-    T gyro_noise_density,
-    T accel_noise_density,
-    T mag_noise_density,
-    T gyro_bias_rw,
-    T accel_bias_rw,
-    T mag_bias_rw,
-    T dt,
-    T initial_attitude_uncertainty = T{0.1},
-    T initial_bias_uncertainty = T{0.01}
-) {
-    ESKFResult<9, 9, T> result{};
-
-    // Process noise covariance Q (discrete-time)
-    T gyro_var = gyro_noise_density * gyro_noise_density * dt;
-    T gyro_bias_var = gyro_bias_rw * gyro_bias_rw * dt;
-    T accel_bias_var = accel_bias_rw * accel_bias_rw * dt;
-    T mag_bias_var = mag_bias_rw * mag_bias_rw * dt;
-
-    result.Q = Matrix<9, 9, T>::zeros();
-    result.Q(0, 0) = gyro_var;
-    result.Q(1, 1) = gyro_var;
-    result.Q(2, 2) = gyro_var;
-    result.Q(3, 3) = gyro_bias_var;
-    result.Q(4, 4) = gyro_bias_var;
-    result.Q(5, 5) = gyro_bias_var;
-    result.Q(6, 6) = accel_bias_var;
-    result.Q(7, 7) = accel_bias_var;
-    result.Q(8, 8) = accel_bias_var;
-
-    // Measurement noise covariance R
-    T accel_var = accel_noise_density * accel_noise_density;
-    T mag_var = mag_noise_density * mag_noise_density;
-
-    result.R = Matrix<9, 9, T>::zeros();
-    result.R(0, 0) = accel_var;
-    result.R(1, 1) = accel_var;
-    result.R(2, 2) = accel_var;
-    result.R(3, 3) = gyro_var;
-    result.R(4, 4) = gyro_var;
-    result.R(5, 5) = gyro_var;
-    result.R(6, 6) = mag_var;
-    result.R(7, 7) = mag_var;
-    result.R(8, 8) = mag_var;
-
-    // Initial covariance P0
-    result.P0 = Matrix<9, 9, T>::zeros();
-    result.P0(0, 0) = initial_attitude_uncertainty * initial_attitude_uncertainty;
-    result.P0(1, 1) = initial_attitude_uncertainty * initial_attitude_uncertainty;
-    result.P0(2, 2) = initial_attitude_uncertainty * initial_attitude_uncertainty;
-    for (size_t i = 3; i < 9; ++i) {
-        result.P0(i, i) = initial_bias_uncertainty * initial_bias_uncertainty;
-    }
-
-    result.success = true;
-    return result;
-}
-
-} // namespace online
-
 namespace design {
 /**
  * @struct ESKFResult
@@ -124,7 +21,7 @@ struct ESKFResult {
     bool                success{false}; //!< Indicates design success
 
     template<typename U>
-    [[nodiscard]] consteval auto as() const {
+    [[nodiscard]] constexpr auto as() const {
         return ESKFResult<NDX, NY, U>{
             Q.template as<U>(),
             R.template as<U>(),
@@ -152,7 +49,7 @@ struct ESKFResult {
  * @return ESKFResult with computed covariances
  */
 template<size_t NDX = 6, size_t NY = 6, typename T = double>
-[[nodiscard]] consteval ESKFResult<NDX, NY, T> eskf_design(
+[[nodiscard]] constexpr ESKFResult<NDX, NY, T> eskf_design(
     T gyro_noise_density,
     T accel_noise_density,
     T mag_noise_density,
@@ -255,7 +152,7 @@ struct ErrorStateKalmanFilter {
           delta_x(other.error_state()),
           innov(other.innovation()) {}
 
-    consteval ErrorStateKalmanFilter(
+    constexpr ErrorStateKalmanFilter(
         const design::ESKFResult<NDX, NY, T>& result
     ) : P(result.P0), Q(result.Q), R(result.R), delta_x(ColVec<NDX, T>{}) {}
 

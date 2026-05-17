@@ -9,7 +9,7 @@
 
 namespace wetmelon::control {
 
-namespace online {
+namespace design {
 
 /**
  * @brief Second-Order Generalized Integrator (SOGI) design
@@ -121,34 +121,6 @@ template<typename T = float>
 [[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T omega_0, T k, T Ts) {
     auto sys_c = mstogi_system<T>(omega_0, k);
     return discretize(sys_c, Ts, DiscretizationMethod::ZOH);
-}
-
-} // namespace online
-
-namespace design {
-
-/// @brief consteval wrapper — compile-time SOGI design
-template<typename T = double>
-[[nodiscard]] consteval StateSpace<2, 1, 2, 0, 0, T> sogi_system(T omega_0, T k = std::numbers::sqrt2_v<T>) {
-    return online::sogi_system<T>(omega_0, k);
-}
-
-/// @brief consteval wrapper — compile-time discrete SOGI design
-template<typename T = float>
-[[nodiscard]] consteval StateSpace<2, 1, 2, 0, 0, T> sogi_system(T omega_0, T k, T Ts) {
-    return online::sogi_system<T>(omega_0, k, Ts);
-}
-
-/// @brief consteval wrapper — compile-time MSTOGI design
-template<typename T = double>
-[[nodiscard]] consteval StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T omega_0, T k = std::numbers::sqrt2_v<T>) {
-    return online::mstogi_system<T>(omega_0, k);
-}
-
-/// @brief consteval wrapper — compile-time discrete MSTOGI design
-template<typename T = float>
-[[nodiscard]] consteval StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T omega_0, T k, T Ts) {
-    return online::mstogi_system<T>(omega_0, k, Ts);
 }
 
 } // namespace design

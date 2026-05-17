@@ -47,7 +47,7 @@ struct PRResult {
     T Ts{}; //!< Sampling time (seconds)
 
     template<typename U>
-    [[nodiscard]] consteval auto as() const {
+    [[nodiscard]] constexpr auto as() const {
         return PRResult<U>{
             static_cast<U>(Kp), static_cast<U>(Ki),
             static_cast<U>(w0), static_cast<U>(wc), static_cast<U>(Ts)
@@ -67,7 +67,7 @@ struct PRResult {
  * @return PRResult with design parameters
  */
 template<typename T = double>
-[[nodiscard]] consteval PRResult<T> pr(T Kp, T Ki, T w0, T wc, T Ts) {
+[[nodiscard]] constexpr PRResult<T> pr(T Kp, T Ki, T w0, T wc, T Ts) {
     return PRResult<T>{Kp, Ki, w0, wc, Ts};
 }
 
@@ -86,7 +86,7 @@ template<typename T = double>
  * @return Array of PRResult, one per harmonic
  */
 template<size_t N, typename T = double>
-[[nodiscard]] consteval std::array<PRResult<T>, N>
+[[nodiscard]] constexpr std::array<PRResult<T>, N>
 pr_harmonics(T Kp, T Ki_fund, T w_fund, T wc, T Ts, const std::array<size_t, N>& harmonics) {
     std::array<PRResult<T>, N> results{};
     for (size_t i = 0; i < N; ++i) {
@@ -99,39 +99,6 @@ pr_harmonics(T Kp, T Ki_fund, T w_fund, T wc, T Ts, const std::array<size_t, N>&
 }
 
 } // namespace design
-
-namespace online {
-
-/**
- * @struct PRResult
- * @brief Proportional-Resonant controller design result (runtime)
- */
-template<typename T = double>
-struct PRResult {
-    T Kp{};
-    T Ki{};
-    T w0{};
-    T wc{};
-    T Ts{};
-
-    template<typename U>
-    [[nodiscard]] constexpr auto as() const {
-        return PRResult<U>{
-            static_cast<U>(Kp), static_cast<U>(Ki),
-            static_cast<U>(w0), static_cast<U>(wc), static_cast<U>(Ts)
-        };
-    }
-};
-
-/**
- * @brief Design a Proportional-Resonant controller (runtime)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PRResult<T> pr(T Kp, T Ki, T w0, T wc, T Ts) {
-    return PRResult<T>{Kp, Ki, w0, wc, Ts};
-}
-
-} // namespace online
 
 /**
  * @ingroup discrete_controllers
@@ -165,12 +132,7 @@ struct PRController {
 
     constexpr PRController() = default;
 
-    consteval PRController(const design::PRResult<T>& result)
-        : Kp(result.Kp), Ki(result.Ki), w0(result.w0), wc(result.wc), Ts(result.Ts) {
-        compute_coefficients();
-    }
-
-    constexpr PRController(const online::PRResult<T>& result)
+    constexpr PRController(const design::PRResult<T>& result)
         : Kp(result.Kp), Ki(result.Ki), w0(result.w0), wc(result.wc), Ts(result.Ts) {
         compute_coefficients();
     }
@@ -264,7 +226,7 @@ struct MultiPRController {
     constexpr MultiPRController() = default;
 
     template<size_t M>
-    consteval MultiPRController(const std::array<design::PRResult<T>, M>& results)
+    constexpr MultiPRController(const std::array<design::PRResult<T>, M>& results)
         requires(M == N)
     {
         Kp = results[0].Kp;

@@ -42,7 +42,7 @@ Generate golden reference data for tests: `py -3` with `scipy` and `control` lib
 - `wetmelon::control::stability` — stability analysis
 - `wetmelon::control::analysis` — controllability, observability, frequency response
 
-The `design::`/`online::` split is the central pattern: same function names, same signatures, but `design::` enforces compile-time evaluation. Typical workflow: `design::dlqr(...)` at compile time in `double`, then `.as<float>()` to convert for embedded deployment.
+Typical workflow: `dlqr(...)` at compile time in `double`, then `.as<float>()` to convert for embedded deployment.  Use `constinit` on the final controller to ensure the design happens at compile time.
 
 ### Type system
 
@@ -98,14 +98,14 @@ This library serves two audiences simultaneously: PhD controls engineers who thi
 Every control feature follows three tiers. This is the core architectural pattern of the library.
 
 ```text
-Tier 1: Design functions          design::discrete_lqr(A, B, Q, R)  →  consteval, double precision
+Tier 1: Design functions          discrete_lqr(A, B, Q, R)  →  consteval, double precision
         ↓ returns
 Tier 2: Result structs            LQRResult { K, S, e, success }    →  .as<float>() for deployment
         ↓ constructs
 Tier 3: Runtime controllers       LQR controller(result);           →  controller.control(x) in ISR
 ```
 
-**Tier 1 — Design functions** (`design::` / `online::`) compute gains, solve Riccati equations, and run iterative algorithms. These are the heavy math. `design::` is consteval (compile-time only); `online::` is constexpr (runtime-capable). Both return the same result type.
+**Tier 1 — Design functions** compute gains, solve Riccati equations, and run iterative algorithms. These are the heavy math, but constexpr. Both return the same result type.
 
 **Tier 2 — Result structs** hold everything the design produced (gains, covariances, poles, success flag). They are pure data with `.as<U>()` for type conversion. A student can `static_assert(result.success)` and get a compile error instead of a silent wrong answer.
 
@@ -119,12 +119,12 @@ When adding a new control algorithm, implement all three tiers.
 
 ```cpp
 // Primary API — what students find and read
-design::discrete_lqr(A, B, Q, R);
-design::discrete_lqr_from_continuous(A, B, Q, R, Ts);
+discrete_lqr(A, B, Q, R);
+discrete_lqr_from_continuous(A, B, Q, R, Ts);
 
 // Short aliases — what MATLAB users expect
-design::dlqr(A, B, Q, R);
-design::lqrd(A, B, Q, R, Ts);
+dlqr(A, B, Q, R);
+lqrd(A, B, Q, R, Ts);
 ```
 
 Rules:
@@ -165,7 +165,6 @@ template<size_t NX, size_t NU, typename T = double>
 Rules:
 
 - `[[nodiscard]]` on everything that returns a value
-- `consteval` for `design::`, `constexpr` for `online::` and `mat::`
 - Accept matrices by `const&`
 - Return by value (rely on NRVO)
 - Default `T = double` — students shouldn't need to think about types until deployment
@@ -176,7 +175,7 @@ Rules:
 
 - **Member functions** for operations intrinsic to the type: `.transpose()`, `.inverse()`, `.norm()`, `.block<R,C>(r,c)`, `.control(x)`
 - **`mat::` free functions** for operations that take a matrix and produce something else: `mat::expm(A)`, `mat::cholesky(A)`, `mat::det(A)`, `mat::rank(A)`
-- **`design::` / `online::` free functions** for control design: `design::discrete_lqr(...)`, `online::kalman(...)`
+- **free functions** for control design: `discrete_lqr(...)`, `kalman(...)`
 - **`stability::` / `analysis::`** for queries about systems: `stability::is_stable(A)`, `analysis::controllability(A, B)`
 
 The test: if it feels like "doing something *to* a matrix," it's a `mat::` free function. If it feels like "asking a matrix *about itself*," it's a member.
@@ -187,14 +186,14 @@ The design-to-deployment pipeline must be type-safe end-to-end:
 
 ```cpp
 // 1. Design in double (full precision for numerical algorithms)
-constexpr auto result = design::discrete_lqr(A, B, Q, R);
+constexpr auto result = discrete_lqr(A, B, Q, R);
 static_assert(result.success);
 
 // 2. Convert to float (embedded target type)
 constexpr auto result_f = result.as<float>();
 
-// 3. Instantiate controller (stores only what's needed for runtime)
-LQR<2, 1, float> controller(result_f);
+// 3. Instantiate controller (stores only what's needed for runtime) marked constinit
+constinit LQR<2, 1, float> controller(result_f);
 
 // 4. Runtime loop — one matrix-vector multiply, no allocations
 ColVec<1, float> u = controller.control(x);
@@ -228,17 +227,17 @@ Simple cases must be simple. Advanced features are opt-in.
 
 ```cpp
 // Beginner: I just want an LQR for my balance bot
-LQR controller(design::discrete_lqr(A, B, Q, R));
+LQR controller(discrete_lqr(A, B, Q, R));
 auto u = controller.control(x);
 
 // Intermediate: I want to check stability and convert types
-auto result = design::discrete_lqr(A, B, Q, R);
+auto result = discrete_lqr(A, B, Q, R);
 static_assert(result.success);
 static_assert(result.is_stable());
 LQR controller(result.as<float>());
 
 // Advanced: I want cross-term weighting and continuous-time design
-auto result = design::discrete_lqr_from_continuous(sys, Q, R, Ts, N);
+auto result = discrete_lqr_from_continuous(sys, Q, R, Ts, N);
 // Access Riccati solution, closed-loop poles, etc.
 auto S = result.S;
 auto poles = result.e;
@@ -375,7 +374,7 @@ Every header must have at least one complete, self-contained example in its Doxy
  *     .C = Matrix<1,2>{{1.0, 0.0}}
  * };
  *
- * constexpr auto result = design::discrete_lqr_from_continuous(
+ * constexpr auto result = discrete_lqr_from_continuous(
  *     sys.A, sys.B,
  *     Matrix<2,2>::identity(),    // Q: equal weight on position and velocity
  *     Matrix<1,1>{{0.1}},        // R: penalize control effort

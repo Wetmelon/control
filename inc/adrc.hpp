@@ -8,11 +8,16 @@
 
 namespace wetmelon::control {
 
-namespace online {
+namespace design {
 
 /**
  * @struct ADRCResult
  * @brief Active Disturbance Rejection Control design result
+ *
+ * Contains the computed observer and controller gains for ADRC.
+ * Use .as<U>() to convert for type conversion (e.g., double to float).
+ *
+ * @see "From PID to Active Disturbance Rejection Control" (Han, 1998)
  */
 template<size_t NX, typename T = double>
 struct ADRCResult {
@@ -47,6 +52,8 @@ struct ADRCResult {
  * @param Ts Sampling time
  *
  * @return ADRCResult with computed gains
+ *
+ * @see "From PID to Active Disturbance Rejection Control" (Han, 1998)
  */
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr ADRCResult<NX, T> adrc(T wc, T wo, T b0, T Ts) {
@@ -78,53 +85,6 @@ template<size_t NX, typename T = double>
     return ADRCResult<NX, T>{wc, wo, b0, beta, Kp, Kd, Ts};
 }
 
-} // namespace online
-
-namespace design {
-
-/**
- * @struct ADRCResult
- * @brief Active Disturbance Rejection Control design result
- */
-template<size_t NX, typename T = double>
-struct ADRCResult {
-    T wc{}; //< Controller bandwidth
-    T wo{}; //< Observer bandwidth
-    T b0{}; //< Plant gain
-
-    std::array<T, NX + 1> beta{}; //< ESO gains
-
-    T Kp{}; //< Proportional gain
-    T Kd{}; //< Derivative gain
-    T Ts{}; //< Sampling time
-
-    template<typename U>
-    [[nodiscard]] consteval auto as() const {
-        return ADRCResult<NX, U>{wc, wo, b0, beta, Kp, Kd, Ts};
-    }
-};
-
-/**
- * @brief Active Disturbance Rejection Control design
- *
- * Designs ESO gains using pole placement for observer poles at -wo.
- * Places all poles at -wo for the extended system.
- * Controller gains are computed based on system order:
- * - 1st order: Kp = wc/b0, Kd = 0
- * - 2nd order: Kp = wc²/b0, Kd = 2*wc/b0
- *
- * @param wc Controller bandwidth
- * @param wo Observer bandwidth
- * @param b0 Plant gain
- * @param Ts Sampling time
- *
- * @return ADRCResult with computed gains
- */
-template<size_t NX, typename T = double>
-[[nodiscard]] consteval ADRCResult<NX, T> adrc(T wc, T wo, T b0, T Ts) {
-    return online::adrc<NX, T>(wc, wo, b0, Ts);
-}
-
 } // namespace design
 
 /**
@@ -154,10 +114,7 @@ class ADRCController {
 
 public:
     constexpr ADRCController() = default;
-    consteval ADRCController(const design::ADRCResult<NX, T>& result)
-        : b0(result.b0), beta(result.beta), Kp(result.Kp), Kd(result.Kd), Ts(result.Ts) {}
-
-    constexpr ADRCController(const online::ADRCResult<NX, T>& result)
+    constexpr ADRCController(const design::ADRCResult<NX, T>& result)
         : b0(result.b0), beta(result.beta), Kp(result.Kp), Kd(result.Kd), Ts(result.Ts) {}
 
     template<typename U>

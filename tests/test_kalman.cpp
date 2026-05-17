@@ -101,7 +101,7 @@ TEST_CASE("LQR scalar DARE solution") {
     Matrix<1, 1> Q = {{1.0}};
     Matrix<1, 1> R = {{1.0}};
 
-    auto result = online::dlqr(A, B, Q, R);
+    auto result = design::dlqr(A, B, Q, R);
 
     // Known solution: P = (1+sqrt(5))/2, K = P/(1+P)
     double P_expected = (1.0 + std::sqrt(5.0)) * 0.5;
@@ -130,7 +130,7 @@ TEST_CASE("LQG combines LQR and KF") {
     Matrix<1, 1> Qkf = {{0.1}};
     Matrix<1, 1> Rkf = {{0.25}};
 
-    LQG lqg = online::lqg(sys, Qlqr, Rlqr, Qkf, Rkf);
+    LQG lqg = design::lqg(sys, Qlqr, Rlqr, Qkf, Rkf);
 
     ColVec<1> y = {1.0};
     bool      ok = lqg.update(y);
@@ -156,7 +156,7 @@ TEST_CASE("LQG servo (LQI + KF) tracks reference") {
     Matrix<1, 1> Qkf = {{0.1}};
     Matrix<1, 1> Rkf = {{0.25}};
 
-    LQGI lqgs = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+    LQGI lqgs = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
 
     ColVec<1> y = {0.0};
     lqgs.update(y);
@@ -181,7 +181,7 @@ TEST_CASE("Kalman design R!=0, square C (NY=NX=2)") {
     Matrix<2, 2> Q_proc = {{1e-4, 0.0}, {0.0, 1e-2}};
     Matrix<2, 2> R_meas = {{1e-2, 0.0}, {0.0, 5e-2}};
 
-    auto result = online::kalman(sys, Q_proc, R_meas);
+    auto result = design::kalman(sys, Q_proc, R_meas);
     REQUIRE(result.success);
 
     // scipy: solve_discrete_are(A.T, C.T, Q, R)
@@ -228,7 +228,7 @@ TEST_CASE("Kalman design R!=0, non-square C (NY=1, NX=2)") {
     Matrix<2, 2> Q_proc = {{1e-4, 0.0}, {0.0, 1e-2}};
     Matrix<1, 1> R_meas = {{5e-2}};
 
-    auto result = online::kalman(sys, Q_proc, R_meas);
+    auto result = design::kalman(sys, Q_proc, R_meas);
     REQUIRE(result.success);
 
     // scipy: solve_discrete_are(A.T, C.T, Q, R) with C = [[1,0]], R = [[0.05]]
@@ -276,7 +276,7 @@ TEST_CASE("Kalman design with R=0 (perfect measurements)") {
     Matrix<2, 2> R_zero = Matrix<2, 2, double>::zeros();
 
     // kalman() should now succeed for the R=0 + square-C case
-    auto result = online::kalman(sys, Q_proc, R_zero);
+    auto result = design::kalman(sys, Q_proc, R_zero);
     CHECK(result.success);
 
     // P_ss = Q_eff = G*Q*G' = Q_proc (G=I here).
@@ -305,7 +305,7 @@ TEST_CASE("Kalman design with R=0 (perfect measurements)") {
 
     Matrix<2, 2> Q2 = {{0.01, 0.0}, {0.0, 0.01}};
     Matrix<1, 1> R1_zero = Matrix<1, 1, double>::zeros();
-    auto         result1d = online::kalman(sys1d, Q2, R1_zero);
+    auto         result1d = design::kalman(sys1d, Q2, R1_zero);
     CHECK(result1d.success);
 }
 
@@ -351,7 +351,7 @@ TEST_CASE("Kalman design R!=0, non-square C (NY=2, NX=4)") {
         R_meas(i, i) = 0.1;
     }
 
-    auto result = online::kalman(sys, Q_proc, R_meas);
+    auto result = design::kalman(sys, Q_proc, R_meas);
     REQUIRE(result.success);
 
     // P is 4x4 symmetric
@@ -435,7 +435,7 @@ TEST_CASE("Kalman design R=0, non-square C (NY=2, NX=4)") {
 
     Matrix<2, 2> R_zero = Matrix<2, 2, double>::zeros();
 
-    auto result = online::kalman(sys, Q_proc, R_zero);
+    auto result = design::kalman(sys, Q_proc, R_zero);
     REQUIRE(result.success);
     CHECK(result.P(0, 0) == doctest::Approx(1.105124921972504e-02).epsilon(1e-8));
     CHECK(result.P(0, 1) == doctest::Approx(1.051249219725040e-02).epsilon(1e-8));
@@ -490,7 +490,7 @@ TEST_CASE("Kalman design R=0 (NY=1, NX=4)") {
 
     Matrix<1, 1> R_zero = Matrix<1, 1, double>::zeros();
 
-    auto result = online::kalman(sys, Qd, R_zero);
+    auto result = design::kalman(sys, Qd, R_zero);
     REQUIRE(result.success);
 
     // Kalman gain (4x1): scipy reference

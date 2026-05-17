@@ -6,14 +6,15 @@
 #include "state_space.hpp"
 
 namespace wetmelon::control {
-
-namespace online {
-
+namespace design {
 /**
  * @struct LQGIResult
- * @brief Runtime LQGI design result (online namespace)
+ * @brief LQGI design result
+ *
+ * Combines LQI and Kalman filter designs for servo control with state estimation.
+ * Use `.as<float>()` to convert for embedded deployment.
  */
-template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
 struct LQGIResult {
     LQIResult<NX, NU, NY, T>            lqi{};
     KalmanResult<NX, NU, NY, NW, NV, T> kalman{};
@@ -30,7 +31,7 @@ struct LQGIResult {
 };
 
 /**
- * @brief Linear-Quadratic-Gaussian with integral action for tracking (runtime version)
+ * @brief Linear-Quadratic-Gaussian with integral action for tracking
  *
  * @param sys      State-space system
  * @param Q_aug    Augmented state cost (state + integral error)
@@ -76,81 +77,6 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     return lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
 }
-
-} // namespace online
-
-namespace design {
-
-/**
- * @struct LQGIResult
- * @brief Linear-Quadratic-Gaussian Integral controller design result
- *
- * Combines LQI and Kalman filter designs for servo control with state estimation.
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-struct LQGIResult {
-    LQIResult<NX, NU, NY, T>            lqi{};          //!< LQI design result
-    KalmanResult<NX, NU, NY, NW, NV, T> kalman{};       //!< Kalman filter result
-    bool                                success{false}; //!< Indicates combined design success
-
-    template<typename U>
-    [[nodiscard]] consteval auto as() const {
-        return LQGIResult<NX, NU, NY, NW, NV, U>{
-            lqi.template as<U>(),
-            kalman.template as<U>(),
-            success
-        };
-    }
-};
-
-/**
- * @brief Linear-Quadratic-Gaussian with integral action for tracking
- *
- * @param sys      State-space system
- * @param Q_aug    Augmented state cost (state + integral error)
- * @param R        Input cost matrix
- * @param Q_kf     Process noise covariance for Kalman filter
- * @param R_kf     Measurement noise covariance for Kalman filter
- * @param dof      Servo degrees of freedom (1DOF or 2DOF)
- *
- * @return LQGIResult with integral action for tracking
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] consteval LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q_aug, // Augmented state cost (state + integral)
-    const Matrix<NU, NU, T>&                 R,     // Input cost
-    const Matrix<NW, NW, T>&                 Q_kf,  // Process noise covariance
-    const Matrix<NV, NV, T>&                 R_kf   // Measurement noise covariance
-) {
-    const auto lqi_result = lqi(sys, Q_aug, R);
-    const auto kalman_result = kalman(sys, Q_kf, R_kf);
-    return LQGIResult<NX, NU, NY, NW, NV, T>{lqi_result, kalman_result, lqi_result.success && kalman_result.success};
-}
-
-/**
- * @brief Alias for LQG with integral action for servo tracking (consteval version)
- *
- * @param sys      State-space system
- * @param Q_aug    Augmented state cost (state + integral error)
- * @param R        Input cost matrix
- * @param Q_kf     Process noise covariance for Kalman filter
- * @param R_kf     Measurement noise covariance for Kalman filter
- * @param dof      Servo degrees of freedom (1DOF or 2DOF)
- *
- * @return LQGIResult with integral action for tracking
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] consteval LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q_aug,
-    const Matrix<NU, NU, T>&                 R,
-    const Matrix<NW, NW, T>&                 Q_kf,
-    const Matrix<NV, NV, T>&                 R_kf
-) {
-    return lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
-}
-
 } // namespace design
 
 /**
@@ -177,19 +103,7 @@ struct LQGI {
     constexpr LQGI(const LQI<NX, NU, NY, T>& lqi_, const KalmanFilter<NX, NU, NY, NW, NV, T>& kf_)
         : lqi(lqi_), kf(kf_) {}
 
-    // Compile-time only constructor for design:: results
-    consteval LQGI(const design::LQGIResult<NX, NU, NY, NW, NV, T>& result)
-        : lqi(result.lqi),
-          kf(
-              result.kalman.sys,
-              result.kalman.Q,
-              result.kalman.R,
-              ColVec<NX, T>{},
-              result.kalman.success ? result.kalman.P : Matrix<NX, NX, T>::identity()
-          ) {}
-
-    // Runtime constructor for online:: results
-    constexpr LQGI(const online::LQGIResult<NX, NU, NY, NW, NV, T>& result)
+    constexpr LQGI(const design::LQGIResult<NX, NU, NY, NW, NV, T>& result)
         : lqi(result.lqi),
           kf(
               result.kalman.sys,

@@ -25,7 +25,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2>     Q{{1.0, 0.0}, {0.0, 1.0}};
         Matrix<1, 1>     R{{0.1}};
 
-        auto result = online::dlqr(Ad, Bd, Q, R);
+        auto result = design::dlqr(Ad, Bd, Q, R);
 
         // Should produce non-zero gain
         CHECK(result.K(0, 0) != 0.0);
@@ -51,7 +51,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Q_aug(2, 2) = 10.0; // integral (high weight for tracking)
         Matrix<1, 1> R{{0.1}};
 
-        auto lqi_result = online::lqi(sys, Q_aug, R);
+        auto lqi_result = design::lqi(sys, Q_aug, R);
 
         // Should have computed gains
         CHECK(lqi_result.K(0, 0) != 0.0);
@@ -75,7 +75,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf{{0.1}};
 
-        auto lqg_result = online::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        auto lqg_result = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
 
         // LQR gain should exist
         CHECK(lqg_result.lqr.K(0, 0) != 0.0);
@@ -101,7 +101,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf{{0.1}};
 
-        auto servo_result = online::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
+        auto servo_result = design::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
 
         // Should have computed gains
         CHECK(servo_result.lqi.K(0, 0) != 0.0);
@@ -123,15 +123,15 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         // Create Kalman result
         Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf{{0.1}};
-        auto         kf_result = online::kalman(sys, Q_kf, R_kf);
+        auto         kf_result = design::kalman(sys, Q_kf, R_kf);
 
         // Create LQR result using dlqr free function
         Matrix<2, 2> Q_lqr = Matrix<2, 2>::identity();
         Matrix<1, 1> R_lqr{{0.1}};
-        auto         lqr_result = online::dlqr(sys.A, sys.B, Q_lqr, R_lqr);
+        auto         lqr_result = design::dlqr(sys.A, sys.B, Q_lqr, R_lqr);
 
         // Combine into LQGResult
-        auto lqg_result = online::lqgreg(kf_result, lqr_result);
+        auto lqg_result = design::lqgreg(kf_result, lqr_result);
 
         // Should preserve the LQR gain
         CHECK(lqg_result.lqr.K(0, 0) == lqr_result.K(0, 0));

@@ -43,7 +43,7 @@ LQR            controller_eq = res_eq.as<float>();
 // ===== B) RUNTIME LQR: Linearize about current state =====
 static LQR<2, 1> design_lqr_at_state(double theta, double theta_dot) {
     auto sys = linearize_pendulum(theta, theta_dot);
-    auto res = online::lqrd(sys.A, sys.B, Q, R, Ts);
+    auto res = design::lqrd(sys.A, sys.B, Q, R, Ts);
     return LQR{res};
 }
 

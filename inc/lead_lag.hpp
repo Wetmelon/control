@@ -49,7 +49,7 @@ struct LeadLagResult {
     T Ts{}; //!< Sampling time (seconds), 0 = continuous
 
     template<typename U>
-    [[nodiscard]] consteval LeadLagResult<U> as() const {
+    [[nodiscard]] constexpr LeadLagResult<U> as() const {
         return {static_cast<U>(K), static_cast<U>(z), static_cast<U>(p), static_cast<U>(Ts)};
     }
 
@@ -59,7 +59,7 @@ struct LeadLagResult {
      * Returns C(s) = K * (s + z) / (s + p)
      * Numerator and denominator in ascending powers of s: {const, s}
      */
-    [[nodiscard]] consteval TransferFunction<2, 2, T> to_tf() const {
+    [[nodiscard]] constexpr TransferFunction<2, 2, T> to_tf() const {
         // C(s) = K * (s + z) / (s + p)
         // Numerator:   K*z + K*s   = {K*z, K}
         // Denominator: p + s       = {p, 1}
@@ -72,7 +72,7 @@ struct LeadLagResult {
     /**
      * @brief Convert to continuous-time state-space (1st order SISO)
      */
-    [[nodiscard]] consteval StateSpace<1, 1, 1, 0, 0, T> to_ss() const {
+    [[nodiscard]] constexpr StateSpace<1, 1, 1, 0, 0, T> to_ss() const {
         // From C(s) = K*(s+z)/(s+p), controllable canonical form:
         // A = [-p], B = [1], C = [K*(z-p)], D = [K]
         return StateSpace<1, 1, 1, 0, 0, T>{
@@ -88,7 +88,7 @@ struct LeadLagResult {
      *
      * @param method Discretization method (default: Tustin)
      */
-    [[nodiscard]] consteval StateSpace<1, 1, 1, 0, 0, T>
+    [[nodiscard]] constexpr StateSpace<1, 1, 1, 0, 0, T>
     to_discrete_ss(DiscretizationMethod method = DiscretizationMethod::Tustin) const {
         return discretize(to_ss(), Ts, method);
     }
@@ -112,7 +112,7 @@ struct LeadLagResult {
  * @return LeadLagResult with computed K, zero, and pole locations
  */
 template<typename T = double>
-[[nodiscard]] consteval LeadLagResult<T> lead(T phi_max, T wc, T Ts = T{0}) {
+[[nodiscard]] constexpr LeadLagResult<T> lead(T phi_max, T wc, T Ts = T{0}) {
     // alpha = (1 - sin(phi)) / (1 + sin(phi))
     // For a lead: alpha < 1
     T s = wet::sin(phi_max);
@@ -152,7 +152,7 @@ template<typename T = double>
  * @return LeadLagResult with computed K, zero, and pole locations
  */
 template<typename T = double>
-[[nodiscard]] consteval LeadLagResult<T> lag(T dc_gain_boost, T wc, T margin_factor = T{10}, T Ts = T{0}) {
+[[nodiscard]] constexpr LeadLagResult<T> lag(T dc_gain_boost, T wc, T margin_factor = T{10}, T Ts = T{0}) {
     // Place zero at wc / margin_factor
     // Place pole at zero / dc_gain_boost (further below, so z > p → lag)
     T z = wc / margin_factor;
@@ -181,7 +181,7 @@ template<typename T = double>
  * @return StateSpace<2,1,1> — 2nd order SISO compensator
  */
 template<typename T = double>
-[[nodiscard]] consteval StateSpace<2, 1, 1, 0, 0, T>
+[[nodiscard]] constexpr StateSpace<2, 1, 1, 0, 0, T>
 lead_lag(T phi_max, T wc, T dc_gain_boost, T margin_factor = T{10}, T Ts = T{0}) {
     auto lead_r = lead(phi_max, wc);
     auto lag_r = lag(dc_gain_boost, wc, margin_factor);
@@ -209,86 +209,11 @@ lead_lag(T phi_max, T wc, T dc_gain_boost, T margin_factor = T{10}, T Ts = T{0})
  * @return LeadLagResult
  */
 template<typename T = double>
-[[nodiscard]] consteval LeadLagResult<T> lead_lag_direct(T K, T z, T p, T Ts = T{0}) {
-    return LeadLagResult<T>{K, z, p, Ts};
-}
-
-} // namespace design
-
-namespace online {
-
-/**
- * @struct LeadLagResult
- * @brief Lead-lag compensator design result (runtime)
- */
-template<typename T = double>
-struct LeadLagResult {
-    T K{};
-    T z{};
-    T p{};
-    T Ts{};
-
-    template<typename U>
-    [[nodiscard]] constexpr LeadLagResult<U> as() const {
-        return {static_cast<U>(K), static_cast<U>(z), static_cast<U>(p), static_cast<U>(Ts)};
-    }
-
-    [[nodiscard]] constexpr TransferFunction<2, 2, T> to_tf() const {
-        return TransferFunction<2, 2, T>{
-            .num = {K * z, K},
-            .den = {p, T{1}},
-        };
-    }
-
-    [[nodiscard]] constexpr StateSpace<1, 1, 1, 0, 0, T> to_ss() const {
-        return StateSpace<1, 1, 1, 0, 0, T>{
-            .A = Matrix<1, 1, T>{{-p}},
-            .B = Matrix<1, 1, T>{{T{1}}},
-            .C = Matrix<1, 1, T>{{K * (z - p)}},
-            .D = Matrix<1, 1, T>{{K}},
-        };
-    }
-
-    [[nodiscard]] constexpr StateSpace<1, 1, 1, 0, 0, T>
-    to_discrete_ss(DiscretizationMethod method = DiscretizationMethod::Tustin) const {
-        return discretize(to_ss(), Ts, method);
-    }
-};
-
-/**
- * @brief Design a lead compensator (runtime)
- */
-template<typename T = double>
-[[nodiscard]] constexpr LeadLagResult<T> lead(T phi_max, T wc, T Ts = T{0}) {
-    T s = wet::sin(phi_max);
-    T alpha = (T{1} - s) / (T{1} + s);
-    T sqrt_alpha = wet::sqrt(alpha);
-    T z = wc * sqrt_alpha;
-    T p = wc / sqrt_alpha;
-    T K = T{1} / sqrt_alpha;
-    return LeadLagResult<T>{K, z, p, Ts};
-}
-
-/**
- * @brief Design a lag compensator (runtime)
- */
-template<typename T = double>
-[[nodiscard]] constexpr LeadLagResult<T> lag(T dc_gain_boost, T wc, T margin_factor = T{10}, T Ts = T{0}) {
-    T z = wc / margin_factor;
-    T p = z / dc_gain_boost;
-    T K = T{1};
-    return LeadLagResult<T>{K, z, p, Ts};
-}
-
-/**
- * @brief Direct lead-lag specification (runtime)
- */
-template<typename T = double>
 [[nodiscard]] constexpr LeadLagResult<T> lead_lag_direct(T K, T z, T p, T Ts = T{0}) {
     return LeadLagResult<T>{K, z, p, Ts};
 }
 
-} // namespace online
+} // namespace design
 
 /**
  * @ingroup discrete_controllers
@@ -317,12 +242,7 @@ struct LeadLagController {
 
     constexpr LeadLagController() = default;
 
-    consteval LeadLagController(const design::LeadLagResult<T>& result)
-        : K(result.K), z(result.z), p(result.p), Ts(result.Ts) {
-        compute_coefficients();
-    }
-
-    constexpr LeadLagController(const online::LeadLagResult<T>& result)
+    constexpr LeadLagController(const design::LeadLagResult<T>& result)
         : K(result.K), z(result.z), p(result.p), Ts(result.Ts) {
         compute_coefficients();
     }

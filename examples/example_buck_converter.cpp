@@ -36,7 +36,7 @@ int main() {
     constexpr Matrix R_mat = Matrix<1, 1>{{0.01}}; // Control effort cost (smaller = more aggressive)
 
     // Design discrete-time LQR controller from continuous-time model
-    constexpr auto result = design::discrete_lqr_from_continuous(sys, Q, R_mat, Ts).as<float>();
+    constexpr auto result = design::lqrd(sys, Q, R_mat, Ts).as<float>();
 
     LQR controller = result;
     (void)controller; // Suppress unused variable warning

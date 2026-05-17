@@ -10,7 +10,7 @@ TEST_SUITE("Sliding Mode Control (SMC)") {
         float b0 = 1.0f;      // Plant gain
         float Ts = 0.01f;     // Sampling time
 
-        auto smc_result = online::smc(lambda, k, b0, Ts);
+        auto smc_result = design::smc(lambda, k, b0, Ts);
 
         CHECK(smc_result.lambda == doctest::Approx(lambda).epsilon(1e-6));
         CHECK(smc_result.k == doctest::Approx(k).epsilon(1e-6));
@@ -24,7 +24,7 @@ TEST_SUITE("Sliding Mode Control (SMC)") {
         float b0 = 1.0f;
         float Ts = 0.01f;
 
-        auto          smc_result = online::smc(lambda, k, b0, Ts);
+        auto          smc_result = design::smc(lambda, k, b0, Ts);
         SMCController controller(smc_result);
 
         // Test control with zero error

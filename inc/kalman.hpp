@@ -8,20 +8,22 @@
 
 namespace wetmelon::control {
 
-namespace online {
+namespace design {
 
 /**
  * @struct KalmanResult
- * @brief Runtime Kalman filter design result (online namespace)
+ * @brief Kalman filter design result
+ *
+ * Contains filter gains and covariance matrices for optimal state estimation.
  */
-template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 struct KalmanResult {
-    StateSpace<NX, NU, NY, NW, NV, T> sys{};
-    Matrix<NW, NW, T>                 Q{};
-    Matrix<NV, NV, T>                 R{};
-    Matrix<NX, NY, T>                 L{};
-    Matrix<NX, NX, T>                 P{};
-    bool                              success{false};
+    StateSpace<NX, NU, NY, NW, NV, T> sys{};          //!< System model
+    Matrix<NW, NW, T>                 Q{};            //!< Process noise covariance
+    Matrix<NV, NV, T>                 R{};            //!< Measurement noise covariance
+    Matrix<NX, NY, T>                 L{};            //!< Kalman gain (steady-state)
+    Matrix<NX, NX, T>                 P{};            //!< Error covariance (steady-state)
+    bool                              success{false}; //!< Indicates filter design success
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
@@ -37,11 +39,9 @@ struct KalmanResult {
 };
 
 /**
- * @brief Steady-state Kalman filter design (runtime version)
+ * @brief Steady-state Kalman filter design
  *
- * Designs optimal steady-state Kalman gain for discrete system:
- * x[k+1] = A*x[k] + B*u[k] + G*w[k]
- * y[k]   = C*x[k] + D*u[k] + H*v[k]
+ * Designs optimal steady-state Kalman gain for discrete system: x[k+1] = A*x[k] + B*u[k] + G*w[k], y[k] = C*x[k] + D*u[k] + H*v[k]
  *
  * @param sys  State-space system (discrete-time)
  * @param Q    Process noise covariance (covariance of w[k])
@@ -98,104 +98,10 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     result.success = true;
     return result;
 }
-
-} // namespace online
-
-namespace design {
-
-/**
- * @struct KalmanResult
- * @brief Kalman filter design result
- *
- * Contains filter gains and covariance matrices for optimal state estimation.
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-struct KalmanResult {
-    StateSpace<NX, NU, NY, NW, NV, T> sys{};          //!< System model
-    Matrix<NW, NW, T>                 Q{};            //!< Process noise covariance
-    Matrix<NV, NV, T>                 R{};            //!< Measurement noise covariance
-    Matrix<NX, NY, T>                 L{};            //!< Kalman gain (steady-state)
-    Matrix<NX, NX, T>                 P{};            //!< Error covariance (steady-state)
-    bool                              success{false}; //!< Indicates filter design success
-
-    template<typename U>
-    [[nodiscard]] consteval auto as() const {
-        return KalmanResult<NX, NU, NY, NW, NV, U>{
-            sys.template as<U>(),
-            Q.template as<U>(),
-            R.template as<U>(),
-            L.template as<U>(),
-            P.template as<U>(),
-            success
-        };
-    }
-};
-
-/**
- * @brief Steady-state Kalman filter design
- *
- * Designs optimal steady-state Kalman gain for discrete system: x[k+1] = A*x[k] + B*u[k] + G*w[k], y[k] = C*x[k] + D*u[k] + H*v[k]
- *
- * @param sys  State-space system (discrete-time)
- * @param Q    Process noise covariance (covariance of w[k])
- * @param R    Measurement noise covariance (covariance of v[k])
- *
- * @return KalmanResult containing steady-state gain and covariance
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] consteval KalmanResult<NX, NU, NY, NW, NV, T> kalman(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NW, NW, T>&                 Q,
-    const Matrix<NV, NV, T>&                 R
-) {
-    KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
-
-    // Compute effective noise covariances accounting for G and H
-    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.t();
-    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.t();
-
-    // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
-    const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
-    if (R_eff.norm() < r_eps) {
-        if constexpr (NY == NX) {
-            const auto C_inv = sys.C.inverse();
-            if (C_inv.has_value()) {
-                result.P = Q_eff;
-                result.L = C_inv.value();
-                result.success = true;
-                return result;
-            }
-        }
-    }
-
-    // Solve filter DARE: P = A*P*A' + Q_eff - A*P*C'*(C*P*C' + R_eff)^{-1}*C*P*A'
-    // dare() handles R ≥ 0 (falls back to RDE iteration when R is singular)
-    const auto dare_opt = dare(sys.A.transpose(), sys.C.transpose(), Q_eff, R_eff);
-    if (!dare_opt) {
-        return result;
-    }
-    result.P = dare_opt.value();
-
-    // Compute Kalman gain: L = PCᵀS⁻¹ → solve S Lᵀ = CP
-    const Matrix<NY, NY, T> S = sys.C * result.P * sys.C.t() + R_eff;
-    const Matrix<NY, NX, T> CP = sys.C * result.P;
-    auto                    L_opt = mat::cholesky_solve(S, CP);
-    if (!L_opt) {
-        L_opt = mat::lu_solve(S, CP);
-    }
-    if (!L_opt) {
-        return result;
-    }
-    result.L = L_opt.value().transpose();
-
-    result.success = true;
-    return result;
-}
-
 } // namespace design
 
 // For embedded systems running in ISR or RTOS scheduler.
-// Assumes sys contains discrete-time matrices (use design:: functions to discretize).
+// Assumes sys contains discrete-time matrices (use discretization functions to discretize).
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
 struct KalmanFilter {
     constexpr KalmanFilter() = default;

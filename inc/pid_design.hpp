@@ -56,7 +56,7 @@ enum class PIDType { P,
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
     T Kp{}, Ki{}, Kd{};
     switch (type) {
@@ -97,7 +97,7 @@ ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
     T Kp{}, Ki{}, Kd{};
     T a = tau / (K * L); // normalized gain
@@ -140,7 +140,7 @@ ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
     T Kp{}, Ki{}, Kd{};
     switch (type) {
@@ -178,7 +178,7 @@ tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
     T Kp{}, Ki{}, Kd{};
     T r = L / tau; // dead-time ratio
@@ -229,7 +229,7 @@ cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 simc(T K, T L, T tau, T tau_c, T Ts, PIDType type = PIDType::PI) {
     T Kp{}, Ki{}, Kd{};
     switch (type) {
@@ -274,7 +274,7 @@ simc(T K, T L, T tau, T tau_c, T Ts, PIDType type = PIDType::PI) {
  * @return PIDResult (PI controller gains)
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
     T Kp = tau / (K * (lambda + L));
     T Ki = Kp / tau;
@@ -304,7 +304,7 @@ lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
  * @return PIDResult with tuned gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
     constexpr T pi = std::numbers::pi_v<T>;
     T           phi = phase_margin * pi / T{180}; // Convert to radians
@@ -395,7 +395,7 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
  * @return PIDResult (PI gains via pole placement)
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 pid_pole_placement(T K, T tau, T p1, T p2, T Ts) {
     // Discretize the first-order plant: G(z) = K*(1-a)/(z-a)
     T a = wet::exp(-Ts / tau);
@@ -433,7 +433,7 @@ pid_pole_placement(T K, T tau, T p1, T p2, T Ts) {
  * @return PIDResult with PID gains
  */
 template<typename T = double>
-[[nodiscard]] consteval PIDResult<T>
+[[nodiscard]] constexpr PIDResult<T>
 pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
     // Discretize: G(z) = b/(z-a), a = exp(-Ts/tau), b = K*(1-a)
     T a = wet::exp(-Ts / tau);
@@ -468,243 +468,4 @@ pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
 }
 
 } // namespace design
-
-namespace online {
-
-/**
- * @brief Ziegler-Nichols tuning (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-ziegler_nichols(T Ku, T Tu, T Ts, design::PIDType type = design::PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
-    switch (type) {
-        case design::PIDType::P:
-            Kp = T{0.5} * Ku;
-            break;
-        case design::PIDType::PI:
-            Kp = T{0.45} * Ku;
-            Ki = Kp / (Tu / T{1.2});
-            break;
-        case design::PIDType::PD:
-            Kp = T{0.8} * Ku;
-            Kd = Kp * Tu / T{8};
-            break;
-        case design::PIDType::PID:
-            Kp = T{0.6} * Ku;
-            Ki = Kp / (Tu / T{2});
-            Kd = Kp * Tu / T{8};
-            break;
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief Ziegler-Nichols step response method (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-ziegler_nichols_step(T K, T L, T tau, T Ts, design::PIDType type = design::PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
-    T a = tau / (K * L);
-    switch (type) {
-        case design::PIDType::P:
-            Kp = a;
-            break;
-        case design::PIDType::PI:
-            Kp = T{0.9} * a;
-            Ki = Kp / (L * T{3.33});
-            break;
-        case design::PIDType::PD:
-            Kp = a;
-            Kd = Kp * L * T{0.5};
-            break;
-        case design::PIDType::PID:
-            Kp = T{1.2} * a;
-            Ki = Kp / (T{2} * L);
-            Kd = Kp * T{0.5} * L;
-            break;
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief Tyreus-Luyben tuning (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-tyreus_luyben(T Ku, T Tu, T Ts, design::PIDType type = design::PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
-    switch (type) {
-        case design::PIDType::PI:
-            Kp = Ku / T{3.2};
-            Ki = Kp / (T{2.2} * Tu);
-            break;
-        case design::PIDType::PID:
-            Kp = Ku / T{2.2};
-            Ki = Kp / (T{2.2} * Tu);
-            Kd = Kp * Tu / T{6.3};
-            break;
-        default:
-            return ziegler_nichols(Ku, Tu, Ts, type);
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief Cohen-Coon tuning (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-cohen_coon(T K, T L, T tau, T Ts, design::PIDType type = design::PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
-    T r = L / tau;
-    T a = tau / (K * L);
-    switch (type) {
-        case design::PIDType::P:
-            Kp = a * (T{1} + r / T{3});
-            break;
-        case design::PIDType::PI: {
-            Kp = a * (T{0.9} + r / T{12});
-            T Ti = L * (T{30} + T{3} * r) / (T{9} + T{20} * r);
-            Ki = Kp / Ti;
-        } break;
-        case design::PIDType::PD: {
-            Kp = a * (T{1.24} + r / T{5});
-            T Td = L * T{6} / (T{22} + T{3} * r);
-            Kd = Kp * Td;
-        } break;
-        case design::PIDType::PID: {
-            Kp = a * (T{4} / T{3} + r / T{4});
-            T Ti = L * (T{32} + T{6} * r) / (T{13} + T{8} * r);
-            T Td = L * T{4} / (T{11} + T{2} * r);
-            Ki = Kp / Ti;
-            Kd = Kp * Td;
-        } break;
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief SIMC tuning (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-simc(T K, T L, T tau, T tau_c, T Ts, design::PIDType type = design::PIDType::PI) {
-    T Kp{}, Ki{}, Kd{};
-    switch (type) {
-        case design::PIDType::P:
-            Kp = tau / (K * (tau_c + L));
-            break;
-        case design::PIDType::PI: {
-            Kp = tau / (K * (tau_c + L));
-            T Ti = (tau < T{4} * (tau_c + L)) ? tau : T{4} * (tau_c + L);
-            Ki = Kp / Ti;
-        } break;
-        case design::PIDType::PD: {
-            Kp = tau / (K * (tau_c + L));
-            Kd = Kp * L / T{2};
-        } break;
-        case design::PIDType::PID: {
-            Kp = tau / (K * (tau_c + L));
-            T Ti = (tau < T{4} * (tau_c + L)) ? tau : T{4} * (tau_c + L);
-            Ki = Kp / Ti;
-            Kd = Kp * L / T{2};
-        } break;
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief Lambda tuning (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
-    T Kp = tau / (K * (lambda + L));
-    T Ki = Kp / tau;
-    return PIDResult<T>{Kp, Ki, T{0}, Ts};
-}
-
-/**
- * @brief Bandwidth-based PID design (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-pid_from_bandwidth(T wbw, T phase_margin, T Ts, design::PIDType type = design::PIDType::PID) {
-    constexpr T pi = std::numbers::pi_v<T>;
-    T           phi = phase_margin * pi / T{180};
-    T           desired_phase = phi - pi;
-    T           Kp{}, Ki{}, Kd{};
-
-    switch (type) {
-        case design::PIDType::P:
-            Kp = T{1};
-            break;
-        case design::PIDType::PI: {
-            T alpha = phi - pi / T{2};
-            if (alpha > T{0}) {
-                T r = wet::cos(alpha) / wet::sin(alpha);
-                Kp = T{1} / wet::sqrt(T{1} + r * r);
-                Ki = Kp * r * wbw;
-            } else {
-                Kp = wet::cos(phi);
-                Ki = wet::sin(phi) * wbw;
-            }
-        } break;
-        case design::PIDType::PD: {
-            T tan_phi_d = wet::tan(desired_phase + pi);
-            Kp = wet::cos(desired_phase + pi);
-            Kd = Kp * tan_phi_d / wbw;
-            if (Kp < T{0}) {
-                Kp = -Kp;
-                Kd = -Kd;
-            }
-        } break;
-        case design::PIDType::PID: {
-            T half_phi = (phi - pi / T{2}) / T{2};
-            if (half_phi <= T{0}) {
-                half_phi = pi / T{12};
-            }
-            T Ti = T{1} / (wbw * wet::tan(half_phi));
-            T Td = Ti / T{4};
-            Kp = T{1};
-            Ki = Kp / Ti;
-            Kd = Kp * Td;
-        } break;
-    }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-/**
- * @brief PI pole placement (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-pid_pole_placement(T K, T tau, T p1, T p2, T Ts) {
-    T a = wet::exp(-Ts / tau);
-    T b = K * (T{1} - a);
-    T Kp = (a + T{1} - p1 - p2) / b;
-    T Ki = (p1 * p2 - a + b * Kp) / (b * Ts);
-    return PIDResult<T>{Kp, Ki, T{0}, Ts};
-}
-
-/**
- * @brief PID pole placement (runtime version)
- */
-template<typename T = double>
-[[nodiscard]] constexpr PIDResult<T>
-pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
-    T a = wet::exp(-Ts / tau);
-    T b = K * (T{1} - a);
-    T sum_p = p1 + p2 + p3;
-    T sum_pp = p1 * p2 + p1 * p3 + p2 * p3;
-    T prod_p = p1 * p2 * p3;
-    T Kd = (T{1} + a - sum_p) * Ts / b;
-    T Kp = (sum_pp - a + T{2} * b * Kd / Ts) / b;
-    T Ki = (-prod_p / b + Kp - Kd / Ts) / Ts;
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
-}
-
-} // namespace online
 } // namespace wetmelon::control

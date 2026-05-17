@@ -31,7 +31,7 @@ TEST_SUITE("PR Controller") {
         double wc = 10.0;
         double Ts = 1.0 / 10000.0;
 
-        auto                 result = online::pr(1.0, 200.0, w0, wc, Ts);
+        auto                 result = design::pr(1.0, 200.0, w0, wc, Ts);
         PRController<double> ctrl(result);
 
         // Simulate: reference = sin(w0*t), plant = unit gain (identity)
@@ -65,7 +65,7 @@ TEST_SUITE("PR Controller") {
     }
 
     TEST_CASE("PR controller reset") {
-        auto                 result = online::pr(1.0, 100.0, 314.0, 10.0, 0.0001);
+        auto                 result = design::pr(1.0, 100.0, 314.0, 10.0, 0.0001);
         PRController<double> ctrl(result);
 
         // Run some steps
@@ -82,7 +82,7 @@ TEST_SUITE("PR Controller") {
     }
 
     TEST_CASE("PR frequency update") {
-        auto                 result = online::pr(1.0, 100.0, 314.0, 10.0, 0.0001);
+        auto                 result = design::pr(1.0, 100.0, 314.0, 10.0, 0.0001);
         PRController<double> ctrl(result);
 
         // Change to 60 Hz

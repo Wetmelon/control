@@ -239,9 +239,9 @@ class ESKFOrientationFilter {
     Vec3<T>                         b_g_nom;
 
 public:
-    consteval ESKFOrientationFilter(T gyro_noise = 0.003, T accel_noise = 0.03, T mag_noise = 0.3, T gyro_bias_rw = 0.0001, T dt = 0.01) {
-        // Use default values for consteval function
-        eskf = design::eskf_design(gyro_noise, accel_noise, mag_noise, gyro_bias_rw, dt);
+    constexpr ESKFOrientationFilter(T gyro_noise = 0.003, T accel_noise = 0.03, T mag_noise = 0.3, T gyro_bias_rw = 0.0001, T dt = 0.01) {
+        const auto eskf_result = design::eskf_design(gyro_noise, accel_noise, mag_noise, gyro_bias_rw, dt);
+        eskf = ErrorStateKalmanFilter<6, 6, T>{eskf_result};
         q_nom = Quaternion<T>::identity();
         b_g_nom = {0, 0, 0};
     }

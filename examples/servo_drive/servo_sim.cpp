@@ -239,11 +239,11 @@ struct ServoSim {
         ref_filt_wn = (cp.ref_filter_bw > 0.0) ? pi2 * cp.ref_filter_bw : 0.0;
 
         pi_d = PIDController<double>{
-            online::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
         pi_q = PIDController<double>{
-            online::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
         pi_speed = PIDController<double>{
-            online::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / std::max(Ki_s, 1e-6), i_lim / std::max(Ki_s, 1e-6), Ki_s)};
+            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / std::max(Ki_s, 1e-6), i_lim / std::max(Ki_s, 1e-6), Ki_s)};
 
         speed_decim = 0;
         pos_decim = 0;

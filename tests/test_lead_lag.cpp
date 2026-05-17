@@ -193,7 +193,7 @@ TEST_SUITE("Lead-Lag Compensator") {
         constexpr double phi = std::numbers::pi / 4.0;
         constexpr double wc = 1000.0;
         constexpr auto   design_r = design::lead(phi, wc);
-        auto             online_r = online::lead(phi, wc);
+        auto             online_r = design::lead(phi, wc);
 
         CHECK(online_r.K == doctest::Approx(design_r.K).epsilon(1e-12));
         CHECK(online_r.z == doctest::Approx(design_r.z).epsilon(1e-12));
@@ -203,7 +203,7 @@ TEST_SUITE("Lead-Lag Compensator") {
     TEST_CASE("Online lag design matches design") {
         constexpr double wc = 1000.0;
         constexpr auto   design_r = design::lag(10.0, wc);
-        auto             online_r = online::lag(10.0, wc);
+        auto             online_r = design::lag(10.0, wc);
 
         CHECK(online_r.K == doctest::Approx(design_r.K).epsilon(1e-12));
         CHECK(online_r.z == doctest::Approx(design_r.z).epsilon(1e-12));

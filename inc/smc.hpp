@@ -6,7 +6,7 @@
 
 namespace wetmelon::control {
 
-namespace online {
+namespace design {
 
 /**
  * @struct SMCResult
@@ -39,41 +39,6 @@ template<typename T = double>
 [[nodiscard]] constexpr SMCResult<T> smc(T lambda, T k, T b0, T Ts) {
     return SMCResult<T>{lambda, k, b0, Ts};
 }
-} // namespace online
-
-namespace design {
-
-/**
- * @struct SMCResult
- * @brief Sliding Mode Control design result
- */
-template<typename T = double>
-struct SMCResult {
-    T lambda{}; //< Sliding surface parameter
-    T k{};      //< Switching gain
-    T b0{};     //< Plant gain
-    T Ts{};     //< Sampling time
-
-    template<typename U>
-    [[nodiscard]] consteval auto as() const {
-        return SMCResult<U>{lambda, k, b0, Ts};
-    }
-};
-
-/**
- * @brief Sliding Mode Control design
- *
- * @param lambda Sliding surface parameter
- * @param k Switching gain
- * @param b0 Plant gain
- * @param Ts Sampling time
- *
- * @return SMCResult with computed gains
- */
-template<typename T = double>
-[[nodiscard]] consteval SMCResult<T> smc(T lambda, T k, T b0, T Ts) {
-    return online::smc<T>(lambda, k, b0, Ts);
-}
 
 } // namespace design
 
@@ -98,10 +63,8 @@ class SMCController {
 
 public:
     constexpr SMCController() = default;
-    consteval SMCController(const design::SMCResult<T>& result)
-        : lambda(result.lambda), k(result.k), b0(result.b0), Ts(result.Ts) {}
 
-    constexpr SMCController(const online::SMCResult<T>& result)
+    constexpr SMCController(const design::SMCResult<T>& result)
         : lambda(result.lambda), k(result.k), b0(result.b0), Ts(result.Ts) {}
 
     template<typename U>

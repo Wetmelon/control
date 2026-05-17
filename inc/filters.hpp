@@ -3,7 +3,6 @@
 #include <cmath>
 #include <numbers>
 
-#include "constexpr_math.hpp"
 #include "discretization.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
@@ -14,47 +13,7 @@ namespace wetmelon::control {
 namespace design {
 
 /**
- * @brief DSP coefficients for first-order IIR filter (design-time)
- */
-template<typename T = float>
-struct FirstOrderCoeffs {
-    T b0{0}, b1{0}, a1{0};
-
-    /**
-     * @brief Convert coefficients to different scalar type
-     * @tparam U Target scalar type
-     * @return FirstOrderCoeffs<U> with converted coefficients
-     */
-    template<typename U>
-    [[nodiscard]] consteval FirstOrderCoeffs<U> as() const {
-        return {static_cast<U>(b0), static_cast<U>(b1), static_cast<U>(a1)};
-    }
-};
-
-/**
- * @brief DSP coefficients for second-order IIR filter (design-time)
- */
-template<typename T = float>
-struct SecondOrderCoeffs {
-    T b0{0}, b1{0}, b2{0}, a1{0}, a2{0};
-
-    /**
-     * @brief Convert coefficients to different scalar type
-     * @tparam U Target scalar type
-     * @return SecondOrderCoeffs<U> with converted coefficients
-     */
-    template<typename U>
-    [[nodiscard]] consteval SecondOrderCoeffs<U> as() const {
-        return {static_cast<U>(b0), static_cast<U>(b1), static_cast<U>(b2), static_cast<U>(a1), static_cast<U>(a2)};
-    }
-};
-
-} // namespace design
-
-namespace online {
-
-/**
- * @brief DSP coefficients for first-order IIR filter (runtime)
+ * @brief DSP coefficients for first-order IIR filter
  */
 template<typename T = float>
 struct FirstOrderCoeffs {
@@ -72,7 +31,7 @@ struct FirstOrderCoeffs {
 };
 
 /**
- * @brief DSP coefficients for second-order IIR filter (runtime)
+ * @brief DSP coefficients for second-order IIR filter
  */
 template<typename T = float>
 struct SecondOrderCoeffs {
@@ -89,16 +48,13 @@ struct SecondOrderCoeffs {
     }
 };
 
-} // namespace online
-
-namespace design {
-
 /**
  * @defgroup filters Filter Design
- * @brief Continuous-time filter design functions
+ * @brief Filter design and filter coefficient functions
  *
  * Functions for designing common filters used in control systems.
- * All filters are designed in continuous-time and can be discretized.
+ * Filters can be designed in continuous-time or discrete-time, with
+ * compile-time and runtime support through constexpr evaluation.
  */
 
 /**
@@ -113,7 +69,7 @@ namespace design {
  * @return FirstOrderCoeffs<T> DSP coefficients
  */
 template<typename T = float>
-[[nodiscard]] consteval FirstOrderCoeffs<T> lowpass_1st(T fc, T Ts) {
+[[nodiscard]] constexpr FirstOrderCoeffs<T> lowpass_1st(T fc, T Ts) {
     // Design discrete-time first-order low-pass filter using bilinear transform
     const T omega_c = T{2} * std::numbers::pi_v<T> * fc;
     const T k = T{2} / Ts; // Pre-warping factor
@@ -139,7 +95,7 @@ template<typename T = float>
  * @return TransferFunction<2, 2, T> continuous-time transfer function
  */
 template<typename T = double>
-[[nodiscard]] consteval TransferFunction<2, 2, T> lowpass_1st(T fc) {
+[[nodiscard]] constexpr TransferFunction<2, 2, T> lowpass_1st(T fc) {
     const T tau = T{1} / (T{2} * std::numbers::pi_v<T> * fc);
     return TransferFunction<2, 2, T>{{T{1}, T{0}}, {tau, T{1}}};
 }
@@ -191,7 +147,7 @@ template<typename T = float>
  * @return TransferFunction<3, 3, T> continuous-time transfer function
  */
 template<typename T = double>
-[[nodiscard]] consteval TransferFunction<3, 3, T> lowpass_2nd(T fc, T zeta = T{0.707}) {
+[[nodiscard]] constexpr TransferFunction<3, 3, T> lowpass_2nd(T fc, T zeta = T{0.707}) {
     const T omega_0 = T{2} * std::numbers::pi_v<T> * fc;
     const T omega_0_sq = omega_0 * omega_0;
     const T two_zeta_omega = T{2} * zeta * omega_0;
@@ -215,7 +171,7 @@ template<typename T = double>
  */
 template<size_t Order, typename T = double>
     requires(Order >= 1 && Order <= 4)
-[[nodiscard]] consteval auto butterworth_lowpass(T fc) {
+[[nodiscard]] constexpr auto butterworth_lowpass(T fc) {
     const T omega_c = T{2} * std::numbers::pi_v<T> * fc;
 
     if constexpr (Order == 1) {
@@ -249,7 +205,7 @@ template<size_t Order, typename T = double>
  */
 template<size_t Order, typename T = float>
     requires(Order >= 1 && Order <= 4)
-[[nodiscard]] consteval auto butterworth_lowpass(T fc, T Ts) {
+[[nodiscard]] constexpr auto butterworth_lowpass(T fc, T Ts) {
     // Get continuous-time system
     auto sys_c = butterworth_lowpass<Order, T>(fc);
 
@@ -268,7 +224,7 @@ template<size_t Order, typename T = float>
  * @return TransferFunction<2, 2, T> representing the delay approximation
  */
 template<typename T = double>
-[[nodiscard]] consteval TransferFunction<2, 2, T> pade_delay_1st(T T_delay) {
+[[nodiscard]] constexpr TransferFunction<2, 2, T> pade_delay_1st(T T_delay) {
     const T half_T = T_delay / T{2};
     return TransferFunction<2, 2, T>{
         {T{1}, -half_T}, // num: 1 - sT/2
@@ -287,7 +243,7 @@ template<typename T = double>
  * @return TransferFunction<2, 2, T> discrete-time delay approximation
  */
 template<typename T = float>
-[[nodiscard]] consteval TransferFunction<2, 2, T> pade_delay_1st(T T_delay, T Ts) {
+[[nodiscard]] constexpr TransferFunction<2, 2, T> pade_delay_1st(T T_delay, T Ts) {
     // Get continuous-time approximation and discretize
     auto tf_c = pade_delay_1st<T>(T_delay);
     auto sys_c = tf_c.to_state_space();
@@ -306,7 +262,7 @@ template<typename T = float>
  * @return TransferFunction<3, 3, T> representing the delay approximation
  */
 template<typename T = double>
-[[nodiscard]] consteval TransferFunction<3, 3, T> pade_delay_2nd(T T_delay) {
+[[nodiscard]] constexpr TransferFunction<3, 3, T> pade_delay_2nd(T T_delay) {
     const T half_T = T_delay / T{2};
     const T T_sq_12 = T_delay * T_delay / T{12};
     return TransferFunction<3, 3, T>{
@@ -326,7 +282,7 @@ template<typename T = double>
  * @return TransferFunction<3, 3, T> discrete-time delay approximation
  */
 template<typename T = float>
-[[nodiscard]] consteval TransferFunction<3, 3, T> pade_delay_2nd(T T_delay, T Ts) {
+[[nodiscard]] constexpr TransferFunction<3, 3, T> pade_delay_2nd(T T_delay, T Ts) {
     // Get continuous-time approximation and discretize
     auto tf_c = pade_delay_2nd<T>(T_delay);
     auto sys_c = tf_c.to_state_space();
@@ -345,7 +301,7 @@ template<typename T = float>
  * @return FirstOrderCoeffs<T> DSP coefficients
  */
 template<typename T = float>
-[[nodiscard]] consteval FirstOrderCoeffs<T> to_coeffs(const StateSpace<1, 1, 1, 0, 0, T>& sys, T Ts = T{0}) {
+[[nodiscard]] constexpr FirstOrderCoeffs<T> to_coeffs(const StateSpace<1, 1, 1, 0, 0, T>& sys, T Ts = T{0}) {
     StateSpace<1, 1, 1, 0, 0, T> sys_d = sys;
     if (sys.Ts == T{0}) {
         // Discretize if continuous
@@ -370,13 +326,13 @@ template<typename T = float>
  * @return FirstOrderCoeffs<T> DSP coefficients
  */
 template<typename T = float>
-[[nodiscard]] consteval FirstOrderCoeffs<T> to_coeffs(const TransferFunction<1, 2, T>& tf, T Ts) {
+[[nodiscard]] constexpr FirstOrderCoeffs<T> to_coeffs(const TransferFunction<1, 2, T>& tf, T Ts) {
     const auto sys_d = discretize(tf.to_state_space(), Ts, DiscretizationMethod::Tustin);
     return to_coeffs(sys_d);
 }
 
 template<typename T = float>
-[[nodiscard]] consteval FirstOrderCoeffs<T> to_coeffs(const TransferFunction<2, 2, T>& tf, T Ts) {
+[[nodiscard]] constexpr FirstOrderCoeffs<T> to_coeffs(const TransferFunction<2, 2, T>& tf, T Ts) {
     const auto sys_d = discretize(tf.to_state_space(), Ts, DiscretizationMethod::Tustin);
     return to_coeffs(sys_d);
 }
@@ -392,7 +348,7 @@ template<typename T = float>
  * @return SecondOrderCoeffs<T> DSP coefficients
  */
 template<typename T = float>
-[[nodiscard]] consteval SecondOrderCoeffs<T> to_coeffs(const StateSpace<2, 1, 1, 0, 0, T>& sys, T Ts = T{0}) {
+[[nodiscard]] constexpr SecondOrderCoeffs<T> to_coeffs(const StateSpace<2, 1, 1, 0, 0, T>& sys, T Ts = T{0}) {
     StateSpace<2, 1, 1, 0, 0, T> sys_d = sys;
     if (sys.Ts == T{0}) {
         // Discretize if continuous
@@ -419,85 +375,11 @@ template<typename T = float>
  * @return SecondOrderCoeffs<T> DSP coefficients
  */
 template<typename T = float>
-[[nodiscard]] consteval SecondOrderCoeffs<T> to_coeffs(const TransferFunction<3, 3, T>& tf, T Ts) {
+[[nodiscard]] constexpr SecondOrderCoeffs<T> to_coeffs(const TransferFunction<3, 3, T>& tf, T Ts) {
     const auto sys_d = discretize(tf.to_state_space(), Ts, DiscretizationMethod::Tustin);
     return to_coeffs(sys_d);
 }
-
 } // namespace design
-
-namespace online {
-
-/**
- * @brief Runtime filter implementations
- *
- * These are discretized versions of the design-time filters for runtime use.
- */
-
-/**
- * @brief First-order low-pass filter design (runtime)
- *
- * Computes discrete-time first-order low-pass filter coefficients at runtime.
- * Returns DSP coefficients ready for filter construction.
- *
- * @param fc Cutoff frequency [Hz]
- * @param Ts Sample time [s]
- * @param T Scalar type
- * @return FirstOrderCoeffs<T> DSP coefficients
- */
-template<typename T = float>
-[[nodiscard]] constexpr FirstOrderCoeffs<T> lowpass_1st(T fc, T Ts) {
-    // Design discrete-time first-order low-pass filter using bilinear transform
-    const T omega_c = T{2} * std::numbers::pi_v<T> * fc;
-    const T k = T{2} / Ts; // Pre-warping factor
-
-    const T             denom = omega_c + k;
-    FirstOrderCoeffs<T> coeffs = {
-        .b0 = omega_c / denom,
-        .b1 = omega_c / denom,
-        .a1 = (omega_c - k) / denom,
-    };
-
-    return coeffs;
-}
-
-/**
- * @brief Second-order low-pass filter design (runtime)
- *
- * Computes discrete-time second-order low-pass filter coefficients at runtime.
- * Returns DSP coefficients ready for filter construction.
- *
- * @param fc Cutoff frequency [Hz]
- * @param Ts Sample time [s]
- * @param zeta Damping ratio (0.707 for Butterworth)
- * @param T Scalar type
- * @return SecondOrderCoeffs<T> DSP coefficients
- */
-template<typename T = float>
-[[nodiscard]] constexpr SecondOrderCoeffs<T> lowpass_2nd(T fc, T Ts, T zeta = T{0.707}) {
-    // Design discrete-time second-order low-pass filter using bilinear transform
-    const T omega_0 = T{2} * std::numbers::pi_v<T> * fc;
-    const T k = T{2} / Ts; // Pre-warping factor for bilinear transform
-    const T k_sq = k * k;
-    const T omega_0_sq = omega_0 * omega_0;
-    const T two_zeta_omega = T{2} * zeta * omega_0;
-
-    // Denominator of continuous TF: s² + 2ζω₀s + ω₀²
-    const T denom = omega_0_sq * k_sq - two_zeta_omega * k + T{1};
-
-    // Bilinear transform coefficients
-    SecondOrderCoeffs<T> coeffs;
-    coeffs.b0 = omega_0_sq * k_sq / denom;
-    coeffs.b1 = T{2} * omega_0_sq * k_sq / denom;
-    coeffs.b2 = omega_0_sq * k_sq / denom;
-    coeffs.a1 = (T{2} * omega_0_sq * k_sq - T{2}) / denom;
-    coeffs.a2 = (omega_0_sq * k_sq + two_zeta_omega * k + T{1}) / denom;
-
-    return coeffs;
-}
-
-} // namespace online
-
 /**
  * @brief Nth-order low-pass filter
  * @tparam N filter order
@@ -523,7 +405,7 @@ public:
     constexpr LowPass(T fc, T Ts_sample)
         requires(N == 1)
     {
-        *this = LowPass<1, T>(online::lowpass_1st<T>(fc, Ts_sample));
+        *this = LowPass<1, T>(design::lowpass_1st<T>(fc, Ts_sample));
     }
 
     constexpr LowPass(const TransferFunction<N + 1, N + 1, T> tf, T Ts_sample) {
@@ -570,7 +452,7 @@ public:
     constexpr LowPass(const std::array<T, N + 1>& b_, const std::array<T, N>& a_)
         : b(b_), a(a_), x_prev{}, y_prev{} {}
 
-    constexpr LowPass(const online::FirstOrderCoeffs<T>& coeffs)
+    constexpr LowPass(const design::FirstOrderCoeffs<T>& coeffs)
         requires(N == 1)
         : b{coeffs.b0, coeffs.b1}, a{coeffs.a1}, x_prev{}, y_prev{} {}
 

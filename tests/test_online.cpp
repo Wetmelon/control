@@ -12,22 +12,22 @@
 using namespace wetmelon::control;
 
 /**
- * @brief Tests for runtime online:: functions
+ * @brief Tests for runtime design:: functions
  *
  * These tests use runtime evaluation for design functions and controller
  * construction/operation.
  */
 
 TEST_SUITE("Online: LQR with Cross-Term N") {
-    TEST_CASE("online::dlqr with cross-term N") {
-        auto result_no_N = online::dlqr(
+    TEST_CASE("design::dlqr with cross-term N") {
+        auto result_no_N = design::dlqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}}
         );
 
-        auto result_with_N = online::dlqr(
+        auto result_with_N = design::dlqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -42,7 +42,7 @@ TEST_SUITE("Online: LQR with Cross-Term N") {
 }
 
 TEST_SUITE("Online: LQI Integration") {
-    TEST_CASE("online::lqi design produces valid result") {
+    TEST_CASE("design::lqi design produces valid result") {
         StateSpace<1, 1, 1, 1, 1> sys{};
         sys.A(0, 0) = 1.0;
         sys.B(0, 0) = 1.0;
@@ -51,7 +51,7 @@ TEST_SUITE("Online: LQI Integration") {
         Matrix<2, 2> Q_aug = Matrix<2, 2>::identity();
         Matrix<1, 1> R = {{1.0}};
 
-        auto lqi_result = online::lqi(sys, Q_aug, R);
+        auto lqi_result = design::lqi(sys, Q_aug, R);
 
         CHECK(lqi_result.success);
         CHECK(lqi_result.K(0, 0) != 0.0);
@@ -67,7 +67,7 @@ TEST_SUITE("Online: LQI Integration") {
         Matrix<2, 2> Q_aug = Matrix<2, 2>::identity();
         Matrix<1, 1> R = {{1.0}};
 
-        auto lqi_result = online::lqi(sys, Q_aug, R);
+        auto lqi_result = design::lqi(sys, Q_aug, R);
         LQI  lqi(lqi_result);
 
         // Verify gains match
@@ -85,7 +85,7 @@ TEST_SUITE("Online: LQI Integration") {
 }
 
 TEST_SUITE("Online: Kalman Filter") {
-    TEST_CASE("online::kalman design produces valid steady-state result") {
+    TEST_CASE("design::kalman design produces valid steady-state result") {
         StateSpace<1, 1, 1, 1, 1> sys{};
         sys.A(0, 0) = 0.95;
         sys.B(0, 0) = 1.0;
@@ -94,7 +94,7 @@ TEST_SUITE("Online: Kalman Filter") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto result = online::kalman(sys, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.1}});
+        auto result = design::kalman(sys, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.1}});
 
         CHECK(result.success);
         CHECK(result.L(0, 0) > 0.0);
@@ -103,7 +103,7 @@ TEST_SUITE("Online: Kalman Filter") {
 }
 
 TEST_SUITE("Online: LQG Regulator") {
-    TEST_CASE("online::lqg design produces valid result") {
+    TEST_CASE("design::lqg design produces valid result") {
         StateSpace<1, 1, 1, 1, 1> sys{};
         sys.A(0, 0) = 0.95;
         sys.B(0, 0) = 1.0;
@@ -112,7 +112,7 @@ TEST_SUITE("Online: LQG Regulator") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto result = online::lqg(
+        auto result = design::lqg(
             sys,
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -138,7 +138,7 @@ TEST_SUITE("Online: LQG Regulator") {
         Matrix<2, 2> Q_kf = {{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf = {{0.1}};
 
-        auto lqg_result = online::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        auto lqg_result = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
         LQG  lqg(lqg_result);
 
         // Verify KF is initialized with designed covariance
@@ -161,7 +161,7 @@ TEST_SUITE("Online: LQG Regulator") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto lqg_result = online::lqg(
+        auto lqg_result = design::lqg(
             sys,
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -186,7 +186,7 @@ TEST_SUITE("Online: LQG Regulator") {
 }
 
 TEST_SUITE("Online: LQGI Servo") {
-    TEST_CASE("online::lqgtrack design produces valid result") {
+    TEST_CASE("design::lqgtrack design produces valid result") {
         StateSpace<1, 1, 1, 1, 1> sys{};
         sys.A(0, 0) = 1.0;
         sys.B(0, 0) = 1.0;
@@ -200,7 +200,7 @@ TEST_SUITE("Online: LQGI Servo") {
         Matrix<1, 1> Qkf = {{0.1}};
         Matrix<1, 1> Rkf = {{0.25}};
 
-        auto lqgi_result = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+        auto lqgi_result = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
 
         CHECK(lqgi_result.success);
         CHECK(lqgi_result.success == (lqgi_result.lqi.success && lqgi_result.kalman.success));
@@ -220,7 +220,7 @@ TEST_SUITE("Online: LQGI Servo") {
         Matrix<1, 1> Qkf = {{0.1}};
         Matrix<1, 1> Rkf = {{0.25}};
 
-        auto lqgi_result = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+        auto lqgi_result = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
         LQGI lqgi(lqgi_result);
 
         // Verify KF covariance initialization
@@ -243,7 +243,7 @@ TEST_SUITE("Online: LQGI Servo") {
         Matrix<1, 1> Qkf = {{0.1}};
         Matrix<1, 1> Rkf = {{0.25}};
 
-        auto lqgi_result = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+        auto lqgi_result = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
         LQGI lqgi(lqgi_result);
 
         // Predict
@@ -276,7 +276,7 @@ TEST_SUITE("Online: LQGI Servo") {
         Matrix<1, 1> Qkf = {{0.1}};
         Matrix<1, 1> Rkf = {{0.25}};
 
-        auto lqgi_result = online::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+        auto lqgi_result = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
         LQGI lqgi(lqgi_result);
 
         // Accumulate state
@@ -288,7 +288,7 @@ TEST_SUITE("Online: LQGI Servo") {
 
 TEST_SUITE("Online: Success Flag Propagation") {
     TEST_CASE("LQRResult success reflects DARE convergence") {
-        auto result = online::dlqr(
+        auto result = design::dlqr(
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -305,7 +305,7 @@ TEST_SUITE("Online: Success Flag Propagation") {
         sys.B(0, 0) = 1.0;
         sys.C(0, 0) = 1.0;
 
-        auto result = online::lqi(sys, Matrix<2, 2>::identity(), Matrix<1, 1>{{1.0}});
+        auto result = design::lqi(sys, Matrix<2, 2>::identity(), Matrix<1, 1>{{1.0}});
 
         CHECK(result.success);
         CHECK(result.K(0, 0) != 0.0);
@@ -321,7 +321,7 @@ TEST_SUITE("Online: Success Flag Propagation") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto result = online::kalman(sys, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.1}});
+        auto result = design::kalman(sys, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.1}});
 
         CHECK(result.success);
         CHECK(result.L(0, 0) > 0.0);
@@ -337,7 +337,7 @@ TEST_SUITE("Online: Success Flag Propagation") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto result = online::lqg(
+        auto result = design::lqg(
             sys,
             Matrix<1, 1>{{1.0}},
             Matrix<1, 1>{{1.0}},
@@ -357,7 +357,7 @@ TEST_SUITE("Online: Success Flag Propagation") {
         sys.H(0, 0) = 1.0;
         sys.Ts = 1.0;
 
-        auto result = online::lqgtrack(
+        auto result = design::lqgtrack(
             sys,
             Matrix<2, 2>::identity(),
             Matrix<1, 1>{{1.0}},

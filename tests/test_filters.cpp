@@ -98,7 +98,7 @@ TEST_SUITE("Runtime Filters") {
     }
 
     TEST_CASE("LowPass2nd runtime") {
-        auto              coeffs = online::lowpass_2nd(10.0f, 0.001f, 0.707f).as<float>(); // 10 Hz cutoff, Butterworth, 1kHz sample rate
+        auto              coeffs = design::lowpass_2nd(10.0f, 0.001f, 0.707f).as<float>(); // 10 Hz cutoff, Butterworth, 1kHz sample rate
         LowPass<2, float> lpf({coeffs.b0, coeffs.b1, coeffs.b2}, {coeffs.a1, coeffs.a2});
 
         lpf.reset();
