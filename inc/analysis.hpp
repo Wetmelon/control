@@ -19,7 +19,6 @@
 #include "eigen.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
-#include "utility.hpp"
 
 namespace wetmelon::control {
 namespace analysis {

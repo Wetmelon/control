@@ -51,7 +51,7 @@ int main() {
                           - (b_damp / (m * L * L)) * theta_dot
                           + (1.0 / (m * L * L)) * torque;
 
-        return ColVec<2>{{theta_dot}, {theta_ddot}};
+        return ColVec<2>{theta_dot, theta_ddot};
     };
 
     // Output: measure full state (state feedback)
@@ -67,7 +67,7 @@ int main() {
     FixedStepSolver solver(rk4, 0.001);
 
     // Initial condition: 30 degrees from vertical, zero velocity
-    ColVec<2> x0{{0.5236}, {0.0}};
+    ColVec<2> x0{0.5236, 0.0};
 
     // Simulate for 5 seconds
     auto sim = simulate_state_feedback<2, 1, 2>(plant, output, ctrl, solver, x0, {0.0, 5.0});

@@ -21,7 +21,6 @@
 #include <utility>
 #include <vector>
 
-#include "solver.hpp"
 #include "state_space.hpp"
 
 namespace wetmelon::control {

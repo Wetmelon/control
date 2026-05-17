@@ -3,7 +3,6 @@
 
 #include "doctest.h"
 #include "eigen.hpp"
-#include "fmt/base.h"
 #include "kalman.hpp"
 #include "lqr.hpp"
 #include "matrix.hpp"

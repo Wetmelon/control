@@ -55,7 +55,7 @@ int main() {
     fmt::print("   Gain K = [{:.4f}, {:.4f}]\n", controller_eq.K(0, 0), controller_eq.K(0, 1));
 
     ColVec<2> x_eq{0.1, 0.0}; // Small angle, zero velocity
-    double    u_eq = controller_eq.control(ColVec<2, float>(x_eq))(0);
+    float     u_eq = controller_eq.control(ColVec<2, float>(x_eq))(0);
     fmt::print("   Control for state [{:.2f}, {:.2f}]: u = {:.4f}\n\n", x_eq(0), x_eq(1), u_eq);
 
     // B) Runtime controllers (linearized at different operating points)

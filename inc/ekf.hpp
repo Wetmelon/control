@@ -7,13 +7,6 @@
 #include "matrix/cholesky.hpp"
 
 namespace wetmelon::control {
-namespace online {
-
-}
-
-namespace design {
-
-} // namespace design
 
 // EKF state prediction result: x_next = f(x, u), with Jacobians F = ∂f/∂x, G = ∂f/∂w
 template<typename T, size_t NX>

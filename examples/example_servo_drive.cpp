@@ -1,9 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "constexpr_math.hpp"
 #include "fmt/core.h"
-#include "motor_control.hpp"
 #include "pid.hpp"
 #include "plot_plotly.hpp"
 #include "simulate.hpp"
@@ -140,7 +138,7 @@ int main() {
 
         const double domega_L = (T_shaft - BL * omega_L - T_coulomb - T_ext) / JL;
 
-        return ColVec<6>{{did_dt}, {diq_dt}, {domega_m}, {omega_m}, {domega_L}, {omega_L}};
+        return ColVec<6>{did_dt, diq_dt, domega_m, omega_m, domega_L, omega_L};
     };
 
     // Output: full state for recording
@@ -182,7 +180,7 @@ int main() {
         vd -= omega_e * Ls * iq;
         vq += omega_e * Ls * id + omega_e * lambda_pm;
 
-        return ColVec<2>{{vd}, {vq}};
+        return ColVec<2>{vd, vq};
     };
 
     // RK45 adaptive solver

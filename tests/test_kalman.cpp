@@ -161,7 +161,7 @@ TEST_CASE("LQG servo (LQI + KF) tracks reference") {
     ColVec<1> y = {0.0};
     lqgs.update(y);
 
-    ColVec<1> r = {1.0};
+    // ColVec<1> r = {1.0};
     // auto      u = lqgs.control(r);
     // CHECK(u[0] < 0.0); // LQI uses u = -Ki*xi, so positive tracking error gives negative control in regulator form
 }

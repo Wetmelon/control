@@ -256,8 +256,8 @@ TEST_SUITE("Online: LQGI Servo") {
         CHECK(ok);
 
         // Control with reference
-        ColVec<1> r = {1.0};
-        ColVec<2> x_aug = {0.0, 0.0};
+        // ColVec<1> r = {1.0};
+        // ColVec<2> x_aug = {0.0, 0.0};
 
         // [[maybe_unused]] auto u = lqgi.control(r);
     }
