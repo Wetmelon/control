@@ -1,4 +1,4 @@
-CXXFLAGS = -O3 -ffast-math -std=c++20 -mfloat-abi=hard -mfpu=fpv5-d16 -mcpu=cortex-m7
+CXXFLAGS = -O3 -std=c++20 -mfloat-abi=hard -mfpu=fpv5-d16 -mcpu=cortex-m7
 
 # GCC toolchain — also used by clang for headers/runtime.
 # Windows-style path (C:/...) so it works identically whether passed through

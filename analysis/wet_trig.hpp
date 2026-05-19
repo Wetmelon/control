@@ -1,4 +1,6 @@
 
+#pragma once
+
 // Copyright (c) 2026 Paul Guénette
 //
 // Boost Software License - Version 1.0 - August 17th, 2003
@@ -28,47 +30,29 @@
 /**
  * @file wet_trig.hpp
  * @brief Fast float sine and cosine with full-range wrapping
- *
- * Minimax polynomial approximations for sin/cos using nearbyint-based
- * range reduction.  Accepts any float input (not restricted to [0, 2pi]).
- *
- * Range reduction normalizes any angle x to g in [-0.5, 0.5] via:
- *
- *     n = nearbyint(x / pi)
- *     g = x / pi - n            (g is in half-periods)
- *
- * Then a single degree-7 minimax polynomial evaluates sin(pi*g):
- *
- *     sin(x)  = (-1)^n * sin(pi*g)
- *     cos(x)  = sin(x + pi/2)
- *     sincos  = one reduce, two poly evals via sin(pi*g) and sin(pi*(0.5-g))
- *
- * Accuracy: ~8 ULP max for float (comparable to TI ARM trig).
- * Performance: branchless, 17 instructions for sin on Cortex-M7.
- *
- * @note Compare with TI ARM's ti_arm::sin / ti_arm::cos which are
- *       restricted to [0, 2pi] and use manual quadrant branching.
- *
- * @see "Minimax Approximations" in Hart et al., "Computer Approximations" (1968)
- * @see analysis/minimax_trig.py for coefficient generation
- *
- * Example:
- * @code
- * #include "wet_trig.hpp"
- *
- * // Works for any angle — no manual wrapping needed
- * float s = wet::sin(3.7f);
- * float c = wet::cos(-100.0f);
- *
- * // sincos is cheaper than calling sin + cos separately
- * auto [sin_val, cos_val] = wet::sincos(angle);
- * @endcode
  */
-#pragma once
 
 #include <cmath>
 #include <cstddef>
 #include <numbers>
+
+namespace wet {
+
+inline float sin(float angle_rad);
+inline float cos(float angle_rad);
+inline float asin(float x);
+inline float acos(float x);
+inline float atan(float x);
+inline float atan2(float y, float x);
+
+struct SinCosResult {
+    float sin;
+    float cos;
+};
+
+inline SinCosResult sincos(float angle_rad);
+
+} // namespace wet
 
 namespace wet::detail {
 
@@ -80,23 +64,23 @@ constexpr float sin_coeffs[] = {
 };
 
 constexpr float asin_coeffs[] = {
-    +1.5707954168319702f,
-    -0.21451792120933533f,
-    +0.087919704616069794f,
-    -0.045087486505508423f,
-    +0.01950908824801445f,
-    -0.0044070659205317497f,
+    +1.570795416831970e+00f,
+    -2.145179212093353e-01f,
+    +8.791970461606979e-02f,
+    -4.508748650550842e-02f,
+    +1.950908824801445e-02f,
+    -4.407065920531750e-03f,
 };
 
 constexpr float atan_coeffs[] = {
-    +4.17232513427734375e-7f,
-    +0.99997341632843017578125f,
-    +1.46687030792236328125e-4f,
-    -0.330976545810699462890625f,
-    -2.6895701885223388671875e-2f,
-    +0.309777557849884033203125f,
-    -0.21780431270599365234375f,
-    +5.117702484130859375e-2f,
+    +4.172325134277344e-07f,
+    +9.999734163284302e-01f,
+    +1.466870307922363e-04f,
+    -3.309765458106995e-01f,
+    -2.689570188522339e-02f,
+    +3.097775578498840e-01f,
+    -2.178043127059937e-01f,
+    +5.117702484130859e-02f,
 };
 
 /**
@@ -119,7 +103,6 @@ constexpr float horner_eval(float x, const float (&coeffs)[N]);
 } // namespace wet::detail
 
 namespace wet {
-
 /**
  * @brief Sine of an angle in radians
  *
@@ -128,7 +111,7 @@ namespace wet {
  * @param angle_rad  Angle in radians
  * @return sin(angle_rad)
  */
-constexpr float sin(float angle_rad) {
+inline float sin(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
     float s = detail::sin_poly(frac);
 
@@ -143,17 +126,12 @@ constexpr float sin(float angle_rad) {
  * @param angle_rad  Angle in radians
  * @return cos(angle_rad)
  */
-constexpr float cos(float angle_rad) {
+inline float cos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad, 0.5f);
     float c = detail::sin_poly(frac);
 
     return (period_index & 1) ? -c : c;
 }
-
-struct SinCosResult {
-    float sin;
-    float cos;
-};
 
 /**
  * @brief Paired sin/cos from a single range reduction
@@ -164,7 +142,7 @@ struct SinCosResult {
  * @param angle_rad  Angle in radians
  * @return SinCosResult{sin, cos}
  */
-constexpr SinCosResult sincos(float angle_rad) {
+inline SinCosResult sincos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
 
     float s = detail::sin_poly(frac);
@@ -184,7 +162,7 @@ constexpr SinCosResult sincos(float angle_rad) {
  * @param x  Input in [-1, 1] (clamped if outside)
  * @return asin(x)
  */
-constexpr float asin(float x) {
+inline float asin(float x) {
     bool negate = false;
 
     if (x < 0.0f) {
@@ -209,7 +187,7 @@ constexpr float asin(float x) {
  * @param x  Input in [-1, 1] (clamped if outside)
  * @return acos(x)
  */
-constexpr float acos(float x) {
+inline float acos(float x) {
     bool negate = false;
 
     if (x < 0.0f) {
@@ -236,7 +214,7 @@ constexpr float acos(float x) {
  * @param x  Input value
  * @return atan(x)
  */
-constexpr float atan(float x) {
+inline float atan(float x) {
     bool negate = false;
     bool complement = false;
 
@@ -269,7 +247,7 @@ constexpr float atan(float x) {
  * @param x  X-coordinate
  * @return atan2(y, x)
  */
-constexpr float atan2(float y, float x) {
+inline float atan2(float y, float x) {
     float ax = std::fabs(x);
     float ay = std::fabs(y);
     float lo = std::fmin(ax, ay);
