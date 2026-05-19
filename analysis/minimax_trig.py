@@ -197,6 +197,57 @@ def sin_over_g(u):
 
 
 # ---------------------------------------------------------------------------
+# Inverse trig functions for ODrive-style optimization
+# ---------------------------------------------------------------------------
+
+def atan_poly_f32(x, atan_coeffs):
+    """Evaluate atan via polynomial on [0, 1]"""
+    x_f32 = x.astype(np.float32)
+    coeffs_f32 = np.array(atan_coeffs, dtype=np.float32)
+
+    # Horner evaluation
+    p = coeffs_f32[-1]
+    for c in reversed(coeffs_f32[:-1]):
+        p = c + x_f32 * p
+
+    return p
+
+
+def wet_atan2_f32(y, x, atan_coeffs):
+    """Python float32 simulation of wet::atan2."""
+    y_f32 = y.astype(np.float32)
+    x_f32 = x.astype(np.float32)
+    ax = np.abs(x_f32)
+    ay = np.abs(y_f32)
+    lo = np.minimum(ax, ay)
+    hi = np.maximum(ax, ay)
+    ratio = (lo / hi).astype(np.float32)
+    t = atan_poly_f32(ratio, atan_coeffs)
+    pi_over_2 = np.float32(np.pi / 2.0)
+    pi_f32 = np.float32(np.pi)
+    r = np.where(ay > ax, pi_over_2 - t, t).astype(np.float32)
+    r = np.where(x_f32 >= np.float32(0.0), r, pi_f32 - r).astype(np.float32)
+    return np.copysign(r, y_f32).astype(np.float32)
+
+
+def lut_atan2_f32(y, x):
+    """Python float32 simulation of lut::atan2 (fast_atan2 from math_utils.cpp)."""
+    y_f32 = y.astype(np.float32)
+    x_f32 = x.astype(np.float32)
+    abs_y = np.abs(y_f32)
+    abs_x = np.abs(x_f32)
+    flt_min = np.finfo(np.float32).tiny
+    a = (np.minimum(abs_x, abs_y) / (np.maximum(abs_x, abs_y) + np.float32(flt_min))).astype(np.float32)
+    s = (a * a).astype(np.float32)
+    inner = ((np.float32(-0.0464964749) * s + np.float32(0.15931422)) * s - np.float32(0.327622764))
+    r = (inner * s * a + a).astype(np.float32)
+    r = np.where(abs_y > abs_x, np.float32(1.57079637) - r, r).astype(np.float32)
+    r = np.where(x_f32 < np.float32(0.0), np.float32(3.14159274) - r, r).astype(np.float32)
+    r = np.where(y_f32 < np.float32(0.0), -r, r).astype(np.float32)
+    return r
+
+
+# ---------------------------------------------------------------------------
 # TI ARM reimplementation (for comparison)
 # ---------------------------------------------------------------------------
 
@@ -459,7 +510,7 @@ def plot_ulp_hist(ax, series, title):
     ax.grid(True, alpha=0.3)
 
 
-def generate_report(sin_coeffs, sin_err):
+def generate_report(sin_coeffs, sin_err, atan_coeffs):
     # --- Test data ---
     N = 200000
     full_x = np.linspace(-4 * np.pi, 4 * np.pi, N)
@@ -627,11 +678,94 @@ def generate_report(sin_coeffs, sin_err):
     fig.savefig(png_path, dpi=150)
     print(f"\nSaved: {png_path}")
 
+    # -------------------------------------------------------------------------
+    # Page 2: atan2 error — wet:: vs lut:: vs np.arctan2 (float32)
+    # -------------------------------------------------------------------------
+    A = 100000
+    theta = np.linspace(-np.pi, np.pi, A)
+    # Inputs as float32 (as they would arrive from ADC / observer on embedded)
+    y_f32 = np.sin(theta).astype(np.float32)
+    x_f32 = np.cos(theta).astype(np.float32)
+    # Double-precision reference
+    ref_atan2 = np.arctan2(y_f32.astype(np.float64), x_f32.astype(np.float64))
+
+    wet_a2   = wet_atan2_f32(y_f32, x_f32, atan_coeffs).astype(np.float64)
+    lut_a2   = lut_atan2_f32(y_f32, x_f32).astype(np.float64)
+    np_a2_f32 = np.arctan2(y_f32, x_f32).astype(np.float64)  # std::atan2f baseline
+
+    wet_a2_err  = np.abs(wet_a2   - ref_atan2)
+    lut_a2_err  = np.abs(lut_a2   - ref_atan2)
+    np_a2_err   = np.abs(np_a2_f32 - ref_atan2)
+
+    def abs_stats(name, err):
+        return {
+            "name":     name,
+            "max_abs":  float(np.max(err)),
+            "mean_abs": float(np.mean(err)),
+        }
+
+    atan2_table = [
+        abs_stats("wet::atan2  [-pi, pi]", wet_a2_err),
+        abs_stats("lut::atan2  [-pi, pi]", lut_a2_err),
+        abs_stats("np.arctan2f [-pi, pi]", np_a2_err),
+    ]
+
+    print("\n" + "=" * 72)
+    print("atan2 accuracy comparison (inputs: float32 sin/cos of swept angle)")
+    print("=" * 72)
+    for s in atan2_table:
+        print(f"\n  {s['name']}")
+        print(f"    max |err|  = {s['max_abs']:.6e} rad  ({np.degrees(s['max_abs']) * 1e3:.4f} mdeg)")
+        print(f"    mean |err| = {s['mean_abs']:.6e} rad  ({np.degrees(s['mean_abs']) * 1e3:.4f} mdeg)")
+
+    fig2, axes2 = plt.subplots(2, 1, figsize=(11, 9))
+    fig2.suptitle("atan2 accuracy — wet:: vs lut:: vs np.arctan2 (float32 inputs)",
+                  fontsize=14, y=0.998)
+
+    # Row 0: absolute error curve vs angle
+    plot_error_curves(axes2[0], [
+        (theta, wet_a2_err,  "wet::atan2",       "C0"),
+        (theta, lut_a2_err,  "lut::atan2",       "C2"),
+        (theta, np_a2_err,   "np.arctan2 (f32)", "C3"),
+    ], "atan2 — absolute error vs angle, inputs = (sin θ, cos θ) in float32",
+       "|approx − ref| (rad)")
+    axes2[0].set_xlabel("angle θ (rad)")
+
+    # Row 1: summary table
+    axes2[1].axis("off")
+    col_labels2 = ["", "max |err| (rad)", "max |err| (mdeg)", "mean |err| (rad)", "mean |err| (mdeg)"]
+    cell_text2 = []
+    for s in atan2_table:
+        cell_text2.append([
+            s["name"],
+            f"{s['max_abs']:.2e}",
+            f"{np.degrees(s['max_abs']) * 1e3:.4f}",
+            f"{s['mean_abs']:.2e}",
+            f"{np.degrees(s['mean_abs']) * 1e3:.4f}",
+        ])
+    tbl2 = axes2[1].table(
+        cellText=cell_text2,
+        colLabels=col_labels2,
+        loc="center",
+        cellLoc="center",
+    )
+    tbl2.auto_set_font_size(False)
+    tbl2.set_fontsize(10)
+    tbl2.scale(1.0, 2.5)
+    axes2[1].set_title("Summary", fontsize=12, pad=10)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.992])
+
+    fig2.savefig(png_path.replace(".png", "_atan2.png"), dpi=150)
+    print(f"Saved: {png_path.replace('.png', '_atan2.png')}")
+
     with PdfPages(pdf_path) as pdf:
         pdf.savefig(fig)
-    print(f"Saved: {pdf_path}")
+        pdf.savefig(fig2)
+    print(f"Saved: {pdf_path} (2 pages)")
 
     plt.close(fig)
+    plt.close(fig2)
 
 
 # ---------------------------------------------------------------------------
@@ -640,20 +774,13 @@ def generate_report(sin_coeffs, sin_err):
 
 def main():
     print("=" * 72)
-    print("Minimax polynomial coefficients for sin/cos")
-    print("  sin(pi*g)/g on u=[0, 0.25],  cos(x) = sin(x + pi/2)")
-    print("  where u = g^2,  g in [-0.5, 0.5]")
+    print("Minimax polynomial coefficients for sin/cos + inverse trig")
     print("=" * 72)
 
+    # =========================================================================
+    # SIN/COS COEFFICIENTS (4 terms)
+    # =========================================================================
     n_terms = 4  # matches TI ARM's op count
-
-    # --- Sinc objective (legacy: fit sin(pi*g)/g on u = g^2) ---
-    sinc_coeffs, sinc_err = minimax_poly(sin_over_g, degree=n_terms - 1,
-                                         a=0.0, b=0.25)
-    sinc_sin_err = sinc_err * 0.5  # ratio error * |g|_max = sin error bound
-
-    # --- Direct objective, float64-optimal then rounded ---
-    direct_coeffs, direct_err = minimax_sin_direct(n_terms, g_max=0.5)
 
     # --- Direct objective, float32-aware iterative rounding ---
     fp_coeffs, fp_err = fpminimax_sin_direct(n_terms, g_max=0.5)
@@ -667,40 +794,149 @@ def main():
         ref = np.sin(np.pi * g_grid.astype(np.float64))
         return float(np.max(np.abs(p - ref)))
 
-    sinc_actual = eval_f32_sin(sinc_coeffs)
-    direct_actual = eval_f32_sin(direct_coeffs)
-    fp_actual = eval_f32_sin(fp_coeffs)
+    sin_actual = eval_f32_sin(fp_coeffs)
+    sin_coeffs = fp_coeffs
 
-    print(f"\n--- LP objective comparison ({n_terms} coeffs) ---")
-    print(f"  {'method':<35} {'LP-reported':>14} {'float32 eval':>14}")
-    print(f"  {'sinc fit, naive round':<35} {sinc_sin_err:>14.6e} {sinc_actual:>14.6e}")
-    print(f"  {'direct fit, naive round':<35} {direct_err:>14.6e} {direct_actual:>14.6e}")
-    print(f"  {'direct fit, iterative f32 round':<35} {fp_err:>14.6e} {fp_actual:>14.6e}")
+    print(f"\nsin/cos: max error = {sin_actual:.6e}")
+    print("  Coefficients for sin(pi*g) = g * (c0 + c1*u + c2*u^2 + c3*u^3), u = g^2:")
+    for i, c in enumerate(sin_coeffs):
+        print(f"    sin_coeff[{i}] = {float_to_hex(np.float32(c))};")
 
-    best_idx = np.argmin([sinc_actual, direct_actual, fp_actual])
-    best_name = ["sinc", "direct", "direct+iterative"][best_idx]
-    best_coeffs = [sinc_coeffs, direct_coeffs, fp_coeffs][best_idx]
-    best_err = [sinc_actual, direct_actual, fp_actual][best_idx]
-    print(f"  -> best: {best_name} ({best_err:.6e})")
-
-    print(f"\n--- Direct-fit + iterative coefficients ---")
-    for i, c in enumerate(fp_coeffs):
-        print(f"  s[{i}] = {c: .15e}  // {float_to_hex(np.float32(c))}")
-
-    sin_coeffs = best_coeffs
-    sin_err = best_err
-
-    # --- C++ snippet ---
+    # =========================================================================
+    # ASIN/ACOS COEFFICIENTS - Using the form asin(x) = pi/2 - sqrt(1-x)*P(x)
+    # =========================================================================
     print("\n" + "=" * 72)
-    print(f"C++ constants (float, {best_name})")
+    print("Generating asin/acos coefficients (x in [0, 1])")
+    print("=" * 72)
+    
+    # Fit asin using the numerically better-conditioned form:
+    # asin(x) = pi/2 - sqrt(1-x) * P(x)
+    # 
+    # We fit P(x) by solving for it:
+    # P(x) = (pi/2 - asin(x)) / sqrt(1-x)
+    #
+    # To avoid numerical issues, we:
+    # 1. Work in double precision for fitting
+    # 2. Avoid x values too close to 1.0
+    # 3. Use Taylor expansion for near x=1
+    
+    def asin_target_stable(x):
+        """Target function P(x) for fitting: (pi/2 - asin(x)) / sqrt(1-x)"""
+        x_np = np.asarray(x, dtype=np.float64)
+        one_minus_x = 1.0 - x_np
+        
+        # For values very close to 1, use limiting behavior
+        # Near x→1: asin(x) → pi/2, so (pi/2 - asin(x)) ~ sqrt(2(1-x))
+        # Therefore P(x) ~ sqrt(2)
+        
+        result = np.zeros_like(x_np, dtype=np.float64)
+        
+        # For x < 0.99, use the formula directly
+        safe_mask = (one_minus_x > 1e-2)
+        if np.any(safe_mask):
+            x_safe = x_np[safe_mask]
+            sqrt_1_minus_x = np.sqrt(1.0 - x_safe)
+            result[safe_mask] = (np.pi / 2.0 - np.arcsin(x_safe)) / sqrt_1_minus_x
+        
+        # For x >= 0.99, use limiting value sqrt(2)
+        near_one_mask = ~safe_mask
+        result[near_one_mask] = np.sqrt(2.0)
+        
+        return result.item() if np.isscalar(x) else result
+    
+    # Use fpminimax_poly on the stable target, fitting on [0, 0.99]
+    asin_coeffs_opt, _ = fpminimax_poly(
+        asin_target_stable,
+        degree=5, 
+        a=0.0, 
+        b=0.99,
+        n_grid=15000
+    )
+    
+    # Evaluate error in float32: check |asin(x) - (pi/2 - sqrt(1-x)*P(x))|
+    def eval_f32_asin_form(coeffs):
+        N = 5000
+        x_grid = np.linspace(0.0, 0.999, N).astype(np.float32)
+        coeffs_f32 = np.array(coeffs, dtype=np.float32)
+        
+        # Horner evaluation for P(x)
+        p = coeffs_f32[-1]
+        for c in reversed(coeffs_f32[:-1]):
+            p = c + x_grid * p
+        
+        # Compute asin approx = pi/2 - sqrt(1-x) * P(x)
+        sqrt_term = np.sqrt(1.0 - x_grid.astype(np.float64))
+        approx = np.float32(np.pi / 2.0) - sqrt_term * p.astype(np.float64)
+        
+        ref = np.arcsin(x_grid.astype(np.float64))
+        return float(np.max(np.abs(approx - ref)))
+    
+    asin_actual = eval_f32_asin_form(asin_coeffs_opt)
+    
+    # Pad coefficients to 7 terms (one more than degree-5)
+    asin_coeffs_final = list(asin_coeffs_opt) + [0.0] * (7 - len(asin_coeffs_opt))
+    
+    print(f"\nasin: max error = {asin_actual:.6e} (form: pi/2 - sqrt(1-x)*P(x))")
+    print("  Coefficients for P(x) in pi/2 - sqrt(1-x) * P(x):")
+    for i, c in enumerate(asin_coeffs_final):
+        print(f"    asin_coeff[{i}] = {float_to_hex(np.float32(c))};")
+
+
+
+
+    # =========================================================================
+    # ATAN COEFFICIENTS (8 terms for x in [0, 1])
+    # =========================================================================
+    print("\n" + "=" * 72)
+    print("Generating atan coefficients (x in [0, 1])")
+    print("=" * 72)
+    
+    atan_coeffs_opt, _ = fpminimax_poly(np.arctan, degree=7, a=0.0, b=1.0, n_grid=20000)
+    
+    def eval_f32_atan(coeffs):
+        N = 5000
+        x_grid = np.linspace(0.0, 1.0, N).astype(np.float32)
+        approx = atan_poly_f32(x_grid, coeffs).astype(np.float64)
+        ref = np.arctan(x_grid.astype(np.float64))
+        return float(np.max(np.abs(approx - ref)))
+    
+    atan_actual = eval_f32_atan(atan_coeffs_opt)
+    print(f"\natan: max error = {atan_actual:.6e}")
+    print("  Coefficients for P(x) = c0 + c1*x + c2*x^2 + ... + c7*x^7:")
+    for i, c in enumerate(atan_coeffs_opt):
+        print(f"    atan_coeff[{i}] = {float_to_hex(np.float32(c))};")
+
+    # =========================================================================
+    # PRINT ALL COEFFICIENTS FOR C++ HEADER
+    # =========================================================================
+    print("\n" + "=" * 72)
+    print("C++ Header Constants (Ready to Paste)")
     print("=" * 72)
     print()
-    print(f"// sin(pi*g) = g * (s0 + s1*g^2 + s2*g^4 + s3*g^6)")
-    print(f"// cos(x)    = sin(x + pi/2)")
+    print("// SIN/COS: sin(pi*g) = g * (c0 + c1*g^2 + c2*g^4 + c3*g^6)")
+    print("constexpr float sin_coeffs[] = {")
     for i, c in enumerate(sin_coeffs):
-        print(f"static constexpr float s{i} = {float_to_hex(np.float32(c))};")
+        print(f"    {float_to_hex(np.float32(c))},  // c{i}")
+    print("};")
+    
+    print()
+    print("// ASIN/ACOS: asin(x) = pi/2 - sqrt(1-x) * (c0 + c1*x + ... + c6*x^6)")
+    print("constexpr float asin_coeffs[] = {")
+    for i, c in enumerate(asin_coeffs_opt):
+        print(f"    {float_to_hex(np.float32(c))},  // c{i}")
+    print("};")
+    
+    print()
+    print("// ATAN: atan(x) = c0 + c1*x + c2*x^2 + ... + c7*x^7  (for x in [0,1])")
+    print("constexpr float atan_coeffs[] = {")
+    for i, c in enumerate(atan_coeffs_opt):
+        print(f"    {float_to_hex(np.float32(c))},  // c{i}")
+    print("};")
 
-    generate_report(sin_coeffs, sin_err)
+    generate_report(sin_coeffs, sin_actual, atan_coeffs_opt)
+
+
+
 
 
 if __name__ == "__main__":

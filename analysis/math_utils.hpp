@@ -14,6 +14,7 @@ namespace lut {
 
 float sin(float x);
 float cos(float x);
+float atan2(float y, float x);
 std::pair<float, float> sincos_rev(float rev);
 
 } // namespace lut

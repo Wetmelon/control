@@ -214,6 +214,32 @@ constexpr std::pair<float, float> sincos_rev(float rev) {
     return {sin(rad), cos(rad)};
 }
 
+
+// Fast atan2 based on https://math.stackexchange.com/a/1105038/81278
+constexpr float fast_atan2(float y, float x) {
+    // a := min (|x|, |y|) / max (|x|, |y|)
+    float abs_y = std::abs(y);
+    float abs_x = std::abs(x);
+    // inject FLT_MIN in denominator to avoid division by zero
+    float a = std::min(abs_x, abs_y) / (std::max(abs_x, abs_y) + std::numeric_limits<float>::min());
+    // s := a * a
+    float s = a * a;
+    // r := ((-0.0464964749 * s + 0.15931422) * s - 0.327622764) * s * a + a
+    float r = ((-0.0464964749f * s + 0.15931422f) * s - 0.327622764f) * s * a + a;
+    // if |y| > |x| then r := 1.57079637 - r
+    if (abs_y > abs_x)
+        r = 1.57079637f - r;
+    // if x < 0 then r := 3.14159274 - r
+    if (x < 0.0f)
+        r = 3.14159274f - r;
+    // if y < 0 then r := -r
+    if (y < 0.0f)
+        r = -r;
+
+    return r;
+}
+
+
 // External-linkage wrappers so the LUT-based sin/cos appear in the .o
 // (the constexpr versions above have inline linkage and get optimized away
 // with no caller).  Used by analysis/Makefile to disassemble side-by-side
@@ -221,5 +247,6 @@ constexpr std::pair<float, float> sincos_rev(float rev) {
 namespace lut {
 float sin(float x) { return ::sin(x); }
 float cos(float x) { return ::cos(x); }
+float atan2(float y, float x) { return ::fast_atan2(y, x); }
 std::pair<float, float> sincos_rev(float rev) { return ::sincos_rev(rev); }
 } // namespace lut

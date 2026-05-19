@@ -88,4 +88,50 @@ float cos(float angle_rad);
  */
 SinCosResult sincos(float angle_rad);
 
+/**
+ * @brief Compute arcsine (inverse sine)
+ *
+ * Computes asin(x) for x in [-1, 1].  Uses a minimax polynomial approximation
+ * with domain reduction via sqrt(1 - x²).
+ *
+ * @param x  Input value in [-1, 1]
+ * @return asin(x) in [-π/2, π/2], accurate to ~8 ULP
+ */
+float asin(float x);
+
+/**
+ * @brief Compute arccosine (inverse cosine)
+ *
+ * Computes acos(x) for x in [-1, 1].  Uses a minimax polynomial approximation
+ * with domain reduction via sqrt(1 - x²).
+ *
+ * @param x  Input value in [-1, 1]
+ * @return acos(x) in [0, π], accurate to ~8 ULP
+ */
+float acos(float x);
+
+/**
+ * @brief Compute arctangent (inverse tangent)
+ *
+ * Computes atan(x) for any real x.  Uses a minimax polynomial approximation
+ * with domain reduction for |x| > 1 via reciprocal.
+ *
+ * @param x  Input value (any float)
+ * @return atan(x) in [-π/2, π/2], accurate to ~8 ULP
+ */
+float atan(float x);
+
+/**
+ * @brief Compute two-argument arctangent
+ *
+ * Computes atan2(y, x) using the signs and magnitudes of both arguments
+ * to determine the correct quadrant.  Equivalent to atan(y/x) with proper
+ * handling of edge cases.
+ *
+ * @param y  Y-coordinate (any float)
+ * @param x  X-coordinate (any float)
+ * @return atan2(y, x) in [-π, π], accurate to ~8 ULP
+ */
+float atan2(float y, float x);
+
 } // namespace wet
