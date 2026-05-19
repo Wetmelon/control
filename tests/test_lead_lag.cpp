@@ -1,8 +1,10 @@
 #include <cmath>
 #include <numbers>
 
-#include "doctest.h"
 #include "lead_lag.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 
@@ -282,7 +284,7 @@ TEST_SUITE("Lead-Lag Compensator") {
         LeadLagController<double> ctrl(r);
 
         Matrix<1, 1, double> x = Matrix<1, 1, double>::zeros();
-        Matrix<1, 1, double> u{{{1.0}}};
+        Matrix<1, 1, double> u{{1.0}};
 
         for (int i = 0; i < 5; ++i) {
             auto   y_ss = dss.C * x + dss.D * u;

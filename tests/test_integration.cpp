@@ -1,11 +1,13 @@
 ﻿#include <cmath>
 
 #include "discretization.hpp"
-#include "doctest.h"
 #include "fmt/core.h"
 #include "lqr.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

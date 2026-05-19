@@ -3,9 +3,10 @@
 #include "solver.hpp"
 #include "wetmelon_math.hpp"
 
-using namespace wetmelon::control;
-
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
+
+using namespace wetmelon::control;
 
 // Pendulum parameters for simulation tests
 constexpr double g_pend = 9.81;

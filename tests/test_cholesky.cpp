@@ -2,8 +2,10 @@
 
 #include "cholesky.hpp"
 #include "constexpr_complex.hpp"
-#include "doctest.h"
 #include "matrix.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 using namespace wetmelon::control::mat;

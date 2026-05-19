@@ -1,11 +1,13 @@
 ﻿#include <algorithm>
 #include <cmath>
 
-#include "doctest.h"
 #include "eigen.hpp"
 #include "kalman.hpp"
 #include "lqr.hpp"
 #include "matrix.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

@@ -1,13 +1,13 @@
+
 #include <cmath>
-#include <numbers>
 
 #include "analysis.hpp"
-#include "discretization.hpp"
-#include "doctest.h"
-#include "matlab.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
 #include "utility.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

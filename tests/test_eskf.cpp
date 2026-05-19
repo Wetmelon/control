@@ -1,9 +1,11 @@
 #include <cmath>
 #include <numbers>
 
-#include "doctest.h"
 #include "eskf.hpp"
 #include "geometry.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

@@ -3,11 +3,12 @@
  * @brief Tests for Middlebrook impedance stability analysis
  */
 #include "analysis.hpp"
-#include "constexpr_complex.hpp"
-#include "doctest.h"
 #include "state_space.hpp"
 #include "utility.hpp"
 #include "wetmelon_math.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 using namespace wetmelon::control::analysis;
