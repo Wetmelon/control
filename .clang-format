@@ -24,8 +24,8 @@ AllowShortBlocksOnASingleLine: false
 AllowShortIfStatementsOnASingleLine: Never
 AllowShortLoopsOnASingleLine: false
 AllowShortEnumsOnASingleLine: true
-AllowShortFunctionsOnASingleLine: "Inline"
-AllowShortLambdasOnASingleLine: "All"
+AllowShortFunctionsOnASingleLine: true
+AllowShortLambdasOnASingleLine: true
 
 # Switch / Case
 IndentCaseLabels: true
