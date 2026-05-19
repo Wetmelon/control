@@ -201,7 +201,7 @@ inline float acos(float x) {
 
     float sqrt_1_minus_x = std::sqrt(1.0f - x);
     float p = detail::horner_eval(x, detail::asin_coeffs);
-    float result = std::numbers::pi_v<float> / 2.0f - sqrt_1_minus_x * p;
+    float result = sqrt_1_minus_x * p;
 
     return negate ? (std::numbers::pi_v<float> - result) : result;
 }
