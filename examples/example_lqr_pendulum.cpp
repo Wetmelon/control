@@ -1,6 +1,6 @@
-﻿#include "constexpr_math.hpp"
-#include "fmt/core.h"
+﻿#include "fmt/core.h"
 #include "lqr.hpp"
+#include "wetmelon_math.hpp"
 
 using namespace wetmelon::control;
 

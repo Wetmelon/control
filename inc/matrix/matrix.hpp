@@ -10,8 +10,8 @@
 #include <utility>
 
 #include "constexpr_complex.hpp"
-#include "constexpr_math.hpp"
 #include "matrix_traits.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 

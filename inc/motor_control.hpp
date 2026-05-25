@@ -1,10 +1,10 @@
-#pragma once
+﻿#pragma once
 
 #include <algorithm>
 #include <numbers>
 #include <tuple>
 
-#include "constexpr_math.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 
@@ -66,8 +66,7 @@ template<typename T = float>
  */
 template<typename T = float>
 [[nodiscard]] constexpr std::pair<T, T> park_transform(T alpha, T beta, T theta) {
-    const T cos_theta = wet::cos(theta);
-    const T sin_theta = wet::sin(theta);
+    const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T d = alpha * cos_theta + beta * sin_theta;
     const T q = -alpha * sin_theta + beta * cos_theta;
@@ -88,8 +87,7 @@ template<typename T = float>
  */
 template<typename T = float>
 [[nodiscard]] constexpr std::pair<T, T> inverse_park_transform(T d, T q, T theta) {
-    const T cos_theta = wet::cos(theta);
-    const T sin_theta = wet::sin(theta);
+    const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T alpha = d * cos_theta - q * sin_theta;
     const T beta = d * sin_theta + q * cos_theta;

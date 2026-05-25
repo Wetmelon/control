@@ -6,9 +6,9 @@
  * cart-pole system - an inherently unstable nonlinear system.
  */
 
-#include "constexpr_math.hpp"
 #include "fmt/core.h"
 #include "lqr.hpp"
+#include "wetmelon_math.hpp"
 
 using namespace wetmelon::control;
 

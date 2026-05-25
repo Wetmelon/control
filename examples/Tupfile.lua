@@ -2,6 +2,7 @@
 INCLUDES = '-I.'
 INCLUDES += '-I../inc'
 INCLUDES += '-I../inc/matrix'
+INCLUDES += '-I../inc/math'
 INCLUDES += '-I../libs'
 INCLUDES += '-I../libs/fmt/include'
 INCLUDES += '-I../libs/plotlypp/include'

@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /**
  * @defgroup pr_controller Proportional-Resonant Controller
@@ -27,8 +27,8 @@
 #include <cmath>
 #include <numbers>
 
-#include "constexpr_math.hpp"
 #include "state_space.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 

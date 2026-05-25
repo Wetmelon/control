@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 /**
  * @defgroup analysis System Analysis
@@ -15,10 +15,10 @@
 #include <vector>
 
 #include "constexpr_complex.hpp"
-#include "constexpr_math.hpp"
 #include "eigen.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
+#include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 namespace analysis {

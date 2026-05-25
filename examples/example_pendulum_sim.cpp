@@ -1,9 +1,9 @@
-﻿#include "constexpr_math.hpp"
-#include "fmt/core.h"
+﻿#include "fmt/core.h"
 #include "lqr.hpp"
 #include "plot_plotly.hpp"
 #include "simulate.hpp"
 #include "solver.hpp"
+#include "wetmelon_math.hpp"
 
 using namespace wetmelon::control;
 

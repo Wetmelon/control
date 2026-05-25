@@ -2,7 +2,7 @@
 
 #include <complex>
 
-#include "constexpr_math.hpp"
+#include "wetmelon_math.hpp"
 
 using namespace std::complex_literals;
 namespace wetmelon::control::wet {
@@ -90,7 +90,7 @@ struct complex {
      * @return Product of this and other
      */
     constexpr complex operator*(const complex& other) const {
-        return {real_ * other.real_ - imag_ * other.imag_, real_ * other.imag_ + imag_ * other.real_};
+        return {(real_ * other.real_) - imag_ * other.imag_, real_ * other.imag_ + imag_ * other.real_};
     }
 
     /**
@@ -99,8 +99,8 @@ struct complex {
      * @return Quotient of this and other
      */
     constexpr complex operator/(const complex& other) const {
-        T denom = other.real_ * other.real_ + other.imag_ * other.imag_;
-        return {(real_ * other.real_ + imag_ * other.imag_) / denom, (imag_ * other.real_ - real_ * other.imag_) / denom};
+        T denom = (other.real_ * other.real_) + (other.imag_ * other.imag_);
+        return {((real_ * other.real_) + (imag_ * other.imag_)) / denom, (imag_ * other.real_ - real_ * other.imag_) / denom};
     }
 
     /**

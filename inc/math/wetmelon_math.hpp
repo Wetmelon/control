@@ -1,20 +1,25 @@
 ﻿#pragma once
 
 /**
- * @file constexpr_math.hpp
- * @brief Constexpr math primitives with runtime delegation to <cmath>
+ * @file wetmelon_math.hpp
+ * @brief Math dispatch layer: constexpr series at compile time, MathBackend at runtime
  *
  * Each function uses std::is_constant_evaluated() to dispatch:
  * - At compile time: series expansions / Newton-Raphson (necessary for constexpr)
- * - At runtime: hardware-accelerated std:: functions
+ * - At runtime: MathBackend<T> (platform-specific or std:: fallback)
  *
  * This ensures consteval design functions work while runtime controllers
  * get full hardware math performance.
+ *
+ * @see math_backend.hpp for backend selection via wet_profile.hpp
  */
 
 #include <cmath>
 #include <numbers>
 #include <type_traits>
+#include <utility>
+
+#include "math_backend.hpp"
 
 namespace wetmelon::control::wet {
 
@@ -32,7 +37,7 @@ namespace wetmelon::control::wet {
 template<typename T>
 constexpr T sqrt(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::sqrt(x);
+        return MathBackend<T>::sqrt(x);
     }
     if (x == T{0})
         return T{0};
@@ -61,7 +66,7 @@ constexpr T sqrt(T x) {
 template<typename T>
 constexpr T abs(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::abs(x);
+        return MathBackend<T>::abs(x);
     }
     return x >= T{0} ? x : -x;
 }
@@ -80,7 +85,7 @@ constexpr T abs(T x) {
 template<typename T>
 constexpr T cbrt(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::cbrt(x);
+        return MathBackend<T>::cbrt(x);
     }
     if (x == T{0})
         return T{0};
@@ -121,7 +126,7 @@ constexpr T cbrt(T x) {
 template<typename T>
 constexpr T atan2(T y, T x) {
     if (!std::is_constant_evaluated()) {
-        return std::atan2(y, x);
+        return MathBackend<T>::atan2(y, x);
     }
     constexpr T pi = std::numbers::pi_v<T>;
 
@@ -204,7 +209,7 @@ constexpr T atan2(T y, T x) {
 template<typename T>
 constexpr T cos(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::cos(x);
+        return MathBackend<T>::cos(x);
     }
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T two_pi = T{2} * pi;
@@ -240,7 +245,7 @@ constexpr T cos(T x) {
 template<typename T>
 constexpr T sin(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::sin(x);
+        return MathBackend<T>::sin(x);
     }
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T two_pi = T{2} * pi;
@@ -258,6 +263,25 @@ constexpr T sin(T x) {
         result += term;
     }
     return result;
+}
+
+/**
+ * @brief Combined sine and cosine
+ *
+ * Returns {sin(x), cos(x)}. At runtime a platform MathBackend can compute both
+ * from a single range reduction (~half the cost of separate calls), which is
+ * why FOC transforms (Park) should prefer this over calling sin and cos.
+ *
+ * @tparam T Numeric type (floating-point)
+ * @param x  Angle in radians
+ * @return std::pair<T, T> {sin(x), cos(x)}
+ */
+template<typename T>
+constexpr std::pair<T, T> sincos(T x) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::sincos(x);
+    }
+    return {sin(x), cos(x)};
 }
 
 /**
@@ -281,7 +305,7 @@ constexpr T sin(T x) {
 template<typename T>
 constexpr T tan(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::tan(x);
+        return MathBackend<T>::tan(x);
     }
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T half_pi = pi / T{2};
@@ -335,7 +359,7 @@ constexpr T tan(T x) {
 template<typename T>
 constexpr T exp(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::exp(x);
+        return MathBackend<T>::exp(x);
     }
     T result = T{1};
     T term = T{1};
@@ -360,7 +384,7 @@ constexpr T exp(T x) {
 template<typename T>
 constexpr T log(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::log(x);
+        return MathBackend<T>::log(x);
     }
     if (x <= T{0}) {
         return T{0};
@@ -408,15 +432,15 @@ constexpr T log(T x) {
  * @return base^exp, or 0 if base <= 0
  */
 template<typename T>
-constexpr T pow(T base, T exp) {
+constexpr T pow(T base, T exponent) {
     if (!std::is_constant_evaluated()) {
-        return std::pow(base, exp);
+        return MathBackend<T>::pow(base, exponent);
     }
-    if (exp == T{0})
+    if (exponent == T{0})
         return T{1};
     if (base <= T{0})
         return T{0};
-    return wet::exp(wet::log(base) * exp);
+    return wet::exp(wet::log(base) * exponent);
 }
 
 /**
@@ -458,6 +482,9 @@ constexpr T pow(T base, int up) {
  */
 template<typename T>
 constexpr T floor(T x) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::floor(x);
+    }
     T int_part = static_cast<long long>(x);
     if (x < T{0} && x != int_part) {
         int_part -= T{1};
@@ -477,6 +504,9 @@ constexpr T floor(T x) {
  */
 template<typename T>
 constexpr T ceil(T x) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::ceil(x);
+    }
     T int_part = static_cast<long long>(x);
     if (x > T{0} && x != int_part) {
         int_part += T{1};
@@ -498,7 +528,7 @@ constexpr T ceil(T x) {
 template<typename T>
 constexpr T log10(T x) {
     if (!std::is_constant_evaluated()) {
-        return std::log10(x);
+        return MathBackend<T>::log10(x);
     }
     if (x <= T{0})
         return T{0};
