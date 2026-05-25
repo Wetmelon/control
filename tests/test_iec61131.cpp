@@ -1,7 +1,9 @@
 #include <cmath>
 
-#include "doctest.h"
 #include "iec61131.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control::plc;
 

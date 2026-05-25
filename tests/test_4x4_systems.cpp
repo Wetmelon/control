@@ -1,11 +1,13 @@
 ﻿#include <algorithm>
 #include <cmath>
 
-#include "doctest.h"
 #include "eigen.hpp"
 #include "kalman.hpp"
 #include "lqr.hpp"
 #include "matrix.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 
@@ -27,12 +29,12 @@ TEST_SUITE("4x4 Eigenvalue Computation") {
         CHECK(result.converged);
 
         // Extract eigenvalues and sort
-        std::array<double, 4> evs;
+        std::array<double, 4> evs = {};
         for (size_t i = 0; i < 4; ++i) {
             evs[i] = result.values[i].real();
             CHECK(std::abs(result.values[i].imag()) < 1e-10);
         }
-        std::sort(evs.begin(), evs.end());
+        std::ranges::sort(evs);
 
         CHECK(evs[0] == doctest::Approx(1.0).epsilon(1e-6));
         CHECK(evs[1] == doctest::Approx(2.0).epsilon(1e-6));

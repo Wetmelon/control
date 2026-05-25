@@ -1,9 +1,11 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "doctest.h"
 #include "lqi.hpp"
 #include "state_space.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

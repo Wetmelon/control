@@ -2,9 +2,10 @@
 #include "constexpr_complex.hpp"
 #include "matlab.hpp"
 
-using namespace wetmelon::control;
-
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
+
+using namespace wetmelon::control;
 
 TEST_CASE("Blkdiag") {
     Matrix<2, 2> mat1 = {{1, 2}, {3, 4}};

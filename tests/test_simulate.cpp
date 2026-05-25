@@ -1,11 +1,12 @@
-﻿#include "constexpr_math.hpp"
-#include "lqr.hpp"
+﻿#include "lqr.hpp"
 #include "simulate.hpp"
 #include "solver.hpp"
+#include "wetmelon_math.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
-
-#include "doctest.h"
 
 // Pendulum parameters for simulation tests
 constexpr double g_pend = 9.81;

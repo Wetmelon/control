@@ -1,8 +1,10 @@
 #include <cmath>
 
-#include "doctest.h"
 #include "matrix.hpp"
 #include "stability.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

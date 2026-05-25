@@ -1,9 +1,10 @@
 #include "plot_plotly.hpp"
 #include "solver.hpp"
 
-using namespace wetmelon::control;
-
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
+
+using namespace wetmelon::control;
 
 // Simple exponential decay: dx/dt = -x, x(0) = 1 => x(t) = exp(-t)
 static auto exp_decay = [](double /*t*/, const ColVec<1>& x) -> ColVec<1> {

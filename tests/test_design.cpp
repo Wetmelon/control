@@ -1,6 +1,5 @@
 ﻿#include <cmath>
 
-#include "doctest.h"
 #include "eskf.hpp"
 #include "kalman.hpp"
 #include "lqg.hpp"
@@ -9,6 +8,9 @@
 #include "lqr.hpp"
 #include "matrix.hpp"
 #include "ricatti.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 

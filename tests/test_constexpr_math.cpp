@@ -1,8 +1,10 @@
-#include <cmath>
+﻿#include <cmath>
 #include <complex>
 
 #include "constexpr_complex.hpp"
-#include "constexpr_math.hpp"
+#include "wetmelon_math.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
 using namespace wetmelon::control;

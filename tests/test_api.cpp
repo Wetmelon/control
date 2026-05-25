@@ -1,11 +1,13 @@
 ﻿#include <cmath>
 
-#include "doctest.h"
 #include "lqg.hpp"
 #include "lqgi.hpp"
 #include "lqi.hpp"
 #include "lqr.hpp"
 #include "matrix.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wetmelon::control;
 
