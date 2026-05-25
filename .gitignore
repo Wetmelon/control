@@ -15,3 +15,5 @@ examples/servo_drive.html
 examples/js/plotly.min.js
 
 COPILOT_LOG.md
+
+__pycache__

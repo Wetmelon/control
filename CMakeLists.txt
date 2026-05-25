@@ -12,8 +12,10 @@ add_library(wetmelon::control ALIAS control)
 target_include_directories(control INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc/matrix>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc/math>
     $<INSTALL_INTERFACE:include>
     $<INSTALL_INTERFACE:include/matrix>
+    $<INSTALL_INTERFACE:include/math>
 )
 target_compile_features(control INTERFACE cxx_std_20)
 
