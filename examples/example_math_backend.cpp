@@ -44,7 +44,7 @@
 #include <cstdio>
 #include <numbers>
 
-#include "motor_control.hpp"
+#include "wet/motor_control.hpp"
 
 using namespace wetmelon::control;
 

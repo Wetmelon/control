@@ -1,6 +1,6 @@
 #include <numbers>
 
-#include "workflow.hpp"
+#include "wet/controllers/synthesis.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -8,7 +8,7 @@
 using namespace wetmelon::control;
 
 TEST_SUITE("Workflow Glue") {
-    TEST_CASE("synthesize_lqg_workflow builds design analysis and runtime bundles") {
+    TEST_CASE("synthesize_lqg builds design analysis and runtime bundles") {
         StateSpace<2, 1, 1, 2, 1> sys{
             .A = Matrix<2, 2>{{1.0, 0.1}, {0.0, 1.0}},
             .B = Matrix<2, 1>{{0.005}, {0.1}},
@@ -24,7 +24,7 @@ TEST_SUITE("Workflow Glue") {
         const Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         const Matrix<1, 1> R_kf{{0.1}};
 
-        const auto artifacts = workflow::synthesize_lqg_workflow(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        const auto artifacts = design::synthesize_lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
 
         CHECK(artifacts.success);
         CHECK(artifacts.design.success);
@@ -37,7 +37,7 @@ TEST_SUITE("Workflow Glue") {
         CHECK(u(0, 0) != doctest::Approx(0.0f));
     }
 
-    TEST_CASE("synthesize_lqg_pr_workflow adds SISO PR internal model") {
+    TEST_CASE("synthesize_lqg_pr adds SISO PR internal model") {
         StateSpace<2, 1, 1, 2, 1> sys{
             .A = Matrix<2, 2>{{1.0, 0.1}, {0.0, 1.0}},
             .B = Matrix<2, 1>{{0.005}, {0.1}},
@@ -61,7 +61,7 @@ TEST_SUITE("Workflow Glue") {
             0.001
         );
 
-        const auto artifacts = workflow::synthesize_lqg_pr_workflow(sys, Q_lqr, R_lqr, Q_kf, R_kf, pr);
+        const auto artifacts = design::synthesize_lqg_pr(sys, Q_lqr, R_lqr, Q_kf, R_kf, pr);
 
         CHECK(artifacts.success);
         CHECK(artifacts.runtime_pr.pr_design.Ki == doctest::Approx(10.0f));
@@ -71,7 +71,7 @@ TEST_SUITE("Workflow Glue") {
         CHECK(u(0, 0) != doctest::Approx(0.0f));
     }
 
-    TEST_CASE("synthesize_lqi_workflow builds servo artifacts and runtime bundle") {
+    TEST_CASE("synthesize_lqi builds servo artifacts and runtime bundle") {
         StateSpace<2, 1, 1, 0, 0> sys{
             .A = Matrix<2, 2>{{1.0, 0.1}, {0.0, 1.0}},
             .B = Matrix<2, 1>{{0.005}, {0.1}},
@@ -86,7 +86,7 @@ TEST_SUITE("Workflow Glue") {
         Q_aug(2, 2) = 10.0;
         const Matrix<1, 1> R{{0.1}};
 
-        const auto artifacts = workflow::synthesize_lqi_workflow(sys, Q_aug, R);
+        const auto artifacts = design::synthesize_lqi(sys, Q_aug, R);
 
         CHECK(artifacts.success);
         CHECK(artifacts.design.success);
@@ -100,7 +100,7 @@ TEST_SUITE("Workflow Glue") {
         CHECK(u(0, 0) != doctest::Approx(0.0f));
     }
 
-    TEST_CASE("synthesize_lqgi_workflow builds servo observer artifacts and runtime bundle") {
+    TEST_CASE("synthesize_lqgi builds servo observer artifacts and runtime bundle") {
         StateSpace<2, 1, 1, 2, 1> sys{
             .A = Matrix<2, 2>{{1.0, 0.1}, {0.0, 1.0}},
             .B = Matrix<2, 1>{{0.005}, {0.1}},
@@ -120,7 +120,7 @@ TEST_SUITE("Workflow Glue") {
         const Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         const Matrix<1, 1> R_kf{{0.1}};
 
-        const auto artifacts = workflow::synthesize_lqgi_workflow(sys, Q_aug, R, Q_kf, R_kf);
+        const auto artifacts = design::synthesize_lqgi(sys, Q_aug, R, Q_kf, R_kf);
 
         CHECK(artifacts.success);
         CHECK(artifacts.design.success);
@@ -134,7 +134,7 @@ TEST_SUITE("Workflow Glue") {
         CHECK(u(0, 0) != doctest::Approx(0.0f));
     }
 
-    TEST_CASE("synthesize_lqi_workflow drives steady-state tracking error to zero") {
+    TEST_CASE("synthesize_lqi drives steady-state tracking error to zero") {
         StateSpace<2, 1, 1, 0, 0> sys{
             .A = Matrix<2, 2>{{1.0, 0.1}, {0.0, 1.0}},
             .B = Matrix<2, 1>{{0.005}, {0.1}},
@@ -149,7 +149,7 @@ TEST_SUITE("Workflow Glue") {
         Q_aug(2, 2) = 10.0;
         const Matrix<1, 1> R{{0.1}};
 
-        const auto artifacts = workflow::synthesize_lqi_workflow(sys, Q_aug, R);
+        const auto artifacts = design::synthesize_lqi(sys, Q_aug, R);
         REQUIRE(artifacts.success);
 
         // Closed-loop simulation against the (linear, discrete) design plant.
@@ -188,7 +188,7 @@ TEST_SUITE("Workflow Glue") {
             Q_aug(1, 1) = 1.0;
             Q_aug(2, 2) = 10.0;
             const Matrix<1, 1> R{{0.1}};
-            return workflow::synthesize_lqi_workflow(sys, Q_aug, R);
+            return design::synthesize_lqi(sys, Q_aug, R);
         }();
 
         static_assert(artifacts.success, "LQI workflow must synthesize at compile time");

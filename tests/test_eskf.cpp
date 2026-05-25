@@ -1,8 +1,8 @@
 #include <cmath>
 #include <numbers>
 
-#include "eskf.hpp"
-#include "geometry.hpp"
+#include "wet/estimation/eskf.hpp"
+#include "wet/geometry.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

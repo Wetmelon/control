@@ -1,13 +1,13 @@
 ﻿#include <cmath>
 
-#include "eskf.hpp"
-#include "kalman.hpp"
-#include "lqg.hpp"
-#include "lqgi.hpp"
-#include "lqi.hpp"
-#include "lqr.hpp"
-#include "matrix.hpp"
-#include "ricatti.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/controllers/ricatti.hpp"
+#include "wet/estimation/eskf.hpp"
+#include "wet/estimation/kalman.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

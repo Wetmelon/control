@@ -1,5 +1,5 @@
-#include "plot_plotly.hpp"
-#include "solver.hpp"
+#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/solver.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

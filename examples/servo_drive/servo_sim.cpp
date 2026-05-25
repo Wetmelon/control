@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "pid.hpp"
+#include "wet/controllers/pid.hpp"
 
 using namespace wetmelon::control;
 
@@ -33,11 +33,11 @@ struct ServoSim {
     PIDController<double> pi_d{};
     PIDController<double> pi_q{};
     PIDController<double> pi_speed{};
-    double Kp_pos = 0.0;         // Position P gain
-    int    speed_decim = 0;
-    int    pos_decim = 0;
-    double iq_ref = 0.0;
-    double omega_ref_cmd = 0.0;  // Speed command (from position loop or direct)
+    double                Kp_pos = 0.0; // Position P gain
+    int                   speed_decim = 0;
+    int                   pos_decim = 0;
+    double                iq_ref = 0.0;
+    double                omega_ref_cmd = 0.0; // Speed command (from position loop or direct)
 
     // Last computed outputs (for state readback)
     double vd_out = 0.0;
@@ -60,8 +60,8 @@ struct ServoSim {
 
     // Compute dx/dt given state and voltage inputs
     void dynamics(const double* state, double vd, double vq, double* dxdt) const {
-        const double id      = state[0];
-        const double iq      = state[1];
+        const double id = state[0];
+        const double iq = state[1];
         const double omega_m = state[2];
         const double theta_m = state[3];
         const double omega_L = state[4];
@@ -77,8 +77,8 @@ struct ServoSim {
         const double Te = 1.5 * mp.pole_pairs * mp.lambda_pm * iq;
 
         // Shaft coupling
-        const double twist   = theta_m - theta_L;
-        const double Tshaft  = mp.Ks * twist + mp.Bs * (omega_m - omega_L);
+        const double twist = theta_m - theta_L;
+        const double Tshaft = mp.Ks * twist + mp.Bs * (omega_m - omega_L);
 
         // Motor mechanical
         dxdt[2] = (Te - mp.Bm * omega_m - Tshaft) / mp.Jm;
@@ -96,13 +96,19 @@ struct ServoSim {
 
         dynamics(x, vd_out, vq_out, k1);
 
-        for (int i = 0; i < 6; ++i) { tmp[i] = x[i] + 0.5 * dt * k1[i]; }
+        for (int i = 0; i < 6; ++i) {
+            tmp[i] = x[i] + 0.5 * dt * k1[i];
+        }
         dynamics(tmp, vd_out, vq_out, k2);
 
-        for (int i = 0; i < 6; ++i) { tmp[i] = x[i] + 0.5 * dt * k2[i]; }
+        for (int i = 0; i < 6; ++i) {
+            tmp[i] = x[i] + 0.5 * dt * k2[i];
+        }
         dynamics(tmp, vd_out, vq_out, k3);
 
-        for (int i = 0; i < 6; ++i) { tmp[i] = x[i] + dt * k3[i]; }
+        for (int i = 0; i < 6; ++i) {
+            tmp[i] = x[i] + dt * k3[i];
+        }
         dynamics(tmp, vd_out, vq_out, k4);
 
         for (int i = 0; i < 6; ++i) {
@@ -120,12 +126,12 @@ struct ServoSim {
         if (ref_filt_wn > 0.0) {
             const double wn = ref_filt_wn;
             const double wn2 = wn * wn;
-            const double h = dt;  // full controller dt (filter runs once per step)
+            const double h = dt; // full controller dt (filter runs once per step)
             // Tustin matrix: A_c = [[0, 1],[-wn2, -2*wn]], B_c = [[0],[wn2]]
             // x_{k+1} = (I - h/2*A)^{-1} * ((I + h/2*A)*x_k + h*B*u_k)
             const double a = h * 0.5;
             // (I - a*A) = [[1, -a], [a*wn2, 1+2*a*wn]]
-            const double d = 1.0 + 2.0 * a * wn + a * a * wn2;  // determinant
+            const double d = 1.0 + 2.0 * a * wn + a * a * wn2; // determinant
             const double inv_d = 1.0 / d;
             // (I + a*A) = [[1, a], [-a*wn2, 1-2*a*wn]]
             const double x1 = ref_filt_x1;
@@ -142,8 +148,8 @@ struct ServoSim {
             ref_filt_out = theta_ref;
         }
 
-        const double id      = x[0];
-        const double iq      = x[1];
+        const double id = x[0];
+        const double iq = x[1];
         const double omega_m = x[2];
         const double theta_L = x[5];
 
@@ -154,8 +160,12 @@ struct ServoSim {
                 double pos_err = ref_filt_out - theta_L;
                 double cmd = Kp_pos * pos_err + omega_ref;
                 // Clamp speed command
-                if (cmd > cp.speed_max) { cmd = cp.speed_max; }
-                if (cmd < -cp.speed_max) { cmd = -cp.speed_max; }
+                if (cmd > cp.speed_max) {
+                    cmd = cp.speed_max;
+                }
+                if (cmd < -cp.speed_max) {
+                    cmd = -cp.speed_max;
+                }
                 omega_ref_cmd = cmd;
             }
         } else {
@@ -195,8 +205,10 @@ struct ServoSim {
         const double lambda_max_now = std::max(lambda_elec, omega_shaft);
         // Target: |λ|*dt_sub ≤ 1.0 (well within RK4 stability limit of 2.78)
         constexpr double target_courant = 1.0;
-        int substeps = static_cast<int>(std::ceil(lambda_max_now * dt / target_courant));
-        if (substeps < 1) { substeps = 1; }
+        int              substeps = static_cast<int>(std::ceil(lambda_max_now * dt / target_courant));
+        if (substeps < 1) {
+            substeps = 1;
+        }
         last_substeps = substeps;
 
         // Integrate plant with sub-stepping (ZOH on voltages)
@@ -213,20 +225,22 @@ struct ServoSim {
         double max_d = 0.0;
         for (int i = 0; i < 6; ++i) {
             double a = std::abs(dxdt[i]);
-            if (a > max_d) { max_d = a; }
+            if (a > max_d) {
+                max_d = a;
+            }
         }
         last_max_dxdt = max_d;
     }
 
     void rebuild_controllers(double dt) {
         constexpr double pi2 = 2.0 * 3.14159265358979323846;
-        double v_lim = mp.Vdc / 2.0;
-        double i_lim = cp.i_max;
+        double           v_lim = mp.Vdc / 2.0;
+        double           i_lim = cp.i_max;
 
         // Current loop: PI from bandwidth
-        double wc_i  = pi2 * cp.bw_current;
-        double Kp_i  = wc_i * mp.Ls;
-        double Ki_i  = wc_i * mp.Rs;
+        double wc_i = pi2 * cp.bw_current;
+        double Kp_i = wc_i * mp.Ls;
+        double Ki_i = wc_i * mp.Rs;
 
         // Speed loop: explicit gains
         double Kp_s = cp.Kp_speed;
@@ -239,11 +253,14 @@ struct ServoSim {
         ref_filt_wn = (cp.ref_filter_bw > 0.0) ? pi2 * cp.ref_filter_bw : 0.0;
 
         pi_d = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)
+        };
         pi_q = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)};
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)
+        };
         pi_speed = PIDController<double>{
-            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / std::max(Ki_s, 1e-6), i_lim / std::max(Ki_s, 1e-6), Ki_s)};
+            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / std::max(Ki_s, 1e-6), i_lim / std::max(Ki_s, 1e-6), Ki_s)
+        };
 
         speed_decim = 0;
         pos_decim = 0;
@@ -255,33 +272,33 @@ struct ServoSim {
 // ===== Default parameters (same as the standalone C++ example) =====
 static ServoMotorParams default_motor_params() {
     ServoMotorParams p{};
-    p.Rs         = 1.2;
-    p.Ls         = 4.7e-3;
-    p.lambda_pm  = 0.1;
+    p.Rs = 1.2;
+    p.Ls = 4.7e-3;
+    p.lambda_pm = 0.1;
     p.pole_pairs = 4;
-    p.Jm         = 5e-5;
-    p.Bm         = 1e-4;
-    p.Ks         = 5000.0;
-    p.Bs         = 0.05;
-    p.JL         = 5e-4;
-    p.BL         = 1e-3;
-    p.Tc         = 0.02;
-    p.Vdc        = 48.0;
+    p.Jm = 5e-5;
+    p.Bm = 1e-4;
+    p.Ks = 5000.0;
+    p.Bs = 0.05;
+    p.JL = 5e-4;
+    p.BL = 1e-3;
+    p.Tc = 0.02;
+    p.Vdc = 48.0;
     return p;
 }
 
 static ServoControlParams default_control_params() {
     ServoControlParams c{};
-    c.bw_current    = 1000.0;   // 1 kHz current loop
-    c.Kp_speed      = 0.3;      // Speed P gain
-    c.Ki_speed      = 18.0;     // Speed I gain
-    c.Kp_position   = 60.0;     // Position P gain
-    c.i_max         = 10.0;
-    c.speed_max     = 500.0;
+    c.bw_current = 1000.0; // 1 kHz current loop
+    c.Kp_speed = 0.3;      // Speed P gain
+    c.Ki_speed = 18.0;     // Speed I gain
+    c.Kp_position = 60.0;  // Position P gain
+    c.i_max = 10.0;
+    c.speed_max = 500.0;
     c.speed_ratio = 1;
     c.position_ratio = 1;
-    c.position_mode  = 0;
-    c.ref_filter_bw  = 5.0;   // 5 Hz ref filter
+    c.position_mode = 0;
+    c.ref_filter_bw = 5.0; // 5 Hz ref filter
     return c;
 }
 
@@ -332,48 +349,48 @@ SERVO_API void servo_step(void* handle, double dt, int n_steps) {
 }
 
 SERVO_API ServoState servo_get_state(void* handle) {
-    auto* sim = static_cast<ServoSim*>(handle);
+    auto*      sim = static_cast<ServoSim*>(handle);
     ServoState s{};
 
     // Plant states
-    s.id      = sim->x[0];
-    s.iq      = sim->x[1];
+    s.id = sim->x[0];
+    s.iq = sim->x[1];
     s.omega_m = sim->x[2];
     s.theta_m = sim->x[3];
     s.omega_L = sim->x[4];
     s.theta_L = sim->x[5];
 
     // Controller outputs
-    s.vd      = sim->vd_out;
-    s.vq      = sim->vq_out;
-    s.iq_ref  = sim->iq_ref;
+    s.vd = sim->vd_out;
+    s.vq = sim->vq_out;
+    s.iq_ref = sim->iq_ref;
     s.omega_ref = sim->omega_ref_cmd;
     s.theta_ref = sim->ref_filt_out;
 
     // Torques
-    s.Te      = sim->Te_out;
-    s.Tshaft  = sim->Tshaft_out;
+    s.Te = sim->Te_out;
+    s.Tshaft = sim->Tshaft_out;
 
     // Derived quantities
-    s.twist     = sim->x[3] - sim->x[5];
-    s.P_elec    = 1.5 * (sim->vd_out * sim->x[0] + sim->vq_out * sim->x[1]);
-    s.P_mech    = sim->Te_out * sim->x[2];
+    s.twist = sim->x[3] - sim->x[5];
+    s.P_elec = 1.5 * (sim->vd_out * sim->x[0] + sim->vq_out * sim->x[1]);
+    s.P_mech = sim->Te_out * sim->x[2];
     s.speed_err = sim->omega_ref_cmd - sim->x[2];
-    s.pos_err   = sim->ref_filt_out - sim->x[5];
-    s.omega_e   = sim->mp.pole_pairs * sim->x[2];
+    s.pos_err = sim->ref_filt_out - sim->x[5];
+    s.omega_e = sim->mp.pole_pairs * sim->x[2];
 
     // Controller integrator states
-    s.int_id  = sim->pi_d.integral;
-    s.int_iq  = sim->pi_q.integral;
+    s.int_id = sim->pi_d.integral;
+    s.int_iq = sim->pi_q.integral;
     s.int_spd = sim->pi_speed.integral;
 
     // Timing
-    s.t          = sim->t;
+    s.t = sim->t;
     s.step_count = sim->step_count;
 
     // Solver / stiffness diagnostics
     s.max_dxdt = sim->last_max_dxdt;
-    s.dt_used  = sim->last_dt;
+    s.dt_used = sim->last_dt;
 
     // Electrical time constant
     s.tau_elec = (sim->mp.Rs > 1e-12) ? sim->mp.Ls / sim->mp.Rs : 1e6;

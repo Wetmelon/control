@@ -1,5 +1,5 @@
 
-#include "wet_trig.hpp"
+#include "wet/math/wet_trig.hpp"
 #include "math_utils.hpp"
 
 // Force emission of wet:: constexpr functions for instruction-count analysis.

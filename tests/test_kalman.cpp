@@ -1,11 +1,11 @@
 ﻿#include <cmath>
 
-#include "ekf.hpp"
-#include "kalman.hpp"
-#include "lqg.hpp"
-#include "lqgi.hpp"
-#include "lqr.hpp"
-#include "state_space.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/estimation/ekf.hpp"
+#include "wet/estimation/kalman.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -1,8 +1,8 @@
 ﻿#include <cmath>
 #include <complex>
 
-#include "constexpr_complex.hpp"
-#include "wetmelon_math.hpp"
+#include "wet/math/constexpr_complex.hpp"
+#include "wet/math/wetmelon_math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

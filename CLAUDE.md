@@ -32,7 +32,7 @@ Run a single test suite or case with doctest filters:
 
 Compiler flags: `-O3 -std=c++20 -march=native -Wall -Wextra -Wdouble-promotion` (see `Tuprules.lua`).
 
-Format code: `clang-format -i inc/*.hpp tests/*.cpp examples/*.cpp` (runs automatically on `make`).
+Format code: `clang-format -i $(find inc tests examples -name '*.hpp' -o -name '*.cpp')` (runs automatically on `make`).
 
 Generate golden reference data for tests: `py -3` with `scipy` and `control` libraries.
 
@@ -59,13 +59,32 @@ Design functions are `constexpr` — they work at both compile time and runtime.
 
 All types must support: `float`, `double`, `wet::complex<float>`, `wet::complex<double>`.
 
-### Include structure
+### Folder layout and umbrellas
 
-`matrix.hpp` is the root of the linear algebra layer. It bottom-includes its dependencies in a specific order to satisfy template two-phase lookup:
+All headers live under `inc/wet/` in domain folders, so consumers need a single `-I inc` and write namespaced includes:
+
+```text
+inc/wet/
+  control.hpp   embeddable umbrella     toolbox.hpp   host superset
+  math/  matrix/                        (linear algebra + constexpr math core)
+  systems/  controllers/  estimation/  filters/  analysis/  simulation/  plotting/
+  geometry.hpp · motor_control.hpp · iec61131.hpp · utility.hpp · matlab.hpp
+```
+
+Two entry points:
+
+- **`wet/control.hpp`** — the embeddable subset. Nothing reachable from it allocates (`std::vector`) or pulls a third-party dependency. This is the contract; `make embedded-check` enforces it by failing if `<vector>` becomes reachable.
+- **`wet/toolbox.hpp`** — `control.hpp` plus the host-only design/analysis tooling: `analysis/analysis.hpp` (Bode/Nyquist/margins/`linspace`/`logspace`), `simulation/{solver,simulate}.hpp`, `plotting/plot.hpp`, and `matlab.hpp`. These allocate, so they stay off the target.
+
+**Host vs embedded.** A header is *host-only* if it (transitively) pulls `<vector>` or a third-party lib. Today that's `analysis.hpp`, `solver.hpp`, `simulate.hpp`, `plot.hpp`, `plot_plotly.hpp`, `matlab.hpp`. Everything else is embeddable and belongs in `control.hpp`. If you add a header that allocates, put it behind `toolbox.hpp`, not `control.hpp` — `make embedded-check` will catch a regression.
+
+**Include style.** Cross-folder includes are `wet/`-qualified (`#include "wet/systems/state_space.hpp"`). Intra-folder includes stay bare and resolve relative to the including file — including `matrix.hpp`'s ordered bottom-include block.
+
+`matrix.hpp` (`wet/matrix/matrix.hpp`) is the root of the linear algebra layer. It bottom-includes its dependencies in a specific order to satisfy template two-phase lookup:
 
 ```text
 matrix.hpp  (defines Matrix<R,C,T>)
-  └─ #include "block.hpp"
+  └─ #include "block.hpp"            // intra-folder, bare
   └─ #include "cholesky.hpp"
   └─ #include "colvec.hpp"
   └─ #include "matrix_functions.hpp"
@@ -75,7 +94,7 @@ matrix.hpp  (defines Matrix<R,C,T>)
 
 These bottom-includes use `// IWYU pragma: keep`. Do not reorder them.
 
-Higher-level headers (`lqr.hpp`, `kalman.hpp`, etc.) include `matrix.hpp` and `state_space.hpp`.
+Higher-level headers (`wet/controllers/lqr.hpp`, `wet/estimation/kalman.hpp`, etc.) include `wet/matrix/matrix.hpp` and `wet/systems/state_space.hpp`.
 
 ### Error handling
 
@@ -367,8 +386,8 @@ Every header must have at least one complete, self-contained example in its Doxy
  *
  * Example: LQR for a double integrator (position + velocity control)
  * @code
- * #include "lqr.hpp"
- * #include "state_space.hpp"
+ * #include "wet/controllers/lqr.hpp"
+ * #include "wet/systems/state_space.hpp"
  *
  * using namespace wetmelon::control;
  *

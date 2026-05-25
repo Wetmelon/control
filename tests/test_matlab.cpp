@@ -1,6 +1,6 @@
 
-#include "constexpr_complex.hpp"
-#include "matlab.hpp"
+#include "wet/math/constexpr_complex.hpp"
+#include "wet/matlab.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -57,7 +57,7 @@ TEST_CASE("Place - Pole placement for single input") {
 
     auto K_opt = matlab::place(A, B, poles);
     REQUIRE(K_opt.has_value());
-    auto K = *K_opt;
+    const auto& K = *K_opt;
 
     CHECK(K.rows() == 1);
     CHECK(K.cols() == 2);
@@ -69,7 +69,7 @@ TEST_CASE("Place - Pole placement for single input") {
     // Compute characteristic polynomial of A_cl
     // For 2x2, det(sI - A_cl) = s^2 - trace*s + det
     double trace = A_cl(0, 0) + A_cl(1, 1);
-    double det = A_cl(0, 0) * A_cl(1, 1) - A_cl(0, 1) * A_cl(1, 0);
+    double det = (A_cl(0, 0) * A_cl(1, 1)) - (A_cl(0, 1) * A_cl(1, 0));
 
     // Roots of s^2 + trace*s + det = 0 should be -3 and -4
     // Sum of roots = -trace = 3+4=7
@@ -87,7 +87,7 @@ TEST_CASE("Place - Pole placement with std::complex poles") {
 
     auto K_opt = matlab::place(A, B, poles);
     REQUIRE(K_opt.has_value());
-    auto K = *K_opt;
+    const auto& K = *K_opt;
 
     CHECK(K.rows() == 1);
     CHECK(K.cols() == 2);
@@ -95,7 +95,7 @@ TEST_CASE("Place - Pole placement with std::complex poles") {
     // Check that the closed-loop poles are approximately the desired ones
     Matrix<2, 2> A_cl = A - B * K;
     double       trace = A_cl(0, 0) + A_cl(1, 1);
-    double       det = A_cl(0, 0) * A_cl(1, 1) - A_cl(0, 1) * A_cl(1, 0);
+    double       det = (A_cl(0, 0) * A_cl(1, 1)) - (A_cl(0, 1) * A_cl(1, 0));
     CHECK(doctest::Approx(trace).epsilon(1e-6) == -7.0);
     CHECK(doctest::Approx(det).epsilon(1e-6) == 12.0);
 }
@@ -111,7 +111,7 @@ TEST_CASE("Place - Pole placement with _Complex double poles") {
 
     auto K_opt = matlab::place(A, B, poles);
     REQUIRE(K_opt.has_value());
-    auto K = *K_opt;
+    const auto& K = *K_opt;
 
     CHECK(K.rows() == 1);
     CHECK(K.cols() == 2);
@@ -119,7 +119,7 @@ TEST_CASE("Place - Pole placement with _Complex double poles") {
     // Check that the closed-loop poles are approximately the desired ones
     Matrix<2, 2> A_cl = A - B * K;
     double       trace = A_cl(0, 0) + A_cl(1, 1);
-    double       det = A_cl(0, 0) * A_cl(1, 1) - A_cl(0, 1) * A_cl(1, 0);
+    double       det = (A_cl(0, 0) * A_cl(1, 1)) - (A_cl(0, 1) * A_cl(1, 0));
     CHECK(doctest::Approx(trace).epsilon(1e-6) == -7.0);
     CHECK(doctest::Approx(det).epsilon(1e-6) == 12.0);
 }
@@ -133,7 +133,7 @@ TEST_CASE("Place - Pole placement with wet::complex poles") {
 
     auto K_opt = matlab::place(A, B, poles);
     REQUIRE(K_opt.has_value());
-    auto K = *K_opt;
+    const auto& K = *K_opt;
 
     CHECK(K.rows() == 1);
     CHECK(K.cols() == 2);
@@ -141,7 +141,7 @@ TEST_CASE("Place - Pole placement with wet::complex poles") {
     // Check that the closed-loop poles are approximately the desired ones
     Matrix<2, 2> A_cl = A - B * K;
     double       trace = A_cl(0, 0) + A_cl(1, 1);
-    double       det = A_cl(0, 0) * A_cl(1, 1) - A_cl(0, 1) * A_cl(1, 0);
+    double       det = (A_cl(0, 0) * A_cl(1, 1)) - (A_cl(0, 1) * A_cl(1, 0));
     CHECK(doctest::Approx(trace).epsilon(1e-6) == -7.0);
     CHECK(doctest::Approx(det).epsilon(1e-6) == 12.0);
 }

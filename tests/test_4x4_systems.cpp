@@ -1,10 +1,10 @@
 ﻿#include <algorithm>
 #include <cmath>
 
-#include "eigen.hpp"
-#include "kalman.hpp"
-#include "lqr.hpp"
-#include "matrix.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/estimation/kalman.hpp"
+#include "wet/matrix/eigen.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -1,7 +1,7 @@
 #include <cmath>
 
-#include "linearization.hpp"
-#include "matlab.hpp"
+#include "wet/analysis/linearization.hpp"
+#include "wet/matlab.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

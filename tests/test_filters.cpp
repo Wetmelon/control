@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "filters.hpp"
+#include "wet/filters/filters.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

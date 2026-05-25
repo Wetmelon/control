@@ -1,14 +1,14 @@
 #include <numbers>
 
-#include "analysis.hpp"
-#include "discretization.hpp"
 #include "fmt/core.h"
-#include "linearization.hpp"
-#include "pid_design.hpp"
-#include "pr.hpp"
-#include "simulate.hpp"
-#include "solver.hpp"
-#include "workflow.hpp"
+#include "wet/analysis/analysis.hpp"
+#include "wet/analysis/linearization.hpp"
+#include "wet/controllers/pid_design.hpp"
+#include "wet/controllers/pr.hpp"
+#include "wet/controllers/synthesis.hpp"
+#include "wet/simulation/simulate.hpp"
+#include "wet/simulation/solver.hpp"
+#include "wet/systems/discretization.hpp"
 
 using namespace wetmelon::control;
 
@@ -65,7 +65,7 @@ int main() {
     const Matrix<2, 2> Q_kf{{1e-3, 0.0}, {0.0, 1e-2}};
     const Matrix<1, 1> R_kf{{5e-3}};
 
-    const auto artifacts = workflow::synthesize_lqgi_workflow(sys_d, Q_aug, R, Q_kf, R_kf);
+    const auto artifacts = design::synthesize_lqgi(sys_d, Q_aug, R, Q_kf, R_kf);
 
     const auto pr_design = design::pr(0.0, 10.0, 2.0 * std::numbers::pi, 6.0, Ts);
 

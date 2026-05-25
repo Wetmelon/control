@@ -2,10 +2,10 @@
 #include <numbers>
 
 #include "fmt/core.h"
-#include "pid.hpp"
-#include "plot_plotly.hpp"
-#include "simulate.hpp"
-#include "solver.hpp"
+#include "wet/controllers/pid.hpp"
+#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/simulate.hpp"
+#include "wet/simulation/solver.hpp"
 
 using namespace wetmelon::control;
 

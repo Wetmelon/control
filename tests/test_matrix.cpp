@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "fmt/core.h"
-#include "matrix.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

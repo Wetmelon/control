@@ -3,7 +3,7 @@ CXX = g++
 # whichever libstdc++/libgcc DLL is first on PATH at runtime, which can fail with
 # STATUS_ENTRYPOINT_NOT_FOUND (0xC0000139). The main tup build links -static too.
 CXXFLAGS = -O3 -std=c++20 -static -Wall -Wextra -Wdouble-promotion
-INCLUDES = -I../../inc -I../../inc/matrix -I../../inc/math -I../../libs/fmt/include -I../../libs/plotlypp/include -I../../libs/json/single_include
+INCLUDES = -I../../inc -I../../libs/fmt/include -I../../libs/plotlypp/include -I../../libs/json/single_include
 
 OUT_DIR = build
 BIN = $(OUT_DIR)/pll_report.exe

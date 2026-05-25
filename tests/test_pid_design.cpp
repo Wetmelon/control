@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "pid_design.hpp"
+#include "wet/controllers/pid_design.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

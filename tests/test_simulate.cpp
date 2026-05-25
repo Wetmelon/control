@@ -1,7 +1,7 @@
-﻿#include "lqr.hpp"
-#include "simulate.hpp"
-#include "solver.hpp"
-#include "wetmelon_math.hpp"
+﻿#include "wet/controllers/lqr.hpp"
+#include "wet/math/wetmelon_math.hpp"
+#include "wet/simulation/simulate.hpp"
+#include "wet/simulation/solver.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

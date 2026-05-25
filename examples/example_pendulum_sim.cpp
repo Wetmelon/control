@@ -1,9 +1,9 @@
 ﻿#include "fmt/core.h"
-#include "lqr.hpp"
-#include "plot_plotly.hpp"
-#include "simulate.hpp"
-#include "solver.hpp"
-#include "wetmelon_math.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/math/wetmelon_math.hpp"
+#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/simulate.hpp"
+#include "wet/simulation/solver.hpp"
 
 using namespace wetmelon::control;
 

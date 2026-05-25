@@ -1,8 +1,8 @@
 #include <cmath>
 
-#include "analysis.hpp"
-#include "matrix.hpp"
-#include "stability.hpp"
+#include "wet/analysis/analysis.hpp"
+#include "wet/analysis/stability.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

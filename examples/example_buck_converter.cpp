@@ -2,8 +2,8 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
-#include "lqr.hpp"
-#include "state_space.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wetmelon::control;
 

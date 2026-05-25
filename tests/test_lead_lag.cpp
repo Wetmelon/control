@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "lead_lag.hpp"
+#include "wet/controllers/lead_lag.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

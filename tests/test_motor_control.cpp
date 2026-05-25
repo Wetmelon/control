@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "motor_control.hpp"
+#include "wet/motor_control.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

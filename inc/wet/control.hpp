@@ -1,0 +1,73 @@
+#pragma once
+
+/**
+ * @file control.hpp
+ * @brief Umbrella header for the embeddable core of wetmelon::control.
+ *
+ * Includes everything that is allocation-free and safe to compile for an
+ * embedded target: the linear-algebra core, LTI system types, all runtime
+ * controllers, the constexpr `design::` synthesis functions, estimators,
+ * filters, fixed-step integration, and the domain helpers.
+ *
+ * Nothing reachable from this header allocates on the heap or pulls a
+ * third-party dependency. Anything that does — frequency-domain analysis
+ * (Bode/Nyquist/sweeps), simulation harnesses, plotting, and the MATLAB-style
+ * aliases — lives behind @ref toolbox.hpp instead and is opt-in for host builds.
+ *
+ * @code
+ * #include "wet/control.hpp"          // one include, embedded-safe
+ * using namespace wetmelon::control;
+ *
+ * constexpr auto art = design::synthesize_lqi(sys_d, Q_aug, R);
+ * static_assert(art.success);
+ * constinit LQI controller{art.runtime.controller};
+ * @endcode
+ *
+ * @see toolbox.hpp for the host-side analysis/simulation/plotting superset.
+ */
+
+// --- Linear algebra + math core ---------------------------------------------
+#include "wet/matrix/matrix.hpp" // IWYU pragma: keep
+
+// --- LTI system types -------------------------------------------------------
+#include "wet/systems/discretization.hpp"    // IWYU pragma: keep
+#include "wet/systems/state_space.hpp"       // IWYU pragma: keep
+#include "wet/systems/transfer_function.hpp" // IWYU pragma: keep
+
+// --- Structural analysis (allocation-free) ----------------------------------
+#include "wet/analysis/linearization.hpp" // IWYU pragma: keep
+#include "wet/analysis/stability.hpp"     // IWYU pragma: keep
+
+// --- Controllers + design synthesis -----------------------------------------
+#include "wet/controllers/adrc.hpp"       // IWYU pragma: keep
+#include "wet/controllers/lead_lag.hpp"   // IWYU pragma: keep
+#include "wet/controllers/lqg.hpp"        // IWYU pragma: keep
+#include "wet/controllers/lqgi.hpp"       // IWYU pragma: keep
+#include "wet/controllers/lqi.hpp"        // IWYU pragma: keep
+#include "wet/controllers/lqr.hpp"        // IWYU pragma: keep
+#include "wet/controllers/pid.hpp"        // IWYU pragma: keep
+#include "wet/controllers/pid_design.hpp" // IWYU pragma: keep
+#include "wet/controllers/pll.hpp"        // IWYU pragma: keep
+#include "wet/controllers/pr.hpp"         // IWYU pragma: keep
+#include "wet/controllers/ricatti.hpp"    // IWYU pragma: keep
+#include "wet/controllers/smc.hpp"        // IWYU pragma: keep
+#include "wet/controllers/synthesis.hpp"  // IWYU pragma: keep
+
+// --- Estimators -------------------------------------------------------------
+#include "wet/estimation/ekf.hpp"           // IWYU pragma: keep
+#include "wet/estimation/eskf.hpp"          // IWYU pragma: keep
+#include "wet/estimation/kalman.hpp"        // IWYU pragma: keep
+#include "wet/estimation/sensor_fusion.hpp" // IWYU pragma: keep
+
+// --- Signal filters ---------------------------------------------------------
+#include "wet/filters/filters.hpp" // IWYU pragma: keep
+#include "wet/filters/sogi.hpp"    // IWYU pragma: keep
+
+// --- Fixed-step integration (allocation-free) -------------------------------
+#include "wet/simulation/integrator.hpp" // IWYU pragma: keep
+
+// --- Domain helpers ---------------------------------------------------------
+#include "wet/geometry.hpp"      // IWYU pragma: keep
+#include "wet/iec61131.hpp"      // IWYU pragma: keep
+#include "wet/motor_control.hpp" // IWYU pragma: keep
+#include "wet/utility.hpp"       // IWYU pragma: keep

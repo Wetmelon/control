@@ -1,8 +1,7 @@
 #include <optional>
 
-#include "cholesky.hpp"
-#include "constexpr_complex.hpp"
-#include "matrix.hpp"
+#include "wet/math/constexpr_complex.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -118,7 +117,7 @@ TEST_SUITE("cholesky") {
 
         CHECK(x(0) == doctest::Approx(3.0));
         CHECK(x(1) == doctest::Approx(5.0 / 3.0));
-        CHECK(x(2) == doctest::Approx((9.0 - 1.5 - 5.0 / 6.0) / 4.0));
+        CHECK(x(2) == doctest::Approx((9.0 - 1.5 - (5.0 / 6.0)) / 4.0));
     }
 
     TEST_CASE("Backward substitution - basic test") {
@@ -541,8 +540,8 @@ TEST_SUITE("cholesky") {
         REQUIRE(L_opt.has_value());
 
         // Verify A = L * Lᴴ
-        auto L = L_opt.value();
-        auto reconstructed = L * L.conjugate_transpose();
+        const auto& L = L_opt.value();
+        auto        reconstructed = L * L.conjugate_transpose();
         for (size_t i = 0; i < 2; ++i) {
             for (size_t j = 0; j < 2; ++j) {
                 CHECK(wet::abs(reconstructed(i, j) - A(i, j)) < 1e-10);

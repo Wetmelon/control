@@ -7,8 +7,8 @@
  */
 
 #include "fmt/core.h"
-#include "lqr.hpp"
-#include "wetmelon_math.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/math/wetmelon_math.hpp"
 
 using namespace wetmelon::control;
 

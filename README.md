@@ -72,8 +72,7 @@ Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 ## Quick Start
 
 ```cpp
-#include "lqr.hpp"
-#include "state_space.hpp"
+#include "wet/control.hpp"   // one embeddable umbrella
 
 using namespace wetmelon::control;
 
@@ -99,24 +98,56 @@ ColVec<1> u = lqr.control(x);  // u = -K*x
 
 ## Using in Your Project
 
-Header-only — copy the `inc/` directory into your project and add it to your include path:
+Header-only — copy the `inc/` directory into your project. A single include path is all you need:
 
 ```bash
-g++ -std=c++20 -I path/to/inc -I path/to/inc/matrix your_code.cpp
+g++ -std=c++20 -I path/to/inc your_code.cpp
 ```
 
-Include only what you need:
+### Two umbrellas
+
+| Header | Use it for | Allocates? |
+| ------ | ---------- | ---------- |
+| `wet/control.hpp` | The embeddable library: linear algebra, LTI types, every runtime controller, the constexpr `design::` synthesis, estimators, filters, fixed-step integration, domain helpers. | No — nothing reachable from it touches the heap. Safe on an MCU. |
+| `wet/toolbox.hpp` | Host/desktop superset: everything above **plus** frequency-domain analysis (Bode/Nyquist/margins/sweeps), ODE solvers, closed-loop simulation, plotting, and the MATLAB-style aliases. | Yes (`std::vector`) — for workstation design work, not the target. |
 
 ```cpp
-#include "lqr.hpp"          // LQR/LQI design and controller classes
-#include "kalman.hpp"       // Kalman filter design
-#include "pid.hpp"          // PID controller with anti-windup
-#include "filters.hpp"      // LowPass and delay/filter design helpers
-#include "geometry.hpp"     // DCM, Quaternion, Euler angles, Transform4
-#include "state_space.hpp"  // StateSpace type and interconnections
+#include "wet/control.hpp"   // firmware: heap-free, one include
+// ... or ...
+#include "wet/toolbox.hpp"   // host: design + analyze + simulate
 ```
 
-No build step, no linking, no dependencies beyond a C++20 compiler (GCC 10+, Clang 12+, MSVC 2022+).
+Or reach for a single feature directly:
+
+```cpp
+#include "wet/controllers/lqr.hpp"      // LQR/LQI design + controller classes
+#include "wet/estimation/kalman.hpp"    // Kalman filter
+#include "wet/controllers/pid.hpp"      // PID with anti-windup
+#include "wet/filters/filters.hpp"      // LowPass and delay/filter helpers
+#include "wet/geometry.hpp"             // DCM, Quaternion, Euler, Transform4
+#include "wet/systems/state_space.hpp"  // StateSpace type and interconnections
+```
+
+### Layout
+
+```
+inc/wet/
+  control.hpp      embeddable umbrella        toolbox.hpp   host superset
+  math/            constexpr math primitives  matrix/       linear algebra
+  systems/         state_space, transfer_function, discretization
+  controllers/     lqr, lqi, lqg, lqgi, ricatti, pid(+design), pr,
+                   lead_lag, adrc, smc, pll, synthesis
+  estimation/      kalman, ekf, eskf, sensor_fusion
+  filters/         filters, sogi
+  analysis/        stability, linearization    + analysis (host: Bode/Nyquist)
+  simulation/      integrator                  + solver, simulate (host)
+  plotting/        plot, plot_plotly (host)
+  geometry.hpp · motor_control.hpp · iec61131.hpp · utility.hpp · matlab.hpp (host)
+```
+
+The one-call synthesis helpers live in `design::` (e.g. `design::synthesize_lqgi`) — design + analysis models + a ready-to-deploy runtime bundle in a single constexpr call.
+
+No build step, no linking, no dependencies beyond a C++20 compiler (GCC 10+, Clang 12+, MSVC 2022+). The Plotly plotting backend (`wet/plotting/plot_plotly.hpp`) additionally needs plotlypp and nlohmann-json.
 
 ## Building Examples
 

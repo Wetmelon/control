@@ -1,10 +1,10 @@
 ﻿#include <cmath>
 
-#include "discretization.hpp"
 #include "fmt/core.h"
-#include "lqr.hpp"
-#include "matrix.hpp"
-#include "state_space.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/discretization.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

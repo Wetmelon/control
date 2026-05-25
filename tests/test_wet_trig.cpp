@@ -3,7 +3,7 @@
 #include <initializer_list>
 #include <numbers>
 
-#include "wet_trig.hpp"
+#include "wet/math/wet_trig.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

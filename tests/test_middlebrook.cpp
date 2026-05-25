@@ -2,10 +2,10 @@
  * @file test_middlebrook.cpp
  * @brief Tests for Middlebrook impedance stability analysis
  */
-#include "analysis.hpp"
-#include "state_space.hpp"
-#include "utility.hpp"
-#include "wetmelon_math.hpp"
+#include "wet/analysis/analysis.hpp"
+#include "wet/math/wetmelon_math.hpp"
+#include "wet/systems/state_space.hpp"
+#include "wet/utility.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

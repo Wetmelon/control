@@ -1,8 +1,8 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "lqi.hpp"
-#include "state_space.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

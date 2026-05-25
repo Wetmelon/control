@@ -1,7 +1,7 @@
 #include <cstddef>
 
-#include "constexpr_complex.hpp"
-#include "matrix.hpp"
+#include "wet/math/constexpr_complex.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

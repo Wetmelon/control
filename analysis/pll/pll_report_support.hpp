@@ -6,9 +6,9 @@
 #include <utility>
 #include <vector>
 
-#include "analysis.hpp"
-#include "state_space.hpp"
-#include "transfer_function.hpp"
+#include "wet/analysis/analysis.hpp"
+#include "wet/systems/state_space.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 namespace wetmelon::control::pll_report {
 

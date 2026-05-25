@@ -1,10 +1,10 @@
 ﻿#include <cmath>
 
-#include "lqg.hpp"
-#include "lqgi.hpp"
-#include "lqi.hpp"
-#include "lqr.hpp"
-#include "matrix.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

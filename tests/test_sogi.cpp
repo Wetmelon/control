@@ -2,7 +2,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "sogi.hpp"
+#include "wet/filters/sogi.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -6,10 +6,10 @@
 #define FMT_HEADER_ONLY
 #include <fmt/format.h>
 
-#include "discretization.hpp"
-#include "matlab.hpp"
+#include "wet/systems/discretization.hpp"
+#include "wet/matlab.hpp"
 #include "pll_report_support.hpp"
-#include "utility.hpp"
+#include "wet/utility.hpp"
 
 using namespace wetmelon::control;
 using namespace wetmelon::control::pll_report;

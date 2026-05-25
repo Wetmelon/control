@@ -2,9 +2,9 @@
 #include <algorithm>
 #include <cmath>
 
-#include "analysis.hpp"
-#include "matrix.hpp"
-#include "state_space.hpp"
+#include "wet/analysis/analysis.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

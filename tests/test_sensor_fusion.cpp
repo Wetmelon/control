@@ -1,6 +1,6 @@
 
 
-#include "sensor_fusion.hpp"
+#include "wet/estimation/sensor_fusion.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
