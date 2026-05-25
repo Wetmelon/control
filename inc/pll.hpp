@@ -1,5 +1,9 @@
 #pragma once
 
+#include <algorithm>
+#include <cmath>
+#include <numbers>
+
 #include "sogi.hpp"
 
 namespace wetmelon::control {
@@ -21,8 +25,8 @@ struct SinglePhasePLL {
         T output_min{}; // [Hz] Minimum output frequency
     } params{};
 
-    constexpr SinglePhasePLL<T>(T Fnom, T alpha, T Ts)
-        : sogi(Fnom, Ts, alpha) {
+    constexpr SinglePhasePLL(T Fnom, T alpha, T Ts)
+        : sogi(Fnom, Ts, alpha), nominal_frequency(Fnom), frequency_estimate(Fnom) {
         // Set integrator limits based on expected frequency range
         T max_freq_deviation = Fnom * T{0.5};
         params.integrator_max = max_freq_deviation;
@@ -40,6 +44,7 @@ struct SinglePhasePLL {
     constexpr void step(T input, const T Ts) {
         // Generate bandpass and quadrature signals using SOGI
         const auto [bp, quadrature] = sogi(input);
+        (void)bp;
 
         // Phase error is the product of input and quadrature signal
         T phase_error = input * quadrature;
@@ -51,18 +56,38 @@ struct SinglePhasePLL {
         integrator_state += params.Ki * phase_error * Ts;
         integrator_state = std::clamp(integrator_state, params.integrator_min, params.integrator_max);
 
-        // Compute output frequency
-        frequency_estimate = proportional + integrator_state;
+        // Compute output frequency estimate [Hz] around nominal frequency
+        frequency_estimate = nominal_frequency + proportional + integrator_state;
         frequency_estimate = std::clamp(frequency_estimate, params.output_min, params.output_max);
 
-        // Update phase estimate (integrate frequency)
-        phase_estimate += frequency_estimate * Ts;
-        phase_estimate = std::fmod(phase_estimate, 2 * std::numbers::pi);
+        // Update phase estimate [rad] from frequency estimate [Hz]
+        const T two_pi = T{2} * std::numbers::pi_v<T>;
+        phase_estimate += two_pi * frequency_estimate * Ts;
+        phase_estimate = std::fmod(phase_estimate, two_pi);
+        if (phase_estimate < T{0}) {
+            phase_estimate += two_pi;
+        }
+    }
+
+    [[nodiscard]] constexpr T frequency() const {
+        return frequency_estimate;
+    }
+
+    [[nodiscard]] constexpr T phase() const {
+        return phase_estimate;
+    }
+
+    constexpr void reset() {
+        sogi.reset();
+        integrator_state = T{0};
+        phase_estimate = T{0};
+        frequency_estimate = nominal_frequency;
     }
 
 private:
     SOGI<T> sogi{}; // SOGI for quadrature signal generation
 
+    T nominal_frequency{};  // Center frequency of the PLL bandpass filter
     T integrator_state{};   // State of the integral term
     T phase_estimate{};     // Estimated phase of the input signal
     T frequency_estimate{}; // Estimated frequency of the input signal

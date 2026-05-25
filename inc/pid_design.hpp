@@ -19,6 +19,7 @@
  */
 
 #include <cmath>
+#include <limits>
 #include <numbers>
 
 #include "pid.hpp"
@@ -31,10 +32,12 @@ namespace design {
 /**
  * @brief PID controller type selection for tuning methods
  */
-enum class PIDType { P,
-                     PI,
-                     PD,
-                     PID };
+enum class PIDType {
+    P,
+    PI,
+    PD,
+    PID,
+};
 
 // ============================================================================
 // Ziegler-Nichols Ultimate Gain Method
@@ -58,7 +61,10 @@ enum class PIDType { P,
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
+
     switch (type) {
         case PIDType::P:
             Kp = T{0.5} * Ku;
@@ -99,7 +105,10 @@ ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
+
     T a = tau / (K * L); // normalized gain
     switch (type) {
         case PIDType::P:
@@ -142,7 +151,10 @@ ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
+
     switch (type) {
         case PIDType::PI:
             Kp = Ku / T{3.2};
@@ -180,28 +192,31 @@ tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
+
     T r = L / tau; // dead-time ratio
     T a = tau / (K * L);
 
     switch (type) {
         case PIDType::P:
-            Kp = a * (T{1} + r / T{3});
+            Kp = a * (T{1} + (r / T{3}));
             break;
         case PIDType::PI: {
-            Kp = a * (T{0.9} + r / T{12});
-            T Ti = L * (T{30} + T{3} * r) / (T{9} + T{20} * r);
+            Kp = a * (T{0.9} + (r / T{12}));
+            T Ti = L * (T{30} + (T{3} * r)) / (T{9} + (T{20} * r));
             Ki = Kp / Ti;
         } break;
         case PIDType::PD: {
-            Kp = a * (T{1.24} + r / T{5});
-            T Td = L * T{6} / (T{22} + T{3} * r);
+            Kp = a * (T{1.24} + (r / T{5}));
+            T Td = L * T{6} / (T{22} + (T{3} * r));
             Kd = Kp * Td;
         } break;
         case PIDType::PID: {
-            Kp = a * (T{4} / T{3} + r / T{4});
-            T Ti = L * (T{32} + T{6} * r) / (T{13} + T{8} * r);
-            T Td = L * T{4} / (T{11} + T{2} * r);
+            Kp = a * ((T{4} / T{3}) + (r / T{4}));
+            T Ti = L * (T{32} + (T{6} * r)) / (T{13} + (T{8} * r));
+            T Td = L * T{4} / (T{11} + (T{2} * r));
             Ki = Kp / Ti;
             Kd = Kp * Td;
         } break;
@@ -231,7 +246,10 @@ cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 simc(T K, T L, T tau, T tau_c, T Ts, PIDType type = PIDType::PI) {
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
+
     switch (type) {
         case PIDType::P:
             Kp = tau / (K * (tau_c + L));
@@ -310,7 +328,9 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
     T           phi = phase_margin * pi / T{180}; // Convert to radians
     T           desired_phase = phi - pi;         // Phase of C(jω) at crossover
 
-    T Kp{}, Ki{}, Kd{};
+    T Kp{};
+    T Ki{};
+    T Kd{};
 
     switch (type) {
         case PIDType::P:
@@ -323,14 +343,14 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
             // For unit-gain plant: PM = 90° + atan(Kp·ω/Ki) [since PI phase is in [-90°,0°]]
             // So atan(Kp·wbw/Ki) = phi_m - 90° = phi - π/2
             // With |C(jωbw)| = 1: Kp² + (Ki/wbw)² = 1
-            T alpha = phi - pi / T{2}; // angle from the geometric relationship
+            T alpha = phi - (pi / T{2}); // angle from the geometric relationship
             // If phi < π/2 (phase margin < 90°), alpha < 0, use |alpha|
             // tan(alpha) = Kp·wbw / Ki, and Kp² + Ki²/wbw² = 1
             // Let r = Ki/(Kp·wbw), then Kp²(1 + r²) = 1
             // r = 1/tan(alpha) = cos(alpha)/sin(alpha)
             if (alpha > T{0}) {
                 T r = wet::cos(alpha) / wet::sin(alpha); // cot(alpha)
-                Kp = T{1} / wet::sqrt(T{1} + r * r);
+                Kp = T{1} / wet::sqrt(T{1} + (r * r));
                 Ki = Kp * r * wbw;
             } else {
                 // Phase margin > 90°: PI alone overshoots; use simple heuristic
@@ -352,7 +372,7 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
         case PIDType::PID: {
             // For PID, place the zero pair symmetrically around crossover
             // Ti = 1/(ωbw * tan(φ/2)), Td = Ti/4
-            T half_phi = (phi - pi / T{2}) / T{2};
+            T half_phi = (phi - (pi / T{2})) / T{2};
             if (half_phi <= T{0}) {
                 half_phi = pi / T{12}; // minimum 15° half-angle
             }
@@ -364,6 +384,119 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
         } break;
     }
     return PIDResult<T>{Kp, Ki, Kd, Ts};
+}
+
+/**
+ * @brief Map percent overshoot target to equivalent damping ratio
+ *
+ * Uses the standard second-order relation:
+ *
+ *   OS = exp(-zeta*pi/sqrt(1-zeta^2))
+ *
+ * with OS as a unit fraction (e.g. 10% -> 0.10).
+ *
+ * @param overshoot_percent Desired percent overshoot in [0, 100)
+ * @return Estimated damping ratio zeta
+ */
+template<typename T = double>
+[[nodiscard]] constexpr T damping_ratio_from_overshoot_percent(T overshoot_percent) {
+    constexpr T pi = std::numbers::pi_v<T>;
+
+    if (overshoot_percent <= T{0}) {
+        return T{1};
+    }
+
+    T os = overshoot_percent / T{100};
+    if (os >= T{1}) {
+        os = T{0.999};
+    }
+    if (os <= T{0}) {
+        os = std::numeric_limits<T>::min();
+    }
+
+    const T log_os = wet::log(os);
+    return -log_os / wet::sqrt((pi * pi) + (log_os * log_os));
+}
+
+/**
+ * @brief Approximate phase margin from damping ratio
+ *
+ * Uses the standard second-order approximation:
+ *
+ *   PM ≈ atan(2*zeta / sqrt(sqrt(1 + 4*zeta^4) - 2*zeta^2))
+ *
+ * @param zeta Damping ratio
+ * @return Approximate phase margin in degrees
+ */
+template<typename T = double>
+[[nodiscard]] constexpr T phase_margin_from_damping_ratio(T zeta) {
+    constexpr T pi = std::numbers::pi_v<T>;
+
+    if (zeta <= T{0}) {
+        return T{30};
+    }
+    if (zeta >= T{1}) {
+        return T{85};
+    }
+
+    const T z2 = zeta * zeta;
+    const T inner = wet::sqrt(T{1} + (T{4} * z2 * z2)) - (T{2} * z2);
+    if (inner <= T{0}) {
+        return T{60};
+    }
+
+    const T pm_rad = wet::atan2(T{2} * zeta, wet::sqrt(inner));
+    return pm_rad * T{180} / pi;
+}
+
+/**
+ * @brief Map settling-time and damping-ratio targets to a bandwidth estimate
+ *
+ * Uses the 2% settling-time approximation Ts ≈ 4/(zeta*wn) and maps
+ * desired bandwidth to wn for a practical one-parameter conversion.
+ *
+ * @param settling_time Desired 2% settling time in seconds
+ * @param zeta          Damping ratio
+ * @return Estimated bandwidth in rad/s
+ */
+template<typename T = double>
+[[nodiscard]] constexpr T bandwidth_from_settling_time(T settling_time, T zeta) {
+    if (settling_time <= T{0}) {
+        return T{1};
+    }
+    if (zeta <= T{0}) {
+        zeta = T{0.7};
+    }
+    return T{4} / (zeta * settling_time);
+}
+
+/**
+ * @brief Time-domain performance targets for quick PID synthesis
+ */
+template<typename T = double>
+struct PIDPerformanceSpec {
+    T       settling_time{};       ///< Desired 2% settling time [s]
+    T       overshoot_percent{};   ///< Desired percent overshoot [0..100)
+    T       Ts{};                  ///< Controller sampling time [s]
+    PIDType type{PIDType::PID};    ///< PI/PID family selection
+    T       bandwidth_scale{T{1}}; ///< Optional tuning scale on estimated bandwidth
+};
+
+/**
+ * @brief Design PID directly from settling-time and overshoot targets
+ *
+ * Converts time-domain targets to equivalent damping ratio/phase margin and
+ * bandwidth, then calls pid_from_bandwidth().
+ *
+ * @param spec Performance specification bundle
+ * @return PIDResult with tuned gains
+ */
+template<typename T = double>
+[[nodiscard]] constexpr PIDResult<T> pid_from_performance_spec(const PIDPerformanceSpec<T>& spec) {
+    const T zeta = damping_ratio_from_overshoot_percent(spec.overshoot_percent);
+    const T pm = phase_margin_from_damping_ratio(zeta);
+    const T wbw = spec.bandwidth_scale * bandwidth_from_settling_time(spec.settling_time, zeta);
+    return pid_from_bandwidth(wbw, pm, spec.Ts, spec.type);
 }
 
 // ============================================================================
@@ -413,7 +546,7 @@ pid_pole_placement(T K, T tau, T p1, T p2, T Ts) {
     // a - b*Kp + b*Ki*Ts = p1*p2   => Ki = (p1*p2 - a + b*Kp) / (b*Ts)
 
     T Kp = (a + T{1} - p1 - p2) / b;
-    T Ki = (p1 * p2 - a + b * Kp) / (b * Ts);
+    T Ki = ((p1 * p2) - a + (b * Kp)) / (b * Ts);
 
     return PIDResult<T>{Kp, Ki, T{0}, Ts};
 }
@@ -452,17 +585,17 @@ pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
     //
     // Matching coefficients:
     T sum_p = p1 + p2 + p3;
-    T sum_pp = p1 * p2 + p1 * p3 + p2 * p3;
+    T sum_pp = (p1 * p2) + (p1 * p3) + (p2 * p3);
     T prod_p = p1 * p2 * p3;
 
     // b*Kd/Ts - 1 - a = -sum_p => Kd = (1 + a - sum_p) * Ts / b
     T Kd = (T{1} + a - sum_p) * Ts / b;
 
     // a + b*Kp - 2*b*Kd/Ts = sum_pp => Kp = (sum_pp - a + 2*b*Kd/Ts) / b
-    T Kp = (sum_pp - a + T{2} * b * Kd / Ts) / b;
+    T Kp = (sum_pp - a + (T{2} * b * Kd / Ts)) / b;
 
     // b*(-Kp + Kd/Ts + Ki*Ts) = -prod_p => Ki = (-prod_p/b + Kp - Kd/Ts) / Ts
-    T Ki = (-prod_p / b + Kp - Kd / Ts) / Ts;
+    T Ki = ((-prod_p / b) + Kp - (Kd / Ts)) / Ts;
 
     return PIDResult<T>{Kp, Ki, Kd, Ts};
 }

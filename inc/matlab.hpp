@@ -3,17 +3,70 @@
 #include <array>
 #include <cstddef>
 #include <optional>
+#include <type_traits>
 
+#include "analysis.hpp"
 #include "constexpr_complex.hpp"
 #include "discretization.hpp"
+#include "linearization.hpp"
 #include "lqr.hpp"
 #include "matrix.hpp"
 #include "pid.hpp"
 #include "state_space.hpp"
+#include "transfer_function.hpp"
 
 namespace wetmelon::control {
 // MATLAB®-style matrix functions
 namespace matlab {
+
+/**
+ * @brief MATLAB-style transfer function constructor
+ *
+ * Coefficients are in ascending powers of s or z.
+ */
+template<size_t Nnum, size_t Nden, typename T = double>
+[[nodiscard]] constexpr TransferFunction<Nnum, Nden, T>
+tf(const std::array<T, Nnum>& num, const std::array<T, Nden>& den) noexcept {
+    return TransferFunction<Nnum, Nden, T>{.num = num, .den = den};
+}
+
+/**
+ * @brief MATLAB-style transfer function constructor from braced coefficient lists
+ *
+ * Enables calls like: tf({1.0, 2.0}, {3.0, 4.0, 5.0})
+ * Coefficients are in ascending powers of s or z.
+ */
+template<typename TNum, size_t Nnum, typename TDen, size_t Nden>
+[[nodiscard]] constexpr TransferFunction<Nnum, Nden, std::common_type_t<TNum, TDen>>
+tf(const TNum (&num)[Nnum], const TDen (&den)[Nden]) noexcept {
+    using T = std::common_type_t<TNum, TDen>;
+    TransferFunction<Nnum, Nden, T> result{};
+
+    for (size_t i = 0; i < Nnum; ++i) {
+        result.num[i] = static_cast<T>(num[i]);
+    }
+    for (size_t i = 0; i < Nden; ++i) {
+        result.den[i] = static_cast<T>(den[i]);
+    }
+
+    return result;
+}
+
+/**
+ * @brief MATLAB short alias for controllability_matrix
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr Matrix<NX, NX * NU, T> ctrb(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
+    return analysis::controllability_matrix(A, B);
+}
+
+/**
+ * @brief MATLAB short alias for observability_matrix
+ */
+template<size_t NX, size_t NY, typename T = double>
+[[nodiscard]] constexpr Matrix<NX * NY, NX, T> obsv(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noexcept {
+    return analysis::observability_matrix(A, C);
+}
 
 /**
  * @brief Matlab interface function c2d to discretize a continuous-time state-space system
@@ -31,6 +84,40 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
     DiscretizationMethod                     method = DiscretizationMethod::ZOH
 ) {
     return discretize(sys, sampling_time, method);
+}
+
+/**
+ * @brief MATLAB-style c2d for SISO transfer functions
+ *
+ * Returns a discrete-time state-space model for now.
+ */
+template<size_t Nnum, size_t Nden, typename T = double>
+[[nodiscard]] constexpr StateSpace<Nden - 1, 1, 1, 0, 0, T> c2d(
+    const TransferFunction<Nnum, Nden, T>& tf_sys,
+    T                                      sampling_time,
+    DiscretizationMethod                   method = DiscretizationMethod::ZOH
+) {
+    return discretize(tf_sys.to_state_space(), sampling_time, method);
+}
+
+/**
+ * @brief MATLAB-style nonlinear linearization about an operating point
+ *
+ * Similar in spirit to MATLAB's linmod workflow: linearize nonlinear
+ * dynamics and output maps, then return continuous-time state-space.
+ */
+template<size_t NX, size_t NU, size_t NY, typename T = double, typename Dynamics, typename Output>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, 0, 0, T> linmod(
+    const Dynamics&      dynamics,
+    const Output&        output,
+    const ColVec<NX, T>& x_op,
+    const ColVec<NU, T>& u_op,
+    T                    epsilon = T{0}
+) {
+    if (epsilon > T{0}) {
+        return analysis::linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op, epsilon).to_state_space();
+    }
+    return analysis::linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op).to_state_space();
 }
 
 /**
@@ -223,8 +310,9 @@ constexpr std::optional<Matrix<NU, NX, T>> place(
 
         // Check controllability by inverting Co
         auto Co_inv_opt = Co.inverse();
-        if (!Co_inv_opt)
+        if (!Co_inv_opt) {
             return std::nullopt;
+        }
         auto Co_inv = *Co_inv_opt;
 
         // Compute desired characteristic polynomial coefficients (assuming real poles)

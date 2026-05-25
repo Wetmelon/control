@@ -7,6 +7,36 @@
 #include "state_space.hpp"
 
 namespace wetmelon::control {
+
+namespace tf_detail {
+
+template<size_t Nres, size_t Nsrc, typename T>
+constexpr void accumulate_poly(std::array<T, Nres>& dst, const std::array<T, Nsrc>& src, T scale = T{1}) {
+    constexpr size_t N = (Nsrc < Nres) ? Nsrc : Nres;
+    for (size_t i = 0; i < N; ++i) {
+        dst[i] += scale * src[i];
+    }
+}
+
+template<size_t Na, size_t Nb, typename T>
+[[nodiscard]] constexpr std::array<T, Na + Nb - 1> convolve_poly(const std::array<T, Na>& a, const std::array<T, Nb>& b) {
+    std::array<T, Na + Nb - 1> result{};
+    for (size_t i = 0; i < Na; ++i) {
+        for (size_t j = 0; j < Nb; ++j) {
+            result[i + j] += a[i] * b[j];
+        }
+    }
+    return result;
+}
+
+} // namespace tf_detail
+
+template<typename TNum, typename TDen>
+using transfer_function_scalar_t = std::conditional_t<
+    std::is_floating_point_v<std::common_type_t<TNum, TDen>>,
+    std::common_type_t<TNum, TDen>,
+    double>;
+
 template<size_t Nnum, size_t Nden, typename T = double>
     requires std::is_floating_point_v<T>
 struct TransferFunction {
@@ -65,6 +95,14 @@ struct TransferFunction {
     }
 };
 
+template<typename TNum, size_t Nnum, typename TDen, size_t Nden>
+TransferFunction(const std::array<TNum, Nnum>&, const std::array<TDen, Nden>&)
+    -> TransferFunction<Nnum, Nden, transfer_function_scalar_t<TNum, TDen>>;
+
+template<typename TNum, size_t Nnum, typename TDen, size_t Nden>
+TransferFunction(const TNum (&)[Nnum], const TDen (&)[Nden])
+    -> TransferFunction<Nnum, Nden, transfer_function_scalar_t<TNum, TDen>>;
+
 template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
 [[nodiscard]] constexpr auto operator*(
     const TransferFunction<Nnum1, Nden1, T>& tf1,
@@ -74,22 +112,112 @@ template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
     constexpr size_t Nden_res = Nden1 + Nden2 - 1;
 
     TransferFunction<Nnum_res, Nden_res, T> result{};
-
-    // Convolve numerators
-    for (size_t i = 0; i < Nnum1; ++i) {
-        for (size_t j = 0; j < Nnum2; ++j) {
-            result.num[i + j] += tf1.num[i] * tf2.num[j];
-        }
-    }
-
-    // Convolve denominators
-    for (size_t i = 0; i < Nden1; ++i) {
-        for (size_t j = 0; j < Nden2; ++j) {
-            result.den[i + j] += tf1.den[i] * tf2.den[j];
-        }
-    }
+    result.num = tf_detail::convolve_poly(tf1.num, tf2.num);
+    result.den = tf_detail::convolve_poly(tf1.den, tf2.den);
 
     return result;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto operator+(
+    const TransferFunction<Nnum1, Nden1, T>& tf1,
+    const TransferFunction<Nnum2, Nden2, T>& tf2
+) {
+    constexpr size_t Nnum_l = Nnum1 + Nden2 - 1;
+    constexpr size_t Nnum_r = Nnum2 + Nden1 - 1;
+    constexpr size_t Nnum_res = (Nnum_l > Nnum_r) ? Nnum_l : Nnum_r;
+    constexpr size_t Nden_res = Nden1 + Nden2 - 1;
+
+    TransferFunction<Nnum_res, Nden_res, T> result{};
+
+    const auto left_num = tf_detail::convolve_poly(tf1.num, tf2.den);
+    const auto right_num = tf_detail::convolve_poly(tf2.num, tf1.den);
+    const auto den = tf_detail::convolve_poly(tf1.den, tf2.den);
+
+    tf_detail::accumulate_poly(result.num, left_num);
+    tf_detail::accumulate_poly(result.num, right_num);
+    result.den = den;
+
+    return result;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto operator-(
+    const TransferFunction<Nnum1, Nden1, T>& tf1,
+    const TransferFunction<Nnum2, Nden2, T>& tf2
+) {
+    constexpr size_t Nnum_l = Nnum1 + Nden2 - 1;
+    constexpr size_t Nnum_r = Nnum2 + Nden1 - 1;
+    constexpr size_t Nnum_res = (Nnum_l > Nnum_r) ? Nnum_l : Nnum_r;
+    constexpr size_t Nden_res = Nden1 + Nden2 - 1;
+
+    TransferFunction<Nnum_res, Nden_res, T> result{};
+
+    const auto left_num = tf_detail::convolve_poly(tf1.num, tf2.den);
+    const auto right_num = tf_detail::convolve_poly(tf2.num, tf1.den);
+    const auto den = tf_detail::convolve_poly(tf1.den, tf2.den);
+
+    tf_detail::accumulate_poly(result.num, left_num);
+    tf_detail::accumulate_poly(result.num, right_num, T{-1});
+    result.den = den;
+
+    return result;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto series(
+    const TransferFunction<Nnum1, Nden1, T>& tf1,
+    const TransferFunction<Nnum2, Nden2, T>& tf2
+) {
+    return tf1 * tf2;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto parallel(
+    const TransferFunction<Nnum1, Nden1, T>& tf1,
+    const TransferFunction<Nnum2, Nden2, T>& tf2
+) {
+    return tf1 + tf2;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto subtract(
+    const TransferFunction<Nnum1, Nden1, T>& tf1,
+    const TransferFunction<Nnum2, Nden2, T>& tf2
+) {
+    return tf1 - tf2;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto feedback(
+    const TransferFunction<Nnum1, Nden1, T>& sys1,
+    const TransferFunction<Nnum2, Nden2, T>& sys2
+) {
+    // Negative feedback: sys1 / (1 + sys1*sys2)
+    constexpr size_t Nnum_res = Nnum1 + Nden2 - 1;
+    constexpr size_t Nden_l = Nden1 + Nden2 - 1;
+    constexpr size_t Nden_r = Nnum1 + Nnum2 - 1;
+    constexpr size_t Nden_res = (Nden_l > Nden_r) ? Nden_l : Nden_r;
+
+    TransferFunction<Nnum_res, Nden_res, T> result{};
+
+    const auto num = tf_detail::convolve_poly(sys1.num, sys2.den);
+    const auto den_l = tf_detail::convolve_poly(sys1.den, sys2.den);
+    const auto den_r = tf_detail::convolve_poly(sys1.num, sys2.num);
+
+    result.num = num;
+    tf_detail::accumulate_poly(result.den, den_l);
+    tf_detail::accumulate_poly(result.den, den_r);
+
+    return result;
+}
+
+template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
+[[nodiscard]] constexpr auto operator/(
+    const TransferFunction<Nnum1, Nden1, T>& sys1,
+    const TransferFunction<Nnum2, Nden2, T>& sys2
+) {
+    return feedback(sys1, sys2);
 }
 
 template<size_t Nz, size_t Np, typename T = double>

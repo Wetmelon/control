@@ -109,3 +109,47 @@ TEST_CASE("SOGI runtime - frequency retuning") {
 
     CHECK(max_bp > 0.1f);
 }
+
+TEST_CASE("SOGI design with notch output") {
+    constexpr double omega_0 = 2 * std::numbers::pi * 50.0;
+    constexpr double k = 1.414;
+    constexpr auto   sogi_notch_sys = design::sogi_system_with_notch<double>(omega_0, k);
+
+    CHECK(sogi_notch_sys.A.rows() == 2);
+    CHECK(sogi_notch_sys.A.cols() == 2);
+    CHECK(sogi_notch_sys.B.rows() == 2);
+    CHECK(sogi_notch_sys.B.cols() == 1);
+    CHECK(sogi_notch_sys.C.rows() == 3);
+    CHECK(sogi_notch_sys.C.cols() == 2);
+    CHECK(sogi_notch_sys.D.rows() == 3);
+    CHECK(sogi_notch_sys.D.cols() == 1);
+
+    // notch output y_notch = u - x1
+    CHECK(sogi_notch_sys.C(2, 0) == doctest::Approx(-1.0));
+    CHECK(sogi_notch_sys.C(2, 1) == doctest::Approx(0.0));
+    CHECK(sogi_notch_sys.D(2, 0) == doctest::Approx(1.0));
+}
+
+TEST_CASE("SOGI runtime exposes notch output") {
+    constexpr float f0 = 50.0f;
+    constexpr float Ts = 0.0001f;
+    constexpr float alpha = 1.414f;
+    SOGI<float>     sogi(f0, Ts, alpha);
+
+    for (int i = 0; i < 1000; ++i) {
+        const float t = i * Ts;
+        const float input = std::sin(2 * std::numbers::pi_v<float> * f0 * t);
+
+        const auto out = sogi.process(input);
+
+        CHECK(out.notch == doctest::Approx(input - out.bandpass).epsilon(1e-5));
+        CHECK(sogi.notch() == doctest::Approx(out.notch).epsilon(1e-6));
+        CHECK(sogi.bandpass() == doctest::Approx(out.bandpass).epsilon(1e-6));
+        CHECK(sogi.quadrature() == doctest::Approx(out.quadrature).epsilon(1e-6));
+
+        // Legacy pair-return API remains valid.
+        const auto [bp_legacy, q_legacy] = sogi(input);
+        CHECK(bp_legacy == doctest::Approx(sogi.bandpass()).epsilon(1e-6));
+        CHECK(q_legacy == doctest::Approx(sogi.quadrature()).epsilon(1e-6));
+    }
+}

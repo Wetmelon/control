@@ -95,6 +95,78 @@ TEST_CASE("TransferFunction multiplication") {
     CHECK(result.den[2] == doctest::Approx(2.0));
 }
 
+TEST_CASE("TransferFunction addition (parallel)") {
+    // 1/(s+1) + 1/(s+2) = (2s+3)/(s^2+3s+2)
+    TransferFunction<1, 2, double> tf1{
+        .num = {1.0},
+        .den = {1.0, 1.0}
+    };
+
+    TransferFunction<1, 2, double> tf2{
+        .num = {1.0},
+        .den = {2.0, 1.0}
+    };
+
+    auto result = tf1 + tf2;
+
+    CHECK(result.num.size() == 2);
+    CHECK(result.den.size() == 3);
+    CHECK(result.num[0] == doctest::Approx(3.0));
+    CHECK(result.num[1] == doctest::Approx(2.0));
+    CHECK(result.den[0] == doctest::Approx(2.0));
+    CHECK(result.den[1] == doctest::Approx(3.0));
+    CHECK(result.den[2] == doctest::Approx(1.0));
+}
+
+TEST_CASE("TransferFunction subtraction") {
+    // 1/(s+1) - 1/(s+2) = 1/((s+1)(s+2))
+    TransferFunction<1, 2, double> tf1{
+        .num = {1.0},
+        .den = {1.0, 1.0}
+    };
+
+    TransferFunction<1, 2, double> tf2{
+        .num = {1.0},
+        .den = {2.0, 1.0}
+    };
+
+    auto result = tf1 - tf2;
+
+    CHECK(result.num.size() == 2);
+    CHECK(result.den.size() == 3);
+    CHECK(result.num[0] == doctest::Approx(1.0));
+    CHECK(result.num[1] == doctest::Approx(0.0));
+    CHECK(result.den[0] == doctest::Approx(2.0));
+    CHECK(result.den[1] == doctest::Approx(3.0));
+    CHECK(result.den[2] == doctest::Approx(1.0));
+}
+
+TEST_CASE("TransferFunction feedback and division") {
+    // G = 10/(s+1), H = 1, closed-loop = G/(1+GH) = 10/(s+11)
+    TransferFunction<1, 2, double> g{
+        .num = {10.0},
+        .den = {1.0, 1.0}
+    };
+
+    TransferFunction<1, 1, double> h{
+        .num = {1.0},
+        .den = {1.0}
+    };
+
+    auto result_named = feedback(g, h);
+    auto result_op = g / h;
+
+    CHECK(result_named.num.size() == 1);
+    CHECK(result_named.den.size() == 2);
+    CHECK(result_named.num[0] == doctest::Approx(10.0));
+    CHECK(result_named.den[0] == doctest::Approx(11.0));
+    CHECK(result_named.den[1] == doctest::Approx(1.0));
+
+    CHECK(result_op.num[0] == doctest::Approx(result_named.num[0]));
+    CHECK(result_op.den[0] == doctest::Approx(result_named.den[0]));
+    CHECK(result_op.den[1] == doctest::Approx(result_named.den[1]));
+}
+
 TEST_CASE("ZPK to TransferFunction conversion") {
     // Test 1/(s+1) in ZPK form
     ZPK<0, 1, double> zpk{
@@ -175,4 +247,14 @@ TEST_CASE("TransferFunction constexpr compilation") {
     CHECK(ss.B(0, 0) == doctest::Approx(1.0));
     CHECK(ss.C(0, 0) == doctest::Approx(1.0));
     CHECK(ss.D(0, 0) == doctest::Approx(0.0));
+}
+
+TEST_CASE("TransferFunction CTAD accepts direct braced lists") {
+    const TransferFunction tf = {{1.0}, {1.0, 1.0}};
+
+    CHECK(tf.num.size() == 1);
+    CHECK(tf.den.size() == 2);
+    CHECK(tf.num[0] == doctest::Approx(1.0));
+    CHECK(tf.den[0] == doctest::Approx(1.0));
+    CHECK(tf.den[1] == doctest::Approx(1.0));
 }

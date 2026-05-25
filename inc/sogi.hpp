@@ -20,6 +20,7 @@ namespace design {
  * Transfer functions:
  * H_bp(s) = (k*ω₀*s) / (s² + k*ω₀*s + ω₀²)    [bandpass]
  * H_q(s) = (k*ω₀²) / (s² + k*ω₀*s + ω₀²)     [quadrature]
+ * H_notch(s) = (s² + ω₀²) / (s² + k*ω₀*s + ω₀²) [notch]
  *
  * @param omega_0 Fundamental frequency [rad/s]
  * @param k Damping gain (typically 1.0-2.0)
@@ -50,6 +51,47 @@ template<typename T = double>
 }
 
 /**
+ * @brief SOGI design with explicit notch output channel
+ *
+ * Outputs are:
+ * - y0 = bandpass
+ * - y1 = quadrature
+ * - y2 = notch = u - bandpass
+ *
+ * @param omega_0 Fundamental frequency [rad/s]
+ * @param k Damping gain (typically 1.0-2.0)
+ * @param T Scalar type
+ * @return StateSpace<2, 1, 3, 0, 0, T> SOGI system with notch output
+ */
+template<typename T = double>
+[[nodiscard]] constexpr StateSpace<2, 1, 3, 0, 0, T> sogi_system_with_notch(T omega_0, T k = std::numbers::sqrt2_v<T>) {
+    StateSpace<2, 1, 3, 0, 0, T> sys{
+        .A = Matrix<2, 2, T>{
+            {-k * omega_0, -omega_0},
+            {omega_0, T{0}},
+        },
+
+        .B = Matrix<2, 1, T>{
+            {k * omega_0},
+            {T{0}},
+        },
+
+        .C = Matrix<3, 2, T>{
+            {T{1}, T{0}},  // bandpass
+            {T{0}, T{1}},  // quadrature
+            {T{-1}, T{0}}, // notch = u - x1
+        },
+
+        .D = Matrix<3, 1, T>{
+            {T{0}},
+            {T{0}},
+            {T{1}},
+        },
+    };
+    return sys;
+}
+
+/**
  * @brief Second-Order Generalized Integrator (SOGI) design (discrete-time)
  *
  * Discrete-time SOGI with bandpass and quadrature outputs.
@@ -63,6 +105,21 @@ template<typename T = double>
 template<typename T = float>
 [[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi_system(T omega_0, T k, T Ts) {
     auto sys_c = sogi_system<T>(omega_0, k);
+    return discretize(sys_c, Ts, DiscretizationMethod::Tustin);
+}
+
+/**
+ * @brief SOGI design with explicit notch output channel (discrete-time)
+ *
+ * @param omega_0 Fundamental frequency [rad/s]
+ * @param k Damping gain (typically 1.0-2.0)
+ * @param Ts Sample time [s]
+ * @param T Scalar type
+ * @return StateSpace<2, 1, 3, 0, 0, T> Discrete-time SOGI system with notch output
+ */
+template<typename T = float>
+[[nodiscard]] constexpr StateSpace<2, 1, 3, 0, 0, T> sogi_system_with_notch(T omega_0, T k, T Ts) {
+    auto sys_c = sogi_system_with_notch<T>(omega_0, k);
     return discretize(sys_c, Ts, DiscretizationMethod::Tustin);
 }
 
@@ -151,6 +208,12 @@ template<typename T = float>
 template<typename T = float>
 class SOGI {
 public:
+    struct Output {
+        T bandpass{};
+        T quadrature{};
+        T notch{};
+    };
+
     struct Params {
         T omega_0{}; ///< Discrete resonant frequency [rad/sample] = 2π·f₀/fₛ
         T alpha{};   ///< Error feedback gain (controls bandwidth)
@@ -161,6 +224,7 @@ private:
     T cos_w0_{1};     ///< Cached cos(ω₀)
     T sin_w0_{0};     ///< Cached sin(ω₀)
     T x1_{0}, x2_{0}; ///< Resonator states: x₁ = bandpass, x₂ = quadrature
+    T notch_{0};      ///< Latest notch output (u - bandpass)
 
 public:
     constexpr SOGI() = default;
@@ -204,6 +268,16 @@ public:
      * @return std::pair<T, T> {bandpass, quadrature}
      */
     constexpr std::pair<T, T> operator()(T u) {
+        const auto y = process(u);
+        return {y.bandpass, y.quadrature};
+    }
+
+    /**
+     * @brief Process input sample and return bandpass, quadrature, and notch outputs
+     * @param u Input sample
+     * @return Output {bandpass, quadrature, notch}
+     */
+    [[nodiscard]] constexpr Output process(T u) {
         const T r_cos = params.r * cos_w0_;
         const T r_sin = params.r * sin_w0_;
 
@@ -212,8 +286,30 @@ public:
 
         x1_ = x1_new;
         x2_ = x2_new;
+        notch_ = u - x1_;
 
-        return {x1_, x2_};
+        return Output{x1_, x2_, notch_};
+    }
+
+    /**
+     * @brief Latest bandpass output
+     */
+    [[nodiscard]] constexpr T bandpass() const {
+        return x1_;
+    }
+
+    /**
+     * @brief Latest quadrature output
+     */
+    [[nodiscard]] constexpr T quadrature() const {
+        return x2_;
+    }
+
+    /**
+     * @brief Latest notch output
+     */
+    [[nodiscard]] constexpr T notch() const {
+        return notch_;
     }
 
     /**
@@ -221,6 +317,7 @@ public:
      */
     constexpr void reset() {
         x1_ = x2_ = T{0};
+        notch_ = T{0};
     }
 
 private:

@@ -1,5 +1,6 @@
 #include <cmath>
 
+#include "analysis.hpp"
 #include "matrix.hpp"
 #include "stability.hpp"
 
@@ -8,11 +9,18 @@
 
 using namespace wetmelon::control;
 
-/**
- * @brief Tests for stability analysis functions
- *
- * Verifies stability checking and margin calculations for discrete systems.
- */
+TEST_CASE("linspace and logspace support float") {
+    const auto lin = analysis::linspace(0.0f, 1.0f, 5);
+    const auto log = analysis::logspace(1.0f, 100.0f, 3);
+
+    CHECK(std::is_same_v<typename decltype(lin)::value_type, float>);
+    CHECK(std::is_same_v<typename decltype(log)::value_type, float>);
+
+    CHECK(lin.front() == doctest::Approx(0.0f));
+    CHECK(lin.back() == doctest::Approx(1.0f));
+    CHECK(log.front() == doctest::Approx(1.0f));
+    CHECK(log.back() == doctest::Approx(100.0f));
+}
 
 TEST_SUITE("Stability Analysis") {
     TEST_CASE("Discrete stability check - stable system") {

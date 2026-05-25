@@ -165,3 +165,40 @@ TEST_CASE("PID Tune") {
     CHECK(pid_result.Ts == 0); // Continuous time
     CHECK(pid_result.Kbc > 0); // Back-calculation gain
 }
+
+TEST_CASE("MATLAB structural analysis aliases") {
+    Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
+    Matrix<2, 1> B{{0.0}, {1.0}};
+    Matrix<1, 2> C{{1.0, 0.0}};
+
+    auto Co_short = matlab::ctrb(A, B);
+    auto Ob_short = matlab::obsv(A, C);
+    auto Co_core = analysis::controllability_matrix(A, B);
+    auto Ob_core = analysis::observability_matrix(A, C);
+
+    CHECK(Co_short == Co_core);
+    CHECK(Ob_short == Ob_core);
+}
+
+TEST_CASE("MATLAB tf helper") {
+    auto tf_sys = matlab::tf(
+        std::array<double, 2>{1.0, 1.0},
+        std::array<double, 3>{1.0, 3.0, 2.0}
+    );
+
+    CHECK(tf_sys.num[0] == doctest::Approx(1.0));
+    CHECK(tf_sys.num[1] == doctest::Approx(1.0));
+    CHECK(tf_sys.den[0] == doctest::Approx(1.0));
+    CHECK(tf_sys.den[1] == doctest::Approx(3.0));
+    CHECK(tf_sys.den[2] == doctest::Approx(2.0));
+}
+
+TEST_CASE("MATLAB tf helper accepts braced lists") {
+    auto tf_sys = matlab::tf({1.0, 1.0}, {1.0, 3.0, 2.0});
+
+    CHECK(tf_sys.num[0] == doctest::Approx(1.0));
+    CHECK(tf_sys.num[1] == doctest::Approx(1.0));
+    CHECK(tf_sys.den[0] == doctest::Approx(1.0));
+    CHECK(tf_sys.den[1] == doctest::Approx(3.0));
+    CHECK(tf_sys.den[2] == doctest::Approx(2.0));
+}

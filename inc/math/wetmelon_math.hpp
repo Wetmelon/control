@@ -39,17 +39,20 @@ constexpr T sqrt(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::sqrt(x);
     }
-    if (x == T{0})
+    if (x == T{0}) {
         return T{0};
-    if (x < T{0})
+    }
+    if (x < T{0}) {
         return T{0}; // NaN not available in constexpr, return 0 for negative
+    }
 
     // Newton's method: x_{n+1} = (x_n + S/x_n) / 2
     T guess = x > T{1} ? x / T{2} : T{1};
     for (int i = 0; i < 50; ++i) {
-        T next = (guess + x / guess) / T{2};
-        if (next == guess)
+        T next = (guess + (x / guess)) / T{2};
+        if (next == guess) {
             break;
+        }
         guess = next;
     }
     return guess;
@@ -87,19 +90,22 @@ constexpr T cbrt(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::cbrt(x);
     }
-    if (x == T{0})
+    if (x == T{0}) {
         return T{0};
+    }
 
     bool neg = x < T{0};
-    if (neg)
+    if (neg) {
         x = -x;
+    }
 
     // Newton's method for cube root
     T guess = x > T{1} ? x / T{3} : T{1};
     for (int i = 0; i < 50; ++i) {
-        T next = (T{2} * guess + x / (guess * guess)) / T{3};
-        if (next == guess)
+        T next = ((T{2} * guess) + (x / (guess * guess))) / T{3};
+        if (next == guess) {
             break;
+        }
         guess = next;
     }
 
@@ -131,10 +137,12 @@ constexpr T atan2(T y, T x) {
     constexpr T pi = std::numbers::pi_v<T>;
 
     if (x == T{0}) {
-        if (y > T{0})
+        if (y > T{0}) {
             return pi / T{2};
-        if (y < T{0})
+        }
+        if (y < T{0}) {
             return -pi / T{2};
+        }
         return T{0};
     }
 
@@ -156,7 +164,7 @@ constexpr T atan2(T y, T x) {
         atan_val = term;
         for (int n = 1; n <= 15; ++n) {
             term *= -r2;
-            atan_val += term / T(2 * n + 1);
+            atan_val += term / T((2 * n) + 1);
         }
     } else if (abs_ratio <= T{2.4142135623730951}) {
         // tan(pi/8) < |x| <= tan(3*pi/8) ≈ 2.414
@@ -167,11 +175,12 @@ constexpr T atan2(T y, T x) {
         T atan_reduced = term;
         for (int n = 1; n <= 15; ++n) {
             term *= -r2;
-            atan_reduced += term / T(2 * n + 1);
+            atan_reduced += term / T((2 * n) + 1);
         }
-        atan_val = pi / T{4} + atan_reduced;
-        if (ratio < T{0})
+        atan_val = (pi / T{4}) + atan_reduced;
+        if (ratio < T{0}) {
             atan_val = -atan_val;
+        }
     } else {
         // |x| > tan(3*pi/8), use atan(x) = pi/2 - atan(1/x)
         T inv = T{1} / abs_ratio;
@@ -180,11 +189,12 @@ constexpr T atan2(T y, T x) {
         T atan_inv = term;
         for (int n = 1; n <= 15; ++n) {
             term *= -r2;
-            atan_inv += term / T(2 * n + 1);
+            atan_inv += term / T((2 * n) + 1);
         }
-        atan_val = pi / T{2} - atan_inv;
-        if (ratio < T{0})
+        atan_val = (pi / T{2}) - atan_inv;
+        if (ratio < T{0}) {
             atan_val = -atan_val;
+        }
     }
 
     // Adjust for quadrant
@@ -215,17 +225,19 @@ constexpr T cos(T x) {
     constexpr T two_pi = T{2} * pi;
 
     // Reduce to [-π, π]
-    while (x > pi)
+    while (x > pi) {
         x -= two_pi;
-    while (x < -pi)
+    }
+    while (x < -pi) {
         x += two_pi;
+    }
 
     // Taylor series: cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
     T x2 = x * x;
     T result = T{1};
     T term = T{1};
     for (int n = 1; n <= 12; ++n) {
-        term *= -x2 / T(2 * n * (2 * n - 1));
+        term *= -x2 / T(2 * n * ((2 * n) - 1));
         result += term;
     }
     return result;
@@ -250,16 +262,18 @@ constexpr T sin(T x) {
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T two_pi = T{2} * pi;
 
-    while (x > pi)
+    while (x > pi) {
         x -= two_pi;
-    while (x < -pi)
+    }
+    while (x < -pi) {
         x += two_pi;
+    }
 
     T x2 = x * x;
     T result = x;
     T term = x;
     for (int n = 1; n <= 12; ++n) {
-        term *= -x2 / T((2 * n) * (2 * n + 1));
+        term *= -x2 / T((2 * n) * ((2 * n) + 1));
         result += term;
     }
     return result;
@@ -313,7 +327,7 @@ constexpr T tan(T x) {
     // Reduce to r ∈ [-π/2, π/2] via k = round(x / π)
     T   k_real = x / pi;
     int k = static_cast<int>(k_real >= T{0} ? k_real + T{0.5} : k_real - T{0.5});
-    T   r = x - static_cast<T>(k) * pi;
+    T   r = x - (static_cast<T>(k) * pi);
 
     // Near ±π/2 the continued fraction converges slowly.
     // Use tan(r) = −1/tan(π/2 − r) to work with the complementary angle.
@@ -324,9 +338,9 @@ constexpr T tan(T x) {
         constexpr int N = 20;
 
         T x2 = comp * comp;
-        T cf = T(2 * N + 1);
+        T cf = T((2 * N) + 1);
         for (int i = N - 1; i >= 0; --i) {
-            cf = T(2 * i + 1) - x2 / cf;
+            cf = T((2 * i) + 1) - (x2 / cf);
         }
         T tan_comp = comp / cf;
         T result = -T{1} / tan_comp;
@@ -338,9 +352,9 @@ constexpr T tan(T x) {
     constexpr int N = 20;
 
     T x2 = r * r;
-    T cf = T(2 * N + 1);
+    T cf = T((2 * N) + 1);
     for (int i = N - 1; i >= 0; --i) {
-        cf = T(2 * i + 1) - x2 / cf;
+        cf = T((2 * i) + 1) - (x2 / cf);
     }
 
     return r / cf;
@@ -410,7 +424,7 @@ constexpr T log(T x) {
     T guess = y - T{1};
     for (int i = 0; i < 50; ++i) {
         T e_guess = exp(guess);
-        T next = guess - (e_guess - y) / e_guess;
+        T next = guess - ((e_guess - y) / e_guess);
         if (abs(next - guess) < T{1e-15}) {
             break;
         }
@@ -436,10 +450,12 @@ constexpr T pow(T base, T exponent) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::pow(base, exponent);
     }
-    if (exponent == T{0})
+    if (exponent == T{0}) {
         return T{1};
-    if (base <= T{0})
+    }
+    if (base <= T{0}) {
         return T{0};
+    }
     return wet::exp(wet::log(base) * exponent);
 }
 
@@ -453,10 +469,12 @@ constexpr T pow(T base, T exponent) {
  */
 template<typename T>
 constexpr T pow(T base, int up) {
-    if (up == 0)
+    if (up == 0) {
         return T{1};
-    if (base == T{0})
+    }
+    if (base == T{0}) {
         return T{0};
+    }
     T   result = T{1};
     T   b = base;
     int exponent = up >= 0 ? up : -up;
@@ -530,8 +548,9 @@ constexpr T log10(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::log10(x);
     }
-    if (x <= T{0})
+    if (x <= T{0}) {
         return T{0};
+    }
     return wet::log(x) / wet::log(T{10});
 }
 

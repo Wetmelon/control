@@ -263,3 +263,50 @@ TEST_SUITE("PID Design - Type Conversion") {
         CHECK(u != 0.0f); // Non-zero output for non-zero error
     }
 }
+
+TEST_SUITE("PID Design - Performance Spec Glue") {
+    TEST_CASE("Damping ratio from overshoot percent") {
+        constexpr double zeta_10 = design::damping_ratio_from_overshoot_percent(10.0);
+        CHECK(zeta_10 == doctest::Approx(0.591).epsilon(1e-3));
+
+        constexpr double zeta_0 = design::damping_ratio_from_overshoot_percent(0.0);
+        CHECK(zeta_0 == doctest::Approx(1.0).epsilon(1e-12));
+    }
+
+    TEST_CASE("Phase margin estimate from damping ratio") {
+        constexpr double pm = design::phase_margin_from_damping_ratio(0.7);
+        CHECK(pm > 60.0);
+        CHECK(pm < 70.0);
+    }
+
+    TEST_CASE("PID from performance spec produces usable gains") {
+        constexpr design::PIDPerformanceSpec<double> spec{
+            .settling_time = 0.2,
+            .overshoot_percent = 10.0,
+            .Ts = 0.001,
+            .type = design::PIDType::PID,
+            .bandwidth_scale = 1.0
+        };
+
+        constexpr auto result = design::pid_from_performance_spec(spec);
+        CHECK(result.Kp > 0.0);
+        CHECK(result.Ki > 0.0);
+        CHECK(result.Kd > 0.0);
+        CHECK(result.Ts == doctest::Approx(0.001));
+    }
+
+    TEST_CASE("PI from performance spec") {
+        constexpr design::PIDPerformanceSpec<double> spec{
+            .settling_time = 0.1,
+            .overshoot_percent = 5.0,
+            .Ts = 0.0005,
+            .type = design::PIDType::PI,
+            .bandwidth_scale = 1.2
+        };
+
+        constexpr auto result = design::pid_from_performance_spec(spec);
+        CHECK(result.Kp > 0.0);
+        CHECK(result.Ki > 0.0);
+        CHECK(result.Kd == doctest::Approx(0.0));
+    }
+}

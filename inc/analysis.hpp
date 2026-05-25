@@ -10,6 +10,7 @@
  */
 
 #include <cstddef>
+#include <limits>
 #include <numbers>
 #include <optional>
 #include <vector>
@@ -18,10 +19,60 @@
 #include "eigen.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
+#include "transfer_function.hpp"
+#include "utility.hpp"
 #include "wetmelon_math.hpp"
 
 namespace wetmelon::control {
 namespace analysis {
+
+template<typename T = double>
+    requires std::is_floating_point_v<T>
+constexpr std::vector<T> linspace(T start, T end, size_t num) {
+    std::vector<T> result;
+    result.reserve(num);
+    if (num == 1) {
+        result.push_back(start);
+    } else {
+        T step = (end - start) / static_cast<T>(num - 1);
+        for (size_t i = 0; i < num; ++i) {
+            result.push_back(start + (static_cast<T>(i) * step));
+        }
+    }
+    return result;
+}
+
+template<typename T = double>
+    requires std::is_floating_point_v<T>
+constexpr std::vector<T> linspace(const std::pair<T, T>& span, size_t num) {
+    return linspace(span.first, span.second, num);
+}
+
+template<typename T = double>
+    requires std::is_floating_point_v<T>
+constexpr std::vector<T> logspace(T start, T end, size_t num, T base = T{10}) {
+    std::vector<T> result;
+    result.reserve(num);
+    if (num == 1) {
+        result.push_back(start);
+    } else {
+        // Compute logarithms in the requested base
+        const T log_base = wet::log(base);
+        T       log_start = wet::log(start) / log_base;
+        T       log_end = wet::log(end) / log_base;
+        T       step = (log_end - log_start) / static_cast<T>(num - 1);
+        for (size_t i = 0; i < num; ++i) {
+            result.push_back(wet::pow(base, log_start + (static_cast<T>(i) * step)));
+        }
+    }
+    return result;
+}
+
+template<typename T = double>
+    requires std::is_floating_point_v<T>
+constexpr std::vector<T> logspace(const std::pair<T, T>& span, size_t num, T base = T{10}) {
+    return logspace(span.first, span.second, num, base);
+}
 
 // ============================================================================
 // Structural Analysis (Controllability / Observability)
@@ -30,7 +81,7 @@ namespace analysis {
 /**
  * @brief Compute the controllability matrix [B, AB, A²B, ..., A^(N-1)B]
  *
- * The system (A, B) is controllable iff ctrb(A, B) has full row rank.
+ * The system (A, B) is controllable iff controllability_matrix(A, B) has full row rank.
  *
  * @tparam NX Number of states
  * @tparam NU Number of inputs
@@ -41,13 +92,13 @@ namespace analysis {
  */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr Matrix<NX, NX * NU, T>
-ctrb(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
+controllability_matrix(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
     Matrix<NX, NX * NU, T> Co{};
     Matrix<NX, NU, T>      AB = B;
     for (size_t k = 0; k < NX; ++k) {
         for (size_t r = 0; r < NX; ++r) {
             for (size_t c = 0; c < NU; ++c) {
-                Co(r, k * NU + c) = AB(r, c);
+                Co(r, (k * NU) + c) = AB(r, c);
             }
         }
         if (k + 1 < NX) {
@@ -60,7 +111,7 @@ ctrb(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
 /**
  * @brief Compute the observability matrix [C; CA; CA²; ...; CA^(N-1)]
  *
- * The system (A, C) is observable iff obsv(A, C) has full column rank.
+ * The system (A, C) is observable iff observability_matrix(A, C) has full column rank.
  *
  * @tparam NX Number of states
  * @tparam NY Number of outputs
@@ -71,13 +122,13 @@ ctrb(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
  */
 template<size_t NX, size_t NY, typename T = double>
 [[nodiscard]] constexpr Matrix<NX * NY, NX, T>
-obsv(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noexcept {
+observability_matrix(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noexcept {
     Matrix<NX * NY, NX, T> Ob{};
     Matrix<NY, NX, T>      CA = C;
     for (size_t k = 0; k < NX; ++k) {
         for (size_t r = 0; r < NY; ++r) {
             for (size_t c = 0; c < NX; ++c) {
-                Ob(k * NY + r, c) = CA(r, c);
+                Ob((k * NY) + r, c) = CA(r, c);
             }
         }
         if (k + 1 < NX) {
@@ -146,7 +197,7 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NU, T>& B,
     T                        tol = T{1e-10}
 ) noexcept {
-    auto Co = ctrb(A, B);
+    auto Co = controllability_matrix(A, B);
     return rank(Co, tol) == NX;
 }
 
@@ -163,7 +214,7 @@ template<size_t NX, size_t NY, typename T = double>
     const Matrix<NY, NX, T>& C,
     T                        tol = T{1e-10}
 ) noexcept {
-    auto Ob = obsv(A, C);
+    auto Ob = observability_matrix(A, C);
     return rank(Ob, tol) == NX;
 }
 
@@ -263,11 +314,127 @@ struct BodeResult {
 };
 
 /**
+ * @brief Unwrap phase data in degrees to avoid +/-180 discontinuities
+ *
+ * Given wrapped phase samples (typically in [-180, 180]), produces a
+ * continuous phase trajectory by adding/subtracting 360 deg at jumps.
+ *
+ * @param phase_deg Wrapped phase samples in degrees
+ * @return Unwrapped phase samples in degrees
+ */
+template<typename T>
+[[nodiscard]] constexpr std::vector<T> unwrap_phase_deg(const std::vector<T>& phase_deg) {
+    if (phase_deg.empty()) {
+        return {};
+    }
+
+    std::vector<T> unwrapped = phase_deg;
+    for (size_t i = 1; i < unwrapped.size(); ++i) {
+        const T delta = unwrapped[i] - unwrapped[i - 1];
+        // Range-reduce to nearest equivalent increment in [-180, 180).
+        const T n = wet::floor(delta / T{360} + T{0.5});
+        const T delta_reduced = delta - T{360} * n;
+        unwrapped[i] = unwrapped[i - 1] + delta_reduced;
+    }
+    return unwrapped;
+}
+
+/**
+ * @brief Normalize phase margin to (-180, 180]
+ *
+ * @param pm_deg Raw phase margin in degrees
+ * @return Canonical phase margin in (-180, 180]
+ */
+template<typename T>
+[[nodiscard]] constexpr T canonical_phase_margin(T pm_deg) {
+    // Reuse shared wrapping helper, then remap to (-180, 180].
+    const T wrapped = wrap(pm_deg, T{-180}, T{180});
+    if (wrapped <= T{-180}) {
+        return wrapped + T{360};
+    }
+    return wrapped;
+}
+
+/**
+ * @brief Find phase margin using unwrapped phase trajectory
+ *
+ * Uses 0 dB crossing from Bode magnitude and computes PM as 180 + phase(wc),
+ * then maps to canonical range (-180, 180].
+ *
+ * @return {phase_margin_deg, crossover_frequency} or nullopt if no 0dB crossing
+ */
+template<typename T>
+[[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin_unwrapped(const BodeResult<T>& result) {
+    if (result.points.size() < 2) {
+        return std::nullopt;
+    }
+
+    std::vector<T> wrapped_phase;
+    wrapped_phase.reserve(result.points.size());
+    for (const auto& pt : result.points) {
+        wrapped_phase.push_back(pt.phase_deg);
+    }
+    const auto unwrapped = unwrap_phase_deg(wrapped_phase);
+
+    for (size_t i = 1; i < result.points.size(); ++i) {
+        const T mag_prev = result.points[i - 1].magnitude_db;
+        const T mag_curr = result.points[i].magnitude_db;
+        if (mag_prev >= T{0} && mag_curr < T{0}) {
+            const T frac = (T{0} - mag_prev) / (mag_curr - mag_prev);
+            const T omega_cross = result.points[i - 1].omega + frac * (result.points[i].omega - result.points[i - 1].omega);
+            const T phase_cross = unwrapped[i - 1] + frac * (unwrapped[i] - unwrapped[i - 1]);
+            const T pm = canonical_phase_margin(T{180} + phase_cross);
+            return std::pair{pm, omega_cross};
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
+ * @brief Find gain margin using unwrapped phase trajectory
+ *
+ * Finds the first -180 deg crossing on the unwrapped phase trajectory and
+ * computes gain margin as -|L|_dB at that crossing.
+ *
+ * @return {gain_margin_dB, crossover_frequency} or nullopt if no -180 crossing
+ */
+template<typename T>
+[[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin_unwrapped(const BodeResult<T>& result) {
+    if (result.points.size() < 2) {
+        return std::nullopt;
+    }
+
+    std::vector<T> wrapped_phase;
+    wrapped_phase.reserve(result.points.size());
+    for (const auto& pt : result.points) {
+        wrapped_phase.push_back(pt.phase_deg);
+    }
+    const auto unwrapped = unwrap_phase_deg(wrapped_phase);
+
+    for (size_t i = 1; i < result.points.size(); ++i) {
+        const T p0 = unwrapped[i - 1] + T{180};
+        const T p1 = unwrapped[i] + T{180};
+
+        if ((p0 >= T{0} && p1 < T{0}) || (p0 <= T{0} && p1 > T{0})) {
+            const T frac = (T{0} - p0) / (p1 - p0);
+            const T omega_cross = result.points[i - 1].omega + frac * (result.points[i].omega - result.points[i - 1].omega);
+            const T mag_cross = result.points[i - 1].magnitude_db + frac * (result.points[i].magnitude_db - result.points[i - 1].magnitude_db);
+            return std::pair{-mag_cross, omega_cross};
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
  * @brief Compute Bode plot data for a SISO state-space system
  *
- * Evaluates G(jω) = C(jωI - A)^{-1}B + D over a vector of frequencies.
+ * Continuous-time systems evaluate G(jω) = C(jωI - A)^{-1}B + D.
+ * Discrete-time systems (Ts > 0) evaluate G(z) on the unit circle
+ * z = e^{jωTs}. Dispatch is automatic based on sys.is_discrete().
  *
- * @param sys   Continuous-time SISO state-space system
+ * @param sys   SISO state-space system (continuous or discrete)
  * @param omega Vector of frequencies (rad/s)
  * @return BodeResult with magnitude and phase at each frequency
  */
@@ -281,13 +448,15 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        C    jw{T{0}, w};
-        auto G_frf = eval_frf(sys, jw);
-        C    G = G_frf(0, 0);
-        T    mag = wet::abs(G);
-        T    phase_rad = wet::arg(G);
-        T    mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T    phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
+        const C s_or_z = sys.is_discrete()
+                           ? C{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
+                           : C{T{0}, w};
+        auto    G_frf = eval_frf(sys, s_or_z);
+        C       G = G_frf(0, 0);
+        T       mag = wet::abs(G);
+        T       phase_rad = wet::arg(G);
+        T       mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
+        T       phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
@@ -340,6 +509,287 @@ template<size_t Nnum, size_t Nden, typename T>
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
+}
+
+/**
+ * @brief Compute Bode plot data for a SISO transfer function object
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] constexpr BodeResult<T> bode(
+    const TransferFunction<Nnum, Nden, T>& tf,
+    const std::vector<T>&                  omega
+) {
+    return bode(tf.num, tf.den, omega);
+}
+
+/**
+ * @brief Compute Bode plot data for a discrete-time SISO state-space system
+ *
+ * Evaluates G(z) on the unit circle z = e^(j*omega*Ts), where omega is in rad/s.
+ *
+ * @note bode() now auto-dispatches on sys.is_discrete(); this alias is retained
+ *       for discoverability and call sites that want to be explicit.
+ *
+ * @param sys   Discrete-time SISO state-space system
+ * @param omega Vector of frequencies (rad/s)
+ * @return BodeResult with magnitude and phase at each frequency
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] constexpr BodeResult<T> bode_discrete(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  omega
+) {
+    return bode(sys, omega);
+}
+
+/**
+ * @brief Single-point Nyquist response data
+ */
+template<typename T = double>
+struct NyquistPoint {
+    T               omega{};                 //!< Frequency (rad/s)
+    wet::complex<T> value{};                 //!< Complex loop value (L(jω) or L(e^{jω Ts}))
+    T               real{};                  //!< Real part
+    T               imag{};                  //!< Imaginary part
+    T               distance_to_minus_one{}; //!< |1 + L|
+};
+
+/**
+ * @brief Nyquist response data across a frequency sweep
+ */
+template<typename T = double>
+struct NyquistResult {
+    std::vector<NyquistPoint<T>> points;
+
+    /**
+     * @brief Minimum Nyquist distance to the critical point -1 + j0
+     * @return {minimum_distance, frequency} or nullopt when empty
+     */
+    [[nodiscard]] constexpr std::optional<std::pair<T, T>> min_distance_to_minus_one() const {
+        if (points.empty()) {
+            return std::nullopt;
+        }
+
+        T min_dist = points[0].distance_to_minus_one;
+        T at_omega = points[0].omega;
+        for (size_t i = 1; i < points.size(); ++i) {
+            if (points[i].distance_to_minus_one < min_dist) {
+                min_dist = points[i].distance_to_minus_one;
+                at_omega = points[i].omega;
+            }
+        }
+        return std::pair{min_dist, at_omega};
+    }
+};
+
+/**
+ * @brief Open-loop and closed-loop frequency response package
+ *
+ * For a loop transfer L, includes:
+ * - open_loop: L
+ * - sensitivity: S = 1 / (1 + L)
+ * - complementary_sensitivity: T = L / (1 + L)
+ * - nyquist: complex Nyquist response of L
+ */
+template<typename T = double>
+struct LoopResponseResult {
+    BodeResult<T>    open_loop;
+    BodeResult<T>    sensitivity;
+    BodeResult<T>    complementary_sensitivity;
+    NyquistResult<T> nyquist;
+
+    [[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin_unwrapped() const {
+        return analysis::phase_margin_unwrapped(open_loop);
+    }
+
+    [[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin_unwrapped() const {
+        return analysis::gain_margin_unwrapped(open_loop);
+    }
+
+    [[nodiscard]] constexpr std::optional<T> closed_loop_bandwidth() const {
+        return complementary_sensitivity.bandwidth();
+    }
+};
+
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] constexpr LoopResponseResult<T> loop_response(
+    const StateSpace<NX, 1, 1, NW, NV, T>& loop,
+    const std::vector<T>&                  omega
+);
+
+/**
+ * @brief Compact loop summary metrics for quick stability/robustness checks
+ *
+ * Designed as a single result payload similar to what users expect from
+ * MATLAB/control-toolbox workflows: margins, bandwidth, Nyquist distance,
+ * and peak sensitivity in one object.
+ */
+template<typename T = double>
+struct LoopSummary {
+    std::optional<std::pair<T, T>> phase_margin;                                             //!< {PM [deg], gain crossover omega [rad/s]}
+    std::optional<std::pair<T, T>> gain_margin;                                              //!< {GM [dB], phase crossover omega [rad/s]}
+    std::optional<T>               bandwidth;                                                //!< Closed-loop bandwidth from T=L/(1+L), rad/s
+    std::optional<std::pair<T, T>> min_nyquist_distance;                                     //!< {min|1+L|, omega [rad/s]}
+    T                              peak_sensitivity_db{-std::numeric_limits<T>::infinity()}; //!< max 20*log10|S|
+};
+
+/**
+ * @brief Summarize loop_response() results into one compact metrics struct
+ */
+template<typename T>
+[[nodiscard]] constexpr LoopSummary<T> summarize_loop_response(const LoopResponseResult<T>& response) {
+    LoopSummary<T> summary{};
+    summary.phase_margin = response.phase_margin_unwrapped();
+    summary.gain_margin = response.gain_margin_unwrapped();
+    summary.bandwidth = response.closed_loop_bandwidth();
+    summary.min_nyquist_distance = response.nyquist.min_distance_to_minus_one();
+
+    for (const auto& pt : response.sensitivity.points) {
+        if (pt.magnitude_db > summary.peak_sensitivity_db) {
+            summary.peak_sensitivity_db = pt.magnitude_db;
+        }
+    }
+
+    return summary;
+}
+
+/**
+ * @brief One-call loop analysis: compute L/S/T response and return compact metrics
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] constexpr LoopSummary<T> loop_metrics(
+    const StateSpace<NX, 1, 1, NW, NV, T>& loop,
+    const std::vector<T>&                  omega
+) {
+    return summarize_loop_response(loop_response(loop, omega));
+}
+
+/**
+ * @brief Compute Nyquist data for a SISO state-space system
+ *
+ * Continuous-time systems use s = jω.
+ * Discrete-time systems use z = e^{jωTs}.
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] constexpr NyquistResult<T> nyquist(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  omega
+) {
+    using C = wet::complex<T>;
+    NyquistResult<T> result;
+    result.points.reserve(omega.size());
+
+    for (const auto& w : omega) {
+        const C         s_or_z = sys.is_discrete()
+                                   ? C{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
+                                   : C{T{0}, w};
+        const auto      G_frf = eval_frf(sys, s_or_z);
+        const C         G = G_frf(0, 0);
+        const T         dist = wet::abs(C{T{1}, T{0}} + G);
+        NyquistPoint<T> point{};
+        point.omega = w;
+        point.value = G;
+        point.real = G.real();
+        point.imag = G.imag();
+        point.distance_to_minus_one = dist;
+        result.points.push_back(point);
+    }
+
+    return result;
+}
+
+/**
+ * @brief Compute Nyquist data for a SISO transfer function
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] constexpr NyquistResult<T> nyquist(
+    const TransferFunction<Nnum, Nden, T>& tf,
+    const std::vector<T>&                  omega
+) {
+    return nyquist(tf.to_state_space(), omega);
+}
+
+/**
+ * @brief Compute open-loop L, sensitivity S, complementary sensitivity T, and Nyquist data
+ *
+ * For each frequency point:
+ *   S = 1/(1+L),  T = L/(1+L)
+ *
+ * Continuous-time systems use s = jω.
+ * Discrete-time systems use z = e^{jωTs}.
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] constexpr LoopResponseResult<T> loop_response(
+    const StateSpace<NX, 1, 1, NW, NV, T>& loop,
+    const std::vector<T>&                  omega
+) {
+    using C = wet::complex<T>;
+
+    LoopResponseResult<T> result;
+    result.open_loop.points.reserve(omega.size());
+    result.sensitivity.points.reserve(omega.size());
+    result.complementary_sensitivity.points.reserve(omega.size());
+    result.nyquist.points.reserve(omega.size());
+
+    for (const auto& w : omega) {
+        const C s_or_z = loop.is_discrete()
+                           ? C{wet::cos(w * loop.Ts), wet::sin(w * loop.Ts)}
+                           : C{T{0}, w};
+
+        const auto L_frf = eval_frf(loop, s_or_z);
+        const C    L = L_frf(0, 0);
+        const C    one{T{1}, T{0}};
+        const C    S = one / (one + L);
+        const C    Tresp = L / (one + L);
+
+        const T L_mag = wet::abs(L);
+        const T L_mag_db = L_mag > T{0} ? T{20} * wet::log10(L_mag) : T{-300};
+        const T L_phase = wet::arg(L) * T{180} / std::numbers::pi_v<T>;
+        result.open_loop.points.push_back({w, L_mag, L_mag_db, L_phase});
+
+        const T S_mag = wet::abs(S);
+        const T S_mag_db = S_mag > T{0} ? T{20} * wet::log10(S_mag) : T{-300};
+        const T S_phase = wet::arg(S) * T{180} / std::numbers::pi_v<T>;
+        result.sensitivity.points.push_back({w, S_mag, S_mag_db, S_phase});
+
+        const T T_mag = wet::abs(Tresp);
+        const T T_mag_db = T_mag > T{0} ? T{20} * wet::log10(T_mag) : T{-300};
+        const T T_phase = wet::arg(Tresp) * T{180} / std::numbers::pi_v<T>;
+        result.complementary_sensitivity.points.push_back({w, T_mag, T_mag_db, T_phase});
+
+        const T         dist = wet::abs(one + L);
+        NyquistPoint<T> point{};
+        point.omega = w;
+        point.value = L;
+        point.real = L.real();
+        point.imag = L.imag();
+        point.distance_to_minus_one = dist;
+        result.nyquist.points.push_back(point);
+    }
+
+    return result;
+}
+
+/**
+ * @brief Compute open-loop L, sensitivity S, complementary sensitivity T, and Nyquist data for a transfer function
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] constexpr LoopResponseResult<T> loop_response(
+    const TransferFunction<Nnum, Nden, T>& loop,
+    const std::vector<T>&                  omega
+) {
+    return loop_response(loop.to_state_space(), omega);
+}
+
+/**
+ * @brief One-call loop analysis for transfer-function loops
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] constexpr LoopSummary<T> loop_metrics(
+    const TransferFunction<Nnum, Nden, T>& loop,
+    const std::vector<T>&                  omega
+) {
+    return summarize_loop_response(loop_response(loop, omega));
 }
 
 /**

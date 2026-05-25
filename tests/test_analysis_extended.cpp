@@ -1,10 +1,10 @@
 
+#include <algorithm>
 #include <cmath>
 
 #include "analysis.hpp"
 #include "matrix.hpp"
 #include "state_space.hpp"
-#include "utility.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -25,7 +25,7 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<2, 1> B{{0.0}, {1.0}};
 
-        auto Co = analysis::ctrb(A, B);
+        auto Co = analysis::controllability_matrix(A, B);
         CHECK(analysis::rank(Co) == 2);
         CHECK(analysis::is_controllable(A, B));
 
@@ -48,7 +48,7 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<1, 2> C{{1.0, 0.0}};
 
-        auto Ob = analysis::obsv(A, C);
+        auto Ob = analysis::observability_matrix(A, C);
         CHECK(analysis::rank(Ob) == 2);
         CHECK(analysis::is_observable(A, C));
     }
@@ -58,7 +58,7 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{1.0, 0.0}, {0.0, 2.0}};
         Matrix<1, 2> C{{1.0, 0.0}};
 
-        auto Ob = analysis::obsv(A, C);
+        auto Ob = analysis::observability_matrix(A, C);
         // Ob = [1 0; 1 0] — rank 1, not rank 2
         CHECK(analysis::rank(Ob) == 1);
         CHECK_FALSE(analysis::is_observable(A, C));
@@ -76,7 +76,7 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<2, 2> B{{1.0, 0.0}, {0.0, 1.0}};
 
-        auto Co = analysis::ctrb(A, B);
+        auto Co = analysis::controllability_matrix(A, B);
         // Controllability matrix is 2x4, should have rank 2
         CHECK(analysis::rank(Co) == 2);
         CHECK(analysis::is_controllable(A, B));
@@ -107,7 +107,7 @@ TEST_SUITE("Analysis - Bode Response") {
             .D = Matrix<1, 1>{{0.0}}
         };
 
-        auto omega = logspace(0.01, 100.0, 200);
+        auto omega = analysis::logspace(0.01, 100.0, 200);
         auto result = analysis::bode(sys, omega);
 
         // DC gain should be 0 dB
@@ -135,7 +135,7 @@ TEST_SUITE("Analysis - Bode Response") {
             .D = Matrix<1, 1>{{0.0}}
         };
 
-        auto omega = logspace(0.1, 1000.0, 500);
+        auto omega = analysis::logspace(0.1, 1000.0, 500);
         auto result = analysis::bode(sys, omega);
 
         // DC gain should be 0 dB (unity)
@@ -144,9 +144,7 @@ TEST_SUITE("Analysis - Bode Response") {
         // There should be a resonant peak around wn (zeta < 0.707)
         double peak_db = -300;
         for (const auto& pt : result.points) {
-            if (pt.magnitude_db > peak_db) {
-                peak_db = pt.magnitude_db;
-            }
+            peak_db = std::max(pt.magnitude_db, peak_db);
         }
         CHECK(peak_db > 0.0); // Should have resonant peak above 0 dB
     }
@@ -156,7 +154,7 @@ TEST_SUITE("Analysis - Bode Response") {
         std::array<double, 1> num = {10.0};
         std::array<double, 2> den = {10.0, 1.0};
 
-        auto omega = logspace(0.1, 1000.0, 200);
+        auto omega = analysis::logspace(0.1, 1000.0, 200);
         auto result = analysis::bode(num, den, omega);
 
         // DC gain = 10/10 = 1 = 0 dB
@@ -175,7 +173,7 @@ TEST_SUITE("Analysis - Stability Margins") {
             .D = Matrix<1, 1>{{0.0}}
         };
 
-        auto omega = logspace(0.01, 1000.0, 1000);
+        auto omega = analysis::logspace(0.01, 1000.0, 1000);
         auto result = analysis::bode(sys, omega);
 
         // Phase margin should exist (there is a 0 dB crossing)
@@ -200,13 +198,28 @@ TEST_SUITE("Analysis - Stability Margins") {
             .D = Matrix<1, 1>{{0.0}}
         };
 
-        auto omega = logspace(0.01, 1000.0, 2000);
+        auto omega = analysis::logspace(0.01, 1000.0, 2000);
         auto result = analysis::bode(sys, omega);
 
         auto pm = result.phase_margin();
         REQUIRE(pm.has_value());
         // Pure integrator has -90° phase everywhere, so PM = 180 - 90 = 90°
         CHECK(pm->first == doctest::Approx(90.0).epsilon(2.0));
+    }
+}
+
+TEST_SUITE("Analysis - Phase Wrapping") {
+    TEST_CASE("canonical phase margin maps to (-180, 180]") {
+        CHECK(analysis::canonical_phase_margin(540.0) == doctest::Approx(180.0));
+        CHECK(analysis::canonical_phase_margin(181.0) == doctest::Approx(-179.0));
+        CHECK(analysis::canonical_phase_margin(-180.0) == doctest::Approx(180.0));
+        CHECK(analysis::canonical_phase_margin(-179.0) == doctest::Approx(-179.0));
+    }
+
+    TEST_CASE("canonical phase margin supports float") {
+        constexpr float wrapped = analysis::canonical_phase_margin(181.0f);
+        static_assert(wrapped < 0.0f);
+        CHECK(wrapped == doctest::Approx(-179.0f));
     }
 }
 
@@ -281,5 +294,196 @@ TEST_SUITE("Analysis - Pole Analysis") {
         }
         CHECK(r0 == doctest::Approx(-3.0).epsilon(1e-10));
         CHECK(r1 == doctest::Approx(-2.0).epsilon(1e-10));
+    }
+}
+
+TEST_SUITE("Analysis - Unwrapped Margins and Discrete Bode") {
+    TEST_CASE("Phase unwrap removes 180-degree discontinuity") {
+        std::vector<double> wrapped{170.0, 179.0, -179.0, -170.0};
+        auto                unwrapped = analysis::unwrap_phase_deg(wrapped);
+
+        REQUIRE(unwrapped.size() == wrapped.size());
+        CHECK(unwrapped[0] == doctest::Approx(170.0));
+        CHECK(unwrapped[1] == doctest::Approx(179.0));
+        CHECK(unwrapped[2] == doctest::Approx(181.0));
+        CHECK(unwrapped[3] == doctest::Approx(190.0));
+    }
+
+    TEST_CASE("Unwrapped phase and gain margins handle wrapped trajectories") {
+        analysis::BodeResult<double> result_pm{};
+        result_pm.points.push_back({1.0, 1.122018454, 1.0, 170.0});
+        result_pm.points.push_back({2.0, 0.891250938, -1.0, 170.0});
+
+        auto pm = analysis::phase_margin_unwrapped(result_pm);
+        REQUIRE(pm.has_value());
+        CHECK(pm->first == doctest::Approx(-10.0).epsilon(1e-9));
+        CHECK(pm->second == doctest::Approx(1.5).epsilon(1e-9));
+
+        analysis::BodeResult<double> result_gm{};
+        result_gm.points.push_back({10.0, 0.501187234, -6.0, -179.0});
+        result_gm.points.push_back({20.0, 0.630957344, -4.0, 179.0});
+
+        auto gm = analysis::gain_margin_unwrapped(result_gm);
+        REQUIRE(gm.has_value());
+        CHECK(gm->first == doctest::Approx(5.0).epsilon(1e-9));
+        CHECK(gm->second == doctest::Approx(15.0).epsilon(1e-9));
+    }
+
+    TEST_CASE("Discrete bode evaluates frequency response on unit circle") {
+        StateSpace<1, 1, 1, 0, 0> sys{
+            .A = Matrix<1, 1>{{0.9}},
+            .B = Matrix<1, 1>{{0.1}},
+            .C = Matrix<1, 1>{{1.0}},
+            .D = Matrix<1, 1>{{0.0}},
+            .Ts = 0.01,
+        };
+
+        std::vector<double> omega{0.1, 10.0};
+        auto                result = analysis::bode_discrete(sys, omega);
+
+        REQUIRE(result.points.size() == omega.size());
+        CHECK(result.points[0].magnitude_db == doctest::Approx(0.0).epsilon(0.1));
+
+        // Cross-check one point against direct FRF evaluation at z = exp(j*w*Ts)
+        const double               w = omega[1];
+        const wet::complex<double> z{std::cos(w * sys.Ts), std::sin(w * sys.Ts)};
+        const auto                 frf = eval_frf(sys, z);
+        const double               mag_db_ref = 20.0 * std::log10(wet::abs(frf(0, 0)));
+        CHECK(result.points[1].magnitude_db == doctest::Approx(mag_db_ref).epsilon(1e-10));
+    }
+}
+
+TEST_SUITE("Analysis - Loop and Nyquist Utilities") {
+    TEST_CASE("Continuous-time loop response returns L, S, T and Nyquist data") {
+        // L(s) = 10/(s+1)
+        StateSpace<1, 1, 1, 0, 0> loop{
+            .A = Matrix<1, 1>{{-1.0}},
+            .B = Matrix<1, 1>{{10.0}},
+            .C = Matrix<1, 1>{{1.0}},
+            .D = Matrix<1, 1>{{0.0}},
+        };
+
+        auto omega = analysis::logspace(0.01, 1000.0, 200);
+        auto resp = analysis::loop_response(loop, omega);
+
+        REQUIRE(resp.open_loop.points.size() == omega.size());
+        REQUIRE(resp.sensitivity.points.size() == omega.size());
+        REQUIRE(resp.complementary_sensitivity.points.size() == omega.size());
+        REQUIRE(resp.nyquist.points.size() == omega.size());
+
+        // At low frequency, L ~ 10 -> 20 dB
+        CHECK(resp.open_loop.points.front().magnitude_db == doctest::Approx(20.0).epsilon(0.05));
+
+        // For L(0)=10: S(0)=1/11, T(0)=10/11
+        CHECK(resp.sensitivity.points.front().magnitude == doctest::Approx(1.0 / 11.0).epsilon(0.02));
+        CHECK(resp.complementary_sensitivity.points.front().magnitude == doctest::Approx(10.0 / 11.0).epsilon(0.02));
+
+        auto min_dist = resp.nyquist.min_distance_to_minus_one();
+        REQUIRE(min_dist.has_value());
+        CHECK(min_dist->first > 0.0);
+
+        auto pm = resp.phase_margin_unwrapped();
+        REQUIRE(pm.has_value());
+        CHECK(pm->first > 0.0);
+    }
+
+    TEST_CASE("Discrete-time nyquist utility matches direct FRF") {
+        StateSpace<1, 1, 1, 0, 0> sys{
+            .A = Matrix<1, 1>{{0.9}},
+            .B = Matrix<1, 1>{{0.1}},
+            .C = Matrix<1, 1>{{1.0}},
+            .D = Matrix<1, 1>{{0.0}},
+            .Ts = 0.01,
+        };
+
+        std::vector<double> omega{10.0};
+        auto                nyq = analysis::nyquist(sys, omega);
+
+        REQUIRE(nyq.points.size() == 1);
+
+        const double               w = omega[0];
+        const wet::complex<double> z{std::cos(w * sys.Ts), std::sin(w * sys.Ts)};
+        const auto                 frf = eval_frf(sys, z);
+        CHECK(nyq.points[0].real == doctest::Approx(frf(0, 0).real()).epsilon(1e-12));
+        CHECK(nyq.points[0].imag == doctest::Approx(frf(0, 0).imag()).epsilon(1e-12));
+    }
+}
+
+TEST_SUITE("Analysis - Loop Summary Convenience") {
+    TEST_CASE("loop_metrics condenses common robustness metrics in one call") {
+        // L(s) = 10/(s+1)
+        StateSpace<1, 1, 1, 0, 0> loop{
+            .A = Matrix<1, 1>{{-1.0}},
+            .B = Matrix<1, 1>{{10.0}},
+            .C = Matrix<1, 1>{{1.0}},
+            .D = Matrix<1, 1>{{0.0}},
+        };
+
+        const auto omega = analysis::logspace(0.01, 1000.0, 200);
+        const auto summary = analysis::loop_metrics(loop, omega);
+
+        REQUIRE(summary.phase_margin.has_value());
+        REQUIRE(summary.bandwidth.has_value());
+        REQUIRE(summary.min_nyquist_distance.has_value());
+
+        CHECK(summary.phase_margin->first > 0.0);
+        CHECK(summary.bandwidth.value() > 0.0);
+        CHECK(summary.min_nyquist_distance->first > 0.0);
+
+        // Some stable loops (for example first-order with no -180 crossing)
+        // have undefined gain margin; if present, it must be positive.
+        if (summary.gain_margin.has_value()) {
+            CHECK(summary.gain_margin->first > 0.0);
+        }
+
+        // Sensitivity peak should be finite and not absurdly large for this stable first-order loop.
+        CHECK(std::isfinite(summary.peak_sensitivity_db));
+        CHECK(summary.peak_sensitivity_db < 20.0);
+    }
+
+    TEST_CASE("summarize_loop_response matches explicit loop_response post-processing") {
+        StateSpace<1, 1, 1, 0, 0> loop{
+            .A = Matrix<1, 1>{{-2.0}},
+            .B = Matrix<1, 1>{{6.0}},
+            .C = Matrix<1, 1>{{1.0}},
+            .D = Matrix<1, 1>{{0.0}},
+        };
+
+        const auto omega = analysis::logspace(0.05, 800.0, 180);
+        const auto resp = analysis::loop_response(loop, omega);
+        const auto summary = analysis::summarize_loop_response(resp);
+
+        REQUIRE(summary.phase_margin.has_value());
+        REQUIRE(summary.bandwidth.has_value());
+        REQUIRE(summary.min_nyquist_distance.has_value());
+
+        CHECK(summary.phase_margin->first == doctest::Approx(resp.phase_margin_unwrapped()->first).epsilon(1e-12));
+        CHECK(summary.bandwidth.value() == doctest::Approx(resp.closed_loop_bandwidth().value()).epsilon(1e-12));
+        CHECK(summary.min_nyquist_distance->first == doctest::Approx(resp.nyquist.min_distance_to_minus_one()->first).epsilon(1e-12));
+
+        const auto gm_ref = resp.gain_margin_unwrapped();
+        CHECK(summary.gain_margin.has_value() == gm_ref.has_value());
+        if (summary.gain_margin.has_value() && gm_ref.has_value()) {
+            CHECK(summary.gain_margin->first == doctest::Approx(gm_ref->first).epsilon(1e-12));
+            CHECK(summary.gain_margin->second == doctest::Approx(gm_ref->second).epsilon(1e-12));
+        }
+    }
+
+    TEST_CASE("loop utilities accept transfer function directly") {
+        // L(s) = 10/(s+1)
+        TransferFunction<1, 2, double> loop_tf{
+            .num = {10.0},
+            .den = {1.0, 1.0},
+        };
+
+        const auto omega = analysis::logspace(0.01, 1000.0, 200);
+        const auto resp = analysis::loop_response(loop_tf, omega);
+        const auto summary = analysis::loop_metrics(loop_tf, omega);
+
+        REQUIRE(resp.open_loop.points.size() == omega.size());
+        REQUIRE(summary.phase_margin.has_value());
+        REQUIRE(summary.bandwidth.has_value());
+        CHECK(summary.phase_margin->first > 0.0);
+        CHECK(summary.bandwidth.value() > 0.0);
     }
 }

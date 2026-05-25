@@ -71,7 +71,7 @@ struct MathBackend;
 #if __has_include("wet_profile.hpp")
 #include "wet_profile.hpp"
 #else
-#warning "wet_profile.hpp not found in include path — using std:: math backend. Create wet_profile.hpp to select a platform backend."
+#warning "wet_profile.hpp not found in include path. Using std:: math backend. Create wet_profile.hpp to select a platform backend."
 #include "std_backend.hpp"
 #endif
 
