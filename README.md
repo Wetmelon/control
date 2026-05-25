@@ -13,17 +13,61 @@ A header-only C++20 library for control system design targeting embedded systems
 
 Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 
-**What's included:**
+## Library Contents
 
-- LQR, LQI, LQG, LQGI, Kalman filter design (DARE via Structure-preserving Doubling Algorithm)
-- PID tuning (Ziegler-Nichols, Cohen-Coon, Lambda, SIMC, pole placement)
-- Lead-lag compensators, proportional-resonant controllers, sliding mode, ADRC
-- Frequency-domain analysis (Bode, margins, bandwidth, controllability/observability)
-- ODE solvers (RK4, RK45 with event detection), closed-loop simulation
-- Digital filters (LowPass, SOGI, notch), IEC 61131-3 function blocks
-- Rotations (DCM, Quaternion, Euler), sensor fusion (ESKF, EKF, Madgwick, Mahony)
-- Motor control (Clarke/Park transforms, FOC)
-- Discretization (Forward Euler, ZOH, Tustin)
+### Core Modeling and Math
+
+- Fixed-size matrix algebra with compile-time dimensions (`matrix.hpp`, `matrix/*`)
+- State-space models and interconnections (series, parallel, feedback) (`state_space.hpp`)
+- Transfer functions and block-diagram arithmetic (`transfer_function.hpp`)
+- Continuous-to-discrete conversion methods (Forward Euler, ZOH, Tustin) (`discretization.hpp`)
+- Stability and structural analysis primitives (`stability.hpp`, `analysis.hpp`)
+
+### Runtime Controllers
+
+- PID (`pid.hpp`)
+- PR and multi-harmonic PR (`pr.hpp`)
+- LQR (`lqr.hpp`)
+- LQI (`lqi.hpp`)
+- LQG (`lqg.hpp`)
+- LQGI (`lqgi.hpp`)
+- Lead-lag compensator (`lead_lag.hpp`)
+- ADRC (`adrc.hpp`)
+- Sliding Mode Control (SMC) (`smc.hpp`)
+- Single-phase PLL (`pll.hpp`)
+
+### Design/Tuning APIs
+
+- LQR/LQI/LQG/LQGI synthesis result APIs (`lqr.hpp`, `lqi.hpp`, `lqg.hpp`, `lqgi.hpp`)
+- PID tuning methods: Ziegler-Nichols, Tyreus-Luyben, Cohen-Coon, SIMC, lambda, bandwidth-based, pole placement (`pid_design.hpp`)
+- PID performance-spec synthesis helpers from settling time and overshoot (`pid_design.hpp`)
+- PR/ADRC/SMC/lead-lag design helpers (`pr.hpp`, `adrc.hpp`, `smc.hpp`, `lead_lag.hpp`)
+
+### Observers and Estimators
+
+- Linear Kalman filter (`kalman.hpp`)
+- Extended Kalman Filter (EKF) (`ekf.hpp`)
+- Error-State Kalman Filter (ESKF) (`eskf.hpp`)
+- Sensor-fusion filters: Complementary, Madgwick, Mahony, ESKF orientation (`sensor_fusion.hpp`)
+
+### Analysis and Simulation
+
+- Frequency-domain analysis: Bode, Nyquist, margins, bandwidth, loop metrics (`analysis.hpp`)
+- Nonlinear operating-point linearization to A/B/C/D (`linearization.hpp`)
+- ODE solvers and closed-loop simulation helpers (`solver.hpp`, `integrator.hpp`, `simulate.hpp`)
+
+### Signal Conditioning and Utilities
+
+- SOGI and MSTOGI system models/runtime SOGI block (`sogi.hpp`)
+- First/second-order and Butterworth low-pass design, delay approximations, runtime low-pass and delay blocks (`filters.hpp`)
+- Geometry and attitude utilities: DCM, Quaternion, Euler (`geometry.hpp`)
+- Motor-control transforms: Clarke/Park and inverse transforms (`motor_control.hpp`)
+- IEC 61131-3 function blocks for PLC-style control logic (`iec61131.hpp`)
+
+### Interop and High-Level Glue
+
+- MATLAB-style short-name wrappers (`matlab.hpp`)
+- High-level workflow artifacts for combined design + analysis + runtime assembly (`workflow.hpp`)
 
 ## Quick Start
 
@@ -67,7 +111,7 @@ Include only what you need:
 #include "lqr.hpp"          // LQR/LQI design and controller classes
 #include "kalman.hpp"       // Kalman filter design
 #include "pid.hpp"          // PID controller with anti-windup
-#include "filters.hpp"      // LowPass, SOGI, notch filters
+#include "filters.hpp"      // LowPass and delay/filter design helpers
 #include "geometry.hpp"     // DCM, Quaternion, Euler angles, Transform4
 #include "state_space.hpp"  // StateSpace type and interconnections
 ```
