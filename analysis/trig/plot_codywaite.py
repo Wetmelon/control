@@ -14,7 +14,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-import minimax_trig as m
+import analysis.trig.minimax_trig as m
 
 # Shipped header coefficients for sin(pi*g) = g * P(g^2)
 SIN_COEFFS = [3.141582250595093, -5.167152404785156,
