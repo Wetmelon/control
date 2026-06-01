@@ -142,7 +142,7 @@ inline float sin(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
     float s = detail::sin_poly(frac);
 
-    return (period_index & 1) ? -s : s;
+    return ((period_index & 1) != 0) ? -s : s;
 }
 
 /**
@@ -160,7 +160,7 @@ inline float cos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
     float c = detail::sin_poly(0.5f - std::fabs(frac));
 
-    return (period_index & 1) ? -c : c;
+    return ((period_index & 1) != 0) ? -c : c;
 }
 
 /**
@@ -178,7 +178,7 @@ inline SinCosResult sincos(float angle_rad) {
     float s = detail::sin_poly(frac);
     float c = detail::sin_poly(0.5f - std::fabs(frac));
 
-    if (period_index & 1) {
+    if ((period_index & 1) != 0) {
         s = -s;
         c = -c;
     }
