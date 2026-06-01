@@ -25,6 +25,8 @@ struct SinglePhasePLL {
         T Kp{}; // Proportional gain
         T Ki{}; // Integral gain
 
+        T integrator_leak{}; // [1/s] Integrator bleed rate (0 = pure integrator)
+
         T integrator_max{}; // [Hz] Maximum integrator state (anti-windup limit)
         T integrator_min{}; // [Hz] Minimum integrator state (anti-windup limit)
 
@@ -59,8 +61,12 @@ struct SinglePhasePLL {
         // Proportional term
         T proportional = params.Kp * phase_error;
 
-        // Integral term with anti-windup
-        integrator_state += params.Ki * phase_error * Ts;
+        // Integral term with leak (bleed) and anti-windup. The leak term
+        // −leak·integrator_state·Ts pulls the accumulated frequency offset back
+        // toward zero (i.e. the estimate back toward nominal) with time constant
+        // 1/leak, so a transient or biased phase error doesn't park a permanent
+        // offset in the integrator. leak == 0 recovers a pure integrator.
+        integrator_state += ((params.Ki * phase_error) - (params.integrator_leak * integrator_state)) * Ts;
         integrator_state = std::clamp(integrator_state, params.integrator_min, params.integrator_max);
 
         // Compute output frequency estimate [Hz] around nominal frequency
