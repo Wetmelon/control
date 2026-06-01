@@ -34,6 +34,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <numbers>
 
 namespace wet {
@@ -75,14 +76,14 @@ constexpr float asin_coeffs[] = {
 };
 
 constexpr float atan_coeffs[] = {
-    +4.172325134277344e-07f,
-    +9.999734163284302e-01f,
-    +1.466870307922363e-04f,
-    -3.309765458106995e-01f,
-    -2.689570188522339e-02f,
-    +3.097775578498840e-01f,
-    -2.178043127059937e-01f,
-    +5.117702484130859e-02f,
+    +4.543576608284638e-07f,
+    +9.999714493751526e-01f,
+    +1.813957787817344e-04f,
+    -3.311897814273834e-01f,
+    -2.631079405546188e-02f,
+    +3.089837431907654e-01f,
+    -2.172826975584030e-01f,
+    +5.104487016797066e-02f,
 };
 
 /**
@@ -96,14 +97,14 @@ struct Reduced {
     int   period_index;
 };
 
-constexpr Reduced wrap(float x);
-constexpr float   sin_poly(float frac);
+static inline Reduced wrap(float x);
+static inline float   sin_poly(float frac);
 
 template<size_t N>
-constexpr float horner_eval(float x, const float (&coeffs)[N]);
+static inline float horner_eval(float x, const float (&coeffs)[N]);
 
 template<size_t N>
-constexpr float estrin_eval(float x, const float (&coeffs)[N]);
+static inline float estrin_eval(float x, const float (&coeffs)[N]);
 
 } // namespace wet::detail
 
@@ -276,7 +277,7 @@ inline float atan2(float y, float x) {
     float ax = std::fabs(x);
     float ay = std::fabs(y);
     float lo = std::fmin(ax, ay);
-    float hi = std::fmax(ax, ay);
+    float hi = std::fmax(ax, ay) + std::numeric_limits<float>::min();
     float t = detail::estrin_eval(lo / hi, detail::atan_coeffs);
 
     float r = (ay > ax) ? ((std::numbers::pi_v<float> / 2.0f) - t) : t;
@@ -290,19 +291,34 @@ inline float atan2(float y, float x) {
 namespace wet::detail {
 
 /**
+ * @brief Value barrier used to prevent fast-math reassociation in Cody-Waite
+ *        range reduction.
+ *
+ * Prefers compiler-provided reassociation barriers when available. On ARM FP
+ * targets without that builtin, an empty inline-asm with a "+w" constraint keeps
+ * the value in a VFP register while still acting as an optimization barrier.
+ * Other targets fall back to identity.
+ */
+static inline float reassoc_barrier(float v) {
+#if defined(__has_builtin)
+#if __has_builtin(__builtin_assoc_barrier)
+    return __builtin_assoc_barrier(v);
+#endif
+#endif
+
+#if (defined(__GNUC__) || defined(__clang__)) && defined(__ARM_FP)
+    asm volatile("" : "+w"(v));
+#endif
+    return v;
+}
+
+/**
  * @brief Cody-Waite range reduction of x (radians) to {frac, period_index},
  *        accurate to |x| ~25700 rad. The three pi-word subtractions must not be
- *        reassociated (collapses to single-step precision) -- pinned by the
- *        per-compiler pragmas below.
+ *        reassociated (collapses to single-step precision). Clang requires
+ *        `#pragma clang fp reassociate(off)`; gcc needs memory barriers
  */
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC push_options
-#pragma GCC optimize("no-associative-math")
-#endif
-constexpr Reduced wrap(float x) {
-#if defined(__clang__)
-#pragma clang fp reassociate(off)
-#endif
+static inline Reduced wrap(float x) {
     constexpr float inv_pi = std::numbers::inv_pi_v<float>;
     constexpr float PI_HI = 3.140625f;          // pi, low 13 mantissa bits zeroed
     constexpr float PI_LO = 9.6765358467e-04f;  // pi - PI_HI
@@ -311,16 +327,13 @@ constexpr Reduced wrap(float x) {
     float n = std::nearbyint(x * inv_pi);
     int   period_index = static_cast<int>(n);
 
-    float r = x - (n * PI_HI);
-    r = r - (n * PI_LO);
-    r = r - (n * PI_LO2);
-    float frac = r * inv_pi;
+    float r = reassoc_barrier(x - (n * PI_HI));
+    r = reassoc_barrier(r - (n * PI_LO));
+    r = reassoc_barrier(r - (n * PI_LO2));
 
+    float frac = r * inv_pi;
     return {.frac = frac, .period_index = period_index};
 }
-#if defined(__GNUC__) && !defined(__clang__)
-#pragma GCC pop_options
-#endif
 
 /**
  * @brief Evaluate sin(pi*frac) using the degree-7 minimax polynomial
@@ -332,7 +345,7 @@ constexpr Reduced wrap(float x) {
  * @param frac  Fractional half-period in [-0.5, 0.5]
  * @return sin(pi * frac)
  */
-constexpr float sin_poly(float frac) {
+static inline float sin_poly(float frac) {
     float u = frac * frac;
     float u2 = u * u;
 
@@ -355,7 +368,7 @@ constexpr float sin_poly(float frac) {
  * @return p(x)
  */
 template<size_t N>
-constexpr float horner_eval(float x, const float (&coeffs)[N]) {
+static inline float horner_eval(float x, const float (&coeffs)[N]) {
     static_assert(N >= 1, "horner_eval requires at least one coefficient");
     float p = coeffs[N - 1];
     for (int i = static_cast<int>(N) - 2; i >= 0; --i) {
@@ -378,7 +391,7 @@ constexpr float horner_eval(float x, const float (&coeffs)[N]) {
  * @return p(x)
  */
 template<size_t N>
-constexpr float estrin_eval(float x, const float (&coeffs)[N]) {
+static inline float estrin_eval(float x, const float (&coeffs)[N]) {
     static_assert(N >= 1, "estrin_eval requires at least one coefficient");
     float b[N];
     for (size_t i = 0; i < N; ++i) {

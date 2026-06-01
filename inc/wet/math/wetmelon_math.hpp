@@ -15,6 +15,7 @@
  */
 
 #include <cmath>
+#include <limits>
 #include <numbers>
 #include <type_traits>
 #include <utility>
@@ -203,6 +204,66 @@ constexpr T atan2(T y, T x) {
     }
 
     return atan_val;
+}
+
+/**
+ * @brief Compute single-argument arctangent (constexpr) — atan(x) = atan2(x, 1).
+ * @tparam T Numeric type (floating-point)
+ * @return Angle in radians ∈ (−π/2, π/2)
+ */
+template<typename T>
+constexpr T atan(T x) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::atan(x);
+    }
+    return atan2(x, T{1});
+}
+
+/**
+ * @brief Compute arcsine (constexpr) — asin(x) = atan2(x, √(1−x²)).
+ * Input is clamped to [−1, 1].
+ * @tparam T Numeric type (floating-point)
+ * @return Angle in radians ∈ [−π/2, π/2]
+ */
+template<typename T>
+constexpr T asin(T x) {
+    // Clamp the domain in both paths so behavior matches at compile and run time
+    // (std::asin would return NaN for |x| > 1).
+    constexpr T half_pi = std::numbers::pi_v<T> / T{2};
+    if (x >= T{1}) {
+        return half_pi;
+    }
+    if (x <= T{-1}) {
+        return -half_pi;
+    }
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::asin(x);
+    }
+    // sqrt((1−x)(1+x)) — algebraically equal to sqrt(1−x²) but avoids
+    // catastrophic cancellation near |x| = 1, and the product cannot round
+    // negative under IEEE rules.
+    return atan2(x, sqrt((T{1} - x) * (T{1} + x)));
+}
+
+/**
+ * @brief Compute arccosine (constexpr) — acos(x) = atan2(√(1−x²), x).
+ * Input is clamped to [−1, 1].
+ * @tparam T Numeric type (floating-point)
+ * @return Angle in radians ∈ [0, π]
+ */
+template<typename T>
+constexpr T acos(T x) {
+    // Clamp the domain in both paths (std::acos would return NaN for |x| > 1).
+    if (x >= T{1}) {
+        return T{0};
+    }
+    if (x <= T{-1}) {
+        return std::numbers::pi_v<T>;
+    }
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::acos(x);
+    }
+    return atan2(sqrt((T{1} - x) * (T{1} + x)), x);
 }
 
 /**
@@ -533,6 +594,28 @@ constexpr T ceil(T x) {
 }
 
 /**
+ * @brief Floating-point remainder (constexpr) — x − y·trunc(x/y), sign of x.
+ *
+ * Matches std::fmod's truncated-quotient convention.
+ *
+ * @tparam T Numeric type (floating-point)
+ * @return Remainder of x/y, or 0 if y == 0
+ */
+template<typename T>
+constexpr T fmod(T x, T y) {
+    // Guard y == 0 in both paths (returns 0 rather than std::fmod's NaN).
+    if (y == T{0}) {
+        return T{0};
+    }
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::fmod(x, y);
+    }
+    const T q = x / y;
+    const T truncated = static_cast<T>(static_cast<long long>(q)); // toward zero
+    return x - (truncated * y);
+}
+
+/**
  * @brief Compute base-10 logarithm (constexpr)
  *
  * Computes log10(x) = ln(x) / ln(10).
@@ -564,6 +647,35 @@ constexpr T log10(T x) {
 template<typename T>
 constexpr int sgn(T val) {
     return (T(0) < val) - (val < T(0));
+}
+
+/**
+ * @brief Copy sign (constexpr) — magnitude of @p mag with the sign of @p sgn_src.
+ * @tparam T Numeric type (floating-point)
+ */
+template<typename T>
+constexpr T copysign(T mag, T sgn_src) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::copysign(mag, sgn_src);
+    }
+    const T m = mag >= T{0} ? mag : -mag;
+    return sgn_src < T{0} ? -m : m;
+}
+
+/**
+ * @brief Finiteness test (constexpr) — false for NaN and ±∞.
+ *
+ * |x| ≤ max() is false for both ±∞ (greater than max) and NaN (all comparisons
+ * with NaN are false), and true for every finite value.
+ *
+ * @tparam T Numeric type (floating-point)
+ */
+template<typename T>
+constexpr bool isfinite(T x) {
+    if (!std::is_constant_evaluated()) {
+        return MathBackend<T>::isfinite(x);
+    }
+    return abs(x) <= std::numeric_limits<T>::max();
 }
 
 } // namespace wetmelon::control::wet

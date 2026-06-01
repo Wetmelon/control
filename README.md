@@ -67,7 +67,7 @@ Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 ### Interop and High-Level Glue
 
 - MATLAB-style short-name wrappers (`matlab.hpp`)
-- High-level workflow artifacts for combined design + analysis + runtime assembly (`workflow.hpp`)
+- High-level workflow artifacts for combined design + analysis + runtime assembly (`synthesis.hpp`)
 
 ## Quick Start
 
@@ -135,7 +135,7 @@ inc/wet/
   control.hpp      embeddable umbrella        toolbox.hpp   host superset
   math/            constexpr math primitives  matrix/       linear algebra
   systems/         state_space, transfer_function, discretization
-  controllers/     lqr, lqi, lqg, lqgi, ricatti, pid(+design), pr,
+  controllers/     lqr, lqi, lqg, lqgi, riccati, pid(+design), pr,
                    lead_lag, adrc, smc, pll, synthesis
   estimation/      kalman, ekf, eskf, sensor_fusion
   filters/         filters, sogi
@@ -158,7 +158,8 @@ make          # format, build, and run all tests
 make tests    # build and run tests only
 ```
 
-Examples are built alongside tests. Outputs go to `examples/build/`.
+Examples are built by the default `make` (`tup`) build. To compile examples directly, run `tup --quiet examples`.
+Outputs go to `examples/build/`.
 
 ## Servo Drive GUI
 

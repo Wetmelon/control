@@ -112,7 +112,7 @@ TEST_SUITE("PID Design - Cohen-Coon") {
         // Kp = a * (4/3 + r/4) = 4.0 * (1.333 + 0.0625) = 5.583
         double r = L / tau;
         double a = tau / (K * L);
-        double expected_Kp = a * (4.0 / 3.0 + r / 4.0);
+        double expected_Kp = a * ((4.0 / 3.0) + (r / 4.0));
         CHECK(result.Kp == doctest::Approx(expected_Kp).epsilon(1e-10));
         CHECK(result.Ki > 0.0);
         CHECK(result.Kd > 0.0);
@@ -206,8 +206,8 @@ TEST_SUITE("PID Design - Pole Placement") {
         double b = K * (1.0 - a);
 
         // Closed-loop char poly: z² + (b*Kp - a - 1)*z + (a - b*Kp + b*Ki*Ts)
-        double c1 = b * result.Kp - a - 1.0;
-        double c0 = a - b * result.Kp + b * result.Ki * Ts;
+        double c1 = (b * result.Kp) - a - 1.0;
+        double c0 = a - (b * result.Kp) + (b * result.Ki * Ts);
 
         // Should equal desired: z² - (p1+p2)*z + p1*p2
         CHECK(c1 == doctest::Approx(-(p1 + p2)).epsilon(1e-10));
@@ -238,8 +238,8 @@ TEST_SUITE("PID Design - Pole Placement") {
 
         double a = std::exp(-Ts / tau);
         double b = K * (1.0 - a);
-        double c1 = b * result.Kp - a - 1.0;
-        double c0 = a - b * result.Kp + b * result.Ki * Ts;
+        double c1 = (b * result.Kp) - a - 1.0;
+        double c0 = a - (b * result.Kp) + (b * result.Ki * Ts);
 
         // Both poles at 0: z² - 0*z + 0 → c1 = 0, c0 = 0
         CHECK(c1 == doctest::Approx(0.0).epsilon(1e-10));
@@ -259,8 +259,8 @@ TEST_SUITE("PID Design - Type Conversion") {
     TEST_CASE("Runtime design feeds into PIDController") {
         auto          result = design::simc(1.0, 0.5, 2.0, 1.0, 0.01);
         PIDController controller(result);
-        float         u = controller.control(1.0f, 0.0f);
-        CHECK(u != 0.0f); // Non-zero output for non-zero error
+        double        u = controller.control(1.0, 0.0);
+        CHECK(u != 0.0); // Non-zero output for non-zero error
     }
 }
 

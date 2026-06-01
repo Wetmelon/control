@@ -141,18 +141,11 @@ struct LQG {
     constexpr LQG(const LQR<NX, NU, T>& lqr_, const KalmanFilter<NX, NU, NY, NW, NV, T>& kf_)
         : lqr(lqr_), kf(kf_) {}
 
-    constexpr LQG(const design::LQGResult<NX, NU, NY, NW, NV, T>& result)
-        : lqr(result.lqr),
-          kf(
-              result.kalman.sys,
-              result.kalman.Q,
-              result.kalman.R,
-              ColVec<NX, T>{},
-              result.kalman.success ? result.kalman.P : Matrix<NX, NX, T>::identity()
-          ) {}
+    constexpr LQG(const design::LQGResult<NX, NU, NY, NW, NV, T>& result) // NOLINT
+        : lqr(result.lqr), kf(result.kalman) {}
 
     template<typename U>
-    constexpr LQG(const LQG<NX, NU, NY, NW, NV, U>& other) : lqr(other.lqr), kf(other.kf) {}
+    constexpr LQG(const LQG<NX, NU, NY, NW, NV, U>& other) : lqr(other.lqr), kf(other.kf) {} // NOLINT
 
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) { kf.predict(u); }
     constexpr bool update(const ColVec<NY, T>& y, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(y, u); }

@@ -33,9 +33,9 @@ TEST_CASE("simulate_state_feedback - pendulum converges under LQR") {
         double theta_dot = x(1, 0);
         double torque = u(0, 0);
 
-        double theta_ddot = (g_pend / L_pend) * wet::sin(theta)
-                          - (b_pend / (m_pend * L_pend * L_pend)) * theta_dot
-                          + (1.0 / (m_pend * L_pend * L_pend)) * torque;
+        double theta_ddot = ((g_pend / L_pend) * wet::sin(theta))
+                          - ((b_pend / (m_pend * L_pend * L_pend)) * theta_dot)
+                          + ((1.0 / (m_pend * L_pend * L_pend)) * torque);
 
         return ColVec<2>{theta_dot, theta_ddot};
     };
@@ -109,7 +109,7 @@ TEST_CASE("simulate_discrete - basic feedback") {
 TEST_CASE("simulate - output feedback with D matrix") {
     // Controller: u = 0 (open loop, step input via plant)
     auto plant = [](double /*t*/, const ColVec<1>& x, const ColVec<1>& u) -> ColVec<1> {
-        return ColVec<1>{-2.0 * x(0, 0) + u(0, 0)};
+        return ColVec<1>{(-2.0 * x(0, 0)) + u(0, 0)};
     };
     auto output = [](const ColVec<1>& x) -> ColVec<1> { return x; };
     auto ctrl = [](const ColVec<1>& /*y*/) -> ColVec<1> { return ColVec<1>{1.0}; }; // Constant input

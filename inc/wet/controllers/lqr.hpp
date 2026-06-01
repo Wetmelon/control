@@ -2,9 +2,9 @@
 
 #include <cstddef>
 
-#include "ricatti.hpp"
 #include "wet/analysis/stability.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/riccati.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 
@@ -188,10 +188,10 @@ struct LQR {
     constexpr LQR() = default;
     constexpr explicit LQR(const Matrix<NU, NX, T>& K_) : K(K_) {}
 
-    constexpr LQR(const design::LQRResult<NX, NU, T>& result) : K(result.K) {}
+    constexpr LQR(const design::LQRResult<NX, NU, T>& result) : K(result.K) {} // NOLINT
 
     template<typename U>
-    constexpr LQR(const LQR<NX, NU, U>& other) : K(other.getK()) {}
+    constexpr LQR(const LQR<NX, NU, U>& other) : K(other.getK()) {} // NOLINT
 
     /**
      * @brief Compute regulator control law

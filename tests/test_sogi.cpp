@@ -75,7 +75,7 @@ TEST_CASE("SOGI runtime - resonator form") {
 
     // Run for a few cycles
     for (int i = 0; i < 1000; ++i) {
-        const float t = i * Ts;
+        const float t = (float)i * Ts;
         const float input = std::sin(omega_input * t);
 
         const auto [bp, quad] = sogi(input);
@@ -101,7 +101,7 @@ TEST_CASE("SOGI runtime - frequency retuning") {
     float       max_bp = 0.0f;
 
     for (int i = 0; i < 1000; ++i) {
-        const float t = i * Ts;
+        const float t = (float)i * Ts;
         const float input = std::sin(omega_input * t);
         const auto [bp, quad] = sogi(input);
         max_bp = std::max(max_bp, std::abs(bp));
@@ -137,7 +137,7 @@ TEST_CASE("SOGI runtime exposes notch output") {
     SOGI<float>     sogi(f0, Ts, alpha);
 
     for (int i = 0; i < 1000; ++i) {
-        const float t = i * Ts;
+        const float t = (float)i * Ts;
         const float input = std::sin(2 * std::numbers::pi_v<float> * f0 * t);
 
         const auto out = sogi.process(input);

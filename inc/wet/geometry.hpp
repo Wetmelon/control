@@ -11,11 +11,11 @@
  * @see Diebel, "Representing Attitude: Euler Angles, Unit Quaternions, and Rotation Vectors" (2006)
  */
 
-#include <cmath>
 #include <optional>
 #include <span>
 #include <type_traits>
 
+#include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix.hpp"
 
 namespace wetmelon::control {
@@ -62,8 +62,8 @@ struct DCM : public Mat3<T> {
 
     // Basic rotation matrices about principal axes
     [[nodiscard]] static constexpr DCM rotate_x(T angle) {
-        T   c = std::cos(angle);
-        T   s = std::sin(angle);
+        T   c = wet::cos(angle);
+        T   s = wet::sin(angle);
         DCM R;
         R(0, 0) = T{1};
         R(0, 1) = T{0};
@@ -78,8 +78,8 @@ struct DCM : public Mat3<T> {
     }
 
     [[nodiscard]] static constexpr DCM rotate_y(T angle) {
-        T   c = std::cos(angle);
-        T   s = std::sin(angle);
+        T   c = wet::cos(angle);
+        T   s = wet::sin(angle);
         DCM R;
         R(0, 0) = c;
         R(0, 1) = T{0};
@@ -94,8 +94,8 @@ struct DCM : public Mat3<T> {
     }
 
     [[nodiscard]] static constexpr DCM rotate_z(T angle) {
-        T   c = std::cos(angle);
-        T   s = std::sin(angle);
+        T   c = wet::cos(angle);
+        T   s = wet::sin(angle);
         DCM R;
         R(0, 0) = c;
         R(0, 1) = -s;
@@ -162,8 +162,8 @@ struct DCM : public Mat3<T> {
         T uy = axis[1] * inv_norm;
         T uz = axis[2] * inv_norm;
 
-        T c = std::cos(angle);
-        T s = std::sin(angle);
+        T c = wet::cos(angle);
+        T s = wet::sin(angle);
         T t = T{1} - c;
 
         DCM R;
@@ -271,94 +271,106 @@ struct Euler {
         if constexpr (Order == EulerOrder::ZYX) {
             // Yaw-Pitch-Roll
             T sp = -R(2, 0);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp); // pitch
+            }
+            e.angle2 = wet::asin(sp); // pitch
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(R(1, 0), R(0, 0)); // yaw
-                e.angle3 = std::atan2(R(2, 1), R(2, 2)); // roll
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(R(1, 0), R(0, 0)); // yaw
+                e.angle3 = wet::atan2(R(2, 1), R(2, 2)); // roll
             } else {
                 // Gimbal lock
-                e.angle1 = std::atan2(-R(0, 1), R(1, 1));
+                e.angle1 = wet::atan2(-R(0, 1), R(1, 1));
                 e.angle3 = T{0};
             }
         } else if constexpr (Order == EulerOrder::XYZ) {
             // Roll-Pitch-Yaw
             T sp = R(0, 2);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp); // pitch
+            }
+            e.angle2 = wet::asin(sp); // pitch
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(-R(1, 2), R(2, 2)); // roll
-                e.angle3 = std::atan2(-R(0, 1), R(0, 0)); // yaw
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(-R(1, 2), R(2, 2)); // roll
+                e.angle3 = wet::atan2(-R(0, 1), R(0, 0)); // yaw
             } else {
-                e.angle1 = std::atan2(R(2, 1), R(1, 1));
+                e.angle1 = wet::atan2(R(2, 1), R(1, 1));
                 e.angle3 = T{0};
             }
         } else if constexpr (Order == EulerOrder::ZXY) {
             T sp = R(2, 1);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp);
+            }
+            e.angle2 = wet::asin(sp);
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(-R(0, 1), R(1, 1));
-                e.angle3 = std::atan2(-R(2, 0), R(2, 2));
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(-R(0, 1), R(1, 1));
+                e.angle3 = wet::atan2(-R(2, 0), R(2, 2));
             } else {
-                e.angle1 = std::atan2(R(1, 0), R(0, 0));
+                e.angle1 = wet::atan2(R(1, 0), R(0, 0));
                 e.angle3 = T{0};
             }
         } else if constexpr (Order == EulerOrder::YXZ) {
             T sp = -R(1, 2);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp);
+            }
+            e.angle2 = wet::asin(sp);
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(R(0, 2), R(2, 2));
-                e.angle3 = std::atan2(R(1, 0), R(1, 1));
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(R(0, 2), R(2, 2));
+                e.angle3 = wet::atan2(R(1, 0), R(1, 1));
             } else {
-                e.angle1 = std::atan2(-R(2, 0), R(0, 0));
+                e.angle1 = wet::atan2(-R(2, 0), R(0, 0));
                 e.angle3 = T{0};
             }
         } else if constexpr (Order == EulerOrder::YZX) {
             T sp = R(1, 0);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp);
+            }
+            e.angle2 = wet::asin(sp);
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(-R(2, 0), R(0, 0));
-                e.angle3 = std::atan2(-R(1, 2), R(1, 1));
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(-R(2, 0), R(0, 0));
+                e.angle3 = wet::atan2(-R(1, 2), R(1, 1));
             } else {
-                e.angle1 = std::atan2(R(0, 2), R(2, 2));
+                e.angle1 = wet::atan2(R(0, 2), R(2, 2));
                 e.angle3 = T{0};
             }
         } else if constexpr (Order == EulerOrder::XZY) {
             T sp = -R(0, 1);
-            if (sp > T{1})
+            if (sp > T{1}) {
                 sp = T{1};
-            if (sp < T{-1})
+            }
+            if (sp < T{-1}) {
                 sp = T{-1};
-            e.angle2 = std::asin(sp);
+            }
+            e.angle2 = wet::asin(sp);
 
-            if (std::abs(sp) < T{1} - T{1e-6}) {
-                e.angle1 = std::atan2(R(2, 1), R(1, 1));
-                e.angle3 = std::atan2(R(0, 2), R(0, 0));
+            if (wet::abs(sp) < T{1} - T{1e-6}) {
+                e.angle1 = wet::atan2(R(2, 1), R(1, 1));
+                e.angle3 = wet::atan2(R(0, 2), R(0, 0));
             } else {
-                e.angle1 = std::atan2(-R(1, 2), R(2, 2));
+                e.angle1 = wet::atan2(-R(1, 2), R(2, 2));
                 e.angle3 = T{0};
             }
         }
@@ -431,7 +443,7 @@ struct Quaternion : public Matrix<4, 1, T> {
     }
 
     template<typename U>
-    constexpr Quaternion(const Quaternion<U>& other) : Matrix<4, 1, T>(other) {}
+    constexpr explicit Quaternion(const Quaternion<U>& other) : Matrix<4, 1, T>(other) {}
 
     template<typename U>
     constexpr explicit Quaternion(const Matrix<4, 1, U>& other) : Matrix<4, 1, T>(other) {}
@@ -571,8 +583,9 @@ struct Quaternion : public Matrix<4, 1, T> {
         } else {
             if (R(0, 0) > R(1, 1) && R(0, 0) > R(2, 2)) {
                 T s = wet::sqrt(T{1} + R(0, 0) - R(1, 1) - R(2, 2));
-                if (s <= eps)
+                if (s <= eps) {
                     return std::nullopt;
+                }
                 T inv_s = T{0.5} / s;
                 q.x() = T{0.5} * s;
                 q.y() = (R(0, 1) + R(1, 0)) * inv_s;
@@ -580,8 +593,9 @@ struct Quaternion : public Matrix<4, 1, T> {
                 q.w() = (R(2, 1) - R(1, 2)) * inv_s;
             } else if (R(1, 1) > R(2, 2)) {
                 T s = wet::sqrt(T{1} + R(1, 1) - R(0, 0) - R(2, 2));
-                if (s <= eps)
+                if (s <= eps) {
                     return std::nullopt;
+                }
                 T inv_s = T{0.5} / s;
                 q.x() = (R(0, 1) + R(1, 0)) * inv_s;
                 q.y() = T{0.5} * s;
@@ -589,8 +603,9 @@ struct Quaternion : public Matrix<4, 1, T> {
                 q.w() = (R(0, 2) - R(2, 0)) * inv_s;
             } else {
                 T s = wet::sqrt(T{1} + R(2, 2) - R(0, 0) - R(1, 1));
-                if (s <= eps)
+                if (s <= eps) {
                     return std::nullopt;
+                }
                 T inv_s = T{0.5} / s;
                 q.x() = (R(0, 2) + R(2, 0)) * inv_s;
                 q.y() = (R(1, 2) + R(2, 1)) * inv_s;
@@ -598,8 +613,9 @@ struct Quaternion : public Matrix<4, 1, T> {
                 q.w() = (R(1, 0) - R(0, 1)) * inv_s;
             }
         }
-        if (!q.normalize_in_place(eps))
+        if (!q.normalize_in_place(eps)) {
             return std::nullopt;
+        }
         return q;
     }
 
@@ -618,8 +634,8 @@ struct Quaternion : public Matrix<4, 1, T> {
         }
         T inv_axis_norm = T{1} / wet::sqrt(axis_norm2);
         T half = angle * T{0.5};
-        T s = std::sin(half) * inv_axis_norm;
-        return Quaternion{std::cos(half), axis[0] * s, axis[1] * s, axis[2] * s};
+        T s = wet::sin(half) * inv_axis_norm;
+        return Quaternion{wet::cos(half), axis[0] * s, axis[1] * s, axis[2] * s};
     }
 
     // Integrate body rates (first-order approximation)
@@ -631,12 +647,15 @@ struct Quaternion : public Matrix<4, 1, T> {
 
     // Spherical linear interpolation
     [[nodiscard]] static constexpr Quaternion slerp(const Quaternion& a, const Quaternion& b, T t) {
-        if (t < T{0})
+        if (t < T{0}) {
             t = T{0};
-        if (t > T{1})
+        }
+        if (t > T{1}) {
             t = T{1};
+        }
 
-        T          cos_theta = a.w() * b.w() + a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
+        T cos_theta = a.w() * b.w() + a.x() * b.x() + a.y() * b.y() + a.z() * b.z();
+
         Quaternion b_adj = b;
         if (cos_theta < T{0}) {
             cos_theta = -cos_theta;
@@ -654,10 +673,10 @@ struct Quaternion : public Matrix<4, 1, T> {
             return result.normalized();
         }
 
-        T          theta = std::acos(cos_theta);
-        T          sin_theta = std::sin(theta);
-        T          w1 = std::sin((T{1} - t) * theta) / sin_theta;
-        T          w2 = std::sin(t * theta) / sin_theta;
+        T          theta = wet::acos(cos_theta);
+        T          sin_theta = wet::sin(theta);
+        T          w1 = wet::sin((T{1} - t) * theta) / sin_theta;
+        T          w2 = wet::sin(t * theta) / sin_theta;
         Quaternion result{
             a.w() * w1 + b_adj.w() * w2,
             a.x() * w1 + b_adj.x() * w2,
@@ -763,7 +782,7 @@ struct Transform4 : public Mat4<T> {
         DCM<T> R;
         for (size_t i = 0; i < 3; ++i) {
             for (size_t j = 0; j < 3; ++j) {
-                R(i, j) = this->data_[i * 4 + j];
+                R(i, j) = this->data_[(i * 4) + j];
             }
         }
         return R;
@@ -771,7 +790,7 @@ struct Transform4 : public Mat4<T> {
 
     // Extract translation part
     [[nodiscard]] constexpr Vec3<T> translation() const {
-        return Vec3<T>{this->data_[0 * 4 + 3], this->data_[1 * 4 + 3], this->data_[2 * 4 + 3]};
+        return Vec3<T>{this->data_[(0 * 4) + 3], this->data_[(1 * 4) + 3], this->data_[(2 * 4) + 3]};
     }
 
     // Transform composition (this * rhs)
@@ -786,10 +805,10 @@ struct Transform4 : public Mat4<T> {
     // Transform a 3D point (homogeneous coordinates)
     [[nodiscard]] constexpr Vec3<T> transform_point(const Vec3<T>& p) const {
         // Convert to homogeneous coordinates
-        T x = this->data_[0 * 4 + 0] * p[0] + this->data_[0 * 4 + 1] * p[1] + this->data_[0 * 4 + 2] * p[2] + this->data_[0 * 4 + 3];
-        T y = this->data_[1 * 4 + 0] * p[0] + this->data_[1 * 4 + 1] * p[1] + this->data_[1 * 4 + 2] * p[2] + this->data_[1 * 4 + 3];
-        T z = this->data_[2 * 4 + 0] * p[0] + this->data_[2 * 4 + 1] * p[1] + this->data_[2 * 4 + 2] * p[2] + this->data_[2 * 4 + 3];
-        T w = this->data_[3 * 4 + 0] * p[0] + this->data_[3 * 4 + 1] * p[1] + this->data_[3 * 4 + 2] * p[2] + this->data_[3 * 4 + 3];
+        T x = this->data_[(0 * 4) + 0] * p[0] + this->data_[(0 * 4) + 1] * p[1] + this->data_[(0 * 4) + 2] * p[2] + this->data_[(0 * 4) + 3];
+        T y = this->data_[(1 * 4) + 0] * p[0] + this->data_[(1 * 4) + 1] * p[1] + this->data_[(1 * 4) + 2] * p[2] + this->data_[(1 * 4) + 3];
+        T z = this->data_[(2 * 4) + 0] * p[0] + this->data_[(2 * 4) + 1] * p[1] + this->data_[(2 * 4) + 2] * p[2] + this->data_[(2 * 4) + 3];
+        T w = this->data_[(3 * 4) + 0] * p[0] + this->data_[(3 * 4) + 1] * p[1] + this->data_[(3 * 4) + 2] * p[2] + this->data_[(3 * 4) + 3];
 
         // Normalize homogeneous coordinates
         if (w != T{1} && w != T{0}) {

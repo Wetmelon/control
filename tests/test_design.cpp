@@ -4,10 +4,10 @@
 #include "wet/controllers/lqgi.hpp"
 #include "wet/controllers/lqi.hpp"
 #include "wet/controllers/lqr.hpp"
-#include "wet/controllers/ricatti.hpp"
 #include "wet/estimation/eskf.hpp"
 #include "wet/estimation/kalman.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/riccati.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -361,11 +361,11 @@ TEST_SUITE("DARE: R=0 (Positive Semidefinite R)") {
         auto P = dare(A, B, Q, R);
         REQUIRE(P.has_value());
         // Verify DARE residual: A'PA - P - A'PB(B'PB)⁻¹B'PA + Q ≈ 0
-        auto Pv = P.value();
-        auto BtP = B.transpose() * Pv;
-        auto BtPB = BtP * B;
-        auto BtPA = BtP * A;
-        auto residual = A.transpose() * Pv * A - Pv
+        const auto& Pv = P.value();
+        auto        BtP = B.transpose() * Pv;
+        auto        BtPB = BtP * B;
+        auto        BtPA = BtP * A;
+        auto        residual = A.transpose() * Pv * A - Pv
                       - A.transpose() * Pv * B * (BtPA * (1.0 / BtPB(0, 0))) + Q;
         CHECK(residual.norm() < 1e-8);
     }

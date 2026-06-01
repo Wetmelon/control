@@ -3,6 +3,7 @@
 #include <cmath>
 #include <numbers>
 
+#include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
@@ -114,23 +115,32 @@ template<typename T = double>
  */
 template<typename T = float>
 [[nodiscard]] constexpr SecondOrderCoeffs<T> lowpass_2nd(T fc, T Ts, T zeta = T{0.707}) {
-    // Design discrete-time second-order low-pass filter using bilinear transform
+    // Discretize H(s) = ω₀² / (s² + 2ζω₀s + ω₀²) with the bilinear transform
+    // s ← k·(1 − z⁻¹)/(1 + z⁻¹), k = 2/Ts. Clearing (1 + z⁻¹)² gives a numerator
+    // proportional to (1 + z⁻¹)² (tap shape 1 : 2 : 1) over a denominator with
+    //   a0 = k² + 2ζω₀k + ω₀².
     const T omega_0 = T{2} * std::numbers::pi_v<T> * fc;
-    const T k = T{2} / Ts; // Pre-warping factor for bilinear transform
+    const T k = T{2} / Ts; // bilinear gain (cutoff assumed well below Nyquist; no pre-warp)
     const T k_sq = k * k;
     const T omega_0_sq = omega_0 * omega_0;
     const T two_zeta_omega = T{2} * zeta * omega_0;
 
-    // Denominator of continuous TF: s² + 2ζω₀s + ω₀²
-    const T denom = omega_0_sq * k_sq - two_zeta_omega * k + T{1};
+    const T a0 = k_sq + two_zeta_omega * k + omega_0_sq;
 
-    // Bilinear transform coefficients
     SecondOrderCoeffs<T> coeffs;
-    coeffs.b0 = omega_0_sq * k_sq / denom;
-    coeffs.b1 = T{2} * omega_0_sq * k_sq / denom;
-    coeffs.b2 = omega_0_sq * k_sq / denom;
-    coeffs.a1 = (T{2} * omega_0_sq * k_sq - T{2}) / denom;
-    coeffs.a2 = (omega_0_sq * k_sq + two_zeta_omega * k + T{1}) / denom;
+    coeffs.a1 = (T{2} * omega_0_sq - T{2} * k_sq) / a0;
+    coeffs.a2 = (k_sq - two_zeta_omega * k + omega_0_sq) / a0;
+
+    // The numerator is ω₀²·(1 + z⁻¹)², so the taps are in fixed ratio 1 : 2 : 1 and
+    // their only free parameter is the overall scale. Pin that scale from the
+    // unit-DC-gain identity H(1) = 1 ⇔ (b0 + b1 + b2) = (1 + a1 + a2): deriving the
+    // taps from that sum makes unity DC gain hold *by construction*, so it survives
+    // -ffast-math reassociation in downstream builds instead of depending on the raw
+    // bilinear numerator/denominator terms cancelling exactly (see roadmap #17).
+    const T dc_sum = T{1} + coeffs.a1 + coeffs.a2;
+    coeffs.b0 = dc_sum / T{4};
+    coeffs.b1 = dc_sum / T{2};
+    coeffs.b2 = dc_sum / T{4};
 
     return coeffs;
 }
@@ -379,6 +389,167 @@ template<typename T = float>
     const auto sys_d = discretize(tf.to_state_space(), Ts, DiscretizationMethod::Tustin);
     return to_coeffs(sys_d);
 }
+
+// ============================================================================
+// Biquad (second-order IIR) designs — RBJ audio-EQ cookbook formulas
+// ============================================================================
+//
+// Coefficients use the normalized difference equation
+//   y[n] = b0·x[n] + b1·x[n-1] + b2·x[n-2] − a1·y[n-1] − a2·y[n-2]
+// matching SecondOrderCoeffs and the Biquad runtime. Frequencies are designed
+// directly in the digital domain: ω₀ = 2π·f·Ts. Quality factor Q controls
+// bandwidth (BW in octaves ≈ asinh(1/2Q)·2/ln2 near ω₀); larger Q is narrower.
+
+namespace detail {
+template<typename T>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> normalize_biquad(T b0, T b1, T b2, T a0, T a1, T a2) {
+    const T inv = T{1} / a0;
+    return SecondOrderCoeffs<T>{b0 * inv, b1 * inv, b2 * inv, a1 * inv, a2 * inv};
+}
+} // namespace detail
+
+/**
+ * @brief Second-order band-reject (notch) filter.
+ *
+ * Rejects a narrow band around f0 (gain → 0 at f0) while passing the rest
+ * (gain → 1). Transfer function:
+ *
+ *     H(z) = (1 − 2cosω₀ z⁻¹ + z⁻²) / (1 + α) / (… z⁻¹ …),  α = sinω₀ / (2Q)
+ *
+ * @note Compare with MATLAB's iirnotch(w0, bw).
+ * @param f0 Notch (center) frequency [Hz]
+ * @param Q  Quality factor (higher = narrower notch)
+ * @param Ts Sample time [s]
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> notch(T f0, T Q, T Ts) {
+    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    return detail::normalize_biquad<T>(T{1}, T{-2} * cw, T{1}, T{1} + alpha, T{-2} * cw, T{1} - alpha);
+}
+
+/**
+ * @brief Second-order band-pass filter (constant 0 dB peak gain).
+ *
+ * Passes a band around f0 (gain → 1 at f0), rejecting DC and high frequencies.
+ *
+ * @param f0 Center frequency [Hz]
+ * @param Q  Quality factor (higher = narrower band)
+ * @param Ts Sample time [s]
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> bandpass(T f0, T Q, T Ts) {
+    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    return detail::normalize_biquad<T>(alpha, T{0}, -alpha, T{1} + alpha, T{-2} * cw, T{1} - alpha);
+}
+
+/**
+ * @brief Second-order high-pass filter (RBJ).
+ *
+ * Counterpart to lowpass_2nd. Note this family is parameterized by Q
+ * (= 1 / 2ζ); the default Q = 1/√2 is the maximally-flat (Butterworth) response.
+ *
+ * @param fc Cutoff frequency [Hz]
+ * @param Ts Sample time [s]
+ * @param Q  Quality factor (default 1/√2 = Butterworth)
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see lowpass_2nd()
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> highpass_2nd(T fc, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
+    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    const T b0 = (T{1} + cw) / T{2};
+    return detail::normalize_biquad<T>(b0, -(T{1} + cw), b0, T{1} + alpha, T{-2} * cw, T{1} - alpha);
+}
+
+/**
+ * @brief Peaking (bell) EQ filter: boost or cut a band around f0.
+ *
+ * @param f0      Center frequency [Hz]
+ * @param Q       Quality factor (higher = narrower bell)
+ * @param gain_db Peak gain at f0 [dB] (positive = boost, negative = cut)
+ * @param Ts      Sample time [s]
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> peaking(T f0, T Q, T gain_db, T Ts) {
+    const T A = wet::pow(T{10}, gain_db / T{40});
+    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    return detail::normalize_biquad<T>(
+        T{1} + (alpha * A), T{-2} * cw, T{1} - (alpha * A),
+        T{1} + (alpha / A), T{-2} * cw, T{1} - (alpha / A)
+    );
+}
+
+/**
+ * @brief Low-shelf EQ filter: boost or cut everything below fc.
+ *
+ * @param fc      Shelf corner frequency [Hz]
+ * @param gain_db Shelf gain [dB]
+ * @param Ts      Sample time [s]
+ * @param Q       Shelf shape (default 1/√2)
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> lowshelf(T fc, T gain_db, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
+    const T A = wet::pow(T{10}, gain_db / T{40});
+    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    const T tsa = T{2} * wet::sqrt(A) * alpha;
+    const T Ap = A + T{1};
+    const T Am = A - T{1};
+    return detail::normalize_biquad<T>(
+        A * (Ap - (Am * cw) + tsa),
+        T{2} * A * (Am - (Ap * cw)),
+        A * (Ap - (Am * cw) - tsa),
+        Ap + (Am * cw) + tsa,
+        T{-2} * (Am + (Ap * cw)),
+        Ap + (Am * cw) - tsa
+    );
+}
+
+/**
+ * @brief High-shelf EQ filter: boost or cut everything above fc.
+ *
+ * @param fc      Shelf corner frequency [Hz]
+ * @param gain_db Shelf gain [dB]
+ * @param Ts      Sample time [s]
+ * @param Q       Shelf shape (default 1/√2)
+ * @return SecondOrderCoeffs<T> normalized biquad coefficients
+ * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
+ */
+template<typename T = float>
+[[nodiscard]] constexpr SecondOrderCoeffs<T> highshelf(T fc, T gain_db, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
+    const T A = wet::pow(T{10}, gain_db / T{40});
+    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+    const T cw = wet::cos(w0);
+    const T alpha = wet::sin(w0) / (T{2} * Q);
+    const T tsa = T{2} * wet::sqrt(A) * alpha;
+    const T Ap = A + T{1};
+    const T Am = A - T{1};
+    return detail::normalize_biquad<T>(
+        A * (Ap + (Am * cw) + tsa),
+        T{-2} * A * (Am + (Ap * cw)),
+        A * (Ap + (Am * cw) - tsa),
+        Ap - (Am * cw) + tsa,
+        T{2} * (Am - (Ap * cw)),
+        Ap - (Am * cw) - tsa
+    );
+}
 } // namespace design
 /**
  * @brief Nth-order low-pass filter
@@ -418,8 +589,9 @@ public:
         std::array<T, MaxK + 1> h{};
         h[0] = sys_d.D(0, 0);
         Matrix<N, N, T> A_pow{};
-        for (size_t i = 0; i < N; ++i)
+        for (size_t i = 0; i < N; ++i) {
             A_pow(i, i) = T{1};
+        }
         for (size_t k = 1; k <= MaxK; ++k) {
             Matrix<N, 1, T> temp = A_pow * sys_d.B;
             h[k] = (sys_d.C * temp)(0, 0);
@@ -427,8 +599,9 @@ public:
         }
 
         // Set b coefficients
-        for (size_t i = 0; i <= N; ++i)
+        for (size_t i = 0; i <= N; ++i) {
             b[i] = h[i];
+        }
 
         // Compute a coefficients
         if constexpr (N > 0) {
@@ -491,6 +664,89 @@ public:
     // Move constructors
     constexpr LowPass(LowPass&& other) noexcept = default;
     constexpr LowPass& operator=(LowPass&& other) noexcept = default;
+
+    constexpr ~LowPass() = default;
+};
+
+/**
+ * @brief Second-order IIR (biquad) section runtime.
+ *
+ * Runs a SecondOrderCoeffs section in Direct Form I:
+ *   y[n] = b0·x[n] + b1·x[n-1] + b2·x[n-2] − a1·y[n-1] − a2·y[n-2]
+ *
+ * Pair with any design:: biquad designer (notch, bandpass, highpass_2nd,
+ * peaking, lowshelf, highshelf, lowpass_2nd).
+ *
+ * @code
+ * Biquad<float> notch{design::notch(50.0f, 5.0f, 1.0f / 1000.0f)};
+ * float clean = notch(sample);
+ * @endcode
+ */
+template<typename T = float>
+class Biquad {
+public:
+    constexpr Biquad() = default;
+
+    constexpr explicit Biquad(const design::SecondOrderCoeffs<T>& c)
+        : b0_(c.b0), b1_(c.b1), b2_(c.b2), a1_(c.a1), a2_(c.a2) {}
+
+    /// Process one sample.
+    constexpr T operator()(T x) {
+        const T y = (b0_ * x) + (b1_ * x1_) + (b2_ * x2_) - (a1_ * y1_) - (a2_ * y2_);
+        x2_ = x1_;
+        x1_ = x;
+        y2_ = y1_;
+        y1_ = y;
+        return y;
+    }
+
+    /// Reset the internal delay line.
+    constexpr void reset() {
+        x1_ = x2_ = y1_ = y2_ = T{0};
+    }
+
+private:
+    T b0_{1}, b1_{0}, b2_{0}, a1_{0}, a2_{0};
+    T x1_{0}, x2_{0}, y1_{0}, y2_{0};
+};
+
+/**
+ * @brief Cascade of second-order sections (SOS) for higher-order IIR filters.
+ *
+ * Chains NSections biquads in series. Cascading is the numerically preferred
+ * realization for higher-order IIR filters (vs. a single high-order section).
+ *
+ * @tparam NSections Number of biquad sections
+ * @tparam T         Scalar type
+ */
+template<size_t NSections, typename T = float>
+class BiquadCascade {
+public:
+    constexpr BiquadCascade() = default;
+
+    constexpr explicit BiquadCascade(const std::array<design::SecondOrderCoeffs<T>, NSections>& sections) {
+        for (size_t i = 0; i < NSections; ++i) {
+            sections_[i] = Biquad<T>(sections[i]);
+        }
+    }
+
+    /// Process one sample through all sections in series.
+    constexpr T operator()(T x) {
+        for (size_t i = 0; i < NSections; ++i) {
+            x = sections_[i](x);
+        }
+        return x;
+    }
+
+    /// Reset every section.
+    constexpr void reset() {
+        for (size_t i = 0; i < NSections; ++i) {
+            sections_[i].reset();
+        }
+    }
+
+private:
+    std::array<Biquad<T>, NSections> sections_{};
 };
 
 /**

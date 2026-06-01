@@ -30,7 +30,7 @@ TEST_SUITE("Quaternion") {
     TEST_CASE("Conjugate and inverse") {
         auto q_opt = Quaternion<float>::from_axis_angle(Vec3<float>{0.0f, 0.0f, 1.0f}, kPi * 0.5f);
         REQUIRE(q_opt.has_value());
-        auto q = q_opt.value();
+        const auto& q = q_opt.value();
 
         Vec3<float> v{1.0f, 0.0f, 0.0f};
         auto        v_rot = q.rotate(v);
@@ -91,7 +91,7 @@ TEST_SUITE("Quaternion") {
         auto qa = Quaternion<float>::identity();
         auto qb_opt = Quaternion<float>::from_axis_angle(Vec3<float>{0.0f, 0.0f, 1.0f}, kPi * 0.5f); // 90 deg
         REQUIRE(qb_opt.has_value());
-        auto qb = qb_opt.value();
+        const auto& qb = qb_opt.value();
 
         auto        qm = Quaternion<float>::slerp(qa, qb, 0.5f); // ~45 deg about Z
         Vec3<float> v{1.0f, 0.0f, 0.0f};
@@ -111,12 +111,15 @@ TEST_SUITE("Quaternion") {
         CHECK(e_back.yaw() == doctest::Approx(static_cast<double>(e.yaw())).epsilon(1e-5));
 
         // Spot-check a couple matrix entries against direct trig reference
-        float cr = std::cos(e.roll()), sr = std::sin(e.roll());
-        float cp = std::cos(e.pitch()), sp = std::sin(e.pitch());
-        float cy = std::cos(e.yaw()), sy = std::sin(e.yaw());
+        float cr = std::cos(e.roll());
+        float sr = std::sin(e.roll());
+        float cp = std::cos(e.pitch());
+        float sp = std::sin(e.pitch());
+        float cy = std::cos(e.yaw());
+        float sy = std::sin(e.yaw());
         CHECK(R(0, 0) == doctest::Approx(static_cast<double>(cy * cp)).epsilon(1e-6));
         CHECK(R(2, 0) == doctest::Approx(static_cast<double>(-sp)).epsilon(1e-6));
-        CHECK(R(0, 1) == doctest::Approx(static_cast<double>(cy * sp * sr - sy * cr)).epsilon(1e-6));
+        CHECK(R(0, 1) == doctest::Approx(static_cast<double>((cy * sp * sr) - (sy * cr))).epsilon(1e-6));
     }
 
     TEST_CASE("Quat <-> Euler conversion") {
@@ -236,7 +239,7 @@ TEST_SUITE("Transform4") {
 
         auto T_inv_opt = transform.inverse();
         REQUIRE(T_inv_opt.has_value());
-        Transform4d T_inv = *T_inv_opt;
+        const Transform4d& T_inv = *T_inv_opt;
 
         // T * T_inv should be identity
         Transform4d T_identity = transform * T_inv;
@@ -252,9 +255,10 @@ TEST_SUITE("Transform4") {
         // Create transform from quaternion + translation
         auto q_opt = Quaterniond::from_axis_angle(Vec3d{0.0, 0.0, 1.0}, static_cast<double>(kPi) * 0.5);
         REQUIRE(q_opt.has_value());
-        Quaterniond q = *q_opt;
-        Vec3d       t{1.0, 2.0, 3.0};
-        Transform4d T = Transform4d::from_quaternion_translation(q, t);
+
+        const Quaterniond& q = *q_opt;
+        Vec3d              t{1.0, 2.0, 3.0};
+        Transform4d        T = Transform4d::from_quaternion_translation(q, t);
 
         // Extract back
         auto [q_back, t_back] = T.to_quaternion_translation();

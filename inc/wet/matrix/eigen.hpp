@@ -819,7 +819,7 @@ template<typename T, size_t N>
  * @brief Result of ordered Schur decomposition
  *
  * Partitions eigenvalues and eigenvectors into stable and unstable subspaces.
- * Critical for solving Ricatti equations via Hamiltonian/symplectic methods.
+ * Critical for solving riccati equations via Hamiltonian/symplectic methods.
  */
 template<typename T, size_t N>
 struct OrderedSchurResult {

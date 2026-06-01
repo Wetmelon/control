@@ -29,7 +29,7 @@ namespace wetmelon::control {
  */
 template<typename T = float>
 [[nodiscard]] constexpr std::pair<T, T> clarke_transform(T a, T b, T c) {
-    const T alpha = (T{2} * a - b - c) / T{3};
+    const T alpha = ((T{2} * a) - b - c) / T{3};
     const T beta = (b - c) / std::numbers::sqrt3_v<T>;
     return {alpha, beta};
 }
@@ -47,8 +47,8 @@ template<typename T = float>
 template<typename T = float>
 [[nodiscard]] constexpr std::tuple<T, T, T> inverse_clarke_transform(T alpha, T beta) {
     const T a = alpha;
-    const T b = -alpha / T{2} + std::numbers::sqrt3_v<T> * beta / T{2};
-    const T c = -alpha / T{2} - std::numbers::sqrt3_v<T> * beta / T{2};
+    const T b = (-alpha / T{2}) + (std::numbers::sqrt3_v<T> * beta / T{2});
+    const T c = (-alpha / T{2}) - (std::numbers::sqrt3_v<T> * beta / T{2});
     return {a, b, c};
 }
 
@@ -68,8 +68,8 @@ template<typename T = float>
 [[nodiscard]] constexpr std::pair<T, T> park_transform(T alpha, T beta, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
-    const T d = alpha * cos_theta + beta * sin_theta;
-    const T q = -alpha * sin_theta + beta * cos_theta;
+    const T d = (alpha * cos_theta) + (beta * sin_theta);
+    const T q = (-alpha * sin_theta) + (beta * cos_theta);
 
     return {d, q};
 }
@@ -89,8 +89,8 @@ template<typename T = float>
 [[nodiscard]] constexpr std::pair<T, T> inverse_park_transform(T d, T q, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
-    const T alpha = d * cos_theta - q * sin_theta;
-    const T beta = d * sin_theta + q * cos_theta;
+    const T alpha = (d * cos_theta) - (q * sin_theta);
+    const T beta = (d * sin_theta) + (q * cos_theta);
 
     return {alpha, beta};
 }
@@ -152,9 +152,9 @@ template<typename T = float>
     const T v_0 = T{0}; // Zero sequence component
 
     // Calculate duty cycles
-    const T duty_a = T{0.5} + v_a_norm / T{2} + v_0 / T{2};
-    const T duty_b = T{0.5} - v_a_norm / T{4} + v_b_norm * std::numbers::sqrt3_v<T> / T{4} + v_0 / T{2};
-    const T duty_c = T{0.5} - v_a_norm / T{4} - v_b_norm * std::numbers::sqrt3_v<T> / T{4} + v_0 / T{2};
+    const T duty_a = T{0.5} + (v_a_norm / T{2}) + (v_0 / T{2});
+    const T duty_b = T{0.5} - (v_a_norm / T{4}) + (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
+    const T duty_c = T{0.5} - (v_a_norm / T{4}) - (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
 
     return {std::clamp(duty_a, T{0}, T{1}), std::clamp(duty_b, T{0}, T{1}), std::clamp(duty_c, T{0}, T{1})};
 }

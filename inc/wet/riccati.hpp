@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <optional>
 
 #include "wet/matrix/eigen.hpp"
@@ -349,7 +350,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
         bool diverged = false;
         for (size_t i = 0; i < NX && !diverged; ++i) {
             for (size_t j = 0; j < NX; ++j) {
-                if (!std::isfinite(X_next(i, j)) || wet::abs(X_next(i, j)) > guard) {
+                if (!wet::isfinite(X_next(i, j)) || wet::abs(X_next(i, j)) > guard) {
                     diverged = true;
                     break;
                 }
@@ -365,17 +366,19 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
         for (size_t i = 0; i < NX; ++i) {
             for (size_t j = 0; j < NX; ++j) {
                 T diff = X_next(i, j) - X(i, j);
-                if (diff > guard)
+                if (diff > guard) {
                     diff = guard;
-                else if (diff < -guard)
+                } else if (diff < -guard) {
                     diff = -guard;
+                }
                 diff_norm_sq += diff * diff;
 
                 T xval = X_next(i, j);
-                if (xval > guard)
+                if (xval > guard) {
                     xval = guard;
-                else if (xval < -guard)
+                } else if (xval < -guard) {
                     xval = -guard;
+                }
                 x_norm_sq += xval * xval;
             }
         }
@@ -395,11 +398,147 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
     return (X + X.t()) * T{0.5};
 }
 
+/**
+ * @brief Solve CARE via the matrix sign function (Roberts' method)
+ *
+ * Solves AᵀX + XA − (XB + N)R⁻¹(BᵀX + Nᵀ) + Q = 0 by computing the sign
+ * function of the Hamiltonian
+ *
+ *     H = ⎡  A   −G  ⎤,   G = B R⁻¹ Bᵀ   (cross-term N folded into A, Q first)
+ *         ⎣ −Q   −Aᵀ ⎦
+ *
+ * via the scaled Newton iteration Zₖ₊₁ = ½(Zₖ/cₖ + cₖ Zₖ⁻¹) → sign(H), then
+ * extracting the stabilizing solution from the stable invariant subspace:
+ * writing sign(H) = [[W₁₁,W₁₂],[W₂₁,W₂₂]], X solves the (consistent) stacked
+ * system [W₁₂; W₂₂+I] X = −[W₁₁+I; W₂₁], here via its normal equations.
+ *
+ * Frobenius-norm scaling cₖ = √(‖Zₖ⁻¹‖/‖Zₖ‖) gives near-quadratic convergence.
+ * No precondition checks — use care() for the validated entry point. Returns
+ * nullopt if the iteration fails to converge (e.g. H has eigenvalues on the
+ * imaginary axis, i.e. the stabilizing solution does not exist).
+ *
+ * @see Roberts, "Linear model reduction and solution of the algebraic Riccati
+ *      equation by use of the sign function," Int. J. Control, 1980,
+ *      https://doi.org/10.1080/00207178008922881
+ * @see Higham, "Functions of Matrices" (2008), §2.3 (sign-function scaling)
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr std::optional<Matrix<NX, NX, T>> care_sign(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    //! G = B R⁻¹ Bᵀ and cross-term reduction A_eff = A − B R⁻¹ Nᵀ,
+    //! Q_eff = Q − N R⁻¹ Nᵀ — solved against R rather than forming R⁻¹.
+    const auto Rinv_Bt_opt = mat::lu_solve(R, B.transpose());
+    if (!Rinv_Bt_opt) {
+        return std::nullopt;
+    }
+    const auto Rinv_Nt_opt = mat::lu_solve(R, N.transpose());
+    if (!Rinv_Nt_opt) {
+        return std::nullopt;
+    }
+    const Matrix<NX, NX, T> G = B * Rinv_Bt_opt.value();
+    const Matrix<NX, NX, T> A_eff = A - B * Rinv_Nt_opt.value();
+    const Matrix<NX, NX, T> Q_eff = Q - N * Rinv_Nt_opt.value();
+
+    //! Assemble the 2NX×2NX Hamiltonian.
+    constexpr size_t        M = 2 * NX;
+    Matrix<M, M, T>         H = Matrix<M, M, T>::zeros();
+    const Matrix<NX, NX, T> A_effT = A_eff.t();
+    for (size_t i = 0; i < NX; ++i) {
+        for (size_t j = 0; j < NX; ++j) {
+            H(i, j) = A_eff(i, j);
+            H(i, NX + j) = -G(i, j);
+            H(NX + i, j) = -Q_eff(i, j);
+            H(NX + i, NX + j) = -A_effT(i, j);
+        }
+    }
+
+    //! Scaled Newton iteration for sign(H).
+    Matrix<M, M, T> Z = H;
+    const T         tol = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
+    const int       max_iter = 100;
+    const T         guard = T{1e150};
+    bool            converged = false;
+
+    for (int iter = 0; iter < max_iter; ++iter) {
+        const auto Zinv_opt = mat::lu_solve(Z, Matrix<M, M, T>::identity());
+        if (!Zinv_opt) {
+            return std::nullopt;
+        }
+        const Matrix<M, M, T> Zinv = Zinv_opt.value();
+
+        //! Frobenius-norm scaling cₖ = √(‖Zₖ⁻¹‖/‖Zₖ‖) accelerates convergence.
+        const T norm_z = Z.norm();
+        const T norm_zinv = Zinv.norm();
+        T       c = T{1};
+        if (norm_z > T{0} && norm_zinv > T{0} && wet::isfinite(norm_z) && wet::isfinite(norm_zinv)) {
+            c = wet::sqrt(norm_zinv / norm_z);
+        }
+
+        const Matrix<M, M, T> Z_next = (Z * (T{1} / c) + Zinv * c) * T{0.5};
+
+        //! Divergence guard (matches the dare iterations).
+        for (size_t i = 0; i < M; ++i) {
+            for (size_t j = 0; j < M; ++j) {
+                if (!wet::isfinite(Z_next(i, j)) || wet::abs(Z_next(i, j)) > guard) {
+                    return std::nullopt;
+                }
+            }
+        }
+
+        const T diff = (Z_next - Z).norm();
+        Z = Z_next;
+
+        if (diff < tol * std::max(T{1}, Z.norm())) {
+            converged = true;
+            break;
+        }
+    }
+
+    if (!converged) {
+        return std::nullopt;
+    }
+
+    //! Partition sign(H) and solve [W₁₂; W₂₂+I] X = −[W₁₁+I; W₂₁] via normal
+    //! equations: (W₁₂ᵀW₁₂ + (W₂₂+I)ᵀ(W₂₂+I)) X = −(W₁₂ᵀ(W₁₁+I) + (W₂₂+I)ᵀW₂₁).
+    Matrix<NX, NX, T> W11{};
+    Matrix<NX, NX, T> W12{};
+    Matrix<NX, NX, T> W21{};
+    Matrix<NX, NX, T> W22{};
+    for (size_t i = 0; i < NX; ++i) {
+        for (size_t j = 0; j < NX; ++j) {
+            W11(i, j) = Z(i, j);
+            W12(i, j) = Z(i, NX + j);
+            W21(i, j) = Z(NX + i, j);
+            W22(i, j) = Z(NX + i, NX + j);
+        }
+    }
+    const Matrix<NX, NX, T> id = Matrix<NX, NX, T>::identity();
+    const Matrix<NX, NX, T> W22pI = W22 + id;
+    const Matrix<NX, NX, T> W11pI = W11 + id;
+
+    const Matrix<NX, NX, T> lhs = W12.t() * W12 + W22pI.t() * W22pI;
+    const Matrix<NX, NX, T> rhs = (W12.t() * W11pI + W22pI.t() * W21) * T{-1};
+
+    const auto X_opt = mat::lu_solve(lhs, rhs);
+    if (!X_opt) {
+        return std::nullopt;
+    }
+    const Matrix<NX, NX, T> X = X_opt.value();
+
+    //! Symmetrize for numerical cleanup.
+    return (X + X.t()) * T{0.5};
+}
+
 } // namespace detail
 
-enum class DareMethod { Auto,
-                        SDA,
-                        RDE };
+enum class DareMethod : uint8_t { Auto,
+                                  SDA,
+                                  RDE };
 
 /**
  * @brief Solve the Discrete Algebraic Riccati Equation (DARE)
@@ -473,17 +612,88 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
 
     switch (method) {
         case DareMethod::SDA:
-            if (!r_is_pd)
+            if (!r_is_pd) {
                 return std::nullopt;
+            }
             return detail::dare_sda(A, B, Q, R, N);
         case DareMethod::RDE:
             return detail::dare_rde(A, B, Q, R, N);
         case DareMethod::Auto:
         default:
-            if (r_is_pd)
+            if (r_is_pd) {
                 return detail::dare_sda(A, B, Q, R, N);
+            }
             return detail::dare_rde(A, B, Q, R, N);
     }
+}
+
+/**
+ * @brief Solve the Continuous-time Algebraic Riccati Equation (CARE)
+ *
+ * Finds the unique stabilizing solution X to:
+ *
+ *     AᵀX + XA − (XB + N)R⁻¹(BᵀX + Nᵀ) + Q = 0
+ *
+ * This is the continuous-time counterpart of dare(). It underpins continuous
+ * LQR/LQG design that has not been discretized first; the discrete pipeline
+ * (LQR/LQI/LQG/LQGI) discretizes the plant and uses dare() instead.
+ *
+ * Preconditions (checked internally):
+ * - Q symmetric positive semidefinite
+ * - R symmetric positive definite (CARE forms G = B R⁻¹ Bᵀ)
+ *
+ * Existence of the stabilizing solution additionally requires (A, B)
+ * stabilizable and (A, Q) detectable; those are not pre-screened here (the
+ * continuous stabilizability/detectability tests differ from the discrete
+ * is_stabilizable() used by dare()). Instead, infeasibility surfaces as the
+ * sign-function iteration failing to converge, in which case care() returns
+ * std::nullopt.
+ *
+ * @note Compare with MATLAB's icare(A, B, Q, R) / care(A, B, Q, R).
+ *
+ * @see care_sign() — the underlying matrix-sign-function solver
+ * @see dare() — the discrete-time counterpart
+ * @see "Optimal Control" (Anderson & Moore, 1990), §3.3
+ *
+ * @param A  State matrix (NX × NX)
+ * @param B  Input matrix (NX × NU)
+ * @param Q  State cost matrix (NX × NX, positive semidefinite)
+ * @param R  Input cost matrix (NU × NU, positive definite)
+ * @param N  Cross-term matrix (NX × NU, default: zero)
+ * @return Stabilizing solution X (NX × NX, symmetric positive semidefinite) or
+ *         std::nullopt on failure
+ */
+template<size_t NX, size_t NU, typename T = double>
+constexpr std::optional<Matrix<NX, NX, T>> care(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    //! R and Q must be symmetric (CARE assumes symmetric weights).
+    if (!mat::is_symmetric_or_hermitian(R)) {
+        return std::nullopt;
+    }
+    if (!mat::is_symmetric_or_hermitian(Q)) {
+        return std::nullopt;
+    }
+
+    //! Q positive semidefinite via Cholesky of (Q + εI) — same trick as dare().
+    const T eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-12};
+    {
+        const Matrix<NX, NX, T> Q_shifted = Q + Matrix<NX, NX, T>::identity() * eps;
+        if (!mat::cholesky(Q_shifted)) {
+            return std::nullopt;
+        }
+    }
+
+    //! R must be positive definite (G = B R⁻¹ Bᵀ).
+    if (!mat::cholesky(R)) {
+        return std::nullopt;
+    }
+
+    return detail::care_sign(A, B, Q, R, N);
 }
 
 } // namespace wetmelon::control

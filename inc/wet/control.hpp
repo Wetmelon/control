@@ -39,25 +39,38 @@
 #include "wet/analysis/stability.hpp"     // IWYU pragma: keep
 
 // --- Controllers + design synthesis -----------------------------------------
-#include "wet/controllers/adrc.hpp"       // IWYU pragma: keep
-#include "wet/controllers/lead_lag.hpp"   // IWYU pragma: keep
-#include "wet/controllers/lqg.hpp"        // IWYU pragma: keep
-#include "wet/controllers/lqgi.hpp"       // IWYU pragma: keep
-#include "wet/controllers/lqi.hpp"        // IWYU pragma: keep
-#include "wet/controllers/lqr.hpp"        // IWYU pragma: keep
-#include "wet/controllers/pid.hpp"        // IWYU pragma: keep
-#include "wet/controllers/pid_design.hpp" // IWYU pragma: keep
-#include "wet/controllers/pll.hpp"        // IWYU pragma: keep
-#include "wet/controllers/pr.hpp"         // IWYU pragma: keep
-#include "wet/controllers/ricatti.hpp"    // IWYU pragma: keep
-#include "wet/controllers/smc.hpp"        // IWYU pragma: keep
-#include "wet/controllers/synthesis.hpp"  // IWYU pragma: keep
+#include "wet/controllers/adrc.hpp"           // IWYU pragma: keep
+#include "wet/controllers/cascade.hpp"        // IWYU pragma: keep
+#include "wet/controllers/excitation.hpp"     // IWYU pragma: keep
+#include "wet/controllers/lead_lag.hpp"       // IWYU pragma: keep
+#include "wet/controllers/lqg.hpp"            // IWYU pragma: keep
+#include "wet/controllers/lqgi.hpp"           // IWYU pragma: keep
+#include "wet/controllers/lqi.hpp"            // IWYU pragma: keep
+#include "wet/controllers/lqr.hpp"            // IWYU pragma: keep
+#include "wet/controllers/pid.hpp"            // IWYU pragma: keep
+#include "wet/controllers/pid_design.hpp"     // IWYU pragma: keep
+#include "wet/controllers/pll.hpp"            // IWYU pragma: keep
+#include "wet/controllers/pr.hpp"             // IWYU pragma: keep
+#include "wet/controllers/relay_autotune.hpp" // IWYU pragma: keep
+#include "wet/controllers/smc.hpp"            // IWYU pragma: keep
+#include "wet/controllers/synthesis.hpp"      // IWYU pragma: keep
+#include "wet/riccati.hpp"                    // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
-#include "wet/estimation/ekf.hpp"           // IWYU pragma: keep
-#include "wet/estimation/eskf.hpp"          // IWYU pragma: keep
-#include "wet/estimation/kalman.hpp"        // IWYU pragma: keep
-#include "wet/estimation/sensor_fusion.hpp" // IWYU pragma: keep
+#include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep
+#include "wet/estimation/ekf.hpp"                     // IWYU pragma: keep
+#include "wet/estimation/eskf.hpp"                    // IWYU pragma: keep
+#include "wet/estimation/kalman.hpp"                  // IWYU pragma: keep
+#include "wet/estimation/observer.hpp"                // IWYU pragma: keep
+#include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: keep
+#include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
+
+// NOTE: estimation/harmonic_estimation.hpp and estimation/identification.hpp are
+// intentionally NOT included here. They are roadmap placeholders (#9 harmonic
+// detection, #3 system identification) that expose only result-struct skeletons,
+// not working APIs. Keeping them out of the umbrella avoids advertising unshipped
+// surface as part of the embeddable contract; include them directly if you are
+// developing those features.
 
 // --- Signal filters ---------------------------------------------------------
 #include "wet/filters/filters.hpp" // IWYU pragma: keep

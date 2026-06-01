@@ -1,10 +1,8 @@
 # `wet::` trig — analysis & benchmarks
 
-Branch: `ti_arm_math`
-
 ## Scope
 
-`wet::` ([`inc/math/wet_trig.hpp`](../inc/math/wet_trig.hpp)) is a header-only
+`wet::` ([`inc/wet/math/wet_trig.hpp`](../../inc/wet/math/wet_trig.hpp)) is a header-only
 single-precision trig library for Cortex-M7. This directory benchmarks it
 against three alternatives:
 
@@ -52,16 +50,17 @@ literal pool excluded.
 
 | fn | `wet::` | `odrv::` | `ti::` |
 | -- | ------- | -------- | ------ |
-| sin    | 30 / 25 | 27 / 26 | 23 / 24 |
-| cos    | 33 / 28 | 29 / 27 | 39 / 32 |
-| sincos | 42 / 38 | 59 / 44 | 48 / 46 |
-| asin   | 32 / 29 | — | 35 / 29 |
-| acos   | 32 / 28 | — | 32 / 27 |
-| atan   | 40 / 32 | — | 43 / 34 |
-| atan2  | 40 / 37 | 32 / 34 | 63 / 52 |
+| sin    | 29 / 25 | 27 / 26 | 23 / 24 |
+| cos    | 32 / 28 | 29 / 27 | 39 / 32 |
+| sincos | 41 / 38 | 59 / 44 | 48 / 46 |
+| asin   | 31 / 28 | — | 35 / 29 |
+| acos   | 32 / 27 | — | 32 / 27 |
+| atan   | 39 / 32 | — | 43 / 34 |
+| atan2  | 40 / 38 | 32 / 33 | 63 / 52 |
 
-- Cody-Waite costs ~+6 over single-step (sin was 21/19): 3 `vfms` for the π-words,
-  one `r·inv_pi`, 3 literal-pool loads. It is always-on, including wrapped angles.
+- Cody-Waite costs ~+5 over single-step (sin was 24/20 without CW): 3 `vfms` for
+  the π-words, one `r·inv_pi`, 3 literal-pool loads. It is always-on, including
+  wrapped angles.
 - Counts are static (both branch arms); the executed hot path is shorter.
   Cycles require a DWT count on M7.
 - `std::` is not compiled here. SPRAD27A Table 3-1 (Cortex-R5F): ~150 cycles
@@ -94,7 +93,7 @@ squared per level): critical path ~log₂(N) vs N.
 
 - Evaluation rounding cost ~1–2 ULP, below the fit error (atan ~5e-7,
   asin ~1.1e-6).
-- gcc instruction count also dropped (atan 52→40, asin 40→32, acos 41→32) as
+- gcc instruction count also dropped (atan 52→39, asin 40→31, acos 41→32) as
   Horner-branch duplication collapsed.
 - Python mirror: `estrin_f32` / `horner_f32` in `minimax_trig.py`.
 - `sin_poly` is hand-written semi-Estrin; `horner_eval` retained.
@@ -121,21 +120,23 @@ shares ([`plot_codywaite.py`](plot_codywaite.py), `build/codywaite_error.png`).
   angle's meaning: canonical float32 state → full ~100×; float32 sample of a
   continuous angle → input floor caps it (~3–4× by |x|=1000).
 - Below ~7 rad (wrapped angles) all methods sit near their floors; C-W only
-  matters unwrapped — but it is always-on (~+6 instructions vs single-step).
+  matters unwrapped — but it is always-on (~+5 instructions vs single-step).
 - 3-word π split: `n·PI_HI` exact for n < 2¹³, i.e. |x| ≲ 25700 rad (measured
   flat to 20000; rises to ~1e-6 by 50000). The three subtractions must not be
-  reassociated — **both** clang and gcc fold them back to single-step under
-  `-ffast-math` (verified numerically: error regrows ~1 ULP/rad). `wrap` pins
-  the order per-compiler: `#pragma clang fp reassociate(off)` and
-  `#pragma GCC optimize("no-associative-math")` (both survive inlining into
-  sin/cos/sincos).
+  reassociated — clang folds them back to single-step under `-ffast-math`
+  (verified numerically: error regrows ~1 ULP/rad). `wrap` pins the order
+  with `#pragma clang fp reassociate(off)` (survives inlining into
+  sin/cos/sincos). gcc 14.2 does not reassociate the `vfms` chain under
+  `-ffast-math`, so no gcc pragma is needed; the three-step reduction
+  survives inlining without intervention.
 
 ## Status
 
 Done:
 - Full-range sin/cos/sincos/asin/acos/atan/atan2, branchless hot paths.
 - Cody-Waite reduction in `wrap` → forward trig flat at ~8.6e-7 to |x| ≈ 20000
-  rad (~+6 instructions; reassociation pinned on both compilers via pragmas).
+  rad (~+5 instructions; reassociation pinned on clang via pragma, gcc 14.2
+  preserves the chain without intervention).
 - Standalone `cos` via `sincos` identity.
 - `wet::sqrt` (public, bare `vsqrt`, no `sqrtf` fallback).
 - `sincos` in `MathBackend`; Park transforms use it.
@@ -143,7 +144,7 @@ Done:
 
 Open:
 - Inverse-trig refit: asin +1 term, atan +2 terms.
-- Optional: radian-domain `sin_poly` refit to trim Cody-Waite cost (~+6 → ~+3).
+- Optional: radian-domain `sin_poly` refit to trim Cody-Waite cost (~+5 → ~+3).
 
 ## References
 

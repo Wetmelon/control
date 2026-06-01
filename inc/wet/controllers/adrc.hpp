@@ -109,26 +109,51 @@ class ADRCController {
     T Kd{1.0f}; //< derivative gain
     T Ts{1.0f}; //< sampling time
 
-    std::array<T, NX + 1> beta{}; //< ESO gains [β1, β2, ..., β_{NX+1}]
-    ColVec<NX + 1, T>     z{};    //< ESO state: [z1, z2, ..., z_{NX+1}]
+    std::array<T, NX + 1> beta{};             //< ESO gains [β1, β2, ..., β_{NX+1}]
+    ColVec<NX + 1, T>     z{};                //< ESO state: [z1, z2, ..., z_{NX+1}]
+    T                     u_prev_{T{0}};      //< Last applied command (post-saturation)
+    T                     ki_factor_{T{1.0}}; //< Integrator gain-scheduling factor
 
 public:
     constexpr ADRCController() = default;
     constexpr ADRCController(const design::ADRCResult<NX, T>& result)
-        : b0(result.b0), beta(result.beta), Kp(result.Kp), Kd(result.Kd), Ts(result.Ts) {}
+        : b0(result.b0), Kp(result.Kp), Kd(result.Kd), Ts(result.Ts), beta(result.beta) {}
 
     template<typename U>
     constexpr ADRCController(const ADRCController<NX, U>& other)
-        : b0(other.b0), beta(other.beta), Kp(other.Kp), Kd(other.Kd), Ts(other.Ts), z(other.z) {}
+        : b0(other.b0), Kp(other.Kp), Kd(other.Kd), Ts(other.Ts), beta(other.beta), z(other.z), u_prev_(other.u_prev_), ki_factor_(other.ki_factor_) {}
 
     /**
-     * @brief Compute ADRC control
+     * @brief Set the integrator gain-scheduling factor used by the 2-arg
+     *        @ref control overload. Defaults to 1.0.
+     */
+    constexpr void set_ki_factor(T factor) { ki_factor_ = factor; }
+
+    /**
+     * @brief Reference-tracking overload satisfying @ref SISOController.
      *
-     * @param r Reference
-     * @param y Measurement
-     * @param u_prev Previous control command after any external saturation
-     * @param ki_factor Integrator gain scheduling factor (default: 1.0)
+     * The ESO uses the previously-applied command (stored in `u_prev_`) for
+     * its update. After computing a new command this overload optimistically
+     * stores the unsaturated value in `u_prev_`; if a downstream stage clamps
+     * the command, the caller should follow up with `back_calculate(u_unsat,
+     * u_sat)` so the ESO's next tick uses what was actually applied.
+     */
+    [[nodiscard]] constexpr T control(T r, T y) {
+        const T u = control(r, y, u_prev_, ki_factor_);
+        u_prev_ = u;
+        return u;
+    }
+
+    /**
+     * @brief Compute ADRC control with explicit u_prev / ki_factor (legacy).
+     *
+     * @param r        Reference
+     * @param y        Measurement
+     * @param u_prev   Previous control command after any external saturation
+     * @param ki_factor Integrator gain-scheduling factor (default: 1.0)
      * @return Control output u
+     *
+     * Prefer the 2-arg overload + `back_calculate` for new code.
      */
     [[nodiscard]] constexpr T control(T r, T y, T u_prev, T ki_factor = T{1.0}) {
         T e = y - z[0]; // Innovation
@@ -152,8 +177,23 @@ public:
         return u;
     }
 
+    /**
+     * @brief Anti-windup hook for cascade-level saturation propagation.
+     *
+     * Overrides the stored `u_prev_` with the actually-realized command so
+     * the next ESO tick reflects what the plant received, not what the
+     * controller wanted. This is the natural ADRC anti-windup behavior:
+     * the ESO's disturbance estimate self-corrects once it sees the true
+     * input, without an explicit integrator unwind step.
+     */
+    constexpr void back_calculate(T u_unsat, T u_sat) {
+        (void)u_unsat;
+        u_prev_ = u_sat;
+    }
+
     constexpr void reset() {
         z = ColVec<NX + 1, T>{};
+        u_prev_ = T{0};
     }
 };
 } // namespace wetmelon::control

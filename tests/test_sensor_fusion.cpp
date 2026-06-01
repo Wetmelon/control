@@ -202,15 +202,15 @@ TEST_SUITE("Sensor Fusion Filters") {
         // Add noise to measurements
         for (int i = 0; i < 100; ++i) {
             Vec3<float> noisy_accel = true_accel + Vec3<float>{
-                                          0.1f * (rand() / float(RAND_MAX) - 0.5f),
-                                          0.1f * (rand() / float(RAND_MAX) - 0.5f),
-                                          0.1f * (rand() / float(RAND_MAX) - 0.5f),
+                                          0.1f * ((rand() / float(RAND_MAX)) - 0.5f),
+                                          0.1f * ((rand() / float(RAND_MAX)) - 0.5f),
+                                          0.1f * ((rand() / float(RAND_MAX)) - 0.5f),
                                       };
 
             Vec3<float> noisy_gyro = true_gyro + Vec3<float>{
-                                         0.01f * (rand() / float(RAND_MAX) - 0.5f),
-                                         0.01f * (rand() / float(RAND_MAX) - 0.5f),
-                                         0.01f * (rand() / float(RAND_MAX) - 0.5f),
+                                         0.01f * ((rand() / float(RAND_MAX)) - 0.5f),
+                                         0.01f * ((rand() / float(RAND_MAX)) - 0.5f),
+                                         0.01f * ((rand() / float(RAND_MAX)) - 0.5f),
                                      };
 
             filter.update(noisy_accel, noisy_gyro, dt);

@@ -119,6 +119,7 @@ struct PRController {
     T w0{};
     T wc{};
     T Ts{};
+    T Kbc{T{0}}; //!< Back-calculation gain for cascade-level anti-windup (0 = no unwind)
 
     // Internal state for the discretized resonant term (2nd order IIR)
     T x1{0}; //!< State variable 1 (output history)
@@ -160,11 +161,39 @@ struct PRController {
         return Kp * error + resonant;
     }
 
+    /**
+     * @brief Reference-tracking overload satisfying SISOController.
+     *
+     * Computes the error internally and forwards to the error-form `control()`.
+     * Lets this controller be used directly in `Cascade<Outer, PRController>`
+     * and in tuning harnesses that speak the (r, y) protocol.
+     */
+    [[nodiscard]] constexpr T control(T r, T y) {
+        return control(r - y);
+    }
+
     constexpr void reset() {
         x1 = T{0};
         x2 = T{0};
         u1 = T{0};
         u2 = T{0};
+    }
+
+    /**
+     * @brief Anti-windup hook for cascade-level saturation propagation.
+     *
+     * Damped unwind: scales the most recent resonant output state `x1` by
+     * `(u_sat - u_unsat) * Ts / Kbc` so the next tick's resonant contribution
+     * is pulled back toward the realizable command. Symmetric with the
+     * PID/PI back-calculation pattern (see @ref SISOControllerWithBackCalculation).
+     * No-op when `Kbc == 0` (the safe default for users who do not configure
+     * back-calculation).
+     */
+    constexpr void back_calculate(T u_unsat, T u_sat) {
+        if (u_unsat == u_sat || Kbc == T{0}) {
+            return;
+        }
+        x1 += Ts * ((u_sat - u_unsat) / Kbc);
     }
 
     /**
@@ -246,6 +275,13 @@ struct MultiPRController {
             u += resonants[i].control(error);
         }
         return u;
+    }
+
+    /**
+     * @brief Reference-tracking overload satisfying SISOController.
+     */
+    [[nodiscard]] constexpr T control(T r, T y) {
+        return control(r - y);
     }
 
     constexpr void reset() {

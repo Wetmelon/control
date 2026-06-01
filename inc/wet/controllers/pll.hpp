@@ -1,16 +1,23 @@
 #pragma once
 
 #include <algorithm>
-#include <cmath>
 #include <numbers>
 
 #include "wet/filters/sogi.hpp"
+#include "wet/math/wetmelon_math.hpp"
 
 namespace wetmelon::control {
 /**
  * @brief Single-Phase PLL
  *
  * Uses a Second-Order Generalized Integrator (SOGI) for quadrature signal generation.
+ *
+ * @note A phase-locked loop is a tracker, not a reference-following controller,
+ *       and does not satisfy @ref SISOController -- its entry point is
+ *       `step(T input, T Ts)` returning `void`, with state read out via member
+ *       accessors. Use it as a frequency / phase estimator that feeds *into* a
+ *       SISOController (e.g. a current-loop PR controller riding the PLL's
+ *       phase estimate), not as a block inside `Cascade<Outer, Inner>`.
  */
 template<typename T>
 struct SinglePhasePLL {
@@ -63,7 +70,7 @@ struct SinglePhasePLL {
         // Update phase estimate [rad] from frequency estimate [Hz]
         const T two_pi = T{2} * std::numbers::pi_v<T>;
         phase_estimate += two_pi * frequency_estimate * Ts;
-        phase_estimate = std::fmod(phase_estimate, two_pi);
+        phase_estimate = wet::fmod(phase_estimate, two_pi);
         if (phase_estimate < T{0}) {
             phase_estimate += two_pi;
         }

@@ -36,7 +36,10 @@ struct StdMathFallback {
     static T               floor(T x) { return std::floor(x); }
     static T               ceil(T x) { return std::ceil(x); }
 
-    static T pow(T base, T exponent) { return std::pow(base, exponent); }
+    static T    pow(T base, T exponent) { return std::pow(base, exponent); }
+    static T    fmod(T x, T y) { return std::fmod(x, y); }
+    static T    copysign(T mag, T sgn) { return std::copysign(mag, sgn); }
+    static bool isfinite(T x) { return std::isfinite(x); }
 };
 
 /**

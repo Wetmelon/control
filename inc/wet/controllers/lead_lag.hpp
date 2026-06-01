@@ -264,6 +264,22 @@ struct LeadLagController {
         return y;
     }
 
+    /**
+     * @brief Reference-tracking overload satisfying SISOController.
+     *
+     * Lead-lag is structurally a SISO filter (frequency-domain compensator),
+     * but it's most commonly applied to the tracking error in a feedback
+     * loop. This overload computes the error internally so the controller
+     * can drop into `Cascade<Outer, LeadLagController>` and any other
+     * SISOController-shaped consumer.
+     *
+     * The single-argument `control(T u)` form is still available for use as
+     * a standalone filter inside a larger composite controller.
+     */
+    [[nodiscard]] constexpr T control(T r, T y) {
+        return control(r - y);
+    }
+
     constexpr void reset() {
         u_prev = T{0};
         y_prev = T{0};

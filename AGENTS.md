@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to LLMs when working with code in this repository.
 
 ## Project
 
@@ -30,11 +30,13 @@ Run a single test suite or case with doctest filters:
 ./tests/build/test_runner.exe -tc="Matrix exponential - diagonal"
 ```
 
-Compiler flags: `-O3 -std=c++20 -march=native -Wall -Wextra -Wdouble-promotion` (see `Tuprules.lua`).
+Compiler flags: `-O3 -std=c++20 -march=native -Wall -Wextra -Wdouble-promotion` (see `Tuprules.lua`). Minimum toolchains: GCC 10+, Clang 12+, MSVC 2022+ (C++20 with `std::numbers`, designated initializers, three-way comparison).
 
 Format code: `clang-format -i $(find inc tests examples -name '*.hpp' -o -name '*.cpp')` (runs automatically on `make`).
 
 Generate golden reference data for tests: `py -3` with `scipy` and `control` libraries.
+
+**Tupfile output paths are relative to the Tupfile's directory**, not the repo root. E.g. `tests/Tupfile.lua` writes to `tests/build/`, so the test runner lives at `tests/build/test_runner.exe`. Same pattern for `examples/`. When a Tupfile rule names an output, that path is local — don't prepend the parent directory.
 
 ## Architecture
 
@@ -54,8 +56,9 @@ Design functions are `constexpr` — they work at both compile time and runtime.
 - `Matrix<Rows, Cols, T=double>` — owning, stack-allocated via `std::array<T, Rows*Cols>`
 - `ColVec<N, T>` / `RowVec<N, T>` — inherit from `Matrix<N,1,T>` / `Matrix<1,N,T>`
 - `Block`, `Diagonal`, `RowView`, `ColView`, `TransposeView`, `UpperTriangle`, `LowerTriangle` — non-owning views
-- `StateSpace<NX, NU, NY, NW=0, NV=0, T=double>` — LTI system with operator overloads (`*` series, `+` parallel, `/` feedback)
+- `StateSpace<NX, NU, NY, NW=0, NV=0, T=double>` — LTI system with operator overloads (`*` series, `+` parallel, `-` differencing, `/` feedback). Block-matrix interconnection operators preserve the noise input matrices `G` (process, `NX × NW`) and `H` (measurement, `NY × NV`) through every composition, so `Q`/`R` covariance propagation stays consistent end-to-end.
 - Result structs (`LQRResult`, `KalmanResult`, `LQGResult`, etc.) — all have `.as<U>()` and `bool success`
+- Rotation types (`geometry.hpp`): `DCM<T>` (3×3), `Quaternion<T>` (with SLERP), `Euler<T, Order>`. Convention: `EulerZYX` = aerospace yaw-pitch-roll, `EulerXYZ` = robotics roll-pitch-yaw — don't conflate them.
 
 All types must support: `float`, `double`, `wet::complex<float>`, `wet::complex<double>`.
 
@@ -104,7 +107,7 @@ Return `std::optional<T>` for operations that can fail (matrix inversion, Choles
 
 ### Key conventions
 
-- **Constexpr-first**: all algorithms must support compile-time evaluation
+- **Constexpr-first**: all algorithms must support compile-time evaluation. Treat the heavy work — matrix decompositions / solves, Riccati and pole-placement solvers, eigen-analysis, full matrix–matrix products — as **compile-time design work**. The runtime path is limited to lightweight per-tick operations on already-designed gains: one state update, one matrix–vector multiply, scalar arithmetic. If a new algorithm needs an iterative solver at runtime, that's a smell — push it into a `design::` function.
 - **Failure handling**: `std::optional` for fallible operations, never exceptions
 - **Tolerances**: use `default_tol<T>()` from `matrix_traits.hpp` (1e-6f for float, 1e-12 for double)
 - **Complex support**: use `wet::conj()`, `wet::abs()`, `wet::sqrt()` — they are identity/passthrough for real types
@@ -484,6 +487,23 @@ The compile-time series expansions are necessary for consteval but slower than h
 - Provide no-precondition-check overloads for performance-critical paths where the developer knows their system is well-formed
 
 **Use Unicode math in code comments.** The `unicodeit` Python package converts LaTeX to Unicode. At minimum, use `ᵀ` for transpose instead of `'` or `^T`.
+
+**Use `wet::` for every transcendental, not `std::`.** `wet::sin/cos/atan2/sqrt/log/exp/asin/acos/atan/fmod/isfinite/...` dispatch through `MathBackend<T>` at runtime and through constexpr series/Newton/etc. at compile time. Calling `std::sin` directly inside the library breaks constexpr design paths and bypasses the user's chosen backend; `make embedded-check`-style audit greps will catch it (`grep -rnE 'std::(sin|cos|sqrt|...)' inc/wet | grep -v inc/wet/math/` must stay empty).
+
+### Floating-point and `-ffast-math` contract
+
+The library splits floating-point semantics across two paths, and contributors must keep them straight:
+
+- **Compile-time (`constexpr design::*` paths).** Evaluated by the compiler's constant evaluator, which follows the language's abstract IEEE-754 semantics regardless of optimizer flags. `-ffast-math` does not reach this path — the value a `static_assert` sees is the same one a strict-IEEE TU would compute. This is the library's contract.
+- **Runtime (`MathBackend<T>` and user code).** Dispatches to the user-selected backend (default `std::`) and is governed by the *user's* compiler flags. Under their `-ffast-math`, `MathBackend::isfinite` may return `true` for `∞`, near-singular accuracy degrades, and algebraic cancellations may not cancel. That's the flag's contract, not a library bug.
+
+The test runner defaults to building with `-ffast-math` so any future compiler that leaks fast-math into constant evaluation breaks the constexpr `static_assert`s and refuses to produce the runner (see `tests/Tupfile.lua`). To spot-check strict-IEEE runtime behavior or chase a precision regression, drop `-ffast-math` from `TEST_CXXFLAGS` locally.
+
+Implications for new numerical code:
+
+- **Constexpr branches must guard domain edges *before* the `is_constant_evaluated()` dispatch** so compile- and runtime behavior agree. The pattern is in `wet::asin`/`acos` (clamp `|x| ≤ 1`) and `wet::fmod` (guard `y == 0`). If you only guard the constexpr arm, runtime returns NaN where constexpr returns the clamped value — a silent two-mode bug.
+- **Never rely on exact algebraic cancellation** (e.g., `(b0 + b1 + b2) == (1 + a1 + a2)` because terms `±2ζω₀k` happen to cancel). Under `-fassociative-math` the optimizer is free to reorder, and the cancellation no longer cancels. Restructure so the desired property is computed directly. `design::lowpass_2nd` is the known offender — see roadmap item #17.
+- **For NaN/Inf guards, only `wet::isfinite`'s constexpr branch is `-ffast-math`-safe.** Runtime guards on IEEE specials are at the user's mercy. If a divergence-detection check matters at runtime, lean on magnitude bounds (`wet::abs(x) > guard`) rather than `isfinite` alone.
 
 ### What Not To Do
 

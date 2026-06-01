@@ -15,14 +15,14 @@ TEST_SUITE("wet_trig") {
 
     TEST_CASE("sin - known values") {
         using std::numbers::pi_v;
-        CHECK(wet::sin(0.0f) == doctest::Approx(std::sinf(0.0f)).epsilon(kEps));
+        CHECK(wet::sin(0.0f) == doctest::Approx(std::sin(0.0f)).epsilon(kEps));
         CHECK(wet::sin(pi_v<float> / 6.0f) == doctest::Approx(0.5f).epsilon(kEps));
-        CHECK(wet::sin(pi_v<float> / 4.0f) == doctest::Approx(std::sinf(pi_v<float> / 4.0f)).epsilon(kEps));
-        CHECK(wet::sin(pi_v<float> / 3.0f) == doctest::Approx(std::sinf(pi_v<float> / 3.0f)).epsilon(kEps));
+        CHECK(wet::sin(pi_v<float> / 4.0f) == doctest::Approx(std::sin(pi_v<float> / 4.0f)).epsilon(kEps));
+        CHECK(wet::sin(pi_v<float> / 3.0f) == doctest::Approx(std::sin(pi_v<float> / 3.0f)).epsilon(kEps));
         CHECK(wet::sin(pi_v<float> / 2.0f) == doctest::Approx(1.0f).epsilon(kEps));
-        CHECK(wet::sin(pi_v<float>) == doctest::Approx(std::sinf(pi_v<float>)).epsilon(kEps));
+        CHECK(wet::sin(pi_v<float>) == doctest::Approx(std::sin(pi_v<float>)).epsilon(kEps));
         CHECK(wet::sin(3.0f * pi_v<float> / 2.0f) == doctest::Approx(-1.0f).epsilon(kEps));
-        CHECK(wet::sin(2.0f * pi_v<float>) == doctest::Approx(std::sinf(2.0f * pi_v<float>)).epsilon(kEps));
+        CHECK(wet::sin(2.0f * pi_v<float>) == doctest::Approx(std::sin(2.0f * pi_v<float>)).epsilon(kEps));
         CHECK(wet::sin(-pi_v<float> / 2.0f) == doctest::Approx(-1.0f).epsilon(kEps));
     }
 
@@ -32,16 +32,16 @@ TEST_SUITE("wet_trig") {
         }
     }
 
-    TEST_CASE("sin - matches std::sinf") {
+    TEST_CASE("sin - matches std::sin") {
         for (float x : {0.1f, 0.3f, 0.7f, 1.0f, 1.3f, 1.9f, 2.4f, 3.0f, -0.5f, -1.2f, -2.7f}) {
-            CHECK(wet::sin(x) == doctest::Approx(std::sinf(x)).epsilon(kEps));
+            CHECK(wet::sin(x) == doctest::Approx(std::sin(x)).epsilon(kEps));
         }
     }
 
     TEST_CASE("sin - large arguments") {
-        CHECK(wet::sin(10.0f * std::numbers::pi_v<float>) == doctest::Approx(std::sinf(10.0f * std::numbers::pi_v<float>)).epsilon(kEps));
-        CHECK(wet::sin(100.0f) == doctest::Approx(std::sinf(100.0f)).epsilon(kEps));
-        CHECK(wet::sin(-100.0f) == doctest::Approx(std::sinf(-100.0f)).epsilon(kEps));
+        CHECK(wet::sin(10.0f * std::numbers::pi_v<float>) == doctest::Approx(std::sin(10.0f * std::numbers::pi_v<float>)).epsilon(kEps));
+        CHECK(wet::sin(100.0f) == doctest::Approx(std::sin(100.0f)).epsilon(kEps));
+        CHECK(wet::sin(-100.0f) == doctest::Approx(std::sin(-100.0f)).epsilon(kEps));
     }
 
     // -------------------------------------------------------------------------
@@ -50,8 +50,8 @@ TEST_SUITE("wet_trig") {
         using std::numbers::pi_v;
         CHECK(wet::cos(0.0f) == doctest::Approx(1.0f).epsilon(kEps));
         CHECK(wet::cos(pi_v<float> / 3.0f) == doctest::Approx(0.5f).epsilon(kEps));
-        CHECK(wet::cos(pi_v<float> / 4.0f) == doctest::Approx(std::cosf(pi_v<float> / 4.0f)).epsilon(kEps));
-        CHECK(wet::cos(pi_v<float> / 2.0f) == doctest::Approx(std::cosf(pi_v<float> / 2.0f)).epsilon(kEps));
+        CHECK(wet::cos(pi_v<float> / 4.0f) == doctest::Approx(std::cos(pi_v<float> / 4.0f)).epsilon(kEps));
+        CHECK(wet::cos(pi_v<float> / 2.0f) == doctest::Approx(std::cos(pi_v<float> / 2.0f)).epsilon(kEps));
         CHECK(wet::cos(pi_v<float>) == doctest::Approx(-1.0f).epsilon(kEps));
         CHECK(wet::cos(2.0f * pi_v<float>) == doctest::Approx(1.0f).epsilon(kEps));
     }
@@ -62,9 +62,9 @@ TEST_SUITE("wet_trig") {
         }
     }
 
-    TEST_CASE("cos - matches std::cosf") {
+    TEST_CASE("cos - matches std::cos") {
         for (float x : {0.1f, 0.3f, 0.7f, 1.0f, 1.3f, 1.9f, 2.4f, 3.0f, -0.5f, -1.2f, -2.7f}) {
-            CHECK(wet::cos(x) == doctest::Approx(std::cosf(x)).epsilon(kEps));
+            CHECK(wet::cos(x) == doctest::Approx(std::cos(x)).epsilon(kEps));
         }
     }
 
@@ -102,9 +102,9 @@ TEST_SUITE("wet_trig") {
         CHECK(wet::asin(-1.5f) == doctest::Approx(-pi_v<float> / 2.0f).epsilon(kEps));
     }
 
-    TEST_CASE("asin - matches std::asinf") {
+    TEST_CASE("asin - matches std::asin") {
         for (float x : {0.0f, 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, -0.2f, -0.6f, -0.95f}) {
-            CHECK(wet::asin(x) == doctest::Approx(std::asinf(x)).epsilon(kEps));
+            CHECK(wet::asin(x) == doctest::Approx(std::asin(x)).epsilon(kEps));
         }
     }
 
@@ -125,9 +125,9 @@ TEST_SUITE("wet_trig") {
         CHECK(wet::acos(-1.5f) == doctest::Approx(pi_v<float>).epsilon(kEps));
     }
 
-    TEST_CASE("acos - matches std::acosf") {
+    TEST_CASE("acos - matches std::acos") {
         for (float x : {0.0f, 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, -0.2f, -0.6f, -0.95f}) {
-            CHECK(wet::acos(x) == doctest::Approx(std::acosf(x)).epsilon(kEps));
+            CHECK(wet::acos(x) == doctest::Approx(std::acos(x)).epsilon(kEps));
         }
     }
 
@@ -148,13 +148,13 @@ TEST_SUITE("wet_trig") {
 
     TEST_CASE("atan - |x| > 1 complement path") {
         for (float x : {2.0f, 5.0f, 10.0f, 100.0f, -3.0f, -7.0f}) {
-            CHECK(wet::atan(x) == doctest::Approx(std::atanf(x)).epsilon(kEps));
+            CHECK(wet::atan(x) == doctest::Approx(std::atan(x)).epsilon(kEps));
         }
     }
 
-    TEST_CASE("atan - matches std::atanf") {
+    TEST_CASE("atan - matches std::atan") {
         for (float x : {0.0f, 0.1f, 0.3f, 0.5f, 0.7f, 0.9f, 1.0f, 1.5f, 2.0f, -0.4f, -1.0f, -2.5f}) {
-            CHECK(wet::atan(x) == doctest::Approx(std::atanf(x)).epsilon(kEps));
+            CHECK(wet::atan(x) == doctest::Approx(std::atan(x)).epsilon(kEps));
         }
     }
 
@@ -184,7 +184,7 @@ TEST_SUITE("wet_trig") {
         CHECK(wet::atan2(-1.0f, 1.0f) == doctest::Approx(-pi_v<float> / 4.0f).epsilon(kEps));
     }
 
-    TEST_CASE("atan2 - matches std::atan2f") {
+    TEST_CASE("atan2 - matches std::atan2") {
         const std::array pairs = std::to_array<std::pair<float, float>>({
             {1.0f, 2.0f},
             {-1.0f, 2.0f},
@@ -197,7 +197,7 @@ TEST_SUITE("wet_trig") {
         });
 
         for (auto [y, x] : pairs) {
-            CHECK(wet::atan2(y, x) == doctest::Approx(std::atan2f(y, x)).epsilon(kEps));
+            CHECK(wet::atan2(y, x) == doctest::Approx(std::atan2(y, x)).epsilon(kEps));
         }
     }
 

@@ -55,7 +55,7 @@ TEST_CASE("Place - Pole placement for single input") {
 
     auto poles = std::array<wet::complex<double>, 2>{-3.0 + 0i, -4.0 + 0i}; // Desired closed-loop poles
 
-    auto K_opt = matlab::place(A, B, poles);
+    auto K_opt = matlab::acker(A, B, poles);
     REQUIRE(K_opt.has_value());
     const auto& K = *K_opt;
 
@@ -85,7 +85,7 @@ TEST_CASE("Place - Pole placement with std::complex poles") {
 
     auto poles = std::array{std::complex<double>(-3, 0), std::complex<double>(-4, 0)}; // Desired closed-loop poles
 
-    auto K_opt = matlab::place(A, B, poles);
+    auto K_opt = matlab::acker(A, B, poles);
     REQUIRE(K_opt.has_value());
     const auto& K = *K_opt;
 
@@ -109,7 +109,7 @@ TEST_CASE("Place - Pole placement with _Complex double poles") {
     _Complex double p2 = -4.0;
     auto            poles = std::array{p1, p2}; // Desired closed-loop poles
 
-    auto K_opt = matlab::place(A, B, poles);
+    auto K_opt = matlab::acker(A, B, poles);
     REQUIRE(K_opt.has_value());
     const auto& K = *K_opt;
 
@@ -131,7 +131,7 @@ TEST_CASE("Place - Pole placement with wet::complex poles") {
 
     auto poles = std::array{wet::complex<double>(-3, 0), wet::complex<double>(-4, 0)}; // Desired closed-loop poles
 
-    auto K_opt = matlab::place(A, B, poles);
+    auto K_opt = matlab::acker(A, B, poles);
     REQUIRE(K_opt.has_value());
     const auto& K = *K_opt;
 

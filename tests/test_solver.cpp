@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include "wet/plotting/plot_plotly.hpp"
 #include "wet/simulation/solver.hpp"
 
@@ -8,13 +10,13 @@ using namespace wetmelon::control;
 
 // Simple exponential decay: dx/dt = -x, x(0) = 1 => x(t) = exp(-t)
 static auto exp_decay = [](double /*t*/, const ColVec<1>& x) -> ColVec<1> {
-    return ColVec<1>{{-x(0, 0)}};
+    return ColVec<1>{-x(0, 0)};
 };
 
 TEST_CASE("SolveResult iterator") {
     SolveResult<1> result;
     result.t = {0.0, 0.5, 1.0};
-    result.x = {ColVec<1>{{1.0}}, ColVec<1>{{0.6}}, ColVec<1>{{0.3}}};
+    result.x = {ColVec<1>{1.0}, ColVec<1>{0.6}, ColVec<1>{0.3}};
 
     size_t count = 0;
     for (const auto& [t, x] : result) {
@@ -30,7 +32,7 @@ TEST_CASE("FixedStepSolver - RK4 exponential decay") {
     RK4<1>          rk4;
     FixedStepSolver solver(rk4, 0.01);
 
-    ColVec<1> x0{{1.0}};
+    ColVec<1> x0{1.0};
     auto      result = solver.solve(exp_decay, x0, {0.0, 1.0});
 
     CHECK(result.success);
@@ -46,7 +48,7 @@ TEST_CASE("FixedStepSolver - matches manual RK4 loop") {
     RK4<1>    rk4;
     double    h = 0.1;
     double    t = 0.0;
-    ColVec<1> x{{1.0}};
+    ColVec<1> x{1.0};
 
     for (int i = 0; i < 10; ++i) {
         auto r = rk4.evolve(exp_decay, x, t, h);
@@ -56,7 +58,7 @@ TEST_CASE("FixedStepSolver - matches manual RK4 loop") {
     double manual_result = x(0, 0);
 
     FixedStepSolver solver(rk4, 0.1);
-    auto            result = solver.solve(exp_decay, ColVec<1>{{1.0}}, {0.0, 1.0});
+    auto            result = solver.solve(exp_decay, ColVec<1>{1.0}, {0.0, 1.0});
 
     CHECK(result.x.back()(0, 0) == doctest::Approx(manual_result).epsilon(1e-14));
 }
@@ -70,7 +72,7 @@ TEST_CASE("FixedStepSolver - stop condition") {
         return x(0, 0) < 0.5;
     });
 
-    ColVec<1> x0{{1.0}};
+    ColVec<1> x0{1.0};
     auto      result = solver.solve(exp_decay, x0, {0.0, 5.0});
 
     // Should have stopped well before t=5
@@ -81,13 +83,13 @@ TEST_CASE("FixedStepSolver - stop condition") {
 TEST_CASE("FixedStepSolver - 2D harmonic oscillator") {
     // dx/dt = [x1, -x0]  ==> x0(t)=cos(t), x1(t)=-sin(t)
     auto harmonic = [](double /*t*/, const ColVec<2>& x) -> ColVec<2> {
-        return ColVec<2>{{x(1, 0)}, {-x(0, 0)}};
+        return ColVec<2>{x(1, 0), -x(0, 0)};
     };
 
     RK4<2>          rk4;
     FixedStepSolver solver(rk4, 0.001);
 
-    ColVec<2> x0{{1.0}, {0.0}};
+    ColVec<2> x0{1.0, 0.0};
     auto      result = solver.solve(harmonic, x0, {0.0, 6.283185307});
 
     // After one full period, should return near initial condition
@@ -111,7 +113,7 @@ TEST_CASE("AdaptiveStepSolver - RK45 exponential decay") {
     RK45<1>            rk45;
     AdaptiveStepSolver solver(rk45, 0.1, 1e-8);
 
-    ColVec<1> x0{{1.0}};
+    ColVec<1> x0{1.0};
     auto      result = solver.solve(exp_decay, x0, {0.0, 1.0});
 
     CHECK(result.success);
@@ -125,7 +127,7 @@ TEST_CASE("AdaptiveStepSolver - fewer steps than fixed for smooth problem") {
     RK4<1>          rk4;
     FixedStepSolver fixed_solver(rk4, 0.001);
 
-    ColVec<1> x0{{1.0}};
+    ColVec<1> x0{1.0};
     auto      result_adaptive = adaptive.solve(exp_decay, x0, {0.0, 2.0});
     auto      result_fixed = fixed_solver.solve(exp_decay, x0, {0.0, 2.0});
 
@@ -139,7 +141,7 @@ TEST_CASE("AdaptiveStepSolver - fewer steps than fixed for smooth problem") {
 TEST_CASE("AdaptiveStepSolver - zero-crossing detection") {
     // dx/dt = 1 (linear ramp: x(t) = t - 0.5, crosses zero at t=0.5)
     auto ramp = [](double /*t*/, const ColVec<1>& /*x*/) -> ColVec<1> {
-        return ColVec<1>{{1.0}};
+        return ColVec<1>{1.0};
     };
 
     RK45<1>            rk45;
@@ -150,7 +152,7 @@ TEST_CASE("AdaptiveStepSolver - zero-crossing detection") {
         return x(0, 0);
     });
 
-    ColVec<1> x0{{-0.5}};
+    ColVec<1> x0{-0.5};
     auto      result = solver.solve(ramp, x0, {0.0, 1.0});
 
     // Should have a point very close to t=0.5, x=0
@@ -169,13 +171,13 @@ TEST_CASE("FixedStepSolver - Van der Pol oscillator") {
     // State form: x0' = x1, x1' = mu*(1 - x0^2)*x1 - x0
     constexpr double mu = 1.0;
     auto             vdp = [](double /*t*/, const ColVec<2>& x) -> ColVec<2> {
-        return ColVec<2>{{x(1, 0)}, {mu * (1.0 - x(0, 0) * x(0, 0)) * x(1, 0) - x(0, 0)}};
+        return ColVec<2>{x(1, 0), (mu * (1.0 - (x(0, 0) * x(0, 0))) * x(1, 0)) - x(0, 0)};
     };
 
     RK4<2>          rk4;
     FixedStepSolver solver(rk4, 0.001);
 
-    ColVec<2> x0{{2.0}, {0.0}};
+    ColVec<2> x0{2.0, 0.0};
     auto      result = solver.solve(vdp, x0, {0.0, 30.0});
 
     CHECK(result.success);
@@ -187,9 +189,7 @@ TEST_CASE("FixedStepSolver - Van der Pol oscillator") {
     size_t start_idx = result.t.size() * 2 / 3;
     for (size_t i = start_idx; i < result.t.size(); ++i) {
         double val = std::abs(result.x[i](0, 0));
-        if (val > x_max) {
-            x_max = val;
-        }
+        x_max = std::max(val, x_max);
     }
     // Limit cycle peak amplitude is slightly above 2 for mu=1
     CHECK(x_max == doctest::Approx(2.009).epsilon(0.01));

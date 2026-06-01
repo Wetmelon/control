@@ -1,5 +1,7 @@
 ﻿#include <cmath>
 #include <complex>
+#include <limits>
+#include <numbers>
 
 #include "wet/math/constexpr_complex.hpp"
 #include "wet/math/wetmelon_math.hpp"
@@ -194,6 +196,58 @@ TEST_SUITE("constexpr_math") {
         CHECK(tan_val == doctest::Approx(1.0));
     }
 
+    TEST_CASE("wet::asin matches std::asin") {
+        for (int i = 0; i <= 20; ++i) {
+            const double x = -1.0 + (0.1 * i);
+            CHECK(wet::asin(x) == doctest::Approx(std::asin(x)).epsilon(1e-9));
+        }
+        CHECK(wet::asin(2.0) == doctest::Approx(std::numbers::pi / 2)); // clamped
+    }
+
+    TEST_CASE("wet::acos matches std::acos") {
+        for (int i = 0; i <= 20; ++i) {
+            const double x = -1.0 + (0.1 * i);
+            CHECK(wet::acos(x) == doctest::Approx(std::acos(x)).epsilon(1e-9));
+        }
+        CHECK(wet::acos(-2.0) == doctest::Approx(std::numbers::pi)); // clamped
+    }
+
+    TEST_CASE("wet::atan matches std::atan") {
+        for (int i = 0; i <= 20; ++i) {
+            const double x = -5.0 + (0.5 * i);
+            CHECK(wet::atan(x) == doctest::Approx(std::atan(x)).epsilon(1e-9));
+        }
+    }
+
+    TEST_CASE("wet::fmod matches std::fmod") {
+        CHECK(wet::fmod(7.0, 3.0) == doctest::Approx(std::fmod(7.0, 3.0)));
+        CHECK(wet::fmod(-7.0, 3.0) == doctest::Approx(std::fmod(-7.0, 3.0))); // sign of dividend
+        CHECK(wet::fmod(7.0, -3.0) == doctest::Approx(std::fmod(7.0, -3.0)));
+        CHECK(wet::fmod(5.5, 2.0) == doctest::Approx(std::fmod(5.5, 2.0)));
+        CHECK(wet::fmod(1.0, 0.0) == doctest::Approx(0.0)); // guarded
+    }
+
+    TEST_CASE("wet::copysign matches std::copysign") {
+        CHECK(wet::copysign(3.0, -2.0) == std::copysign(3.0, -2.0));
+        CHECK(wet::copysign(3.0, 2.0) == std::copysign(3.0, 2.0));
+        CHECK(wet::copysign(-3.0, 2.0) == std::copysign(-3.0, 2.0));
+    }
+
+    TEST_CASE("wet::isfinite: compile-time IEEE-strict, runtime follows the backend") {
+        // Runtime path dispatches to MathBackend<T>::isfinite. If the user
+        // (or this very test runner) compiles with -ffast-math / -ffinite-math-only,
+        // the backend's isfinite is *allowed* to be wrong — that's the flag's contract.
+        CHECK(wet::isfinite(1.0));
+        CHECK(wet::isfinite(-1e300));
+
+        // Constexpr path must be IEEE-correct regardless of optimizer flags.
+        // These static_asserts are the tripwire if a future compiler ever
+        // leaks -ffast-math into constant evaluation.
+        static_assert(!wet::isfinite(std::numeric_limits<double>::infinity()));
+        static_assert(!wet::isfinite(-std::numeric_limits<double>::infinity()));
+        static_assert(!wet::isfinite(std::numeric_limits<double>::quiet_NaN()));
+    }
+
     TEST_CASE("constexpr verification") {
         // Verify all functions can be used in constexpr context
         constexpr double sqrt_val = wet::sqrt(4.0);
@@ -204,6 +258,13 @@ TEST_SUITE("constexpr_math") {
         constexpr double sin_val = wet::sin(0.0);
         constexpr auto   csqrt_val = wet::sqrt(wet::complex<double>(4.0, 0.0));
 
+        constexpr double asin_val = wet::asin(1.0);
+        constexpr double acos_val = wet::acos(0.0);
+        constexpr double atan_val = wet::atan(1.0);
+        constexpr double fmod_val = wet::fmod(7.0, 3.0);
+        constexpr double csign_val = wet::copysign(3.0, -1.0);
+        constexpr bool   finite_val = wet::isfinite(1.0);
+
         CHECK(sqrt_val == doctest::Approx(2.0));
         CHECK(abs_val == doctest::Approx(5.0));
         CHECK(cbrt_val == doctest::Approx(2.0));
@@ -212,5 +273,11 @@ TEST_SUITE("constexpr_math") {
         CHECK(sin_val == doctest::Approx(0.0));
         CHECK(csqrt_val.real() == doctest::Approx(2.0));
         CHECK(csqrt_val.imag() == doctest::Approx(0.0));
+        CHECK(asin_val == doctest::Approx(std::numbers::pi / 2));
+        CHECK(acos_val == doctest::Approx(std::numbers::pi / 2));
+        CHECK(atan_val == doctest::Approx(std::numbers::pi / 4));
+        CHECK(fmod_val == doctest::Approx(1.0));
+        CHECK(csign_val == doctest::Approx(-3.0));
+        CHECK(finite_val);
     }
 }

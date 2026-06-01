@@ -2,9 +2,9 @@
 
 #include <cstddef>
 
-#include "ricatti.hpp"
 #include "wet/analysis/stability.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/riccati.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wetmelon::control {
@@ -136,12 +136,12 @@ private:
 
 public:
     constexpr LQI() = default;
-    constexpr LQI(const Matrix<NU, NX + NY, T>& K_) : K(K_) {}
+    constexpr LQI(const Matrix<NU, NX + NY, T>& K_) : K(K_) {} // NOLINT
 
-    constexpr LQI(const design::LQIResult<NX, NU, NY, T>& result) : K(result.K) {}
+    constexpr LQI(const design::LQIResult<NX, NU, NY, T>& result) : K(result.K) {} // NOLINT
 
     template<typename U>
-    constexpr LQI(const LQI<NX, NU, NY, U>& other) : K(other.getK()) {}
+    constexpr LQI(const LQI<NX, NU, NY, U>& other) : K(other.getK()) {} // NOLINT
 
     /**
      * @brief Compute control with integral action

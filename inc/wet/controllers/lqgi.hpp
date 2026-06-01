@@ -103,23 +103,23 @@ struct LQGI {
     constexpr LQGI(const LQI<NX, NU, NY, T>& lqi_, const KalmanFilter<NX, NU, NY, NW, NV, T>& kf_)
         : lqi(lqi_), kf(kf_) {}
 
-    constexpr LQGI(const design::LQGIResult<NX, NU, NY, NW, NV, T>& result)
-        : lqi(result.lqi),
-          kf(
-              result.kalman.sys,
-              result.kalman.Q,
-              result.kalman.R,
-              ColVec<NX, T>{},
-              result.kalman.success ? result.kalman.P : Matrix<NX, NX, T>::identity()
-          ) {}
+    constexpr LQGI(const design::LQGIResult<NX, NU, NY, NW, NV, T>& result) // NOLINT
+        : lqi(result.lqi), kf(result.kalman) {}
 
     template<typename U>
-    constexpr LQGI(const LQGI<NX, NU, NY, NW, NV, U>& other) : lqi(other.lqi), kf(other.kf) {}
+    constexpr LQGI(const LQGI<NX, NU, NY, NW, NV, U>& other) : lqi(other.lqi), kf(other.kf) {} // NOLINT
 
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) { kf.predict(u); }
     constexpr bool update(const ColVec<NY, T>& y, const ColVec<NU, T>& u = ColVec<NU, T>{}) { return kf.update(y, u); }
 
-    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NY, T>& x_aug) {
+    /**
+     * @brief Compute control with integral action from the augmented state.
+     *
+     * @param x_aug Augmented state [x̂; xi] — estimated plant state stacked on
+     *              the integral-of-tracking-error state (size NX + NY).
+     * @return Control input u = −K·x_aug
+     */
+    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX + NY, T>& x_aug) {
         return lqi.control(x_aug);
     }
 };
