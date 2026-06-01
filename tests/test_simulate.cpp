@@ -124,6 +124,54 @@ TEST_CASE("simulate - output feedback with D matrix") {
     CHECK(sim.x.back()(0, 0) == doctest::Approx(0.5).epsilon(0.01));
 }
 
+TEST_CASE("simulate_discrete_nonlinear - logistic-style nonlinear map") {
+    // Natively-discrete nonlinear plant with no continuous-time analogue:
+    //   x[k+1] = x[k] + Ts*(-x[k]^3 + u[k])
+    // A cubic restoring term — not expressible as Ax+Bu, so this must use the
+    // discrete nonlinear path, not simulate_discrete (linear) or the ODE solver.
+    const double Ts = 0.01;
+
+    auto plant = [&](std::size_t /*k*/, const ColVec<1>& x, const ColVec<1>& u) -> ColVec<1> {
+        const double xv = x(0, 0);
+        return ColVec<1>{xv + (Ts * (-(xv * xv * xv) + u(0, 0)))};
+    };
+    auto output = [](const ColVec<1>& x) -> ColVec<1> { return x; };
+    // Constant input u = 8 → equilibrium where x^3 = 8 → x = 2.
+    auto ctrl = [](const ColVec<1>& /*y*/) -> ColVec<1> { return ColVec<1>{8.0}; };
+
+    auto sim = simulate_discrete_nonlinear<1, 1, 1>(plant, output, ctrl, ColVec<1>{0.0}, Ts, 5000);
+
+    CHECK(sim.t.size() == 5001);
+    CHECK(sim.t.front() == 0.0);
+    CHECK(sim.t.back() == doctest::Approx(50.0).epsilon(1e-9));
+    CHECK(sim.x.back()(0, 0) == doctest::Approx(2.0).epsilon(1e-3)); // settles at cube root of 8
+}
+
+TEST_CASE("simulate_discrete_nonlinear - matches simulate_discrete on a linear plant") {
+    // When f(k,x,u) = Ax + Bu, the nonlinear path must reproduce the linear one.
+    const double Ts = 0.1;
+    Matrix<1, 1> A{{1.0}};
+    Matrix<1, 1> B{{Ts}};
+    Matrix<1, 1> C{{1.0}};
+    StateSpace   sys{.A = A, .B = B, .C = C, .Ts = Ts};
+
+    auto ctrl = [](const ColVec<1>& y) -> ColVec<1> { return ColVec<1>{-10.0 * y(0, 0)}; };
+
+    auto lin = simulate_discrete(sys, ctrl, ColVec<1>{1.0}, 100);
+
+    auto plant = [&](std::size_t, const ColVec<1>& x, const ColVec<1>& u) -> ColVec<1> {
+        return A * x + B * u;
+    };
+    auto output = [&](const ColVec<1>& x) -> ColVec<1> { return C * x; };
+    auto nl = simulate_discrete_nonlinear<1, 1, 1>(plant, output, ctrl, ColVec<1>{1.0}, Ts, 100);
+
+    REQUIRE(lin.x.size() == nl.x.size());
+    for (std::size_t k = 0; k < lin.x.size(); ++k) {
+        CHECK(nl.x[k](0, 0) == doctest::Approx(lin.x[k](0, 0)));
+        CHECK(nl.t[k] == doctest::Approx(lin.t[k]));
+    }
+}
+
 TEST_CASE("SimulationResult has consistent sizes") {
     auto plant = [](double, const ColVec<1>& x, const ColVec<1>& u) -> ColVec<1> { return -x + u; };
     auto output = [](const ColVec<1>& x) -> ColVec<1> { return x; };

@@ -195,6 +195,70 @@ SimulationResult<NX, NU, NY, T> simulate_lti(
 }
 
 /**
+ * @brief Simulate a discrete-time nonlinear plant with a controller
+ *
+ * Steps a user-supplied discrete map x[k+1] = f(k, x[k], u[k]) directly — no ODE
+ * solver, no continuous-time integration. This is the path for plants that are
+ * natively discrete and nonlinear (a switching-model converter, a sampled-data
+ * map, a difference equation identified from data), where the continuous
+ * `simulate()` overloads don't apply.
+ *
+ * Timing matches `simulate_discrete()`: at each step the output is computed from
+ * the current state, the controller produces u from that output, then the plant
+ * map advances the state (zero-order hold on u across the step).
+ *
+ * @tparam NX Number of plant states
+ * @tparam NU Number of control inputs
+ * @tparam NY Number of plant outputs
+ * @tparam Plant      Callable: (size_t k, ColVec<NX,T> x, ColVec<NU,T> u) -> ColVec<NX,T>  (returns x[k+1])
+ * @tparam Output     Callable: (ColVec<NX,T> x) -> ColVec<NY,T>
+ * @tparam Controller Callable: (ColVec<NY,T> y) -> ColVec<NU,T>
+ *
+ * @param plant      Discrete dynamics: x[k+1] = plant(k, x, u)
+ * @param output     Output map: y = output(x)
+ * @param controller Controller: u = controller(y)
+ * @param x0         Initial state
+ * @param Ts         Sample time [s] — used only to populate the time vector
+ * @param n_steps    Number of steps to simulate
+ * @return SimulationResult with time, state, output, and input history (n_steps + 1 samples)
+ */
+template<size_t NX, size_t NU, size_t NY, typename T, typename Plant, typename Output, typename Controller>
+SimulationResult<NX, NU, NY, T> simulate_discrete_nonlinear(
+    Plant&&              plant,
+    Output&&             output,
+    Controller&&         controller,
+    const ColVec<NX, T>& x0,
+    T                    Ts,
+    size_t               n_steps
+) {
+    SimulationResult<NX, NU, NY, T> sim;
+    sim.t.reserve(n_steps + 1);
+    sim.x.reserve(n_steps + 1);
+    sim.y.reserve(n_steps + 1);
+    sim.u.reserve(n_steps + 1);
+
+    ColVec<NX, T> x = x0;
+    T             t = T(0);
+
+    for (size_t k = 0; k <= n_steps; ++k) {
+        ColVec<NY, T> y = output(x);
+        ColVec<NU, T> u = controller(y);
+
+        sim.t.push_back(t);
+        sim.x.push_back(x);
+        sim.y.push_back(y);
+        sim.u.push_back(u);
+
+        if (k < n_steps) {
+            x = plant(k, x, u); // x[k+1] = f(k, x[k], u[k])
+            t += Ts;
+        }
+    }
+
+    return sim;
+}
+
+/**
  * @brief Simulate a discrete-time system with a controller
  *
  * Steps the discrete system x_{k+1} = Ax_k + Bu_k with u_k = controller(y_k).
