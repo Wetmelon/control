@@ -124,37 +124,64 @@ template<typename T = float>
 }
 
 /**
- * @brief Mixed Second-Third Order Generalized Integrator (MSTOGI)
+ * @brief Mixed Second/Third-Order Generalized Integrator (MSTOGI)
  *
- * Enhanced SOGI with high-pass filtering on quadrature output.
- * Better harmonic rejection than standard SOGI.
+ * A standard SOGI-QSG augmented with a Third-Order Generalized Integrator
+ * (TOGI) that estimates and removes the DC / offset component the plain
+ * SOGI-QSG quadrature output would otherwise pass. The plain `qv′` channel of a
+ * SOGI-QSG is a low-pass that has unity gain at DC; a biased or offset grid
+ * signal therefore corrupts the quadrature estimate. The MSTOGI subtracts a
+ * co-tuned TOGI estimate so the quadrature channel rejects DC.
+ *
+ * States `[v′, v″, v‴]` = [in-phase, quadrature, TOGI-tracker]. With the
+ * post-gain bus `w = k·ω₀·(v − v′)`:
+ *
+ *     v̇′  = k·ω₀·(v − v′) − ω₀·v″     (SOGI in-phase integrator)
+ *     v̇″  = ω₀·v′                       (SOGI quadrature integrator)
+ *     v̇‴  = k·ω₀·(v − v′) − ω₀·v‴       (TOGI: first-order, self-damped)
+ *
+ * Outputs: `v_o = v′` (band-pass, unity at ω₀) and `q·v_o = v″ − v‴`
+ * (DC-rejecting quadrature). The transfer functions are
+ *
+ *     v_o / v   = k·ω₀·s / (s² + k·ω₀·s + ω₀²)
+ *     q·v_o / v = k·ω₀·s·(ω₀ − s) / [ (s + ω₀)·(s² + k·ω₀·s + ω₀²) ]
+ *
+ * The q·v_o numerator has a zero at s = 0 (DC rejection) and the pair evaluates
+ * to (1∠0°, 1∠−90°) at s = jω₀ — a clean unity-magnitude quadrature pair.
+ *
+ * @note Discretize with the exact ZOH (`DiscretizationMethod::ZOH`, the
+ *       `mstogi_system(omega_0, k, Ts)` overload) so the resonant poles land
+ *       exactly on the unit circle at z = e^{±jω₀Tₛ}; Tustin warps them.
+ *
+ * @see Rodríguez et al., "Discrete-time implementation of second order
+ *      generalized integrators for grid converters," IECON 2008,
+ *      https://doi.org/10.1109/IECON.2008.4757983
  *
  * @param omega_0 Fundamental frequency [rad/s]
- * @param k Damping gain
+ * @param k Damping gain (typically √2 for ~unity-Q SOGI tuning)
  * @param T Scalar type
- * @return StateSpace<3, 1, 2, 0, 0, T> MSTOGI system
+ * @return StateSpace<3, 1, 2, 0, 0, T> MSTOGI system (outputs: v_o, q·v_o)
  */
 template<typename T = double>
 [[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T omega_0, T k = std::numbers::sqrt2_v<T>) {
     const T k_omega = k * omega_0;
-    const T omega_sq = omega_0 * omega_0;
 
     StateSpace<3, 1, 2, 0, 0, T> sys{
         .A = Matrix<3, 3, T>{
             {-k_omega, -omega_0, T{0}},
             {omega_0, T{0}, T{0}},
-            {T{0}, -omega_sq, T{0}},
+            {-k_omega, T{0}, -omega_0},
         },
 
         .B = Matrix<3, 1, T>{
             {k_omega},
             {T{0}},
-            {T{0}},
+            {k_omega},
         },
 
         .C = Matrix<2, 3, T>{
-            {T{1}, T{0}, T{0}},
-            {T{0}, T{0}, T{1}},
+            {T{1}, T{0}, T{0}},  // v_o   = v′      (band-pass)
+            {T{0}, T{1}, T{-1}}, // q·v_o = v″ − v‴ (DC-rejecting quadrature)
         },
 
         .D = Matrix<2, 1, T>::zeros(),
@@ -164,9 +191,10 @@ template<typename T = double>
 }
 
 /**
- * @brief Mixed Second-Third Order Generalized Integrator (MSTOGI) design (discrete-time)
+ * @brief Mixed Second/Third-Order Generalized Integrator (MSTOGI) design (discrete-time)
  *
- * Discrete-time MSTOGI for enhanced grid synchronization with improved harmonic rejection.
+ * Exact-ZOH discretization of the continuous MSTOGI so the resonant poles sit
+ * precisely at z = e^{±jω₀Tₛ} (no Tustin frequency warping).
  *
  * @param omega_0 Fundamental frequency [rad/s]
  * @param k Damping gain
@@ -325,6 +353,98 @@ private:
         cos_w0_ = wet::cos(params.omega_0);
         sin_w0_ = wet::sin(params.omega_0);
     }
+};
+
+/**
+ * @brief MSTOGI runtime: SOGI-QSG with a TOGI stage for DC-rejecting quadrature
+ *
+ * Allocation-free runtime for the MSTOGI structure (see @ref design::mstogi_system).
+ * The continuous 3-state model is discretized once at construction with an exact
+ * ZOH (resonant poles exactly at z = e^{±jω₀Tₛ}), then each tick is a single
+ * 3×3 matrix–vector product plus the output combination:
+ *
+ *     x[k+1] = A_d·x[k] + B_d·v[k]
+ *     v_o    = x₁                       (band-pass, unity gain at ω₀)
+ *     q·v_o  = x₂ − x₃                  (quadrature with DC rejected by the TOGI)
+ *
+ * Unlike the standard @ref SOGI resonator (whose quadrature `qv′` passes DC),
+ * this rejects a DC/offset component in the quadrature channel — the reason to
+ * reach for MSTOGI in a single-phase PLL or QSG on an offset-prone signal.
+ *
+ * Frequency retuning re-runs the ZOH discretization (`set_frequency`); that is a
+ * design-weight operation (matrix exponential), so retune at a slow rate, not
+ * every ISR tick.
+ *
+ * @see design::mstogi_system() for the model and transfer functions
+ * @see Rodríguez et al., IECON 2008, https://doi.org/10.1109/IECON.2008.4757983
+ *
+ * @tparam T Scalar type (float for embedded deployment)
+ */
+template<typename T = float>
+class MSTOGI {
+public:
+    struct Output {
+        T band_pass{};  ///< v_o = v′ (in-phase, band-pass)
+        T quadrature{}; ///< q·v_o = v″ − v‴ (DC-rejecting quadrature)
+    };
+
+    constexpr MSTOGI() = default;
+
+    /**
+     * @brief Construct from physical parameters.
+     * @param f0 Fundamental frequency [Hz]
+     * @param Ts Sample time [s]
+     * @param k  Damping gain (default √2)
+     */
+    constexpr MSTOGI(T f0, T Ts, T k = std::numbers::sqrt2_v<T>)
+        : f0_(f0), Ts_(Ts), k_(k) {
+        discretize_model();
+    }
+
+    /**
+     * @brief Retune the resonant frequency (re-runs ZOH discretization).
+     * @param f0 New fundamental frequency [Hz]
+     */
+    constexpr void set_frequency(T f0) {
+        f0_ = f0;
+        discretize_model();
+    }
+
+    /**
+     * @brief Process one input sample.
+     * @param v Input sample
+     * @return Output{band_pass, quadrature}
+     */
+    [[nodiscard]] constexpr Output process(T v) {
+        x_ = Ad_ * x_ + Bd_ * v; // x[k+1] = A_d·x[k] + B_d·v[k]
+        return Output{x_[0], x_[1] - x_[2]};
+    }
+
+    /// @brief Process one sample, returning {band_pass, quadrature} as a pair.
+    constexpr std::pair<T, T> operator()(T v) {
+        const auto y = process(v);
+        return {y.band_pass, y.quadrature};
+    }
+
+    [[nodiscard]] constexpr T band_pass() const { return x_[0]; }
+    [[nodiscard]] constexpr T quadrature() const { return x_[1] - x_[2]; }
+
+    constexpr void reset() { x_ = ColVec<3, T>{}; }
+
+private:
+    constexpr void discretize_model() {
+        const T    omega_0 = T{2} * std::numbers::pi_v<T> * f0_;
+        const auto sys_d = design::mstogi_system<T>(omega_0, k_, Ts_);
+        Ad_ = sys_d.A;
+        Bd_ = sys_d.B;
+    }
+
+    T               f0_{};
+    T               Ts_{};
+    T               k_{std::numbers::sqrt2_v<T>};
+    Matrix<3, 3, T> Ad_{Matrix<3, 3, T>::identity()};
+    Matrix<3, 1, T> Bd_{};
+    ColVec<3, T>    x_{};
 };
 
 } // namespace wetmelon::control

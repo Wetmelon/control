@@ -39,24 +39,92 @@ TEST_CASE("SOGI design") {
     CHECK(sogi_sys.C(1, 1) == doctest::Approx(1.0));
 }
 
-TEST_CASE("MSOGI design") {
+TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0;
     constexpr double k = 1.414;
-    constexpr auto   msogi_sys = design::mstogi_system<double>(omega_0, k);
+    constexpr auto   mstogi_sys = design::mstogi_system<double>(omega_0, k);
 
     // Check dimensions
-    CHECK(msogi_sys.A.rows() == 3);
-    CHECK(msogi_sys.A.cols() == 3);
-    CHECK(msogi_sys.B.rows() == 3);
-    CHECK(msogi_sys.B.cols() == 1);
-    CHECK(msogi_sys.C.rows() == 2);
-    CHECK(msogi_sys.C.cols() == 3);
+    CHECK(mstogi_sys.A.rows() == 3);
+    CHECK(mstogi_sys.A.cols() == 3);
+    CHECK(mstogi_sys.B.rows() == 3);
+    CHECK(mstogi_sys.B.cols() == 1);
+    CHECK(mstogi_sys.C.rows() == 2);
+    CHECK(mstogi_sys.C.cols() == 3);
 
-    // Check A matrix structure
-    CHECK(msogi_sys.A(0, 0) == doctest::Approx(-k * omega_0));
-    CHECK(msogi_sys.A(0, 1) == doctest::Approx(-omega_0));
-    CHECK(msogi_sys.A(1, 0) == doctest::Approx(omega_0));
-    CHECK(msogi_sys.A(2, 1) == doctest::Approx(-omega_0 * omega_0));
+    // SOGI core (rows 0,1): in-phase + quadrature integrators.
+    CHECK(mstogi_sys.A(0, 0) == doctest::Approx(-k * omega_0));
+    CHECK(mstogi_sys.A(0, 1) == doctest::Approx(-omega_0));
+    CHECK(mstogi_sys.A(1, 0) == doctest::Approx(omega_0));
+    CHECK(mstogi_sys.A(1, 1) == doctest::Approx(0.0));
+
+    // TOGI stage (row 2): v̇‴ = k·ω₀·(v − v′) − ω₀·v‴ — first-order, self-damped,
+    // fed from the same post-gain bus as the SOGI (NOT the old −ω₀²·x₂ double
+    // integrator, which made neither a washout nor a unity quadrature pair).
+    CHECK(mstogi_sys.A(2, 0) == doctest::Approx(-k * omega_0));
+    CHECK(mstogi_sys.A(2, 1) == doctest::Approx(0.0));
+    CHECK(mstogi_sys.A(2, 2) == doctest::Approx(-omega_0));
+    CHECK(mstogi_sys.B(2, 0) == doctest::Approx(k * omega_0));
+
+    // Output map: v_o = v′ (band-pass), q·v_o = v″ − v‴ (DC-rejecting quadrature).
+    CHECK(mstogi_sys.C(0, 0) == doctest::Approx(1.0));
+    CHECK(mstogi_sys.C(1, 1) == doctest::Approx(1.0));
+    CHECK(mstogi_sys.C(1, 2) == doctest::Approx(-1.0));
+}
+
+TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental") {
+    constexpr float f0 = 50.0f;
+    constexpr float Ts = 1.0f / 10000.0f; // 10 kHz
+    MSTOGI<float>   mstogi(f0, Ts);
+
+    const float omega = 2.0f * std::numbers::pi_v<float> * f0;
+    const float dc_offset = 0.5f; // bias that a plain SOGI-QSG would leak into qv′
+
+    float bp_amp = 0.0f;
+    float q_amp = 0.0f;
+    float q_mean = 0.0f;
+    int   n_mean = 0;
+
+    // Run ~30 cycles; measure steady-state behaviour over the last 10.
+    const int n = 6000;
+    for (int i = 0; i < n; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const float v = dc_offset + std::sin(omega * t);
+        const auto  y = mstogi.process(v);
+
+        if (i > n - 2000) {
+            bp_amp = std::max(bp_amp, std::abs(y.band_pass));
+            q_amp = std::max(q_amp, std::abs(y.quadrature));
+            q_mean += y.quadrature;
+            ++n_mean;
+        }
+    }
+    q_mean /= static_cast<float>(n_mean);
+
+    // Band-pass tracks the fundamental (unity gain at ω₀), and the quadrature
+    // channel has comparable amplitude...
+    CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f));
+    CHECK(q_amp == doctest::Approx(1.0f).epsilon(0.05f));
+    // ...but its DC mean is driven to ~0 by the TOGI even though the input has a
+    // 0.5 DC bias. That is the whole point of the MSTOGI vs a plain SOGI-QSG.
+    CHECK(std::abs(q_mean) < 0.02f);
+}
+
+TEST_CASE("MSTOGI runtime - frequency retune") {
+    constexpr float Ts = 1.0f / 10000.0f;
+    MSTOGI<float>   mstogi(50.0f, Ts);
+    mstogi.set_frequency(60.0f);
+
+    const float omega = 2.0f * std::numbers::pi_v<float> * 60.0f;
+    float       bp_amp = 0.0f;
+    for (int i = 0; i < 4000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const auto  y = mstogi.process(std::sin(omega * t));
+        if (i > 2000) {
+            bp_amp = std::max(bp_amp, std::abs(y.band_pass));
+        }
+    }
+    CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f));
 }
 
 TEST_CASE("SOGI runtime - resonator form") {
