@@ -59,6 +59,35 @@ TEST_SUITE("Error-State Kalman Filter (ESKF)") {
         CHECK(static_cast<double>(eskf.covariance()(0, 0)) == doctest::Approx(0.2));
     }
 
+    TEST_CASE("ESKF set_error_state bounds the correction before injection") {
+        // The ESKF estimates the correction δx; the nominal state lives outside
+        // the filter. Before injecting δx into the nominal quaternion/biases, the
+        // caller may need to cap a component (e.g. limit an attitude-error step so
+        // a faulty measurement can't slew the quaternion). set_error_state is that
+        // hook.
+        auto                         P0 = Mat6d::identity() * 0.1;
+        auto                         Q = Mat6d::identity() * 1e-6;
+        auto                         R = Mat6d::identity() * 0.01;
+        ErrorStateKalmanFilter<6, 6> eskf(P0, Q, R);
+
+        // Hand-set a correction with an over-large attitude-error component.
+        ColVec<6> dx{};
+        dx[0] = 5.0; // unreasonably large attitude error [rad]
+        eskf.set_error_state(dx);
+        CHECK(static_cast<double>(eskf.error_state()[0]) == doctest::Approx(5.0));
+
+        // Clamp the single component the way a caller would before injection.
+        const double cap = 0.1;
+        if (eskf.error_state()[0] > cap) {
+            eskf.set_error_state(0, cap);
+        }
+        CHECK(static_cast<double>(eskf.error_state()[0]) == doctest::Approx(cap));
+
+        // reset_error_state still zeroes it afterward.
+        eskf.reset_error_state();
+        CHECK(static_cast<double>(eskf.error_state()[0]) == doctest::Approx(0.0));
+    }
+
     TEST_CASE("ESKF predict step with proper gyro-bias coupling") {
         auto P0 = Mat6d::identity() * 0.1;
         auto Q = Mat6d::identity() * 1e-6;

@@ -269,6 +269,15 @@ struct ErrorStateKalmanFilter {
     constexpr void set_measurement_noise_covariance(const Matrix<NY, NY, T>& R_new) { R = R_new; }
     constexpr void set_covariance(const Matrix<NDX, NDX, T>& P_new) { P = P_new; }
 
+    // Error-state mutators. The ESKF estimates the *correction* δx; the nominal
+    // state (quaternion, biases) lives outside the filter. Use these to bound or
+    // zero a correction component before injecting it into the nominal state —
+    // e.g. cap an attitude-error step so a bad measurement can't slew the
+    // quaternion, or freeze a bias correction that has saturated. Apply between
+    // update() and your nominal-state injection + reset_error_state().
+    constexpr void set_error_state(const ColVec<NDX, T>& dx_new) { delta_x = dx_new; }
+    constexpr void set_error_state(size_t i, T value) { delta_x[i] = value; }
+
 private:
     Matrix<NDX, NDX, T> P{};       // Error covariance
     Matrix<NDX, NDX, T> Q{};       // Process noise covariance

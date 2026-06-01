@@ -213,6 +213,15 @@ struct KalmanFilter {
     [[nodiscard]] constexpr const auto& process_noise_covariance() const { return Q; }
     [[nodiscard]] constexpr const auto& measurement_noise_covariance() const { return R; }
 
+    // Mutators. set_state lets the caller enforce physical constraints on the
+    // estimate after an update() — clamp a state to its actuator/sensor range,
+    // wrap an angle, or zero a state that has gone non-physical — before the next
+    // predict()/update(). Clamping the estimate keeps the filter's state vector
+    // meaningful; the next predict() then propagates from the constrained value.
+    constexpr void set_state(const ColVec<NX, T>& x_new) { x = x_new; }
+    constexpr void set_state(size_t i, T value) { x[i] = value; }
+    constexpr void set_covariance(const Matrix<NX, NX, T>& P_new) { P = P_new; }
+
 private:
     StateSpace<NX, NU, NY, NW, NV, T> sys{};
     ColVec<NX, T>                     x{};

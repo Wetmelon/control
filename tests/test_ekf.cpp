@@ -126,6 +126,65 @@ TEST_SUITE("Extended Kalman Filter") {
         CHECK_FALSE(ekf.update(meas_fn, ColVec<1>{{1.0}}, R));
     }
 
+    TEST_CASE("sequential scalar updates with inter-measurement state clamping") {
+        // The intended workflow for constrained estimation: instantiate with
+        // NY == 1, fold in measurements one scalar at a time, and clamp the
+        // affected state between updates via set_state. Clamping a fused vector
+        // update can't enforce the constraint each measurement sees; clamping
+        // between scalar updates can. Here state[0] is physically bounded to
+        // [0, 1] (e.g. a duty cycle / SoC) and must never leave that box even
+        // though a noisy measurement pushes the raw estimate past 1.
+        const Matrix<2, 2> Q = Matrix<2, 2>::identity() * 1e-3;
+
+        auto state_fn = [&](const ColVec<2>& x, const ColVec<1>&) {
+            return StateJacobian<double, 2>{x, Matrix<2, 2>::identity(), Matrix<2, 2>::identity()};
+        };
+        // Two separate scalar measurements of the two states.
+        auto meas0 = [&](const ColVec<2>& x, const ColVec<1>&) {
+            return MeasJacobian<double, 1, 2>{ColVec<1>{{x[0]}}, Matrix<1, 2>{{1.0, 0.0}}, Matrix<1, 1>::identity()};
+        };
+        auto meas1 = [&](const ColVec<2>& x, const ColVec<1>&) {
+            return MeasJacobian<double, 1, 2>{ColVec<1>{{x[1]}}, Matrix<1, 2>{{0.0, 1.0}}, Matrix<1, 1>::identity()};
+        };
+
+        const Matrix<1, 1>            R{{1e-2}};
+        ExtendedKalmanFilter<2, 1, 1> ekf{ColVec<2>{{0.5}, {0.5}}, Matrix<2, 2>::identity(), Q};
+
+        for (int k = 0; k < 200; ++k) {
+            ekf.predict(state_fn);
+
+            // Scalar update #1: measurement of state[0] sits above its physical
+            // bound (1.2 > 1.0). Fuse it, then clamp before the next update.
+            REQUIRE(ekf.update(meas0, ColVec<1>{{1.2}}, R));
+            if (ekf.state()[0] > 1.0) {
+                ekf.set_state(0, 1.0);
+            } else if (ekf.state()[0] < 0.0) {
+                ekf.set_state(0, 0.0);
+            }
+
+            // The clamped estimate is what the second scalar update sees.
+            CHECK(ekf.state()[0] <= 1.0 + 1e-12);
+            REQUIRE(ekf.update(meas1, ColVec<1>{{0.3}}, R));
+        }
+
+        CHECK(ekf.state()[0] == doctest::Approx(1.0)); // pinned at the bound
+        CHECK(ekf.state()[1] == doctest::Approx(0.3).epsilon(0.05));
+    }
+
+    TEST_CASE("set_state / set_covariance round-trip") {
+        ExtendedKalmanFilter<2, 1, 1> ekf{};
+        ekf.set_state(ColVec<2>{{1.5}, {-2.0}});
+        CHECK(ekf.state()[0] == doctest::Approx(1.5));
+        CHECK(ekf.state()[1] == doctest::Approx(-2.0));
+
+        ekf.set_state(1, 7.0);
+        CHECK(ekf.state()[1] == doctest::Approx(7.0));
+
+        ekf.set_covariance(Matrix<2, 2>::identity() * 3.0);
+        CHECK(ekf.covariance()(0, 0) == doctest::Approx(3.0));
+        CHECK(ekf.covariance()(1, 1) == doctest::Approx(3.0));
+    }
+
     TEST_CASE("float instantiation compiles and runs") {
         const Matrix<2, 2, float> A{{1.0f, 0.1f}, {0.0f, 1.0f}};
         auto                      state_fn = [&](const ColVec<2, float>& x, const ColVec<1, float>&) {

@@ -508,3 +508,36 @@ TEST_CASE("Kalman design R=0 (NY=1, NX=4)") {
     CHECK(result.P(3, 3) == doctest::Approx(4.6007682900265547e-12).epsilon(1e-4));
     CHECK(result.P(0, 1) == doctest::Approx(1.7788444152705028e-06).epsilon(1e-4));
 }
+
+TEST_CASE("Kalman set_state clamps the estimate to a physical bound") {
+    // 1D filter; the state represents a physically non-negative quantity (e.g.
+    // a concentration / SoC). A measurement pulls the estimate negative; the
+    // caller clamps it back to 0 via set_state, and the next predict/update
+    // proceeds from the constrained value rather than the non-physical one.
+    StateSpace<1, 1, 1, 1, 1> sys{};
+    sys.A(0, 0) = 1.0;
+    sys.C(0, 0) = 1.0;
+    sys.G(0, 0) = 1.0;
+    sys.H(0, 0) = 1.0;
+    sys.Ts = 1.0;
+
+    KalmanFilter<1, 1, 1, 1, 1> kf(sys, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.25}}, ColVec<1>{0.0}, Matrix<1, 1>::identity());
+
+    kf.predict();
+    REQUIRE(kf.update(ColVec<1>{-5.0})); // measurement drives estimate negative
+    REQUIRE(kf.state()[0] < 0.0);
+
+    if (kf.state()[0] < 0.0) {
+        kf.set_state(0, 0.0); // clamp to physical floor
+    }
+    CHECK(kf.state()[0] == doctest::Approx(0.0));
+
+    // Covariance setter likewise lets the caller re-inflate uncertainty after a
+    // hard reset of the estimate.
+    kf.set_covariance(Matrix<1, 1>{{2.0}});
+    CHECK(kf.covariance()(0, 0) == doctest::Approx(2.0));
+
+    // Vector setter overload.
+    kf.set_state(ColVec<1>{0.7});
+    CHECK(kf.state()[0] == doctest::Approx(0.7));
+}

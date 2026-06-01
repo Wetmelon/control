@@ -179,6 +179,17 @@ struct ExtendedKalmanFilter {
     [[nodiscard]] constexpr const auto& covariance() const { return P; }
     [[nodiscard]] constexpr const auto& process_noise_covariance() const { return Q; }
 
+    // Mutators. These exist so the caller can intervene *between* filter steps —
+    // most importantly to support sequential scalar updates with inter-measurement
+    // state clamping: run a scalar update() (NY == 1), clamp/saturate the affected
+    // state component, write it back, then run the next scalar update against the
+    // clamped estimate. Clamping after a fused vector update can't enforce the
+    // constraint each measurement sees; doing it between scalar updates can.
+    constexpr void set_state(const ColVec<NX, T>& x_new) { x = x_new; }
+    constexpr void set_state(size_t i, T value) { x[i] = value; }
+    constexpr void set_covariance(const Matrix<NX, NX, T>& P_new) { P = P_new; }
+    constexpr void set_process_noise_covariance(const Matrix<NX, NX, T>& Q_new) { Q = Q_new; }
+
 private:
     ColVec<NX, T>     x{};
     Matrix<NX, NX, T> P{};

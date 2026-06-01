@@ -471,6 +471,17 @@ public:
     /// Reset the estimate (default zero).
     constexpr void reset(const ColVec<NX, T>& x0 = ColVec<NX, T>{}) { x_ = x0; }
 
+    /**
+     * @brief Overwrite the state estimate (constraint enforcement).
+     *
+     * Use after step() to clamp the estimate to a physically meaningful range,
+     * wrap an angle, or zero a non-physical state before the next step()
+     * propagates from it. Unlike reset(), this is for per-tick constraint
+     * projection, not re-initialization.
+     */
+    constexpr void set_state(const ColVec<NX, T>& x_new) { x_ = x_new; }
+    constexpr void set_state(size_t i, T value) { x_[i] = value; }
+
 private:
     Matrix<NX, NX, T> A_{};
     Matrix<NX, NU, T> B_{};
@@ -533,11 +544,27 @@ public:
     /// Current full-state estimate.
     [[nodiscard]] constexpr const ColVec<NX, T>& state() const { return x_; }
 
+    /// Internal recursion state (estimate of the NX−1 unmeasured states in
+    /// transformed coordinates), before the +L·y reconstruction.
+    [[nodiscard]] constexpr const ColVec<NM, T>& internal_state() const { return z_; }
+
     /// Reset the internal and reconstructed states to zero.
     constexpr void reset() {
         z_ = ColVec<NM, T>{};
         x_ = ColVec<NX, T>{};
     }
+
+    /**
+     * @brief Overwrite the internal recursion state z (constraint enforcement).
+     *
+     * The reduced observer reconstructs the full estimate x̂ = Tinv·[y; z + L·y]
+     * fresh on every step(), so writing the full state directly would be
+     * discarded next tick — the persistent state is the internal z. To clamp an
+     * unmeasured state, map your constraint into z. The measured channel is read
+     * straight from y and is never filtered, so it needs no clamping here.
+     */
+    constexpr void set_internal_state(const ColVec<NM, T>& z_new) { z_ = z_new; }
+    constexpr void set_internal_state(size_t i, T value) { z_[i] = value; }
 
 private:
     Matrix<NM, NM, T> F_{};

@@ -102,6 +102,26 @@ TEST_SUITE("Luenberger Observer") {
         static_assert(result_f.success);
         CHECK(result_f.success);
     }
+
+    TEST_CASE("set_state clamps the estimate between steps") {
+        constexpr Matrix<2, 2> A{{1.0, 0.1}, {0.0, 1.0}};
+        constexpr Matrix<2, 1> B{{0.0}, {0.1}};
+        constexpr Matrix<1, 2> C{{1.0, 0.0}};
+        constexpr Matrix<1, 1> D{{0.0}};
+        const auto             result = design::synthesize_observer<2, 1>(A, C, ColVec<2>{0.3, 0.4});
+        REQUIRE(result.success);
+
+        const StateSpace<2, 1, 1> sys{.A = A, .B = B, .C = C, .D = D};
+        Observer<2, 1, 1, double> obs(sys, result);
+
+        obs.step(ColVec<1>{1.0});
+        // Force a non-physical estimate, then clamp it.
+        obs.set_state(ColVec<2>{99.0, -99.0});
+        CHECK(obs.state()(0, 0) == doctest::Approx(99.0));
+
+        obs.set_state(1, 0.0); // clamp the velocity component
+        CHECK(obs.state()(1, 0) == doctest::Approx(0.0));
+    }
 }
 
 TEST_SUITE("Reduced-Order Observer") {
@@ -192,5 +212,28 @@ TEST_SUITE("Reduced-Order Observer") {
         constexpr auto result_f = result.as<float>();
         static_assert(result_f.success);
         CHECK(result_f.success);
+    }
+
+    TEST_CASE("set_internal_state overwrites the persistent recursion state") {
+        constexpr double          Ts = 0.01;
+        constexpr Matrix<2, 2>    A{{1.0, Ts}, {0.0, 1.0}};
+        constexpr Matrix<2, 1>    B{{0.0}, {Ts}};
+        constexpr Matrix<1, 2>    C{{1.0, 0.0}};
+        const StateSpace<2, 1, 1> sys{.A = A, .B = B, .C = C, .D = Matrix<1, 1>::zeros(), .Ts = Ts};
+
+        const auto result = design::synthesize_reduced_observer(sys, ColVec<1>{0.5});
+        REQUIRE(result.success);
+
+        ReducedOrderObserver<2, 1, double> obs(result);
+        obs.step(ColVec<1>{1.0});
+
+        // The persistent state is z (NX-1 = 1 element here), not the
+        // reconstructed full state. Writing z and stepping with a steady
+        // measurement reconstructs x = Tinv*[y; z + L*y].
+        obs.set_internal_state(ColVec<1>{0.0});
+        CHECK(obs.internal_state()(0, 0) == doctest::Approx(0.0));
+
+        obs.set_internal_state(0, 3.0);
+        CHECK(obs.internal_state()(0, 0) == doctest::Approx(3.0));
     }
 }
