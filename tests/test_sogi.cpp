@@ -11,8 +11,8 @@ using namespace wetmelon::control;
 
 TEST_CASE("SOGI design") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0; // 50 Hz
-    constexpr double k = 1.414;
-    constexpr auto   sogi_sys = design::sogi_system<double>(omega_0, k);
+    constexpr double alpha = 1.414;
+    constexpr auto   sogi_sys = design::sogi_system<double>(omega_0, alpha);
 
     // Check matrix dimensions
     CHECK(sogi_sys.A.rows() == 2);
@@ -23,13 +23,13 @@ TEST_CASE("SOGI design") {
     CHECK(sogi_sys.C.cols() == 2);
 
     // Check A matrix structure
-    CHECK(sogi_sys.A(0, 0) == doctest::Approx(-k * omega_0));
+    CHECK(sogi_sys.A(0, 0) == doctest::Approx(-alpha * omega_0));
     CHECK(sogi_sys.A(0, 1) == doctest::Approx(-omega_0));
     CHECK(sogi_sys.A(1, 0) == doctest::Approx(omega_0));
     CHECK(sogi_sys.A(1, 1) == doctest::Approx(0.0));
 
     // Check B matrix
-    CHECK(sogi_sys.B(0, 0) == doctest::Approx(k * omega_0));
+    CHECK(sogi_sys.B(0, 0) == doctest::Approx(alpha * omega_0));
     CHECK(sogi_sys.B(1, 0) == doctest::Approx(0.0));
 
     // Check C matrix (identity for direct state output)
@@ -39,10 +39,36 @@ TEST_CASE("SOGI design") {
     CHECK(sogi_sys.C(1, 1) == doctest::Approx(1.0));
 }
 
+TEST_CASE("SOGI discrete design includes alpha feedback") {
+    constexpr double w0 = 2 * std::numbers::pi * 50.0;
+    constexpr double alpha = 1.414;
+    constexpr double Ts = 1.0 / 10000.0;
+
+    constexpr auto sys = design::sogi_system<double>(w0, alpha, Ts);
+
+    const auto [sin_wt, cos_wt] = wet::sincos(w0 * Ts);
+    const double alpha_one_minus_cos = alpha * (1.0 - cos_wt);
+    const double alpha_sin = alpha * sin_wt;
+
+    CHECK(sys.A(0, 0) == doctest::Approx(cos_wt));
+    CHECK(sys.A(0, 1) == doctest::Approx(sin_wt - alpha_one_minus_cos));
+    CHECK(sys.A(1, 0) == doctest::Approx(-sin_wt));
+    CHECK(sys.A(1, 1) == doctest::Approx(cos_wt - alpha_sin));
+
+    CHECK(sys.B(0, 0) == doctest::Approx(alpha_one_minus_cos));
+    CHECK(sys.B(1, 0) == doctest::Approx(alpha_sin));
+
+    // Output order matches runtime API: y0=bandpass, y1=quadrature.
+    CHECK(sys.C(0, 0) == doctest::Approx(0.0));
+    CHECK(sys.C(0, 1) == doctest::Approx(1.0));
+    CHECK(sys.C(1, 0) == doctest::Approx(1.0));
+    CHECK(sys.C(1, 1) == doctest::Approx(0.0));
+}
+
 TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0;
-    constexpr double k = 1.414;
-    constexpr auto   mstogi_sys = design::mstogi_system<double>(omega_0, k);
+    constexpr double alpha = 1.414;
+    constexpr auto   mstogi_sys = design::mstogi_system<double>(omega_0, alpha);
 
     // Check dimensions
     CHECK(mstogi_sys.A.rows() == 3);
@@ -53,18 +79,18 @@ TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     CHECK(mstogi_sys.C.cols() == 3);
 
     // SOGI core (rows 0,1): in-phase + quadrature integrators.
-    CHECK(mstogi_sys.A(0, 0) == doctest::Approx(-k * omega_0));
+    CHECK(mstogi_sys.A(0, 0) == doctest::Approx(-alpha * omega_0));
     CHECK(mstogi_sys.A(0, 1) == doctest::Approx(-omega_0));
     CHECK(mstogi_sys.A(1, 0) == doctest::Approx(omega_0));
     CHECK(mstogi_sys.A(1, 1) == doctest::Approx(0.0));
 
-    // TOGI stage (row 2): v̇‴ = k·ω₀·(v − v′) − ω₀·v‴ — first-order, self-damped,
+    // TOGI stage (row 2): v̇‴ = alpha·ω₀·(v − v′) − ω₀·v‴ — first-order, self-damped,
     // fed from the same post-gain bus as the SOGI (NOT the old −ω₀²·x₂ double
     // integrator, which made neither a washout nor a unity quadrature pair).
-    CHECK(mstogi_sys.A(2, 0) == doctest::Approx(-k * omega_0));
+    CHECK(mstogi_sys.A(2, 0) == doctest::Approx(-alpha * omega_0));
     CHECK(mstogi_sys.A(2, 1) == doctest::Approx(0.0));
     CHECK(mstogi_sys.A(2, 2) == doctest::Approx(-omega_0));
-    CHECK(mstogi_sys.B(2, 0) == doctest::Approx(k * omega_0));
+    CHECK(mstogi_sys.B(2, 0) == doctest::Approx(alpha * omega_0));
 
     // Output map: v_o = v′ (band-pass), q·v_o = v″ − v‴ (DC-rejecting quadrature).
     CHECK(mstogi_sys.C(0, 0) == doctest::Approx(1.0));
@@ -72,10 +98,44 @@ TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     CHECK(mstogi_sys.C(1, 2) == doctest::Approx(-1.0));
 }
 
+TEST_CASE("MSTOGI discrete design includes alpha feedback") {
+    constexpr double w0 = 2 * std::numbers::pi * 50.0;
+    constexpr double alpha = 1.414;
+    constexpr double Ts = 1.0 / 10000.0;
+
+    constexpr auto sys = design::mstogi_system<double>(w0, alpha, Ts);
+
+    const auto [sin_wt, cos_wt] = wet::sincos(w0 * Ts);
+    const double a_togi = wet::exp(-w0 * Ts);
+    const double alpha_one_minus_cos = alpha * (1.0 - cos_wt);
+    const double alpha_sin = alpha * sin_wt;
+    const double alpha_one_minus_a = alpha * (1.0 - a_togi);
+
+    CHECK(sys.A(0, 0) == doctest::Approx(cos_wt));
+    CHECK(sys.A(0, 1) == doctest::Approx(sin_wt - alpha_one_minus_cos));
+    CHECK(sys.A(1, 0) == doctest::Approx(-sin_wt));
+    CHECK(sys.A(1, 1) == doctest::Approx(cos_wt - alpha_sin));
+    CHECK(sys.A(2, 1) == doctest::Approx(-alpha_one_minus_a));
+    CHECK(sys.A(2, 2) == doctest::Approx(a_togi));
+
+    CHECK(sys.B(0, 0) == doctest::Approx(alpha_one_minus_cos));
+    CHECK(sys.B(1, 0) == doctest::Approx(alpha_sin));
+    CHECK(sys.B(2, 0) == doctest::Approx(alpha_one_minus_a));
+
+    // Output order matches runtime API: y0=band_pass, y1=quadrature.
+    CHECK(sys.C(0, 0) == doctest::Approx(0.0));
+    CHECK(sys.C(0, 1) == doctest::Approx(1.0));
+    CHECK(sys.C(0, 2) == doctest::Approx(0.0));
+    CHECK(sys.C(1, 0) == doctest::Approx(1.0));
+    CHECK(sys.C(1, 1) == doctest::Approx(0.0));
+    CHECK(sys.C(1, 2) == doctest::Approx(-1.0));
+}
+
 TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental") {
     constexpr float f0 = 50.0f;
     constexpr float Ts = 1.0f / 10000.0f; // 10 kHz
-    MSTOGI<float>   mstogi(f0, Ts);
+    constexpr float alpha = 1.414f;
+    MSTOGI<float>   mstogi;
 
     const float omega = 2.0f * std::numbers::pi_v<float> * f0;
     const float dc_offset = 0.5f; // bias that a plain SOGI-QSG would leak into qv′
@@ -90,12 +150,12 @@ TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental"
     for (int i = 0; i < n; ++i) {
         const float t = static_cast<float>(i) * Ts;
         const float v = dc_offset + std::sin(omega * t);
-        const auto  y = mstogi.process(v);
+        const auto [bp, q] = mstogi(v, f0, alpha, Ts);
 
         if (i > n - 2000) {
-            bp_amp = std::max(bp_amp, std::abs(y.band_pass));
-            q_amp = std::max(q_amp, std::abs(y.quadrature));
-            q_mean += y.quadrature;
+            bp_amp = std::max(bp_amp, std::abs(bp));
+            q_amp = std::max(q_amp, std::abs(q));
+            q_mean += q;
             ++n_mean;
         }
     }
@@ -112,112 +172,208 @@ TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental"
 
 TEST_CASE("MSTOGI runtime - frequency retune") {
     constexpr float Ts = 1.0f / 10000.0f;
-    MSTOGI<float>   mstogi(50.0f, Ts);
-    mstogi.set_frequency(60.0f);
+    constexpr float alpha = 1.414f;
+    MSTOGI<float>   mstogi;
 
     const float omega = 2.0f * std::numbers::pi_v<float> * 60.0f;
     float       bp_amp = 0.0f;
     for (int i = 0; i < 4000; ++i) {
         const float t = static_cast<float>(i) * Ts;
-        const auto  y = mstogi.process(std::sin(omega * t));
+        const auto [bp, q] = mstogi(std::sin(omega * t), 60.0f, alpha, Ts);
+        (void)q;
         if (i > 2000) {
-            bp_amp = std::max(bp_amp, std::abs(y.band_pass));
+            bp_amp = std::max(bp_amp, std::abs(bp));
         }
     }
     CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f));
 }
 
 TEST_CASE("SOGI runtime - resonator form") {
-    constexpr float f0 = 50.0f;     // 50 Hz fundamental
-    constexpr float Ts = 0.0001f;   // 10 kHz sample rate
-    constexpr float alpha = 1.414f; // √2 damping gain
-    SOGI<float>     sogi(f0, Ts, alpha);
+    constexpr float f0 = 50.0f;
+    constexpr float Ts = 1.0f / 10000.0f;
+    constexpr float alpha = 1.414f;
+    SOGI<float>     sogi;
 
-    sogi.reset();
-
-    // Test with sinusoidal input at resonant frequency
-    const float omega_input = 2 * std::numbers::pi_v<float> * f0;
+    const float omega_input = 2.0f * std::numbers::pi_v<float> * f0;
 
     float max_bp = 0.0f;
     float max_quad = 0.0f;
 
-    // Run for a few cycles
-    for (int i = 0; i < 1000; ++i) {
-        const float t = (float)i * Ts;
+    for (int i = 0; i < 5000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
         const float input = std::sin(omega_input * t);
 
-        const auto [bp, quad] = sogi(input);
+        const auto [bp, quad] = sogi(input, f0, alpha, Ts);
 
-        max_bp = std::max(max_bp, std::abs(bp));
-        max_quad = std::max(max_quad, std::abs(quad));
+        if (i > 2500) {
+            max_bp = std::max(max_bp, std::abs(bp));
+            max_quad = std::max(max_quad, std::abs(quad));
+        }
     }
 
-    // Should extract fundamental component
-    CHECK(max_bp > 0.1f);
-    CHECK(max_quad > 0.1f);
+    CHECK(max_bp == doctest::Approx(1.0f).epsilon(0.05f));
+    CHECK(max_quad == doctest::Approx(1.0f).epsilon(0.05f));
 }
 
 TEST_CASE("SOGI runtime - frequency retuning") {
-    constexpr float Ts = 0.0001f; // 10 kHz sample rate
+    constexpr float Ts = 1.0f / 10000.0f;
     constexpr float alpha = 1.414f;
-    SOGI<float>     sogi(50.0f, Ts, alpha);
+    SOGI<float>     sogi;
+    const float     omega_50 = 2.0f * std::numbers::pi_v<float> * 50.0f;
+    for (int i = 0; i < 2000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        (void)sogi(std::sin(omega_50 * t), 50.0f, alpha, Ts);
+    }
 
-    // Retune to 60 Hz
-    sogi.set_frequency(60.0f, Ts);
-
-    const float omega_input = 2 * std::numbers::pi_v<float> * 60.0f;
+    const float omega_60 = 2.0f * std::numbers::pi_v<float> * 60.0f;
     float       max_bp = 0.0f;
-
-    for (int i = 0; i < 1000; ++i) {
-        const float t = (float)i * Ts;
-        const float input = std::sin(omega_input * t);
-        const auto [bp, quad] = sogi(input);
-        max_bp = std::max(max_bp, std::abs(bp));
+    for (int i = 0; i < 4000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const auto [bp, q] = sogi(std::sin(omega_60 * t), 60.0f, alpha, Ts);
+        (void)q;
+        if (i > 2000) {
+            max_bp = std::max(max_bp, std::abs(bp));
+        }
     }
 
-    CHECK(max_bp > 0.1f);
+    CHECK(max_bp == doctest::Approx(1.0f).epsilon(0.05f));
 }
 
-TEST_CASE("SOGI design with notch output") {
-    constexpr double omega_0 = 2 * std::numbers::pi * 50.0;
-    constexpr double k = 1.414;
-    constexpr auto   sogi_notch_sys = design::sogi_system_with_notch<double>(omega_0, k);
-
-    CHECK(sogi_notch_sys.A.rows() == 2);
-    CHECK(sogi_notch_sys.A.cols() == 2);
-    CHECK(sogi_notch_sys.B.rows() == 2);
-    CHECK(sogi_notch_sys.B.cols() == 1);
-    CHECK(sogi_notch_sys.C.rows() == 3);
-    CHECK(sogi_notch_sys.C.cols() == 2);
-    CHECK(sogi_notch_sys.D.rows() == 3);
-    CHECK(sogi_notch_sys.D.cols() == 1);
-
-    // notch output y_notch = u - x1
-    CHECK(sogi_notch_sys.C(2, 0) == doctest::Approx(-1.0));
-    CHECK(sogi_notch_sys.C(2, 1) == doctest::Approx(0.0));
-    CHECK(sogi_notch_sys.D(2, 0) == doctest::Approx(1.0));
-}
-
-TEST_CASE("SOGI runtime exposes notch output") {
+TEST_CASE("SOGI runtime exposes derived notch output") {
     constexpr float f0 = 50.0f;
-    constexpr float Ts = 0.0001f;
+    constexpr float Ts = 1.0f / 10000.0f;
     constexpr float alpha = 1.414f;
-    SOGI<float>     sogi(f0, Ts, alpha);
+    SOGI<float>     sogi;
 
-    for (int i = 0; i < 1000; ++i) {
-        const float t = (float)i * Ts;
-        const float input = std::sin(2 * std::numbers::pi_v<float> * f0 * t);
+    const float omega = 2.0f * std::numbers::pi_v<float> * f0;
+    float       max_notch = 0.0f;
+    for (int i = 0; i < 5000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const float input = std::sin(omega * t);
+        const auto [bp, q] = sogi(input, f0, alpha, Ts);
+        (void)q;
 
-        const auto out = sogi.process(input);
-
-        CHECK(out.notch == doctest::Approx(input - out.bandpass).epsilon(1e-5));
-        CHECK(sogi.notch() == doctest::Approx(out.notch).epsilon(1e-6));
-        CHECK(sogi.bandpass() == doctest::Approx(out.bandpass).epsilon(1e-6));
-        CHECK(sogi.quadrature() == doctest::Approx(out.quadrature).epsilon(1e-6));
-
-        // Legacy pair-return API remains valid.
-        const auto [bp_legacy, q_legacy] = sogi(input);
-        CHECK(bp_legacy == doctest::Approx(sogi.bandpass()).epsilon(1e-6));
-        CHECK(q_legacy == doctest::Approx(sogi.quadrature()).epsilon(1e-6));
+        if (i > 2500) {
+            const float notch = input - bp;
+            max_notch = std::max(max_notch, std::abs(notch));
+        }
     }
+
+    CHECK(max_notch < 0.15f);
+}
+
+TEST_CASE("SOGI runtime matches resonator realization") {
+    constexpr float Ts = 1.0f / 10000.0f;
+    constexpr float f0 = 50.0f;
+    constexpr float alpha = 1.414f;
+
+    SOGI<float> sogi;
+    const float w0 = 2.0f * std::numbers::pi_v<float> * f0;
+    const float wT = w0 * Ts;
+    const auto [sin_wt, cos_wt] = wet::sincos(wT);
+
+    float x_r1 = 0.0f; // quadrature state
+    float x_r2 = 0.0f; // band-pass state
+
+    for (int i = 0; i < 32; ++i) {
+        const float in = std::sin(2.0f * std::numbers::pi_v<float> * f0 * Ts * static_cast<float>(i));
+
+        const float bp_ref = x_r2;
+        const float q_ref = x_r1;
+        const float u = alpha * (in - bp_ref);
+
+        const auto [bp, q] = sogi(in, f0, alpha, Ts);
+
+        CHECK(bp == doctest::Approx(bp_ref).epsilon(1e-6f));
+        CHECK(q == doctest::Approx(q_ref).epsilon(1e-6f));
+
+        const float x_r1_next = (cos_wt * x_r1) + (sin_wt * x_r2) + ((1.0f - cos_wt) * u);
+        const float x_r2_next = (-sin_wt * x_r1) + (cos_wt * x_r2) + (sin_wt * u);
+
+        x_r1 = x_r1_next;
+        x_r2 = x_r2_next;
+    }
+}
+
+TEST_CASE("MSTOGI runtime wrapper matches FE washout realization") {
+    constexpr float Ts = 1.0f / 10000.0f;
+    constexpr float f0 = 50.0f;
+    constexpr float alpha = 1.414f;
+
+    MSTOGI<float> mstogi;
+    const float   w0 = 2.0f * std::numbers::pi_v<float> * f0;
+    const float   wT = w0 * Ts;
+    const auto [sin_wt, cos_wt] = wet::sincos(wT);
+
+    float x_r1 = 0.0f;
+    float x_r2 = 0.0f;
+    float x_t = 0.0f;
+
+    for (int i = 0; i < 32; ++i) {
+        const float in = std::sin(2.0f * std::numbers::pi_v<float> * f0 * Ts * static_cast<float>(i));
+
+        const float bp_ref = x_r2;
+        const float u = alpha * (in - bp_ref);
+        x_t += (u - x_t) * wT;
+        const float q_ref = x_r1 - x_t;
+
+        const auto [bp, q] = mstogi(in, f0, alpha, Ts);
+
+        CHECK(bp == doctest::Approx(bp_ref).epsilon(1e-6f));
+        CHECK(q == doctest::Approx(q_ref).epsilon(1e-6f));
+
+        const float x_r1_next = (cos_wt * x_r1) + (sin_wt * x_r2) + ((1.0f - cos_wt) * u);
+        const float x_r2_next = (-sin_wt * x_r1) + (cos_wt * x_r2) + (sin_wt * u);
+
+        x_r1 = x_r1_next;
+        x_r2 = x_r2_next;
+    }
+}
+
+TEST_CASE("SOGI runtime - simple per-call frequency interface") {
+    constexpr float f0 = 50.0f;
+    constexpr float Ts = 1.0f / 10000.0f;
+    constexpr float alpha = 1.414f;
+    SOGI<float>     sogi;
+
+    float       max_bp = 0.0f;
+    float       max_q = 0.0f;
+    const float omega = 2.0f * std::numbers::pi_v<float> * f0;
+
+    for (int i = 0; i < 5000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const float in = std::sin(omega * t);
+        const auto [bp, q] = sogi(in, f0, alpha, Ts);
+        if (i > 2500) {
+            max_bp = std::max(max_bp, std::abs(bp));
+            max_q = std::max(max_q, std::abs(q));
+        }
+    }
+
+    CHECK(max_bp == doctest::Approx(1.0f).epsilon(0.05f));
+    CHECK(max_q == doctest::Approx(1.0f).epsilon(0.05f));
+}
+
+TEST_CASE("MSTOGI runtime - simple per-call frequency interface") {
+    constexpr float f0 = 50.0f;
+    constexpr float Ts = 1.0f / 10000.0f;
+    constexpr float alpha = 1.414f;
+    MSTOGI<float>   mstogi;
+
+    const float omega = 2.0f * std::numbers::pi_v<float> * f0;
+    float       bp_amp = 0.0f;
+    float       q_amp = 0.0f;
+
+    for (int i = 0; i < 5000; ++i) {
+        const float t = static_cast<float>(i) * Ts;
+        const float v = std::sin(omega * t);
+        const auto [bp, q] = mstogi(v, f0, alpha, Ts);
+        if (i > 2500) {
+            bp_amp = std::max(bp_amp, std::abs(bp));
+            q_amp = std::max(q_amp, std::abs(q));
+        }
+    }
+
+    CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f));
+    CHECK(q_amp == doctest::Approx(1.0f).epsilon(0.05f));
 }

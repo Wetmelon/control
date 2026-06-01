@@ -11,10 +11,9 @@ using namespace wetmelon::control;
 TEST_SUITE("Single-Phase PLL") {
     TEST_CASE("Constructor initializes limits and outputs") {
         constexpr float Fnom = 50.0f;
-        constexpr float alpha = 1.414f;
         constexpr float Ts = 0.0001f;
 
-        constexpr SinglePhasePLL<float> pll(Fnom, alpha, Ts);
+        constexpr SinglePhasePLL<float> pll(Fnom, Ts);
 
         static_assert(pll.params.integrator_max == Fnom * 0.5f);
         static_assert(pll.params.integrator_min == -Fnom * 0.5f);
@@ -31,10 +30,9 @@ TEST_SUITE("Single-Phase PLL") {
 
     TEST_CASE("Step keeps estimates finite and within configured bounds") {
         constexpr float Fnom = 50.0f;
-        constexpr float alpha = 1.414f;
         constexpr float Ts = 0.0001f;
 
-        SinglePhasePLL<float> pll(Fnom, alpha, Ts);
+        SinglePhasePLL<float> pll(Fnom, Ts);
         const float           two_pi = 2.0f * std::numbers::pi_v<float>;
 
         for (int i = 0; i < 5000; ++i) {
@@ -54,10 +52,9 @@ TEST_SUITE("Single-Phase PLL") {
 
     TEST_CASE("Integrator leak defaults to zero (pure integrator)") {
         constexpr float Fnom = 50.0f;
-        constexpr float alpha = 1.414f;
         constexpr float Ts = 0.0001f;
 
-        constexpr SinglePhasePLL<float> pll(Fnom, alpha, Ts);
+        constexpr SinglePhasePLL<float> pll(Fnom, Ts);
         static_assert(pll.params.integrator_leak == 0.0f);
     }
 
@@ -65,10 +62,9 @@ TEST_SUITE("Single-Phase PLL") {
         // Drive the integrator to a non-zero state with a constant phase-error
         // surrogate, then with leak enabled and zero excitation it must decay.
         constexpr float Fnom = 50.0f;
-        constexpr float alpha = 1.414f;
         constexpr float Ts = 0.001f;
 
-        SinglePhasePLL<float> pll(Fnom, alpha, Ts);
+        SinglePhasePLL<float> pll(Fnom, Ts);
         pll.params.integrator_leak = 50.0f; // [1/s] → time constant 20 ms
 
         // Park an offset in the integrator by hand (white-box: it's a public-ish
@@ -95,10 +91,9 @@ TEST_SUITE("Single-Phase PLL") {
 
     TEST_CASE("Reset restores nominal frequency and zero phase") {
         constexpr float Fnom = 60.0f;
-        constexpr float alpha = 1.2f;
         constexpr float Ts = 0.0001f;
 
-        SinglePhasePLL<float> pll(Fnom, alpha, Ts);
+        SinglePhasePLL<float> pll(Fnom, Ts);
 
         // Drive the estimator away from initial state.
         for (int i = 0; i < 1000; ++i) {

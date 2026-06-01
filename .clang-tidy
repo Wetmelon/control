@@ -16,17 +16,17 @@ Checks: "*,
         -readability-magic-numbers,
         -readability-identifier-length,
         -readability-function-cognitive-complexity,
-        -cppcoreguidelines-non-private-member-variables-in-classes,
-        -cppcoreguidelines-avoid-magic-numbers,
         -misc-non-private-member-variables-in-classes,
         -misc-use-anonymous-namespace,
         -hicpp-uppercase-literal-suffix,
         -hicpp-avoid-c-arrays,
         -hicpp-signed-bitwise,
         -modernize-avoid-c-arrays,
-        -cppcoreguidelines-avoid-c-arrays,
-        -cppcoreguidelines-pro-bounds-constant-array-index,
         -bugprone-easily-swappable-parameters,
+        -cppcoreguidelines-avoid-c-arrays,
+        -cppcoreguidelines-avoid-magic-numbers,
+        -cppcoreguidelines-pro-bounds-constant-array-index,
+        -cppcoreguidelines-non-private-member-variables-in-classes,
         -cppcoreguidelines-virtual-class-destructor"
 WarningsAsErrors: ''
 HeaderFilterRegex: ''
@@ -37,3 +37,5 @@ CheckOptions:
     value: 'x|y|z|Id|Iq'
   - key: readability-identifier-length.IgnoredParameterNames
     value: 'x|y|z|Id|Iq'
+  - key: cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage
+    value: 'true'

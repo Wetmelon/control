@@ -34,8 +34,8 @@ struct SinglePhasePLL {
         T output_min{}; // [Hz] Minimum output frequency
     } params{};
 
-    constexpr SinglePhasePLL(T Fnom, T alpha, T Ts)
-        : sogi(Fnom, Ts, alpha), nominal_frequency(Fnom), frequency_estimate(Fnom) {
+    constexpr SinglePhasePLL(T Fnom, T Ts)
+        : nominal_frequency(Fnom), frequency_estimate(Fnom) {
         // Set integrator limits based on expected frequency range
         T max_freq_deviation = Fnom * T{0.5};
         params.integrator_max = max_freq_deviation;
@@ -52,7 +52,7 @@ struct SinglePhasePLL {
 
     constexpr void step(T input, const T Ts) {
         // Generate bandpass and quadrature signals using SOGI
-        const auto [bp, quadrature] = sogi(input);
+        const auto [bp, quadrature] = sogi(input, frequency_estimate, std::numbers::sqrt2_v<T>, Ts);
         (void)bp;
 
         // Phase error is the product of input and quadrature signal
@@ -91,7 +91,7 @@ struct SinglePhasePLL {
     }
 
     constexpr void reset() {
-        sogi.reset();
+        // sogi.reset();
         integrator_state = T{0};
         phase_estimate = T{0};
         frequency_estimate = nominal_frequency;
