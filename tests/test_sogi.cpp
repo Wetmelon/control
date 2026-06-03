@@ -170,22 +170,40 @@ TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental"
     CHECK(std::abs(q_mean) < 0.02f);
 }
 
-TEST_CASE("MSTOGI runtime - frequency retune") {
+TEST_CASE("MSTOGI runtime - frequency retune (center frequency moves mid-run)") {
+    // The motivating use case: the center frequency is changed every tick (e.g.
+    // an inverter PLL feeding its estimated frequency into the band-pass). Lock
+    // at 50 Hz, step the commanded frequency to 60 Hz, and confirm the band-pass
+    // re-locks to the new input — the per-call (in, freq, alpha, Ts) interface
+    // rebuilds the resonator from sincos(w*Ts) each sample, so no rediscretize.
     constexpr float Ts = 1.0f / 10000.0f;
     constexpr float alpha = 1.414f;
     MSTOGI<float>   mstogi;
 
-    const float omega = 2.0f * std::numbers::pi_v<float> * 60.0f;
-    float       bp_amp = 0.0f;
+    // Phase-continuous input that switches frequency at the retune instant, so
+    // the only thing under test is the filter retune, not an input phase jump.
+    float       phase = 0.0f;
+    const float two_pi = 2.0f * std::numbers::pi_v<float>;
+
+    // Settle at 50 Hz.
+    for (int i = 0; i < 2000; ++i) {
+        phase += two_pi * 50.0f * Ts;
+        (void)mstogi(std::sin(phase), 50.0f, alpha, Ts);
+    }
+
+    // Step the commanded (and input) frequency to 60 Hz; measure after re-lock.
+    float bp_amp = 0.0f;
+    float q_amp = 0.0f;
     for (int i = 0; i < 4000; ++i) {
-        const float t = static_cast<float>(i) * Ts;
-        const auto [bp, q] = mstogi(std::sin(omega * t), 60.0f, alpha, Ts);
-        (void)q;
+        phase += two_pi * 60.0f * Ts;
+        const auto [bp, q] = mstogi(std::sin(phase), 60.0f, alpha, Ts);
         if (i > 2000) {
             bp_amp = std::max(bp_amp, std::abs(bp));
+            q_amp = std::max(q_amp, std::abs(q));
         }
     }
-    CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f));
+    CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f)); // re-locked to 60 Hz
+    CHECK(q_amp == doctest::Approx(1.0f).epsilon(0.05f));
 }
 
 TEST_CASE("SOGI runtime - resonator form") {
