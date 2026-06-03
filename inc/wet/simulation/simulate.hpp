@@ -23,7 +23,7 @@
 
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wetmelon::control::sim {
 
 /**
  * @brief Result of a closed-loop simulation
@@ -302,4 +302,4 @@ SimulationResult<NX, NU, NY, T> simulate_discrete(
     return sim;
 }
 
-} // namespace wetmelon::control
+} // namespace wetmelon::control::sim

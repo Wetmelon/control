@@ -7,6 +7,7 @@
 #include "doctest.h"
 
 using namespace wetmelon::control;
+using namespace wetmelon::control::sim;
 
 // Pendulum parameters for simulation tests
 constexpr double g_pend = 9.81;

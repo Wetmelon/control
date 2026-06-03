@@ -11,6 +11,7 @@
 #include "wet/systems/discretization.hpp"
 
 using namespace wetmelon::control;
+using namespace wetmelon::control::sim;
 
 int main() {
     constexpr double Ts = 0.001; // 1 kHz

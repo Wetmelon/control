@@ -74,8 +74,8 @@ std::vector<double> to_double_vector(const std::vector<T>& v) {
  */
 template<size_t NX, size_t NU, size_t NY, typename T>
 plotlypp::Figure plot_simulation(
-    const SimulationResult<NX, NU, NY, T>& sim,
-    const std::string&                     title = "Simulation"
+    const sim::SimulationResult<NX, NU, NY, T>& sim,
+    const std::string&                          title = "Simulation"
 ) {
     using namespace plotlypp;
 

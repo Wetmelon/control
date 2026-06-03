@@ -25,7 +25,7 @@
 
 #include "integrator.hpp"
 
-namespace wetmelon::control {
+namespace wetmelon::control::sim {
 
 /**
  * @brief Result of an ODE solve operation
@@ -458,4 +458,4 @@ AdaptiveStepSolver(Int<NX, T>, T) -> AdaptiveStepSolver<NX, T, Int<NX, T>>;
 template<template<size_t, typename> class Int, size_t NX, typename T>
 AdaptiveStepSolver(Int<NX, T>) -> AdaptiveStepSolver<NX, T, Int<NX, T>>;
 
-} // namespace wetmelon::control
+} // namespace wetmelon::control::sim
