@@ -129,11 +129,17 @@ struct R_TRIG {
 /**
  * @brief F_TRIG (Falling Edge Trigger)
  *
- * Detects falling edges on the CLK input.
+ * Detects falling edges on the CLK input. Per IEC 61131-3 the body is
+ * `Q := NOT CLK AND NOT M; M := NOT CLK`, with the internal memory `M`
+ * initialized to 0 on a cold restart. Because `M = NOT CLK_prev`, an `M` of 0
+ * corresponds to a *previous* clock of 1 — so the standard's NOTE specifies that
+ * an F_TRIG whose CLK is FALSE produces `Q = 1` on its first execution after a
+ * cold restart. We store the previous raw clock in `CLK`, so it is initialized
+ * to `true` (not `false`) to reproduce that conforming cold-start behavior.
  */
 struct F_TRIG {
-    bool CLK{false}; //!< Clock input
-    bool Q{false};   //!< Output (true on falling edge)
+    bool CLK{true}; //!< Previous clock state; init true so cold start matches IEC (M=0).
+    bool Q{false};  //!< Output (true on falling edge)
 
     /**
      * @brief Execute edge detector
@@ -147,10 +153,10 @@ struct F_TRIG {
     }
 
     /**
-     * @brief Reset detector
+     * @brief Reset detector (to the conforming cold-start state).
      */
     constexpr void reset() {
-        CLK = false;
+        CLK = true;
         Q = false;
     }
 };
@@ -175,10 +181,13 @@ public:
      */
     constexpr bool operator()(bool IN, T dt) {
         if (IN) {
-            ET += dt;
-            if (ET >= PT) {
-                Q = true;
+            if (ET < PT) {
+                ET += dt;
+                if (ET >= PT) {
+                    ET = PT; // clamp: ET saturates at PT, never grows unbounded
+                }
             }
+            Q = (ET >= PT);
         } else {
             ET = 0;
             Q = false;
@@ -218,7 +227,12 @@ public:
             ET = 0;
             Q = true;
         } else {
-            ET += dt;
+            if (ET < PT) {
+                ET += dt;
+                if (ET >= PT) {
+                    ET = PT; // clamp: ET saturates at PT, never grows unbounded
+                }
+            }
             if (ET >= PT) {
                 Q = false;
             }
@@ -254,17 +268,21 @@ public:
      * @return Timer output
      */
     constexpr bool operator()(bool IN, T dt) {
-        if (IN && !prev_IN) { // Rising edge
-            ET = 0;
+        // Start a pulse only on a rising edge while idle. The pulse is
+        // non-retriggerable: once running (Q true) IN is ignored until PT
+        // elapses, and re-arming requires the input to return low (ET back to 0).
+        if (IN && !prev_IN && !Q && ET == T{0}) {
             Q = true;
         }
 
         if (Q) {
             ET += dt;
             if (ET >= PT) {
+                ET = PT; // clamp: ET saturates at PT, never grows unbounded
                 Q = false;
-                // ET stays at PT when pulse ends
             }
+        } else if (!IN) {
+            ET = T{0}; // input released after the pulse -> ET returns to 0 (idle)
         }
 
         prev_IN = IN;
@@ -306,14 +324,11 @@ public:
     constexpr bool operator()(bool CU_input, bool R) {
         if (R) {
             CV = 0;
-            Q = false;
-        } else if (CU_input && !CU) { // Rising edge on CU
-            if (CV < std::numeric_limits<T>::max()) {
-                ++CV;
-            }
-            Q = (CV >= PV);
+        } else if (CU_input && !CU && CV < std::numeric_limits<T>::max()) {
+            ++CV; // rising edge on CU, saturating at the type max (no overflow)
         }
         CU = CU_input;
+        Q = (CV >= PV); // per IEC, Q is evaluated every invocation
         return Q;
     }
 
@@ -349,14 +364,11 @@ public:
     constexpr bool operator()(bool CD_input, bool LD) {
         if (LD) {
             CV = PV;
-            Q = false;
-        } else if (CD_input && !CD) { // Rising edge on CD
-            if (CV > 0) {
-                --CV;
-            }
-            Q = (CV == 0);
+        } else if (CD_input && !CD && CV > 0) {
+            --CV; // rising edge on CD, floored at 0 (PVmin); no unsigned wrap
         }
         CD = CD_input;
+        Q = (CV == 0); // per IEC, Q := (CV <= 0) evaluated every invocation
         return Q;
     }
 
@@ -393,31 +405,27 @@ public:
      * @param LD Load input
      */
     constexpr void operator()(bool CU_input, bool CD_input, bool R, bool LD) {
+        const bool cu_edge = CU_input && !CU; // rising edge on CU
+        const bool cd_edge = CD_input && !CD; // rising edge on CD
+
         if (R) {
             CV = 0;
-            QU = false;
-            QD = true; // CV == 0
         } else if (LD) {
             CV = PV;
-            QU = (CV >= PV);
-            QD = (CV == 0);
-            CU = CD = false; // Reset edge states on load
-        } else {
-            if (CU_input && !CU) { // Rising edge on CU
-                if (CV < std::numeric_limits<T>::max()) {
-                    ++CV;
-                }
+        } else if (!(cu_edge && cd_edge)) {
+            // Per IEC, simultaneous up/down edges cancel (do nothing); otherwise
+            // up takes priority (ELSIF), each saturating at its limit (no wrap).
+            if (cu_edge && CV < std::numeric_limits<T>::max()) {
+                ++CV;
+            } else if (cd_edge && CV > 0) {
+                --CV;
             }
-            if (CD_input && !CD) { // Rising edge on CD
-                if (CV > 0) {
-                    --CV;
-                }
-            }
-            QU = (CV >= PV);
-            QD = (CV == 0);
         }
+
         CU = CU_input;
         CD = CD_input;
+        QU = (CV >= PV); // per IEC, outputs are evaluated every invocation
+        QD = (CV == 0);
     }
 
     /**
@@ -566,37 +574,5 @@ public:
 private:
     T elapsed_{0};
 };
-
-// ============================================================================
-// Descriptive aliases
-// ============================================================================
-// The terse IEC 61131-3 names above are the canonical industry identifiers (a
-// PLC engineer searches for `TON`, `CTU`, `R_TRIG`). These aliases give the same
-// blocks a self-describing name for readers who don't live in the standard,
-// matching the library's "descriptive primary, terse alias" convention from the
-// other namespaces — here applied in reverse because the terse names are the
-// recognized ones.
-
-using SetResetLatch = SR;   //!< Set-dominant SR latch.
-using ResetSetLatch = RS;   //!< Reset-dominant RS latch.
-using RisingEdge = R_TRIG;  //!< Rising-edge detector.
-using FallingEdge = F_TRIG; //!< Falling-edge detector.
-using DataFlipFlop = DFF;   //!< Edge-triggered D flip-flop.
-using DataLatch = DLATCH;   //!< Level-sensitive D latch.
-using ToggleFlipFlop = TFF; //!< Toggle (T) flip-flop.
-
-template<typename T = float>
-using OnDelayTimer = TON<T>; //!< On-delay timer.
-template<typename T = float>
-using OffDelayTimer = TOF<T>; //!< Off-delay timer.
-template<typename T = float>
-using PulseTimer = TP<T>; //!< Pulse timer.
-
-template<typename T = uint32_t>
-using CountUp = CTU<T>; //!< Up counter.
-template<typename T = uint32_t>
-using CountDown = CTD<T>; //!< Down counter.
-template<typename T = uint32_t>
-using CountUpDown = CTUD<T>; //!< Up/down counter.
 
 } // namespace wetmelon::control::plc

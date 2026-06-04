@@ -99,9 +99,9 @@ TEST_SUITE("IEC61131-3 Function Blocks") {
         CHECK(ton.ET == doctest::Approx(1.0f));
         CHECK(ton.Q == true);
 
-        // Stay on
+        // Stay on: ET saturates at PT (no unbounded growth / overflow).
         CHECK(ton(true, 0.1f) == true);
-        CHECK(ton.ET == doctest::Approx(1.1f));
+        CHECK(ton.ET == doctest::Approx(1.0f));
 
         // Reset on input false
         CHECK(ton(false, 0.1f) == false);
@@ -136,9 +136,9 @@ TEST_SUITE("IEC61131-3 Function Blocks") {
         CHECK(tof.ET == doctest::Approx(1.0f));
         CHECK(tof.Q == false);
 
-        // Stay off
+        // Stay off: ET saturates at PT (no unbounded growth / overflow).
         CHECK(tof(false, 0.1f) == false);
-        CHECK(tof.ET == doctest::Approx(1.1f));
+        CHECK(tof.ET == doctest::Approx(1.0f));
 
         // Reset on input true
         CHECK(tof(true, 0.1f) == true);
@@ -381,3 +381,84 @@ TEST_SUITE("IEC61131-3 Function Blocks") {
         CHECK(bl(false, dt) == false);
     }
 } // TEST_SUITE
+
+// Strict-conformance checks against IEC 61131-3 section 2.5.2.3 edge cases that
+// the basic functional tests above don't exercise.
+TEST_SUITE("IEC61131-3 conformance (2.5.2.3)") {
+    TEST_CASE("F_TRIG fires on the first scan when CLK starts low (2.5.2.3.2 NOTE)") {
+        // Per the standard's internal memory M := NOT CLK with M initialized to 0,
+        // an F_TRIG whose CLK is FALSE produces Q = 1 on its first execution after
+        // a cold restart.
+        F_TRIG ftrig;
+        CHECK(ftrig(false) == true); // first scan, CLK low -> edge per IEC
+        CHECK(ftrig(false) == false);
+        // R_TRIG is symmetric (M := CLK, init 0): its NOTE says a CLK held at 1
+        // yields Q = 1 on the first execution after a cold restart.
+        R_TRIG rtrig;
+        CHECK(rtrig(true) == true);
+        CHECK(rtrig(true) == false);
+    }
+
+    TEST_CASE("TON ET saturates at PT and never grows unbounded") {
+        TON<float> ton;
+        ton.PT = 0.5f;
+        for (int i = 0; i < 1000; ++i) {
+            ton(true, 0.1f); // hold far past PT
+        }
+        CHECK(ton.Q == true);
+        CHECK(ton.ET == doctest::Approx(0.5f)); // clamped, not 100.0
+    }
+
+    TEST_CASE("TOF ET saturates at PT and never grows unbounded") {
+        TOF<float> tof;
+        tof.PT = 0.5f;
+        tof(true, 0.1f); // arm (Q true)
+        for (int i = 0; i < 1000; ++i) {
+            tof(false, 0.1f); // hold off far past PT
+        }
+        CHECK(tof.Q == false);
+        CHECK(tof.ET == doctest::Approx(0.5f)); // clamped, not 100.0
+    }
+
+    TEST_CASE("TP is non-retriggerable: edges during the pulse are ignored") {
+        TP<float> tp;
+        tp.PT = 0.5f;
+        const float dt = 0.1f;
+
+        CHECK(tp(true, dt) == true); // start pulse, ET = 0.1
+        // Input glitches low then high mid-pulse: must NOT restart the pulse.
+        CHECK(tp(false, dt) == true); // ET = 0.2 (pulse runs regardless of IN)
+        CHECK(tp(true, dt) == true);  // ET = 0.3 (rising edge ignored, no restart)
+        CHECK(tp(true, dt) == true);  // ET = 0.4
+        CHECK(tp(true, dt) == false); // ET = 0.5 -> pulse ends
+        CHECK(tp.ET == doctest::Approx(0.5f));
+    }
+
+    TEST_CASE("CTUD: simultaneous CU and CD edges cancel, even at a limit (2.5.2.3.3)") {
+        CTUD<uint32_t> ctud;
+        ctud.PV = 2;
+
+        // Drive CV to a known interior value.
+        ctud(true, false, false, false); // CU edge -> CV = 1
+        CHECK(ctud.CV == 1);
+
+        // Simultaneous up+down edges: NOT (CU AND CD) -> no change.
+        ctud(false, false, false, false); // clear edges
+        ctud(true, true, false, false);   // both rising at once
+        CHECK(ctud.CV == 1);              // unchanged
+
+        // At the floor (CV = 0), a simultaneous edge must not underflow either.
+        ctud(false, false, true, false); // R -> CV = 0
+        CHECK(ctud.CV == 0);
+        ctud(true, true, false, false); // both rising at the floor
+        CHECK(ctud.CV == 0);            // no wrap-around to UINT32_MAX
+    }
+
+    TEST_CASE("CTU/CTD evaluate Q every scan (Q := CV>=PV outside the IF)") {
+        // With PV = 0, a freshly reset CTU must report Q = true immediately, since
+        // Q := (CV >= PV) = (0 >= 0) is evaluated every invocation.
+        CTU<uint32_t> ctu;
+        ctu.PV = 0;
+        CHECK(ctu(false, true) == true); // reset, CV = 0, Q = (0 >= 0) = true
+    }
+}
