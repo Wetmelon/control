@@ -12,27 +12,41 @@ using namespace wetmelon::control::plc;
  */
 
 TEST_SUITE("IEC61131-3 Function Blocks") {
-    TEST_CASE("SR Latch") {
+    TEST_CASE("SR Latch (set-dominant per IEC 61131-3)") {
         SR sr;
 
         // Initial state
         CHECK(sr.Q1 == false);
 
-        // Set dominant
+        // Set
         CHECK(sr(true, false) == true);
         CHECK(sr.Q1 == true);
 
-        // Reset dominant over set
-        CHECK(sr(true, true) == false);
+        // Reset
+        CHECK(sr(false, true) == false);
         CHECK(sr.Q1 == false);
 
-        // Stay reset
-        CHECK(sr(false, false) == false);
-        CHECK(sr.Q1 == false);
-
-        // Set again
-        CHECK(sr(true, false) == true);
+        // Set dominates when S and R are both true (this is what distinguishes
+        // SR from RS).
+        CHECK(sr(true, true) == true);
         CHECK(sr.Q1 == true);
+
+        // Hold
+        CHECK(sr(false, false) == true);
+        CHECK(sr.Q1 == true);
+
+        // Reset clears
+        CHECK(sr(false, true) == false);
+        CHECK(sr.Q1 == false);
+    }
+
+    TEST_CASE("SR vs RS differ only when S and R are both asserted") {
+        SR sr;
+        RS rs;
+        sr(true, true); // SR: set wins
+        rs(true, true); // RS: reset wins (args are (R, S))
+        CHECK(sr.Q1 == true);
+        CHECK(rs.Q1 == false);
     }
 
     TEST_CASE("RS Latch") {
@@ -326,4 +340,44 @@ TEST_SUITE("IEC61131-3 Function Blocks") {
         CHECK(ftrig.Q == true);
     }
 
+    TEST_CASE("DFF captures D on rising edge only") {
+        DFF dff;
+        CHECK(dff(true, false) == false); // no edge, D ignored
+        CHECK(dff(true, true) == true);   // rising edge captures D=1
+        CHECK(dff(false, true) == true);  // CLK high, no edge: holds
+        CHECK(dff(false, false) == true); // CLK low: holds
+        CHECK(dff(false, true) == false); // rising edge captures D=0
+    }
+
+    TEST_CASE("DLATCH is transparent while enabled, holds otherwise") {
+        DLATCH d;
+        CHECK(d(true, true) == true);   // enabled: follows D
+        CHECK(d(false, false) == true); // disabled: holds last
+        CHECK(d(false, true) == false); // enabled: follows D
+        CHECK(d(true, false) == false); // disabled: holds
+    }
+
+    TEST_CASE("TFF toggles on each rising edge") {
+        TFF t;
+        CHECK(t(false) == false);
+        CHECK(t(true) == true);  // rising edge -> toggle
+        CHECK(t(true) == true);  // held high, no edge
+        CHECK(t(false) == true); // falling, no toggle
+        CHECK(t(true) == false); // rising edge -> toggle back
+    }
+
+    TEST_CASE("BLINK free-runs with independent on/off times when enabled") {
+        BLINK<double> bl{0.020, 0.030}; // 20 ms on, 30 ms off
+        const double  dt = 0.010;
+
+        // Starts low (off phase). Off for 30 ms then flips high.
+        CHECK(bl(true, dt) == false); // 10
+        CHECK(bl(true, dt) == false); // 20
+        CHECK(bl(true, dt) == true);  // 30 ms -> high
+        // High for 20 ms then flips low.
+        CHECK(bl(true, dt) == true);  // 10
+        CHECK(bl(true, dt) == false); // 20 ms -> low
+        // Disable holds low and resets phase.
+        CHECK(bl(false, dt) == false);
+    }
 } // TEST_SUITE

@@ -37,28 +37,36 @@ typedef wchar_t* WSTRING; //< Wide string type (pointer to wchar_t)
  */
 
 /**
- * @brief SR Latch (Set-Reset Latch)
+ * @brief SR Latch (Set-dominant Set-Reset Latch)
  *
- * Bistable function block with set and reset inputs.
- * Q1 = S1 OR (Q1 AND NOT R)
+ * Bistable function block with set and reset inputs. Per IEC 61131-3, SR is
+ * **set-dominant**: when S and R are both true, Set wins and Q1 stays true.
+ *
+ *     Q1 = S OR (Q1 AND NOT R)
+ *
+ * Contrast @ref RS, which is reset-dominant. (Earlier versions of this block
+ * were incorrectly reset-dominant — identical to RS.)
  */
 struct SR {
     bool Q1{false}; //!< Current state
 
     /**
      * @brief Execute SR latch
-     * @param S Set input
-     * @param R Reset input (dominant over S)
+     * @param S Set input (dominant over R)
+     * @param R Reset input
      * @return Current state
      */
     constexpr bool operator()(bool S, bool R) {
-        if (R) {
-            Q1 = false;
-        } else if (S) {
+        if (S) {
             Q1 = true;
+        } else if (R) {
+            Q1 = false;
         }
         return Q1;
     }
+
+    /// @brief Reset the latch to false.
+    constexpr void reset() { Q1 = false; }
 };
 
 /**
@@ -84,6 +92,9 @@ struct RS {
         }
         return Q1;
     }
+
+    /// @brief Reset the latch to false.
+    constexpr void reset() { Q1 = false; }
 };
 
 /**
@@ -419,5 +430,173 @@ public:
         CU = CD = false;
     }
 };
+
+/**
+ * @brief D Flip-Flop (edge-triggered data latch)
+ *
+ * Captures the data input D on each rising edge of CLK and holds it on Q until
+ * the next rising edge.
+ */
+struct DFF {
+    bool Q{false};   //!< Stored output
+    bool CLK{false}; //!< Previous clock state
+
+    /**
+     * @brief Execute the flip-flop.
+     * @param D   Data input (captured on rising CLK).
+     * @param CLK_input Clock input.
+     * @return Stored output Q.
+     */
+    constexpr bool operator()(bool D, bool CLK_input) {
+        if (CLK_input && !CLK) { // rising edge
+            Q = D;
+        }
+        CLK = CLK_input;
+        return Q;
+    }
+
+    constexpr void reset() {
+        Q = false;
+        CLK = false;
+    }
+};
+
+/**
+ * @brief D Latch (level-sensitive / transparent latch)
+ *
+ * While the enable input E is true the latch is transparent (Q follows D); when
+ * E is false it holds the last value. Unlike @ref DFF this is level- not
+ * edge-triggered.
+ */
+struct DLATCH {
+    bool Q{false}; //!< Stored / pass-through output
+
+    /**
+     * @brief Execute the latch.
+     * @param D Data input.
+     * @param E Enable (transparent while true, hold while false).
+     * @return Output Q.
+     */
+    constexpr bool operator()(bool D, bool E) {
+        if (E) {
+            Q = D;
+        }
+        return Q;
+    }
+
+    constexpr void reset() { Q = false; }
+};
+
+/**
+ * @brief T Flip-Flop (toggle on rising edge)
+ *
+ * Toggles Q on each rising edge of the T input while enabled. Acts as a
+ * divide-by-two on a clock, or a press-to-toggle latch on a button edge.
+ */
+struct TFF {
+    bool Q{false}; //!< Toggled output
+    bool T{false}; //!< Previous trigger state
+
+    /**
+     * @brief Execute the toggle.
+     * @param T_input Trigger input (Q toggles on its rising edge).
+     * @return Output Q.
+     */
+    constexpr bool operator()(bool T_input) {
+        if (T_input && !T) { // rising edge
+            Q = !Q;
+        }
+        T = T_input;
+        return Q;
+    }
+
+    constexpr void reset() {
+        Q = false;
+        T = false;
+    }
+};
+
+/**
+ * @brief BLINK (free-running square-wave / flasher)
+ *
+ * Generates a periodic boolean while enabled, with independent on/off times so
+ * the duty cycle is arbitrary (status LEDs, audible-alarm cadence, test
+ * stimulus). Holds output false and resets its phase when disabled.
+ *
+ * @tparam T Time scalar type (default: float).
+ */
+template<typename T = float>
+class BLINK {
+public:
+    T    time_on{0};  //!< Duration of the high phase [s].
+    T    time_off{0}; //!< Duration of the low phase [s].
+    bool Q{false};    //!< Current output.
+
+    constexpr BLINK() = default;
+
+    /// @param t_on High duration [s]; @param t_off Low duration [s].
+    constexpr BLINK(T t_on, T t_off) : time_on(t_on), time_off(t_off) {}
+
+    /**
+     * @brief Execute the flasher.
+     * @param enable Run while true; hold low and reset phase while false.
+     * @param dt     Time step [s].
+     * @return Output Q.
+     */
+    constexpr bool operator()(bool enable, T dt) {
+        if (!enable) {
+            Q = false;
+            elapsed_ = T{0};
+            return Q;
+        }
+        elapsed_ += dt;
+        const T phase_time = Q ? time_on : time_off;
+        if (elapsed_ >= phase_time) {
+            Q = !Q;
+            elapsed_ = T{0};
+        }
+        return Q;
+    }
+
+    constexpr void reset() {
+        Q = false;
+        elapsed_ = T{0};
+    }
+
+private:
+    T elapsed_{0};
+};
+
+// ============================================================================
+// Descriptive aliases
+// ============================================================================
+// The terse IEC 61131-3 names above are the canonical industry identifiers (a
+// PLC engineer searches for `TON`, `CTU`, `R_TRIG`). These aliases give the same
+// blocks a self-describing name for readers who don't live in the standard,
+// matching the library's "descriptive primary, terse alias" convention from the
+// other namespaces — here applied in reverse because the terse names are the
+// recognized ones.
+
+using SetResetLatch = SR;   //!< Set-dominant SR latch.
+using ResetSetLatch = RS;   //!< Reset-dominant RS latch.
+using RisingEdge = R_TRIG;  //!< Rising-edge detector.
+using FallingEdge = F_TRIG; //!< Falling-edge detector.
+using DataFlipFlop = DFF;   //!< Edge-triggered D flip-flop.
+using DataLatch = DLATCH;   //!< Level-sensitive D latch.
+using ToggleFlipFlop = TFF; //!< Toggle (T) flip-flop.
+
+template<typename T = float>
+using OnDelayTimer = TON<T>; //!< On-delay timer.
+template<typename T = float>
+using OffDelayTimer = TOF<T>; //!< Off-delay timer.
+template<typename T = float>
+using PulseTimer = TP<T>; //!< Pulse timer.
+
+template<typename T = uint32_t>
+using CountUp = CTU<T>; //!< Up counter.
+template<typename T = uint32_t>
+using CountDown = CTD<T>; //!< Down counter.
+template<typename T = uint32_t>
+using CountUpDown = CTUD<T>; //!< Up/down counter.
 
 } // namespace wetmelon::control::plc
