@@ -6,6 +6,7 @@
 *.exe
 
 build/
+PDFs/
 compile_commands.json
 *.log
 tup.config

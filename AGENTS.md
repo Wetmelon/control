@@ -513,6 +513,21 @@ Implications for new numerical code:
 - **No global state.** Every function is pure or operates on explicit state passed by argument.
 - **No implicit conversions** between unrelated types. Use `.as<U>()` for explicit type conversion, explicit constructors for related types.
 - **No configuration macros.** Behavior is controlled by template parameters and function arguments, not `#define`.
+- **Don't reimplement generic embedded plumbing.** Stay in the controls/DSP lane (see *Scope* below).
+
+## Scope: stay in the controls lane
+
+This library is **controls and DSP**: controllers, estimators, filters, system/transform math, signal-conditioning blocks, interpolation tables, encoder/tach, motion planning. General-purpose embedded plumbing is **out of scope** — the [Embedded Template Library (ETL)](https://www.etlcpp.com) already covers it well and battle-tested, and is vendored at `libs/etl` (optional submodule) as the recommended companion.
+
+Before writing a new utility, check whether ETL already provides it. **Do not reimplement** things ETL covers, e.g.:
+
+- containers / fixed-capacity vectors, queues, stacks, maps → `etl::vector`, `etl::queue`, `etl::flat_map`, …
+- ring / FIFO / circular buffers → `etl::queue_spsc_atomic`, `etl::queue_spsc_locked`, `etl::circular_buffer`
+- CRC / checksums → `etl::crc*`, `etl::checksum`
+- generic debounce, integer compile-time math → `etl::debounce`, `etl::sqrt<>`/`etl::log<>`
+- `std`-replacement types for freestanding builds → `etl::array`/`optional`/`tuple`/… (see roadmap #21)
+
+Conversely, **keep** controls-specific value even when it superficially resembles a utility — e.g. the constexpr-float math backend (`wet::sqrt/exp/...`, which ETL has no equivalent for; ETL's math is integer-compile-time or runtime), `Lut1D`/`Lut2D` interpolation, the DSP blocks in `filters/blocks.hpp`, `QuadratureDecoder`/`Tachometer`. ETL is a *companion, not a dependency*: the embeddable core stays zero-dependency by default (std + the math backend); ETL only becomes a backend under the opt-in freestanding profile (roadmap #21).
 
 ## Third-party libraries
 
@@ -522,3 +537,4 @@ Located in `libs/` as git submodules:
 - **nlohmann/json** — JSON (header-only, tests/examples)
 - **plotlypp** — plotting (header-only, examples)
 - **expected.hpp** — `tl::expected` (header-only, available but not yet used in core)
+- **etl** — Embedded Template Library (optional companion for generic embedded plumbing; not a core dependency — see *Scope* above and roadmap #21)
