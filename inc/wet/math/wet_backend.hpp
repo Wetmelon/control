@@ -11,7 +11,6 @@ template<>
 struct MathBackend<float> : StdMathFallback<float> {
     static float sin(float x) { return wet::sin(x); }
     static float cos(float x) { return wet::cos(x); }
-    static float tan(float x) { return wet::tan(x); }
     static float asin(float x) { return wet::asin(x); }
     static float acos(float x) { return wet::acos(x); }
     static float atan(float x) { return wet::atan(x); }
