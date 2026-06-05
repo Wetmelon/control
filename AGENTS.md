@@ -502,7 +502,7 @@ The test runner defaults to building with `-ffast-math` so any future compiler t
 Implications for new numerical code:
 
 - **Constexpr branches must guard domain edges *before* the `is_constant_evaluated()` dispatch** so compile- and runtime behavior agree. The pattern is in `wet::asin`/`acos` (clamp `|x| ≤ 1`) and `wet::fmod` (guard `y == 0`). If you only guard the constexpr arm, runtime returns NaN where constexpr returns the clamped value — a silent two-mode bug.
-- **Never rely on exact algebraic cancellation** (e.g., `(b0 + b1 + b2) == (1 + a1 + a2)` because terms `±2ζω₀k` happen to cancel). Under `-fassociative-math` the optimizer is free to reorder, and the cancellation no longer cancels. Restructure so the desired property is computed directly. `design::lowpass_2nd` is the known offender — see roadmap item #17.
+- **Never rely on exact algebraic cancellation** (e.g., `(b0 + b1 + b2) == (1 + a1 + a2)` because terms `±2ζω₀k` happen to cancel). Under `-fassociative-math` the optimizer is free to reorder, and the cancellation no longer cancels. Restructure so the desired property is computed directly. `design::lowpass_2nd` was the known offender (now fixed: its numerator taps are derived from the unit-DC-gain identity by construction); the other biquad designers still want a `-ffast-math` regression sweep.
 - **For NaN/Inf guards, only `wet::isfinite`'s constexpr branch is `-ffast-math`-safe.** Runtime guards on IEEE specials are at the user's mercy. If a divergence-detection check matters at runtime, lean on magnitude bounds (`wet::abs(x) > guard`) rather than `isfinite` alone.
 
 ### What Not To Do
@@ -525,9 +525,22 @@ Before writing a new utility, check whether ETL already provides it. **Do not re
 - ring / FIFO / circular buffers → `etl::queue_spsc_atomic`, `etl::queue_spsc_locked`, `etl::circular_buffer`
 - CRC / checksums → `etl::crc*`, `etl::checksum`
 - generic debounce, integer compile-time math → `etl::debounce`, `etl::sqrt<>`/`etl::log<>`
-- `std`-replacement types for freestanding builds → `etl::array`/`optional`/`tuple`/… (see roadmap #21)
+- `std`-replacement types for freestanding builds → `etl::array`/`optional`/`tuple`/… (under the ETL backend; see *Backends & dependencies* below)
 
-Conversely, **keep** controls-specific value even when it superficially resembles a utility — e.g. the constexpr-float math backend (`wet::sqrt/exp/...`, which ETL has no equivalent for; ETL's math is integer-compile-time or runtime), `Lut1D`/`Lut2D` interpolation, the DSP blocks in `filters/blocks.hpp`, `QuadratureDecoder`/`Tachometer`. ETL is a *companion, not a dependency*: the embeddable core stays zero-dependency by default (std + the math backend); ETL only becomes a backend under the opt-in freestanding profile (roadmap #21).
+Conversely, **keep** controls-specific value even when it superficially resembles a utility — e.g. the constexpr-float math backend (`wet::sqrt/exp/...`, which ETL has no equivalent for; ETL's math is integer-compile-time or runtime), `Lut1D`/`Lut2D` interpolation, the DSP blocks in `filters/blocks.hpp`, `QuadratureDecoder`/`Tachometer`.
+
+### Backends & dependencies
+
+**No mandatory third-party dependency; two backend configurations.** The embeddable core (`wet/control.hpp`) is intended to be usable **with the C++ stdlib** (default — also the "standalone, no third-party lib" case) or **with ETL** (for freestanding/embedded targets), chosen by a backend profile (`wet_profile.hpp`; default = stdlib) that maps the small set of `std`-replacement types the core needs — `array`/`optional`/`tuple`/`pair`/`clamp`/`numbers` — to either `std::` or `etl::`. We do **not** invent our own container/optional primitives; anything not from the stdlib comes from ETL. ETL is a *companion, not a dependency*.
+
+Per-part dependencies:
+
+- **Core** (`wet/control.hpp`) — a backend (stdlib or ETL) + the `wet::` math backend; no third-party lib required; ships on target.
+- **Math backend** (`wet::sin/sqrt/exp/...`) — freestanding-capable; the default implementation uses `<cmath>`, swappable via `wet_profile.hpp`.
+- **Host superset** (`wet/toolbox.hpp`: analysis, simulation, MATLAB-style aliases) — needs the full hosted stdlib (`<vector>`, `<string>`, …); plotting also needs plotlypp. Never on target.
+- **Examples** need fmt (some need plotlypp); **tests** need doctest. Both host-only.
+
+The freestanding (ETL-backed) build is planned work; the stdlib configuration is what exists today.
 
 ## Third-party libraries
 
@@ -537,4 +550,4 @@ Located in `libs/` as git submodules:
 - **nlohmann/json** — JSON (header-only, tests/examples)
 - **plotlypp** — plotting (header-only, examples)
 - **expected.hpp** — `tl::expected` (header-only, available but not yet used in core)
-- **etl** — Embedded Template Library (optional companion for generic embedded plumbing; not a core dependency — see *Scope* above and roadmap #21)
+- **etl** — Embedded Template Library (optional companion for generic embedded plumbing, and the freestanding backend; not a core dependency — see *Scope* and *Backends & dependencies* above)

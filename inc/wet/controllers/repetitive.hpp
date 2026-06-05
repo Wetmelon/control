@@ -2,7 +2,7 @@
 
 /**
  * @file repetitive.hpp
- * @brief Placeholder header for repetitive control roadmap feature.
+ * @brief Placeholder header for repetitive control feature.
  */
 
 namespace wetmelon::control {

@@ -8,6 +8,8 @@ Status: draft
 
 - [Purpose](#purpose)
 - [Design Constraints](#design-constraints)
+- [Architecture layers & build priority](#architecture-layers--build-priority)
+- [Dependencies](#dependencies)
 - [Standard Synthesis Workflow](#standard-synthesis-workflow)
 - [Roadmap](#roadmap)
 - [Testing and Documentation](#testing-and-documentation)
@@ -15,7 +17,9 @@ Status: draft
 
 ## Purpose
 
-Track planned additions across controllers, estimators, and signal-processing/identification, held to a common synthesis workflow using the three-tier pattern:
+`wetmelon::control` is a **controls** library, built on a deliberately thin, layered base. Generic embedded plumbing comes from ETL (Layer 0). On top of that the library **first** delivers the foundational linear / first-order primitives that *every* controls algorithm leans on — linear algebra, constexpr math, LTI system types, first-order and biquad filters, signal-conditioning blocks — and only on that foundation the controllers, estimators, and synthesis. Work the stack **bottom-up**: see [Architecture layers & build priority](#architecture-layers--build-priority).
+
+This roadmap tracks planned additions across controllers, estimators, and signal-processing/identification, held to a common synthesis workflow using the three-tier pattern:
 
 1. Design function (`design::`, constexpr)
 2. Result struct (`.as<U>()`, `bool success`)
@@ -30,8 +34,46 @@ Track planned additions across controllers, estimators, and signal-processing/id
 - Compile-time and runtime validation tests for each new API.
 - **Embedded vs host placement is part of the design.** Allocation-free primitives belong in `wet/control.hpp`; anything that pulls `<vector>`, an FFT, or a solver/optimizer belongs behind `wet/toolbox.hpp`. `make embedded-check` enforces the embeddable contract.
 - Tuning/adaptation APIs must not require runtime coupling to identification internals; model inputs are optional and must be disable-able.
-- **Stay in the controls lane; defer generic embedded plumbing to ETL.** Containers, queues, ring/FIFO buffers, CRC/checksums, and similar general-purpose utilities are out of scope — the [Embedded Template Library](https://www.etlcpp.com) covers them. This library ships only controls/DSP-specific value (controllers, estimators, filters, interpolation tables, encoder/tach, motion). ETL is a recommended companion, never a dependency: the embeddable core stays zero-dependency (std + the math backend only).
+- **Stay in the controls lane; defer generic embedded plumbing to ETL.** Containers, queues, ring/FIFO buffers, CRC/checksums, and similar general-purpose utilities are out of scope — the [Embedded Template Library](https://www.etlcpp.com) covers them. This library ships only controls/DSP-specific value (controllers, estimators, filters, interpolation tables, encoder/tach, motion).
+- **No mandatory third-party dependency; backend-agnostic core.** The embeddable core supports two backends for the handful of `std`-replacement types it needs, selected by the backend profile (#21): the **C++ stdlib** (default — works standalone, no third-party lib) or **ETL** (for freestanding/embedded targets). We do not invent our own container/optional primitives — those come from stdlib or ETL. ETL is a recommended companion for plumbing, never required. See [Dependencies](#dependencies) for which parts need what.
 - **Tier 1 / Tier 2 layering.** The library never branches on "kind of plant". Plants are universally described by `StateSpace<NX,NU,NY>` / `TransferFunction<Nn,Nd>`. Tier 1 functions take those universal types (or time-series + order) and are the implementations of truth; Tier 2 wrappers (e.g. `models::two_mass`, `analysis::identify_two_mass`, `CascadePPI`) are thin aliases that call Tier 1 with archetype-specific defaults and unpack results into named physical parameters. Tier 2 must never add capability — removing it leaves the library functionally complete.
+
+## Architecture layers & build priority
+
+The library is layered; build and prioritize **bottom-up**. Each layer depends only on the ones beneath it, and a higher layer is not worked before the foundation it needs is solid. The numbered roadmap items below are grouped here by layer — this is the priority/reading order; the numbers themselves are just stable IDs used by cross-references, not a ranking.
+
+**Layer 0 — generic plumbing & the std-replacement backend.** Containers, queues, ring/FIFO buffers, CRC, checksums, debounce — not ours (see Design Constraints), supplied by [ETL](https://www.etlcpp.com) as an optional companion. The small set of `std`-replacement types the core needs (array/optional/tuple/clamp/numbers) comes from one of two interchangeable backends selected per #21 — the **C++ stdlib** (default) or **ETL** — so the core carries no mandatory third-party dependency. We don't ship our own.
+
+**Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses.** This comes *first*; most of it already exists.
+- *In place:* the linear-algebra core (`Matrix`/`ColVec`/`RowVec`, decompositions, `mat::solve`), the constexpr math backend (`wet::sin/sqrt/exp/...`), LTI system types (`StateSpace`/`TransferFunction`), first-order + biquad filters (#2 ☑), and the everyday signal-conditioning blocks / embedded primitives — scaling & calibration, interpolation tables, EWMA·peak·envelope, software timers, encoder/tach (#19 ☑).
+- *Remaining foundational gaps — prioritize these over any new algorithm:* robust MIMO pole placement (#16, the numerical routine observers/controllers build on), fast-math-robust filter coefficient designs (#17), and the freestanding / ETL-backend profile (#21).
+
+**Layer 2 — core controls & estimation building blocks.** Single-purpose laws/estimators that sit directly on Layer 1: Luenberger/reduced observer (#1 ☑), disturbance observer (#4), UKF (#12), and the identification / excitation / cascade / model-builder infrastructure (#3).
+
+**Layer 3 — advanced controls & estimation.** Composite, adaptive, or optimization-based, built from Layers 1–2: repetitive control (#5), input shaping (#6), online PID tuning (#7), extremum-seeking (#8), harmonic detection & suppression (#9), LPV gain scheduling (#10), super-twisting SMC (#11), H∞ output feedback (#13), constrained MPC (#14), moving-horizon estimation (#15), motion planning (#20).
+
+**Layer 4 — tooling (host-only).** Supports development but does not ship on target: the multi-rate simulation harness (#18) and the host-side identification / FRF parts of #3.
+
+## Dependencies
+
+What each part needs. The headline: the **embeddable core (`wet/control.hpp`) has no mandatory third-party dependency** — it needs only a *backend* (stdlib or ETL) and a *math backend*. Everything heavier is host-only behind `wet/toolbox.hpp`.
+
+| Part | Requires | Optional | Ships on target |
+|---|---|---|---|
+| **Embeddable core** (`wet/control.hpp`) | one backend profile + the `wet::` math backend | — | ✅ |
+| ↳ backend profile (array/optional/tuple/clamp/numbers) | one of: C++ stdlib · ETL | — | ✅ |
+| ↳ `wet::` math backend (`wet::sin/sqrt/exp/...`) | freestanding-capable; default impl uses `<cmath>`, swappable via `wet_profile.hpp` | platform intrinsics | ✅ |
+| **Host superset** (`wet/toolbox.hpp`): analysis, simulation, MATLAB-style aliases | full hosted C++ stdlib (`<vector>`, `<string>`, …) | — | ❌ |
+| ↳ plotting (`plotting/plot*.hpp`) | plotlypp | — | ❌ |
+| **Examples** | hosted stdlib + fmt | plotlypp | ❌ |
+| **Tests** | hosted stdlib + doctest | — | ❌ |
+
+The two core configurations (selected per #21):
+
+- **With the C++ stdlib** (default) — `std::` backs the std-replacement types. Hosted, and usable standalone (no third-party lib at all).
+- **With ETL** — `etl::` backs them, for freestanding/embedded targets without a hosted stdlib; pair with ETL for plumbing too.
+
+We don't invent our own primitives — anything not from the stdlib comes from ETL. Only the **ETL/freestanding** backend is new work (see #21); the stdlib configuration is what exists today.
 
 ## Standard Synthesis Workflow
 
@@ -43,7 +85,131 @@ Track planned additions across controllers, estimators, and signal-processing/id
 
 ## Roadmap
 
-Ordered roughly by leverage and dependency: earlier items unblock later ones. Status tags: ☑ done · ⊘ sketched (header exists) · ☐ planned.
+Items are listed in **build-priority order**, grouped by the layers from [Architecture layers & build priority](#architecture-layers--build-priority) (foundation first). The item **numbers are stable IDs** — referenced across this doc, `AGENTS.md`, and source/test comments — so they are deliberately *not* sequential here; order on the page is the priority, the number is just the ID. Status tags: ☑ done · ⊘ sketched (header exists) · ☐ planned.
+
+**Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses (build first).**
+
+### 2. DSP biquad/notch family + utility blocks ☑
+
+Complete the biquad family beyond low-pass and add everyday runtime blocks. Constexpr coefficient designers; allocation-free runtimes. Unblocks harmonic suppression (#9) and is broadly useful.
+
+- Done (`filters/filters.hpp`): RBJ-cookbook biquad designers `design::notch`, `bandpass`, `highpass_2nd`, `peaking`, `lowshelf`, `highshelf` → `SecondOrderCoeffs` (Q-parameterized, designed directly in the digital domain); runtimes `Biquad` (Direct Form I) and `BiquadCascade<N>` (SOS cascade). All constexpr + float/double.
+- Done (`filters/blocks.hpp`): utility runtime blocks `MovingAverage<N>`, `RunningRMS<N>`, `MedianFilter<N>`, `RateLimiter` (symmetric + asymmetric slew), `DirtyDerivative` (Tustin band-limited d/dt), `ClampedIntegrator` (forward-Euler + anti-windup clamp; named to avoid colliding with the ODE-solver `Integrator<NX,T>` in `simulation/integrator.hpp`), `Deadband` (continuous-slope), `Hysteresis` (Schmitt trigger). All constexpr, allocation-free, one-sample-per-call; in the `wet/control.hpp` umbrella.
+- References: Oppenheim & Schafer, "Discrete-Time Signal Processing," 3rd ed., 2009; R. Bristow-Johnson, "Cookbook formulae for audio EQ biquad filter coefficients."
+- Acceptance: per-type frequency-response checks ✓; SOS cascade ✓; float/double parity ✓; utility blocks (`tests/test_blocks.cpp`: defining-behaviour + fill/reset edges + constexpr construction) ✓.
+
+### 19. Embedded firmware primitives ☑
+
+The bread-and-butter building blocks an embedded engineer reaches for *before* any synthesis: sensor linearization, scaling/calibration, the workhorse smoother, non-blocking timing, and encoder/speed I/O. The synthesis-heavy items above assume these already exist; today they mostly don't (`utility.hpp` has only unit conversions + `wrap`).
+
+**Scope boundary — defer generic plumbing to ETL.** Containers, queues, byte FIFOs, CRC/checksums, and the like are *not* this library's job; the [Embedded Template Library](https://www.etlcpp.com) already does them well and battle-tested. Pair the two: use `etl::circular_buffer` / `etl::queue_spsc_*` / `etl::crc*` / `etl::debounce` for plumbing, and this library for the controls/DSP-specific helpers below. The core stays zero-dependency — we don't `#include <etl/...>` anywhere; ETL is a *recommended companion*, not a dependency.
+
+**Done.** The controls/DSP-specific primitives shipped, embeddable, with one test TU each (`make embedded-check` green):
+- `utility/scaling.hpp` — `lerp`, `inverse_lerp`, `rescale`, `AffineCal` (+`.as<U>()`), `two_point_cal`, `poly_horner` (`clamp` uses `std::clamp`).
+- `utility/lookup.hpp` — `Lut1D<N>` (linear/`nearest`, clamp-or-extrapolate `oob` policy, binary `lut_segment`), `Lut2D<R,C>` (bilinear, edge-clamped).
+- `filters/blocks.hpp` (extended) — `ExponentialFilter` + `alpha_from_cutoff`/`alpha_from_time_constant`, `PeakHold`/`MinHold` (optional leak), `EnvelopeDetector` (attack/release).
+- `utility/timing.hpp` — `Stopwatch`, `Timeout` (clamped accumulator), `Periodic` (drift-free, catch-up).
+- `utility/encoder.hpp` — `QuadratureDecoder` (X1/X2/X4, index reset, illegal-transition rejection), `wrapped_delta` (rollover-safe), `Tachometer` (frequency + period methods, RPM/rad·s⁻¹ conversions).
+
+Dropped from the original scope as ETL duplication: CRC/checksums and the SPSC/overwrite ring buffers (use `etl::crc*`, `etl::queue_spsc_*`, `etl::circular_buffer`).
+
+Decisions resolved: LUT defaults to clamp with an opt-in `Linear` extrapolation and binary-search lookup (no cached hint for now); software timers are `dt`-fed (clock-source agnostic); encoder position is a fixed-width signed counter with `wrapped_delta` for rates.
+
+These are **leaf utilities**, so most deliberately deviate from the three-tier synthesis pattern: they are pure constexpr, allocation-free runtime blocks with no plant model and (usually) no `design::` stage. All are embeddable (`wet/control.hpp`) unless noted. Every accumulator/counter is bounded by construction — no unbounded growth, per the library's overflow-safety rule (see the TON/TOF `ET` clamping and CTU/CTD saturation already in `iec61131.hpp`).
+
+**Tier A — near-universal:**
+
+- **Lookup tables & interpolation** (`utility/lookup.hpp`, new). `Lut1D<N,T>` — monotonic breakpoint table with linear or nearest interpolation and a configurable out-of-range policy (clamp vs linear extrapolation); O(log N) binary search with an optional cached-index hint for the common monotone-query case. `Lut2D<R,C,T>` — bilinear interpolation over a regular grid. Targets: thermistor/sensor linearization (pairs with `thermistor.hpp`), gain-scheduling maps, fan/efficiency/torque-speed curves, ADC fixups.
+- **Scaling & calibration** (`utility/scaling.hpp`, new). `lerp(a, b, t)` / `inverse_lerp(a, b, x)` plus a `rescale(x, in_lo, in_hi, out_lo, out_hi)` composed from them (affine map between two ranges), `AffineCal<T>{gain, offset}` with `apply`/`invert`, `two_point_cal(raw0,eng0, raw1,eng1)` → `AffineCal`, and `poly_horner(coeffs, x)` for polynomial cal curves. Counts↔engineering-units conversion is the headline use; composes with `Lut1D` for nonlinear sensors.
+- **Exponential filter / EWMA** (add to `filters/blocks.hpp`). `ExponentialFilter<T>` — one-pole IIR by direct smoothing factor `alpha` (`y += alpha*(x − y)`), the most-used embedded smoother. Ships with `alpha_from_cutoff(fc, Ts)` and `alpha_from_time_constant(tau, Ts)` helpers so it interoperates with the existing `fc/Ts`-parameterized first-order `LowPass` in `filters.hpp`. (Distinct from `MovingAverage` (FIR) and `LowPass` (designed biquad): zero buffer, one multiply-add.)
+- **Non-blocking software timers** (`utility/timing.hpp`, new). `Stopwatch<T>` (elapsed-time accumulator with `reset`/`elapsed`), `Timeout<T>` (one-shot `expired()` predicate), and `Periodic<T>` (the "do X every N" idiom: `operator()(dt) → bool` firing once per period, with catch-up policy). Tick-count and `T`-seconds (`dt`-fed) variants. Complements the IEC `TON/TOF/TP` PLC-scan timers with the plain scheduling idiom firmware actually uses; accumulators wrap/saturate safely.
+- **Peak / hold & envelope** (add to `filters/blocks.hpp`). `PeakHold<T>` / `MinHold<T>` (running extremum with optional decay/leak toward the signal) and `EnvelopeDetector<T>` (asymmetric attack/release follower). Targets: UI bars, fault-threshold capture, crude AGC, inrush capture.
+
+**Tier B — controls-specific I/O:**
+
+- **Quadrature encoder & tach** (`utility/encoder.hpp`, new). `QuadratureDecoder` — A/B (x1/x2/x4) decode with optional Z index, exposing a signed position that handles counter wrap deliberately (the overflow-safety rule is load-bearing here: position deltas are computed in the unsigned domain then sign-extended). `Tachometer<T>` — speed from either pulse-count-per-interval (high speed) or period-between-edges (low speed), with an auto-crossover, returning RPM / rad·s⁻¹ / Hz.
+
+> Generic plumbing (CRC/checksums, SPSC queues, overwrite-oldest circular buffers) was originally scoped here but **cut** — see the ETL scope boundary above.
+
+**References:** R. Lyons, "Understanding Digital Signal Processing," 3rd ed., 2010 (one-pole/EWMA, envelope detection).
+
+**Acceptance:**
+
+- `Lut1D`/`Lut2D` match analytic interpolation at and between breakpoints; out-of-range policy (clamp vs extrapolate) behaves as configured; cached-hint search matches binary search.
+- Scaling/cal round-trips (`apply` then `invert`); `two_point_cal` reproduces both anchor points exactly; `poly_horner` matches naïve Horner.
+- `ExponentialFilter` step response matches `(1−alpha)^n`; `alpha_from_cutoff` gives the same −3 dB point as the first-order `LowPass`.
+- Software timers fire at the right boundaries; accumulators never grow unbounded.
+- `PeakHold`/`EnvelopeDetector` track and decay per spec.
+- `QuadratureDecoder` counts correct direction/magnitude across a full counter wrap with no spurious jump; `Tachometer` recovers known speeds across the count/period crossover.
+- `make embedded-check` stays green (all of #19 is embeddable).
+
+**Decision items (this section):** LUT out-of-range default (clamp vs extrapolate) and index-search strategy (binary vs cached hint); encoder count-type width and wrap convention; software-timer time source abstraction (integer ticks vs `T`-seconds with `dt`).
+
+### 16. Robust MIMO pole placement (true `place`) ☐
+
+Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`. Upgrades the Ackermann-only placement used today by `matlab::place`, the Luenberger/reduced observers (#1, via the dual `acker(Aᵀ, Cᵀ, p)ᵀ`), and any pole-placement controller to true MIMO.
+
+- Naming fix: the current `matlab::place` is single-input Ackermann — i.e. MATLAB's `acker`, not `place`. Plan: rename it to `acker` and reserve `place` for this robust MIMO routine.
+- Interface: `design::acker(A, B, desired_poles)` → gain `K`.
+- Reference: J. Kautsky, N. K. Nichols, P. Van Dooren, "Robust pole assignment in linear state feedback," Int. J. Control, 1985. https://doi.org/10.1080/00207178508933420
+- Acceptance: places assignable MIMO spectra; rejects pole multiplicity exceeding the input count; better conditioning than naive placement; matches MATLAB `place` on references.
+- Note: foundational — pull earlier than its number if MIMO observers/controllers are needed.
+
+### 17. Fast-math-robust filter coefficient designs ⊘
+
+Restructure bilinear filter designers so that the unit-DC-gain identity (and other intended algebraic relations) holds *constructively* rather than emerging from exact cancellation, so the property survives `-fassociative-math` reassociation in downstream user builds.
+
+- **`design::lowpass_2nd` ☑ fixed.** The original bilinear formula didn't merely drift under fast-math — its coefficients placed both poles essentially *on* the unit circle (|p| ≈ 1.0), making it a near-passthrough rather than a low-pass at all (measured |H| ≈ 1.0 at DC, fc, and 10·fc). Rewritten so the numerator taps are derived directly from the unit-DC-gain identity: since the bilinear numerator is ω₀²(1+z⁻¹)² the taps are in fixed ratio 1:2:1, so they are pinned as `dc_sum·{¼, ½, ¼}` with `dc_sum = 1 + a1 + a2`. Unity DC gain now holds by construction (and the ¼/½ factors are exact powers of two), identical under strict-IEEE and `-ffast-math`. Verified: |H| = 1.000 at DC, 0.707 at fc, 0.009 at 10·fc; DC-gain regression test tightened back to 1e-3, settling test back to 0.01.
+- Audit pass (remaining): sweep the other biquad designers (`notch`, `bandpass`, `highpass_2nd`, `peaking`, `lowshelf`, `highshelf`) and the StateSpace→coeffs paths the same way. The RBJ cookbook formulas compute b/a from single expressions and are mostly less fragile, but worth verifying with a `-ffast-math` regression sweep.
+- Reference: Higham, "Accuracy and Stability of Numerical Algorithms" (2nd ed., 2002), §3 on conditioned summation; Oppenheim & Schafer, "Discrete-Time Signal Processing" (3rd ed., 2009), bilinear-transform chapter.
+- Acceptance: a DC-gain regression test that holds settled value within 1e-3 of 1.0 even when the runner is built with `-ffast-math`; afterwards tighten the LowPass2nd tolerance back to 0.01. **Done for `lowpass_2nd`** (`test_filters.cpp`: DC-gain at 1e-3, settling at 0.01, plus a cross-zeta unity-gain case); remaining biquads still to sweep.
+
+### 21. Backend-agnostic core: stdlib or ETL (freestanding-capable) ⊘
+
+Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) can compile for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with a *backend profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to **one of two** backends, selected through the existing `wet_profile.hpp` mechanism (mirrors the math backend):
+
+- **`stdlib`** (default, hosted) — aliases → `std::`. What exists today; unchanged for hosted users, and usable standalone (no third-party lib).
+- **`etl`** — aliases → `etl::` ([Embedded Template Library](https://www.etlcpp.com) supplies the types). Freestanding; pairs naturally with ETL for plumbing.
+
+We deliberately do **not** add a third "invent our own primitives" backend — anything not from the stdlib comes from ETL (see Design Constraints). Both backends preserve the constexpr-first invariant. Toolbox, tests, and examples stay hosted on `std`; only the embeddable umbrella must be freestanding-clean.
+
+**Feasibility — spiked and confirmed (the gating risk is closed).** The load-bearing question was whether ETL preserves the constexpr-first synthesis invariant. Verified under `-std=c++20`:
+
+- `etl::array` + `etl::optional` evaluate in constant context (ETL gates these on `ETL_CONSTEXPR`, which resolves to real `constexpr` on C++14+, [platform.h](../../libs/etl/include/etl/platform.h)).
+- A throwaway LQR-grade DARE solver (matmul, transpose, **Gauss-Jordan inverse → `etl::optional`**, 1000-iteration fixed-point loop) backed by `etl::array`, fully `static_assert`-ed, **converged at compile time** and produced gains *identical* to the real library `design::discrete_lqr` (`K = [2.5857, 3.4434]` on a double-integrator). The riskiest constructs — `etl::array` element read/write in a constexpr loop, returning/unwrapping `etl::optional` in constexpr — all held.
+
+**Core `std` surface to abstract** (everything else used by the core — `<cstddef>`, `<cstdint>`, `<type_traits>`, `<limits>`, `<concepts>`, `<initializer_list>`, most of `<utility>` — is already freestanding on GCC/Clang). The two backends supply each `wet::` alias as:
+
+| `wet::` alias | `stdlib` | `etl` |
+|---|---|---|
+| `array` | `std::array` | `etl::array` |
+| `optional` / `nullopt` | `std::optional` | `etl::optional` |
+| `tuple` / `pair` | `std::tuple` / `pair` | `etl::tuple` / `pair` |
+| `clamp`/`min`/`max`/`swap` | `<algorithm>` | `etl/algorithm.h` |
+| `pi_v` & constants | `std::numbers` | ETL / own constants |
+| `index_sequence`, fold (matrix SRA) | `<utility>` (freestanding) | `etl::index_sequence` |
+| math (`wet::sin/sqrt/...`) | math backend (`<cmath>`) | math backend |
+
+ETL constexpr-equivalence confirmed for `array`/`optional` (spike above). Out of scope (already host-only behind `toolbox.hpp`, excluded by `embedded-check`): `<vector>`, `<string>`, `<functional>`, `<cstdio>`, `std::complex` (core uses `wet::complex`).
+
+**Build order:**
+
+1. **`make freestanding-check`** first — compile the `wet/control.hpp` umbrella under the `etl` backend with `-ffreestanding -nostdinc++ -Ilibs/etl/include` (+ a freestanding `wet_profile.hpp`). Stand this up *before* migrating so the property is enforced from commit one. Fold a `matrix.hpp`-with-`etl::index_sequence` constexpr spike into this step to close the last unverified construct.
+2. **`wet/backend.hpp`** alias layer: `wet::array/optional/tuple/pair/clamp/move/forward/...` and `wet::pi_v`, profile-selected (`stdlib` default · `etl`), wired through `wet_profile.hpp` alongside the math backend.
+3. **Migrate the core behind the alias**, header by header (matrix → systems → analysis → controllers/estimators/filters → utility), keeping `freestanding-check` green throughout.
+4. Default profile stays `stdlib` (no behavior change, no ETL dependency for hosted users); `etl` is strictly opt-in.
+
+**References:** ISO C++ [freestanding] implementation requirements; ETLCPP documentation (https://www.etlcpp.com). See also the math-backend pattern already in `wet/math/math_backend.hpp`.
+
+**Acceptance:**
+
+- `make freestanding-check` compiles the umbrella with no hosted stdlib under the `etl` backend; a representative `design::synthesize_*` still `static_assert`s `success`.
+- Default (`stdlib`) profile is byte-for-byte unchanged for hosted users; `make embedded-check` and the full test suite stay green.
+- No `#include <...>` of a hosted header reachable from `wet/control.hpp` under the `etl` backend; no ETL include reachable under the `stdlib` backend.
+
+**Decision items (this section):** profile selection surface (single `WET_BACKEND` enum macro vs per-facility toggles); whether `wet::` aliases live in one `backend.hpp` or split per facility; error-reporting model under the `etl` backend (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract); `std::numbers` replacement (ETL constants vs own).
+
+**Layer 2 — core controls & estimation building blocks.**
 
 ### 1. Luenberger / reduced-order observer ☑
 
@@ -54,14 +220,21 @@ Deterministic state observers via pole placement; the counterpart to the Kalman 
 - References: D. G. Luenberger, "An Introduction to Observers," IEEE TAC, 1971, https://doi.org/10.1109/TAC.1971.1099826; B. Gopinath, "On the Synthesis of Minimal-Order Observers," BSTJ, 1971.
 - Acceptance: error dynamics match placed poles ✓; constexpr design ✓; reduced-order reconstructs unmeasured states ✓.
 
-### 2. DSP biquad/notch family + utility blocks ☑
+### 4. Disturbance observer + DOB control law ⊘
 
-Complete the biquad family beyond low-pass and add everyday runtime blocks. Constexpr coefficient designers; allocation-free runtimes. Unblocks harmonic suppression (#9) and is broadly useful.
+Observer-based disturbance estimation integrated with a base controller. Targets: PMSM/BLDC servo drives with load-torque disturbances, robot joints with friction/backlash, precision stages with external force. Estimator core sketched in `estimation/disturbance_observer.hpp`; this adds the control-law wiring. Depends on #1.
 
-- Done (`filters/filters.hpp`): RBJ-cookbook biquad designers `design::notch`, `bandpass`, `highpass_2nd`, `peaking`, `lowshelf`, `highshelf` → `SecondOrderCoeffs` (Q-parameterized, designed directly in the digital domain); runtimes `Biquad` (Direct Form I) and `BiquadCascade<N>` (SOS cascade). All constexpr + float/double.
-- Done (`filters/blocks.hpp`): utility runtime blocks `MovingAverage<N>`, `RunningRMS<N>`, `MedianFilter<N>`, `RateLimiter` (symmetric + asymmetric slew), `DirtyDerivative` (Tustin band-limited d/dt), `ClampedIntegrator` (forward-Euler + anti-windup clamp; named to avoid colliding with the ODE-solver `Integrator<NX,T>` in `simulation/integrator.hpp`), `Deadband` (continuous-slope), `Hysteresis` (Schmitt trigger). All constexpr, allocation-free, one-sample-per-call; in the `wet/control.hpp` umbrella.
-- References: Oppenheim & Schafer, "Discrete-Time Signal Processing," 3rd ed., 2009; R. Bristow-Johnson, "Cookbook formulae for audio EQ biquad filter coefficients."
-- Acceptance: per-type frequency-response checks ✓; SOS cascade ✓; float/double parity ✓; utility blocks (`tests/test_blocks.cpp`: defining-behaviour + fill/reset edges + constexpr construction) ✓.
+- Interface: `design::synthesize_dob(plant, nominal_inverse, q_filter_spec, base_controller)` → `DOBResult` / `DOBArtifacts` + runtime with per-tick compensation.
+- References: S. Li et al., "Disturbance Observer-Based Control," CRC Press, 2016, https://doi.org/10.1201/b16570; W.-H. Chen et al., "Disturbance-Observer-Based Control... An Overview," IEEE TIE, 2016, https://doi.org/10.1109/TIE.2015.2478397
+- Acceptance: step-load rejection; frequency-domain attenuation; model-mismatch regression.
+
+### 12. UKF (sigma-point filter) ☐
+
+Unscented filter for nonlinear estimation where EKF linearization is poor (map item `sigma-point`).
+
+- Interface: `UKF<NX,NU,NY>` runtime mirroring the EKF API; constexpr sigma-point weights.
+- Reference: Julier & Uhlmann, "Unscented Filtering and Nonlinear Estimation," Proc. IEEE, 2004. https://doi.org/10.1109/JPROC.2003.823141
+- Acceptance: matches EKF on near-linear systems; outperforms on strongly nonlinear references.
 
 ### 3. Identification and excitation infrastructure ⊘
 
@@ -155,13 +328,7 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 - For `models::two_mass`, choose the state ordering `[θ_m, ω_m, x_l, v_l]` so that `identify_two_mass`'s similarity transform has an obvious target. Document the equations of motion in the header so the user can verify the convention.
 - The cascade-from-model design function (`design::synthesize_cascade_p_pi(plant, specs)` referenced in the workflow example) is *not* required by this item; existing tuning rules in `pid_design.hpp` suffice for the outer/inner gains. Treat the cascade-from-model synthesis as a separate (small) future item.
 
-### 4. Disturbance observer + DOB control law ⊘
-
-Observer-based disturbance estimation integrated with a base controller. Targets: PMSM/BLDC servo drives with load-torque disturbances, robot joints with friction/backlash, precision stages with external force. Estimator core sketched in `estimation/disturbance_observer.hpp`; this adds the control-law wiring. Depends on #1.
-
-- Interface: `design::synthesize_dob(plant, nominal_inverse, q_filter_spec, base_controller)` → `DOBResult` / `DOBArtifacts` + runtime with per-tick compensation.
-- References: S. Li et al., "Disturbance Observer-Based Control," CRC Press, 2016, https://doi.org/10.1201/b16570; W.-H. Chen et al., "Disturbance-Observer-Based Control... An Overview," IEEE TIE, 2016, https://doi.org/10.1109/TIE.2015.2478397
-- Acceptance: step-load rejection; frequency-domain attenuation; model-mismatch regression.
+**Layer 3 — advanced controls & estimation.**
 
 ### 5. Repetitive controller ⊘
 
@@ -224,14 +391,6 @@ Second-order sliding-mode runtime with design-time gain synthesis. Targets: elec
 - References: Moreno & Osorio, "Strict Lyapunov Functions for the Super-Twisting Algorithm," IEEE TAC, 2012, https://doi.org/10.1109/TAC.2012.2186179; Levant, Int. J. Control, 2003, https://doi.org/10.1080/0020717031000099029
 - Acceptance: chattering metrics vs existing SMC; disturbance rejection with bounded effort.
 
-### 12. UKF (sigma-point filter) ☐
-
-Unscented filter for nonlinear estimation where EKF linearization is poor (map item `sigma-point`).
-
-- Interface: `UKF<NX,NU,NY>` runtime mirroring the EKF API; constexpr sigma-point weights.
-- Reference: Julier & Uhlmann, "Unscented Filtering and Nonlinear Estimation," Proc. IEEE, 2004. https://doi.org/10.1109/JPROC.2003.823141
-- Acceptance: matches EKF on near-linear systems; outperforms on strongly nonlinear references.
-
 ### 13. H-infinity output feedback ⊘
 
 Output-feedback synthesis for weighted generalized plants. Targets: flexible structures with modal uncertainty, flight control with structured uncertainty, active suspension/vibration isolation.
@@ -256,84 +415,6 @@ Optimization-based constrained estimator; toolbox-only (allocates/solver). The e
 
 - Reference: Rao, Rawlings & Mayne, "Constrained State Estimation for Nonlinear Discrete-Time Systems," IEEE TAC, 2003. https://doi.org/10.1109/TAC.2003.812777
 - Acceptance: matches Kalman on linear/unconstrained problems; respects state constraints on nonlinear references.
-
-### 16. Robust MIMO pole placement (true `place`) ☐
-
-Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`. Upgrades the Ackermann-only placement used today by `matlab::place`, the Luenberger/reduced observers (#1, via the dual `acker(Aᵀ, Cᵀ, p)ᵀ`), and any pole-placement controller to true MIMO.
-
-- Naming fix: the current `matlab::place` is single-input Ackermann — i.e. MATLAB's `acker`, not `place`. Plan: rename it to `acker` and reserve `place` for this robust MIMO routine.
-- Interface: `design::acker(A, B, desired_poles)` → gain `K`.
-- Reference: J. Kautsky, N. K. Nichols, P. Van Dooren, "Robust pole assignment in linear state feedback," Int. J. Control, 1985. https://doi.org/10.1080/00207178508933420
-- Acceptance: places assignable MIMO spectra; rejects pole multiplicity exceeding the input count; better conditioning than naive placement; matches MATLAB `place` on references.
-- Note: foundational — pull earlier than its number if MIMO observers/controllers are needed.
-
-### 17. Fast-math-robust filter coefficient designs ⊘
-
-Restructure bilinear filter designers so that the unit-DC-gain identity (and other intended algebraic relations) holds *constructively* rather than emerging from exact cancellation, so the property survives `-fassociative-math` reassociation in downstream user builds.
-
-- **`design::lowpass_2nd` ☑ fixed.** The original bilinear formula didn't merely drift under fast-math — its coefficients placed both poles essentially *on* the unit circle (|p| ≈ 1.0), making it a near-passthrough rather than a low-pass at all (measured |H| ≈ 1.0 at DC, fc, and 10·fc). Rewritten so the numerator taps are derived directly from the unit-DC-gain identity: since the bilinear numerator is ω₀²(1+z⁻¹)² the taps are in fixed ratio 1:2:1, so they are pinned as `dc_sum·{¼, ½, ¼}` with `dc_sum = 1 + a1 + a2`. Unity DC gain now holds by construction (and the ¼/½ factors are exact powers of two), identical under strict-IEEE and `-ffast-math`. Verified: |H| = 1.000 at DC, 0.707 at fc, 0.009 at 10·fc; DC-gain regression test tightened back to 1e-3, settling test back to 0.01.
-- Audit pass (remaining): sweep the other biquad designers (`notch`, `bandpass`, `highpass_2nd`, `peaking`, `lowshelf`, `highshelf`) and the StateSpace→coeffs paths the same way. The RBJ cookbook formulas compute b/a from single expressions and are mostly less fragile, but worth verifying with a `-ffast-math` regression sweep.
-- Reference: Higham, "Accuracy and Stability of Numerical Algorithms" (2nd ed., 2002), §3 on conditioned summation; Oppenheim & Schafer, "Discrete-Time Signal Processing" (3rd ed., 2009), bilinear-transform chapter.
-- Acceptance: a DC-gain regression test that holds settled value within 1e-3 of 1.0 even when the runner is built with `-ffast-math`; afterwards tighten the LowPass2nd tolerance back to 0.01. **Done for `lowpass_2nd`** (`test_filters.cpp`: DC-gain at 1e-3, settling at 0.01, plus a cross-zeta unity-gain case); remaining biquads still to sweep.
-
-### 18. Multi-rate simulation harness ☐
-
-The current simulation harness (`simulation/simulate.hpp`) advances every block at a single fixed `Ts`. Real deployments are multi-rate: an ISR-level loop (current/inner-loop control, PWM, observers) runs at 8 kHz–128+ kHz, while RTOS tasks run the outer loops and supervisory logic at 1 / 10 / 100 / 1000 Hz. A faithful closed-loop simulation has to reproduce this rate hierarchy — including the inter-rate effects that single-rate sim hides: sample-and-hold across the rate boundary, the one-sample transport delay an outer task sees on inner-loop state, and aliasing of fast dynamics into slow samplers.
-
-- **Model.** Each block runs at a rate that is an integer divisor of the fastest *discrete* (base) rate; the harness ticks at the base rate (e.g. the ISR rate) and fires each slower block on its decimation boundary. The plant is *not* one of these discrete blocks — it integrates on its own much finer clock (continuous-time approximation, e.g. 1 µs / 1 MHz sub-step, far faster than even the ISR), so fast plant dynamics and inter-sample ripple are resolved between controller ticks. The plant sub-step need not be an integer divisor of the control rates; the harness advances the plant to each control-tick boundary and only samples/holds at those boundaries.
-- **Rate-boundary semantics.** Every crossing is a sample-and-hold, including controller→plant. A discrete block's output is held constant (ZOH) on the consumer's clock until that block fires again: ZOH from a slower producer to a faster consumer, and from the fastest discrete block down onto the continuous plant (the plant sees a piecewise-constant input between actuation updates, not a fresh value every integration sub-step). Faster→slower is latch/decimate (the slow sampler reads the held value at its tick). Make the outer→inner reference handoff and the inner→outer state feedback explicit so the simulated transport delay matches what the RTOS actually incurs. This — plus the controller→plant ZOH — is where most "works in sim, oscillates on hardware" gaps come from.
-- **Scope / placement.** Host-only (`wet/toolbox.hpp`) — it allocates time-series like the existing `sim::` harness. The per-block runtimes being scheduled are the same allocation-free controllers/estimators from `wet/control.hpp`; the harness only orchestrates *when* each `step()` is called. No new constraint on the embeddable core.
-- **Relationship to existing code.** Generalizes `simulate.hpp` (single-rate is the degenerate case: one block, base rate = block rate). Reuses `simulation/integrator.hpp` for the plant sub-step. Pairs naturally with the cascade controllers (#3) and any inner/outer split (current→speed→position).
-- **Open questions.** Schedule specification (per-block divisor vs. explicit Hz with validation that each divides the base rate); whether to model task jitter / execution-time offset within a tick or assume ideal periodic firing (ideal first, jitter as a later refinement); how to expose the multi-rate trajectories for plotting when channels are sampled at different rates.
-- Reference: Franklin, Powell & Workman, "Digital Control of Dynamic Systems" (3rd ed., 1998), multirate sampling chapter; M. Cimino & P. R. Pagilla, "Conditions for multirate sampled-data control," on inter-sample behavior and rate-boundary effects.
-- Acceptance: a two-rate example (fast inner current loop + slow outer loop) reproduces the inner-loop transport delay and sample-and-hold seen on hardware; single-rate results match the existing `simulate.hpp` harness when all blocks share one rate.
-
-### 19. Embedded firmware primitives ☑
-
-The bread-and-butter building blocks an embedded engineer reaches for *before* any synthesis: sensor linearization, scaling/calibration, the workhorse smoother, non-blocking timing, and encoder/speed I/O. The synthesis-heavy items above assume these already exist; today they mostly don't (`utility.hpp` has only unit conversions + `wrap`).
-
-**Scope boundary — defer generic plumbing to ETL.** Containers, queues, byte FIFOs, CRC/checksums, and the like are *not* this library's job; the [Embedded Template Library](https://www.etlcpp.com) already does them well and battle-tested. Pair the two: use `etl::circular_buffer` / `etl::queue_spsc_*` / `etl::crc*` / `etl::debounce` for plumbing, and this library for the controls/DSP-specific helpers below. The core stays zero-dependency — we don't `#include <etl/...>` anywhere; ETL is a *recommended companion*, not a dependency.
-
-**Done.** The controls/DSP-specific primitives shipped, embeddable, with one test TU each (`make embedded-check` green):
-- `utility/scaling.hpp` — `lerp`, `inverse_lerp`, `rescale`, `AffineCal` (+`.as<U>()`), `two_point_cal`, `poly_horner` (`clamp` uses `std::clamp`).
-- `utility/lookup.hpp` — `Lut1D<N>` (linear/`nearest`, clamp-or-extrapolate `oob` policy, binary `lut_segment`), `Lut2D<R,C>` (bilinear, edge-clamped).
-- `filters/blocks.hpp` (extended) — `ExponentialFilter` + `alpha_from_cutoff`/`alpha_from_time_constant`, `PeakHold`/`MinHold` (optional leak), `EnvelopeDetector` (attack/release).
-- `utility/timing.hpp` — `Stopwatch`, `Timeout` (clamped accumulator), `Periodic` (drift-free, catch-up).
-- `utility/encoder.hpp` — `QuadratureDecoder` (X1/X2/X4, index reset, illegal-transition rejection), `wrapped_delta` (rollover-safe), `Tachometer` (frequency + period methods, RPM/rad·s⁻¹ conversions).
-
-Dropped from the original scope as ETL duplication: CRC/checksums and the SPSC/overwrite ring buffers (use `etl::crc*`, `etl::queue_spsc_*`, `etl::circular_buffer`).
-
-Decisions resolved: LUT defaults to clamp with an opt-in `Linear` extrapolation and binary-search lookup (no cached hint for now); software timers are `dt`-fed (clock-source agnostic); encoder position is a fixed-width signed counter with `wrapped_delta` for rates.
-
-These are **leaf utilities**, so most deliberately deviate from the three-tier synthesis pattern: they are pure constexpr, allocation-free runtime blocks with no plant model and (usually) no `design::` stage. All are embeddable (`wet/control.hpp`) unless noted. Every accumulator/counter is bounded by construction — no unbounded growth, per the library's overflow-safety rule (see the TON/TOF `ET` clamping and CTU/CTD saturation already in `iec61131.hpp`).
-
-**Tier A — near-universal:**
-
-- **Lookup tables & interpolation** (`utility/lookup.hpp`, new). `Lut1D<N,T>` — monotonic breakpoint table with linear or nearest interpolation and a configurable out-of-range policy (clamp vs linear extrapolation); O(log N) binary search with an optional cached-index hint for the common monotone-query case. `Lut2D<R,C,T>` — bilinear interpolation over a regular grid. Targets: thermistor/sensor linearization (pairs with `thermistor.hpp`), gain-scheduling maps, fan/efficiency/torque-speed curves, ADC fixups.
-- **Scaling & calibration** (`utility/scaling.hpp`, new). `lerp(a, b, t)` / `inverse_lerp(a, b, x)` plus a `rescale(x, in_lo, in_hi, out_lo, out_hi)` composed from them (affine map between two ranges), `AffineCal<T>{gain, offset}` with `apply`/`invert`, `two_point_cal(raw0,eng0, raw1,eng1)` → `AffineCal`, and `poly_horner(coeffs, x)` for polynomial cal curves. Counts↔engineering-units conversion is the headline use; composes with `Lut1D` for nonlinear sensors.
-- **Exponential filter / EWMA** (add to `filters/blocks.hpp`). `ExponentialFilter<T>` — one-pole IIR by direct smoothing factor `alpha` (`y += alpha*(x − y)`), the most-used embedded smoother. Ships with `alpha_from_cutoff(fc, Ts)` and `alpha_from_time_constant(tau, Ts)` helpers so it interoperates with the existing `fc/Ts`-parameterized first-order `LowPass` in `filters.hpp`. (Distinct from `MovingAverage` (FIR) and `LowPass` (designed biquad): zero buffer, one multiply-add.)
-- **Non-blocking software timers** (`utility/timing.hpp`, new). `Stopwatch<T>` (elapsed-time accumulator with `reset`/`elapsed`), `Timeout<T>` (one-shot `expired()` predicate), and `Periodic<T>` (the "do X every N" idiom: `operator()(dt) → bool` firing once per period, with catch-up policy). Tick-count and `T`-seconds (`dt`-fed) variants. Complements the IEC `TON/TOF/TP` PLC-scan timers with the plain scheduling idiom firmware actually uses; accumulators wrap/saturate safely.
-- **Peak / hold & envelope** (add to `filters/blocks.hpp`). `PeakHold<T>` / `MinHold<T>` (running extremum with optional decay/leak toward the signal) and `EnvelopeDetector<T>` (asymmetric attack/release follower). Targets: UI bars, fault-threshold capture, crude AGC, inrush capture.
-
-**Tier B — controls-specific I/O:**
-
-- **Quadrature encoder & tach** (`utility/encoder.hpp`, new). `QuadratureDecoder` — A/B (x1/x2/x4) decode with optional Z index, exposing a signed position that handles counter wrap deliberately (the overflow-safety rule is load-bearing here: position deltas are computed in the unsigned domain then sign-extended). `Tachometer<T>` — speed from either pulse-count-per-interval (high speed) or period-between-edges (low speed), with an auto-crossover, returning RPM / rad·s⁻¹ / Hz.
-
-> Generic plumbing (CRC/checksums, SPSC queues, overwrite-oldest circular buffers) was originally scoped here but **cut** — see the ETL scope boundary above.
-
-**References:** R. Lyons, "Understanding Digital Signal Processing," 3rd ed., 2010 (one-pole/EWMA, envelope detection).
-
-**Acceptance:**
-
-- `Lut1D`/`Lut2D` match analytic interpolation at and between breakpoints; out-of-range policy (clamp vs extrapolate) behaves as configured; cached-hint search matches binary search.
-- Scaling/cal round-trips (`apply` then `invert`); `two_point_cal` reproduces both anchor points exactly; `poly_horner` matches naïve Horner.
-- `ExponentialFilter` step response matches `(1−alpha)^n`; `alpha_from_cutoff` gives the same −3 dB point as the first-order `LowPass`.
-- Software timers fire at the right boundaries; accumulators never grow unbounded.
-- `PeakHold`/`EnvelopeDetector` track and decay per spec.
-- `QuadratureDecoder` counts correct direction/magnitude across a full counter wrap with no spurious jump; `Tachometer` recovers known speeds across the count/period crossover.
-- `make embedded-check` stays green (all of #19 is embeddable).
-
-**Decision items (this section):** LUT out-of-range default (clamp vs extrapolate) and index-search strategy (binary vs cached hint); encoder count-type width and wrap convention; software-timer time source abstraction (integer ticks vs `T`-seconds with `dt`).
 
 ### 20. Motion planning / trajectory generation ☐
 
@@ -364,45 +445,19 @@ Point-to-point and multi-segment trajectory generation for actuators and robot a
 
 **Decision items (this section):** header layout (`motion/` directory vs single `trajectory.hpp`); whether the BVP coefficient solve is done at `design::` time only (constexpr `mat::solve`) so the runtime stores just coefficients; representation of multi-segment/waypoint trajectories (fixed-`N` segment array vs caller-supplied storage to stay allocation-free).
 
-### 21. Freestanding build via an opt-in standard-library backend ⊘
+**Layer 4 — tooling (host-only).**
 
-Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) compiles for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with an *opt-in profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to either `std::` (default, hosted, zero extra dependency) or the [Embedded Template Library](https://www.etlcpp.com) `etl::` (freestanding profile). Mirrors the existing math-backend / `wet_profile.hpp` mechanism. Toolbox, tests, and examples stay hosted on `std`; only the embeddable umbrella must be freestanding-clean.
+### 18. Multi-rate simulation harness ☐
 
-**Feasibility — spiked and confirmed (the gating risk is closed).** The load-bearing question was whether ETL preserves the constexpr-first synthesis invariant. Verified under `-std=c++20`:
+The current simulation harness (`simulation/simulate.hpp`) advances every block at a single fixed `Ts`. Real deployments are multi-rate: an ISR-level loop (current/inner-loop control, PWM, observers) runs at 8 kHz–128+ kHz, while RTOS tasks run the outer loops and supervisory logic at 1 / 10 / 100 / 1000 Hz. A faithful closed-loop simulation has to reproduce this rate hierarchy — including the inter-rate effects that single-rate sim hides: sample-and-hold across the rate boundary, the one-sample transport delay an outer task sees on inner-loop state, and aliasing of fast dynamics into slow samplers.
 
-- `etl::array` + `etl::optional` evaluate in constant context (ETL gates these on `ETL_CONSTEXPR`, which resolves to real `constexpr` on C++14+, [platform.h](../../libs/etl/include/etl/platform.h)).
-- A throwaway LQR-grade DARE solver (matmul, transpose, **Gauss-Jordan inverse → `etl::optional`**, 1000-iteration fixed-point loop) backed by `etl::array`, fully `static_assert`-ed, **converged at compile time** and produced gains *identical* to the real library `design::discrete_lqr` (`K = [2.5857, 3.4434]` on a double-integrator). The riskiest constructs — `etl::array` element read/write in a constexpr loop, returning/unwrapping `etl::optional` in constexpr — all held.
-
-**Core `std` surface to abstract** (everything else used by the core — `<cstddef>`, `<cstdint>`, `<type_traits>`, `<limits>`, `<concepts>`, `<initializer_list>`, most of `<utility>` — is already freestanding on GCC/Clang). ETL equivalents confirmed present for all:
-
-| Used in core | Alias → freestanding | Notes |
-|---|---|---|
-| `std::array` | `etl::array` | constexpr ✓ |
-| `std::optional` / `std::nullopt` | `etl::optional` | constexpr ✓ |
-| `std::tuple` / `std::pair` | `etl::tuple` / `etl::pair` | |
-| `std::clamp`/`min`/`max`/`swap` | `etl::` (`algorithm.h`) | |
-| `std::numbers::*` | own / `etl` math constants | |
-| `std::index_sequence`, fold (matrix SRA) | `etl::index_sequence` (`utility.h`) | **verify in step 1** |
-| `<cmath>` (`wet::` math backend) | freestanding math backend | already abstracted; needs a non-`std` backend |
-
-Out of scope (already host-only behind `toolbox.hpp`, excluded by `embedded-check`): `<vector>`, `<string>`, `<functional>`, `<cstdio>`, `std::complex` (core uses `wet::complex`).
-
-**Build order:**
-
-1. **`make freestanding-check`** first — compile the `wet/control.hpp` umbrella with `-ffreestanding -nostdinc++ -Ilibs/etl/include` (+ a freestanding `wet_profile.hpp`). Stand this up *before* migrating so the property is enforced from commit one. Fold a `matrix.hpp`-with-`etl::index_sequence` constexpr spike into this step to close the last unverified construct.
-2. **`wet/std_backend.hpp`** alias layer: `wet::array/optional/tuple/pair/clamp/move/forward/...` and `wet::pi_v`, profile-selected `std` (default) vs `etl` (freestanding), wired through `wet_profile.hpp` alongside the math backend.
-3. **Migrate the core behind the alias**, header by header (matrix → systems → analysis → controllers/estimators/filters → utility), keeping `freestanding-check` green throughout.
-4. Default profile stays `std` (no ETL dependency for hosted users); freestanding is strictly opt-in.
-
-**References:** ISO C++ [freestanding] implementation requirements; ETLCPP documentation (https://www.etlcpp.com). See also the math-backend pattern already in `wet/math/math_backend.hpp`.
-
-**Acceptance:**
-
-- `make freestanding-check` compiles the umbrella with no hosted stdlib; a representative `design::synthesize_*` still `static_assert`s `success` under the `etl` profile.
-- Default (`std`) profile is byte-for-byte unchanged for hosted users; `make embedded-check` and the full test suite stay green.
-- No `#include <...>` of a hosted header reachable from `wet/control.hpp` under the freestanding profile; no ETL include reachable under the default profile.
-
-**Decision items (this section):** profile selection surface (single `WET_FREESTANDING` macro vs per-facility toggles); whether `wet::` aliases live in one `std_backend.hpp` or are split per facility; error-reporting model under the freestanding profile (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract); `std::numbers` replacement (own constants vs ETL).
+- **Model.** Each block runs at a rate that is an integer divisor of the fastest *discrete* (base) rate; the harness ticks at the base rate (e.g. the ISR rate) and fires each slower block on its decimation boundary. The plant is *not* one of these discrete blocks — it integrates on its own much finer clock (continuous-time approximation, e.g. 1 µs / 1 MHz sub-step, far faster than even the ISR), so fast plant dynamics and inter-sample ripple are resolved between controller ticks. The plant sub-step need not be an integer divisor of the control rates; the harness advances the plant to each control-tick boundary and only samples/holds at those boundaries.
+- **Rate-boundary semantics.** Every crossing is a sample-and-hold, including controller→plant. A discrete block's output is held constant (ZOH) on the consumer's clock until that block fires again: ZOH from a slower producer to a faster consumer, and from the fastest discrete block down onto the continuous plant (the plant sees a piecewise-constant input between actuation updates, not a fresh value every integration sub-step). Faster→slower is latch/decimate (the slow sampler reads the held value at its tick). Make the outer→inner reference handoff and the inner→outer state feedback explicit so the simulated transport delay matches what the RTOS actually incurs. This — plus the controller→plant ZOH — is where most "works in sim, oscillates on hardware" gaps come from.
+- **Scope / placement.** Host-only (`wet/toolbox.hpp`) — it allocates time-series like the existing `sim::` harness. The per-block runtimes being scheduled are the same allocation-free controllers/estimators from `wet/control.hpp`; the harness only orchestrates *when* each `step()` is called. No new constraint on the embeddable core.
+- **Relationship to existing code.** Generalizes `simulate.hpp` (single-rate is the degenerate case: one block, base rate = block rate). Reuses `simulation/integrator.hpp` for the plant sub-step. Pairs naturally with the cascade controllers (#3) and any inner/outer split (current→speed→position).
+- **Open questions.** Schedule specification (per-block divisor vs. explicit Hz with validation that each divides the base rate); whether to model task jitter / execution-time offset within a tick or assume ideal periodic firing (ideal first, jitter as a later refinement); how to expose the multi-rate trajectories for plotting when channels are sampled at different rates.
+- Reference: Franklin, Powell & Workman, "Digital Control of Dynamic Systems" (3rd ed., 1998), multirate sampling chapter; M. Cimino & P. R. Pagilla, "Conditions for multirate sampled-data control," on inter-sample behavior and rate-boundary effects.
+- Acceptance: a two-rate example (fast inner current loop + slow outer loop) reproduces the inner-loop transport delay and sample-and-hold seen on hardware; single-rate results match the existing `simulate.hpp` harness when all blocks share one rate.
 
 ## Testing and Documentation
 

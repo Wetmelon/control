@@ -69,7 +69,7 @@
  * plants (higher harmonics not fully filtered); Tᵤ is accurate to a few percent
  * (just a zero-crossing measurement). Tighter identification needs an
  * asymmetric/biased relay (also recovers static gain Kₛ for AMIGO tuning) or a
- * dedicated FOPDT fit — see roadmap item #7.
+ * dedicated FOPDT fit.
  *
  * @see "Automatic tuning of simple regulators with specifications on phase and
  *      amplitude margins" (Åström & Hägglund, 1984), Automatica 20(5).

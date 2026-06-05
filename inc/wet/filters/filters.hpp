@@ -136,7 +136,7 @@ template<typename T = float>
     // unit-DC-gain identity H(1) = 1 ⇔ (b0 + b1 + b2) = (1 + a1 + a2): deriving the
     // taps from that sum makes unity DC gain hold *by construction*, so it survives
     // -ffast-math reassociation in downstream builds instead of depending on the raw
-    // bilinear numerator/denominator terms cancelling exactly (see roadmap #17).
+    // bilinear numerator/denominator terms cancelling exactly.
     const T dc_sum = T{1} + coeffs.a1 + coeffs.a2;
     coeffs.b0 = dc_sum / T{4};
     coeffs.b1 = dc_sum / T{2};

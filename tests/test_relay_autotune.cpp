@@ -196,7 +196,7 @@ TEST_SUITE("Relay Autotune Runtime") {
         // square-wave relay output aren't fully filtered by 1/(s+1)³ — the
         // measured peak `a` exceeds the pure-fundamental amplitude that the
         // describing function assumes. This is inherent to symmetric-relay
-        // autotuning; the asymmetric / biased-relay variant (roadmap #7)
+        // autotuning; the asymmetric / biased-relay variant
         // recovers Ku more tightly and gives the static gain for AMIGO.
         CHECK(out.Tu == doctest::Approx(Tu_expected).epsilon(0.10));
         CHECK(out.Ku == doctest::Approx(Ku_expected).epsilon(0.25));

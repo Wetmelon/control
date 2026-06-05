@@ -2,7 +2,7 @@
 
 /**
  * @file harmonic_suppression.hpp
- * @brief Placeholder header for harmonic detection and suppression roadmap feature.
+ * @brief Placeholder header for harmonic detection and suppression feature.
  */
 
 #include "wet/estimation/harmonic_estimation.hpp"

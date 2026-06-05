@@ -2,7 +2,7 @@
 
 /**
  * @file stsmc.hpp
- * @brief Placeholder header for super-twisting SMC roadmap feature.
+ * @brief Placeholder header for super-twisting SMC feature.
  */
 
 namespace wetmelon::control {

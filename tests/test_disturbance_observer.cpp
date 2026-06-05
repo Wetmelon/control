@@ -11,7 +11,7 @@ using estimation::DisturbanceObserverConfig;
 //   innovation = y_measured − y_predicted
 //   d_hat[k+1] = (1 − leak)·d_hat[k] + gain·innovation
 // with optional innovation deadband and output-magnitude clamp. It is the
-// estimator core behind roadmap #4 (DOB control law). These tests cover config
+// estimator core for the planned DOB control law. These tests cover config
 // validation, the recursion's steady state, the deadband, the clamp, and the
 // compensate()/reset() runtime surface.
 //

@@ -2,7 +2,7 @@
 
 /**
  * @file hinf.hpp
- * @brief Placeholder header for H-infinity roadmap feature.
+ * @brief Placeholder header for H-infinity feature.
  */
 
 namespace wetmelon::control {

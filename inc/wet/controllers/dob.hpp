@@ -2,7 +2,7 @@
 
 /**
  * @file dob.hpp
- * @brief Placeholder header for Disturbance Observer roadmap feature.
+ * @brief Placeholder header for Disturbance Observer feature.
  */
 
 #include "wet/estimation/disturbance_observer.hpp"

@@ -2,7 +2,7 @@
 
 /**
  * @file lpv.hpp
- * @brief Placeholder header for LPV gain-scheduled roadmap feature.
+ * @brief Placeholder header for LPV gain-scheduled feature.
  */
 
 namespace wetmelon::control {

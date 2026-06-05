@@ -66,8 +66,8 @@
 #include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
 
 // NOTE: estimation/harmonic_estimation.hpp and estimation/identification.hpp are
-// intentionally NOT included here. They are roadmap placeholders (#9 harmonic
-// detection, #3 system identification) that expose only result-struct skeletons,
+// intentionally NOT included here. They are placeholders for planned features (harmonic
+// detection, system identification) that expose only result-struct skeletons,
 // not working APIs. Keeping them out of the umbrella avoids advertising unshipped
 // surface as part of the embeddable contract; include them directly if you are
 // developing those features.
@@ -84,3 +84,11 @@
 #include "wet/iec61131.hpp"      // IWYU pragma: keep
 #include "wet/motor_control.hpp" // IWYU pragma: keep
 #include "wet/utility.hpp"       // IWYU pragma: keep
+
+// --- Embedded firmware primitives (allocation-free leaf utilities) ----------
+// Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)
+// is out of scope — pair with ETL for those.
+#include "wet/utility/encoder.hpp" // IWYU pragma: keep
+#include "wet/utility/lookup.hpp"  // IWYU pragma: keep
+#include "wet/utility/scaling.hpp" // IWYU pragma: keep
+#include "wet/utility/timing.hpp"  // IWYU pragma: keep

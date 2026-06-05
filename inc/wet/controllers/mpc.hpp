@@ -2,7 +2,7 @@
 
 /**
  * @file mpc.hpp
- * @brief Placeholder header for constrained MPC roadmap feature.
+ * @brief Placeholder header for constrained MPC feature.
  */
 
 namespace wetmelon::control {

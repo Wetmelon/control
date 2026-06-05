@@ -2,7 +2,7 @@
 
 /**
  * @file input_shaper.hpp
- * @brief Placeholder header for input shaping roadmap feature.
+ * @brief Placeholder header for input shaping feature.
  */
 
 namespace wetmelon::control {

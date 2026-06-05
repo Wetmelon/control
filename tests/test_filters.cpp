@@ -108,7 +108,7 @@ TEST_SUITE("Runtime Filters") {
         // The first sample of a step is the direct feedthrough b0 — a proper
         // 2nd-order low-pass barely responds on sample one. (The old buggy
         // coefficients made b0 ≈ 1, i.e. a near-passthrough; this guards against
-        // regressing to that — see roadmap #17.)
+        // regressing to that.)
         CHECK(output > 0.0f);
         CHECK(output == doctest::Approx(coeffs.b0));
         CHECK(output < 0.01f); // nowhere near settled yet
@@ -121,7 +121,7 @@ TEST_SUITE("Runtime Filters") {
         // Should settle at 1.0. lowpass_2nd derives its numerator taps from the
         // unit-DC-gain identity (b0 + b1 + b2) = (1 + a1 + a2) by construction, so
         // unity DC gain holds exactly even under the test runner's -ffast-math (the
-        // taps are dc_sum·{1/4, 1/2, 1/4}, exact powers of two — see roadmap #17).
+        // taps are dc_sum·{1/4, 1/2, 1/4}, exact powers of two).
         CHECK(output == doctest::Approx(1.0).epsilon(0.01));
     }
 
