@@ -18,7 +18,7 @@
 #include <numbers>
 #include <type_traits>
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Signed difference between two unsigned counter readings, wrap-safe.
@@ -115,7 +115,8 @@ private:
         0, +1, -1, 0,
         -1, 0, 0, +1,
         +1, 0, 0, -1,
-        0, -1, +1, 0};
+        0, -1, +1, 0
+    };
 
     QuadMode mode_{QuadMode::X4};
     uint8_t  prev_{0};
@@ -160,4 +161,4 @@ public:
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

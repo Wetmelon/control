@@ -2,7 +2,7 @@
 #include "fmt/base.h"
 #include "wet/filters/filters.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 auto              coeffs1 = design::lowpass_1st(10.0, 0.001).as<float>();
 LowPass<1, float> lpf({{coeffs1.b0, coeffs1.b1}}, coeffs1.a1); // 10 Hz cutoff, 1ms sample time

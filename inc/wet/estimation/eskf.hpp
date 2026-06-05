@@ -18,7 +18,7 @@
 #include "ekf.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace design {
 /**
  * @struct ESKFResult
@@ -290,4 +290,4 @@ private:
 template<typename T, size_t NDX, size_t NY>
 ErrorStateKalmanFilter(Matrix<NDX, NDX, T>, Matrix<NDX, NDX, T>, Matrix<NY, NY, T>) -> ErrorStateKalmanFilter<NDX, NY, T>;
 
-} // namespace wetmelon::control
+} // namespace wet

@@ -4,7 +4,7 @@
 
 #include "matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Concrete Column vector specialization of Matrix<N, 1, T>
@@ -292,4 +292,4 @@ using Vec3 = ColVec<3, T>;
 template<typename T>
 using Vec4 = ColVec<4, T>;
 
-} // namespace wetmelon::control
+} // namespace wet

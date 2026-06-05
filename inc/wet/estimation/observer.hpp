@@ -35,7 +35,7 @@
  * #include "wet/estimation/observer.hpp"
  * #include "wet/systems/state_space.hpp"
  *
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * constexpr StateSpace sys{
  *     .A = Matrix<2,2>{{1.0, 0.1}, {0.0, 1.0}},   // 10 Hz discrete double integrator
@@ -62,7 +62,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -576,4 +576,4 @@ private:
     ColVec<NX, T>     x_{};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

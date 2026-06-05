@@ -33,7 +33,7 @@
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -316,4 +316,4 @@ private:
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

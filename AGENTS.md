@@ -4,7 +4,7 @@ This file provides guidance to LLMs when working with code in this repository.
 
 ## Project
 
-Header-only C++20 control systems library (`wetmelon::control`) targeting embedded systems. Zero dynamic allocation, fully constexpr, fixed-size stack-allocated types throughout.
+Header-only C++20 control systems library (`wet`) targeting embedded systems. Zero dynamic allocation, fully constexpr, fixed-size stack-allocated types throughout.
 
 ## Build and Test
 
@@ -42,12 +42,12 @@ Generate golden reference data for tests: `py -3` with `scipy` and `control` lib
 
 ### Namespace layout
 
-- `wetmelon::control` — core types (`Matrix`, `StateSpace`, `ColVec`, controllers, rotations)
-- `wetmelon::control::design` — **constexpr** design functions and result structs (gains, coefficients, Riccati solutions)
-- `wetmelon::control::mat` — free functions for matrix operations (norms, determinant, expm, decompositions)
-- `wetmelon::control::wet` — constexpr math primitives (`wet::sin`, `wet::sqrt`, `wet::conj`, `wet::abs`)
-- `wetmelon::control::stability` — stability analysis
-- `wetmelon::control::analysis` — controllability, observability, frequency response
+- `wet` — core types (`Matrix`, `StateSpace`, `ColVec`, controllers, rotations)
+- `wet::design` — **constexpr** design functions and result structs (gains, coefficients, Riccati solutions)
+- `wet::mat` — free functions for matrix operations (norms, determinant, expm, decompositions)
+- `wet` — constexpr math primitives (`wet::sin`, `wet::sqrt`, `wet::conj`, `wet::abs`)
+- `wet::stability` — stability analysis
+- `wet::analysis` — controllability, observability, frequency response
 
 Design functions are `constexpr` — they work at both compile time and runtime. Users enforce compile-time evaluation via `constexpr` variables or `constinit` on the controller. Typical workflow: `design::dlqr(...)` in `double`, then `.as<float>()` to convert for embedded deployment.
 
@@ -392,7 +392,7 @@ Every header must have at least one complete, self-contained example in its Doxy
  * #include "wet/controllers/lqr.hpp"
  * #include "wet/systems/state_space.hpp"
  *
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * // Double integrator: x = [position, velocity], u = [acceleration]
  * constexpr StateSpace sys{

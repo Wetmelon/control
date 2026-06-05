@@ -21,7 +21,7 @@
 
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief State prediction result from the user's dynamics function
@@ -197,4 +197,4 @@ private:
     ColVec<NY, T>     innov{};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

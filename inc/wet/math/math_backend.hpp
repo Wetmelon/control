@@ -3,7 +3,7 @@
 #include <cmath>
 #include <utility>
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Composable std:: base for math backends
@@ -68,7 +68,7 @@ struct StdMathFallback {
 template<typename T>
 struct MathBackend;
 
-} // namespace wetmelon::control
+} // namespace wet
 
 // Auto-discover user backend profile. If not found, fall back to std:: with a warning.
 #if __has_include("wet_profile.hpp")

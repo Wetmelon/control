@@ -2,7 +2,7 @@
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // ===== Nonlinear Pendulum System =====
 // States: [theta, theta_dot]  (angle from vertical, angular velocity)

@@ -9,7 +9,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("constexpr_math") {
     TEST_CASE("wet::sqrt matches std::sqrt") {

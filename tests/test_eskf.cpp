@@ -7,7 +7,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 constexpr double kPi = std::numbers::pi_v<double>;
 

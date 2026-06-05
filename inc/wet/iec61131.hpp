@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace wetmelon::control::plc {
+namespace wet::plc {
 
 typedef bool     BOOL;  //< Boolean type
 typedef uint8_t  BYTE;  //< 8-bit unsigned integer
@@ -575,4 +575,4 @@ private:
     T elapsed_{0};
 };
 
-} // namespace wetmelon::control::plc
+} // namespace wet::plc

@@ -9,7 +9,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Embedded Umbrella") {
     TEST_CASE("wet/control.hpp alone supports compile-time synthesis + runtime control") {

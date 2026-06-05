@@ -7,7 +7,7 @@
 #include "wet/riccati.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace design {
 
 /**
@@ -158,4 +158,4 @@ public:
     [[nodiscard]] constexpr const Matrix<NU, NX + NY, T>& getK() const { return K; }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

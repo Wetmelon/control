@@ -18,7 +18,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /// Euler rotation order enumeration
 enum class EulerOrder {
@@ -879,4 +879,4 @@ using EulerZYXd = EulerZYX<double>;
 using EulerXYZf = EulerXYZ<float>;
 using EulerXYZd = EulerXYZ<double>;
 
-} // namespace wetmelon::control
+} // namespace wet

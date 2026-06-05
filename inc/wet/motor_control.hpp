@@ -6,7 +6,7 @@
 
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @defgroup motor_control Motor Control Transforms
@@ -159,4 +159,4 @@ template<typename T = float>
     return {std::clamp(duty_a, T{0}, T{1}), std::clamp(duty_b, T{0}, T{1}), std::clamp(duty_c, T{0}, T{1})};
 }
 
-} // namespace wetmelon::control
+} // namespace wet

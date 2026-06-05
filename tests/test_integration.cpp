@@ -9,7 +9,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 /**
  * @brief Integration test: Motor with flexible coupling and inertial load

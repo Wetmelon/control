@@ -74,7 +74,7 @@ Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 ```cpp
 #include "wet/control.hpp"   // one embeddable umbrella
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // Double integrator: states = [position, velocity], input = acceleration
 constexpr StateSpace sys{

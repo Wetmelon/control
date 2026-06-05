@@ -5,7 +5,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Excitation Design") {
     TEST_CASE("chirp config validates and converts") {

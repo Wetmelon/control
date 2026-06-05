@@ -5,7 +5,7 @@
  * @brief Placeholder estimation primitives for harmonic detection workflows.
  */
 
-namespace wetmelon::control::estimation {
+namespace wet::estimation {
 
 template<typename T = double>
 struct HarmonicDetectionResult {
@@ -17,4 +17,4 @@ struct HarmonicTrackerState {
     bool initialized{false};
 };
 
-} // namespace wetmelon::control::estimation
+} // namespace wet::estimation

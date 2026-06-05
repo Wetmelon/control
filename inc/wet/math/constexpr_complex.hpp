@@ -5,7 +5,7 @@
 #include "wetmelon_math.hpp"
 
 using namespace std::complex_literals;
-namespace wetmelon::control::wet {
+namespace wet {
 
 /**
  * @brief Constexpr complex number class for compile-time computations
@@ -389,4 +389,4 @@ constexpr T imag(const complex<T>& z) {
     return z.imag();
 }
 
-} // namespace wetmelon::control::wet
+} // namespace wet

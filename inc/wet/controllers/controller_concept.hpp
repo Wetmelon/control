@@ -46,7 +46,7 @@
 
 #include <concepts>
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief A SISO controller usable as a block in cascades and tuning harnesses.
@@ -134,4 +134,4 @@ concept SISOControllerWithModeControl = requires(C controller, U track) {
     { controller.is_enabled() } -> std::convertible_to<bool>;
 };
 
-} // namespace wetmelon::control
+} // namespace wet

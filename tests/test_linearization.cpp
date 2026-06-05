@@ -6,7 +6,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Linearization") {
     TEST_CASE("linearize computes A B C D at operating point") {

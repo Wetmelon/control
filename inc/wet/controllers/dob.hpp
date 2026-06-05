@@ -7,7 +7,7 @@
 
 #include "wet/estimation/disturbance_observer.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -34,4 +34,4 @@ struct DOBRuntimeBundle {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

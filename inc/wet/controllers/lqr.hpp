@@ -8,7 +8,7 @@
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -221,4 +221,4 @@ struct LQR {
     [[nodiscard]] constexpr const Matrix<NU, NX, T>& getK() const { return K; }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

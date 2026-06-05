@@ -30,7 +30,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -291,4 +291,4 @@ struct MultiPRController {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

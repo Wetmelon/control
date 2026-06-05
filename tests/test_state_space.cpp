@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("StateSpace Series Connection") {
     // Simple first-order systems: x' = -a*x + u, y = x

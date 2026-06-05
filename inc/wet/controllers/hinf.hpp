@@ -5,7 +5,7 @@
  * @brief Placeholder header for H-infinity feature.
  */
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -27,4 +27,4 @@ struct HInfRuntimeBundle {
     constexpr void reset() {}
 };
 
-} // namespace wetmelon::control
+} // namespace wet

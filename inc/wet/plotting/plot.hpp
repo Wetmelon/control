@@ -26,7 +26,7 @@
 #include "wet/analysis/analysis.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace plot {
 
 /**
@@ -262,4 +262,4 @@ impulse_response(const StateSpace<NX, 1, 1, NW, NV, T>& sys, size_t n_steps) {
 }
 
 } // namespace plot
-} // namespace wetmelon::control
+} // namespace wet

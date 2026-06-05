@@ -21,7 +21,7 @@
 
 #include <cstdint>
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Free-running elapsed-time accumulator.
@@ -139,4 +139,4 @@ private:
     T phase_{0};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

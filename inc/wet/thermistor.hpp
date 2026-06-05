@@ -4,10 +4,10 @@
  * @file thermistor.hpp
  * @brief NTC thermistor linearization (resistance → temperature).
  *
- * Splits the NTC conversion into a @ref wetmelon::control::design "design" step
+ * Splits the NTC conversion into a @ref wet::design "design" step
  * — which turns calibration data (Beta model or Steinhart-Hart coefficients)
  * into a small set of fitted coefficients — and a `constexpr`, allocation-free
- * runtime block (@ref wetmelon::control::Thermistor) that evaluates them one
+ * runtime block (@ref wet::Thermistor) that evaluates them one
  * sample at a time.
  *
  * @see filters/blocks.hpp for the rest of the everyday signal-conditioning blocks.
@@ -19,7 +19,7 @@
 #include "wet/matrix/cholesky.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -189,4 +189,4 @@ private:
     T c_{0};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

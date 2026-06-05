@@ -7,7 +7,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -154,4 +154,4 @@ struct LQG {
     [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x_ref) const { return lqr.control(kf.state(), x_ref); }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

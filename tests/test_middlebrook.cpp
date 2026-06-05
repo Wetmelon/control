@@ -10,8 +10,8 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::analysis;
+using namespace wet;
+using namespace wet::analysis;
 
 // ============================================================================
 // Simple RC source impedance: Z_s(s) = R + 1/(sC)

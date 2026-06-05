@@ -5,7 +5,7 @@
 #include "matrix.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Structure to hold eigenvalue computation results
@@ -919,4 +919,4 @@ template<typename T, size_t N>
     result.n_stable = stable_count;
     return result;
 }
-} // namespace wetmelon::control
+} // namespace wet

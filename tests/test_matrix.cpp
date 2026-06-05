@@ -8,7 +8,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("Matrix basic construction and access") {
     Matrix<2, 3, float> mat;

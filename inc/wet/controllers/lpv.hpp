@@ -5,7 +5,7 @@
  * @brief Placeholder header for LPV gain-scheduled feature.
  */
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -27,4 +27,4 @@ struct LPVRuntimeBundle {
     constexpr void reset() {}
 };
 
-} // namespace wetmelon::control
+} // namespace wet

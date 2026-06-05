@@ -2,7 +2,7 @@
 
 #include "matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace detail {
 /// Helper for views: returns mutable or const reference depending on IsConst
@@ -337,4 +337,4 @@ public:
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

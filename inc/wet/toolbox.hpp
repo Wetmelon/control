@@ -2,7 +2,7 @@
 
 /**
  * @file toolbox.hpp
- * @brief Host-side superset of wetmelon::control for design & analysis work.
+ * @brief Host-side superset of wet for design & analysis work.
  *
  * Includes everything in @ref control.hpp plus the tools you use while
  * designing on a workstation: frequency-domain analysis (Bode, Nyquist,
@@ -19,7 +19,7 @@
  *
  * @code
  * #include "wet/toolbox.hpp"          // host build: design + analyze + simulate
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * const auto omega = analysis::logspace(1.0, 1000.0, 200);
  * const auto metrics = analysis::loop_metrics(loop, omega);

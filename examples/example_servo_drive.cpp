@@ -7,8 +7,8 @@
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::sim;
+using namespace wet;
+using namespace wet::sim;
 
 // ===== PMSM 3-Phase Servo Drive with Two-Mass Mechanical Load =====
 //

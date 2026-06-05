@@ -8,7 +8,7 @@
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Check if (A, B) is a stabilizable pair
@@ -696,4 +696,4 @@ constexpr std::optional<Matrix<NX, NX, T>> care(
     return detail::care_sign(A, B, Q, R, N);
 }
 
-} // namespace wetmelon::control
+} // namespace wet

@@ -5,7 +5,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control::plc;
+using namespace wet::plc;
 
 /**
  * @brief Tests for IEC61131-3 function blocks

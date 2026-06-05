@@ -3,7 +3,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // LQG = LQR (state feedback) + Kalman filter (state estimation), tied together
 // by the separation principle. design::lqg() was previously only covered

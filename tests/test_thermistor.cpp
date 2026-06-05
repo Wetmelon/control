@@ -3,7 +3,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // NTC thermistor linearization: the design:: coefficient fits (Beta model and
 // three-point Steinhart-Hart) plus the runtime Thermistor evaluation.

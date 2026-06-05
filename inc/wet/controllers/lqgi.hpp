@@ -5,7 +5,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace design {
 /**
  * @struct LQGIResult
@@ -124,4 +124,4 @@ struct LQGI {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

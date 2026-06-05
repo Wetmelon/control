@@ -6,7 +6,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Single-Phase PLL") {
     TEST_CASE("Constructor initializes limits and outputs") {

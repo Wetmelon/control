@@ -7,7 +7,7 @@
 
 #include "wet/estimation/harmonic_estimation.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -31,4 +31,4 @@ struct ChatterSuppressionRuntime {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

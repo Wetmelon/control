@@ -5,7 +5,7 @@
 
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 template<typename T = double>
     requires std::is_floating_point_v<T>
@@ -36,4 +36,4 @@ template<typename T>
 constexpr T wrap(T x, T min, T max) {
     return x - ((max - min) * wet::floor((x - min) / (max - min)));
 }
-} // namespace wetmelon::control
+} // namespace wet

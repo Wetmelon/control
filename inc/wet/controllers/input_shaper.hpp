@@ -5,7 +5,7 @@
  * @brief Placeholder header for input shaping feature.
  */
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -21,4 +21,4 @@ struct InputShaperRuntime {
     constexpr void reset() {}
 };
 
-} // namespace wetmelon::control
+} // namespace wet

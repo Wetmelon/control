@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "wet/utility/timing.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // Non-blocking software timers.
 

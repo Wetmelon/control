@@ -8,7 +8,7 @@
 
 #include "wet/controllers/pid.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // ===== Internal simulation state =====
 struct ServoSim {

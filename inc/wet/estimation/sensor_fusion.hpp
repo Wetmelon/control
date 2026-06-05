@@ -18,7 +18,7 @@
 #include "eskf.hpp"
 #include "wet/geometry.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Simple complementary filter for orientation estimation
@@ -311,4 +311,4 @@ public:
     [[nodiscard]] constexpr const Vec3<T>&       gyro_bias() const { return b_g_nom; }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

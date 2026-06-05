@@ -13,7 +13,7 @@
 #include "wet/math/constexpr_complex.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 template<typename T>
 struct is_matrix_type : std::false_type {};
@@ -986,7 +986,7 @@ template<MatrixLike A, typename Scalar>
     }
 }
 
-} // namespace wetmelon::control
+} // namespace wet
 
 #include "block.hpp"            // IWYU pragma: keep
 #include "cholesky.hpp"         // IWYU pragma: keep

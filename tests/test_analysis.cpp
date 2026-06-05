@@ -7,7 +7,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("linspace and logspace support float") {
     const auto lin = analysis::linspace(0.0f, 1.0f, 5);

@@ -5,7 +5,7 @@
 // fallback in math_backend.hpp — do not include directly.
 #include "math_backend.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 template<>
 struct MathBackend<float> : StdMathFallback<float> {};
@@ -13,4 +13,4 @@ struct MathBackend<float> : StdMathFallback<float> {};
 template<>
 struct MathBackend<double> : StdMathFallback<double> {};
 
-} // namespace wetmelon::control
+} // namespace wet

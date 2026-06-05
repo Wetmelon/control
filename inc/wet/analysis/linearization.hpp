@@ -22,7 +22,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace analysis {
 
 /**
@@ -203,4 +203,4 @@ template<size_t NX, size_t NU, typename T = double, typename Dynamics>
 }
 
 } // namespace analysis
-} // namespace wetmelon::control
+} // namespace wet

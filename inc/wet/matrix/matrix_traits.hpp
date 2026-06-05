@@ -3,7 +3,7 @@
 
 #include "wet/math/constexpr_complex.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 // True if T is wet::complex<U> for some U
 template<typename T>
@@ -70,4 +70,4 @@ constexpr scalar_type_t<std::remove_const_t<T>> default_tol() {
     }
 }
 
-} // namespace wetmelon::control
+} // namespace wet

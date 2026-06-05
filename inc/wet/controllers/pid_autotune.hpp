@@ -10,7 +10,7 @@
 #include "wet/estimation/identification.hpp"
 #include "wet/estimation/recursive_least_squares.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -76,4 +76,4 @@ struct PIDAutotuneRuntime {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

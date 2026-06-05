@@ -10,7 +10,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix_traits.hpp"
 
-namespace wetmelon::control::estimation {
+namespace wet::estimation {
 
 /**
  * @brief Configuration for a first-order disturbance observer.
@@ -210,4 +210,4 @@ private:
     bool                                  valid_{true};
 };
 
-} // namespace wetmelon::control::estimation
+} // namespace wet::estimation

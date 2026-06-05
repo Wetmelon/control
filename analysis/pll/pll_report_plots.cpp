@@ -12,7 +12,7 @@
 
 #include "pll_report_support.hpp"
 
-namespace wetmelon::control::pll_report {
+namespace wet::pll_report {
 
 namespace {
 
@@ -482,4 +482,4 @@ void write_plot_artifacts(const ContinuousResults& cont, const std::vector<doubl
     write_svg_plots(cont, omega);
 }
 
-} // namespace wetmelon::control::pll_report
+} // namespace wet::pll_report

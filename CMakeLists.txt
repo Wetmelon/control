@@ -7,7 +7,7 @@ project(control
 
 # --- Header-only library target ---
 add_library(control INTERFACE)
-add_library(wetmelon::control ALIAS control)
+add_library(wet ALIAS control)
 
 target_include_directories(control INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/inc>

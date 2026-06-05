@@ -13,7 +13,7 @@
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace stability {
 
 /**
@@ -156,4 +156,4 @@ template<size_t NX, size_t NU, typename T = double>
 }
 
 } // namespace stability
-} // namespace wetmelon::control
+} // namespace wet

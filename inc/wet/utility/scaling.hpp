@@ -17,7 +17,7 @@
 
 #include "wet/matrix/matrix.hpp" // RowVec
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Linear interpolation between @p a and @p b by fraction @p t.
@@ -129,4 +129,4 @@ template<size_t N, typename T>
     return result;
 }
 
-} // namespace wetmelon::control
+} // namespace wet

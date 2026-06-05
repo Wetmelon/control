@@ -22,7 +22,7 @@
 
 #include "math_backend.hpp"
 
-namespace wetmelon::control::wet {
+namespace wet {
 
 /**
  * @brief Compute square root using Newton's method (constexpr)
@@ -678,4 +678,4 @@ constexpr bool isfinite(T x) {
     return abs(x) <= std::numeric_limits<T>::max();
 }
 
-} // namespace wetmelon::control::wet
+} // namespace wet

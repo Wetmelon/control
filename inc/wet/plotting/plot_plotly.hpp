@@ -23,7 +23,7 @@
 #include "wet/analysis/analysis.hpp"
 #include "wet/simulation/simulate.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace plot {
 
 /**
@@ -227,4 +227,4 @@ plotlypp::Figure plot_step(
 }
 
 } // namespace plot
-} // namespace wetmelon::control
+} // namespace wet

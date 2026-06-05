@@ -2,7 +2,7 @@
 
 #include "wet/filters/sogi.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 namespace {
 SOGI my_sogi{};

@@ -1,6 +1,6 @@
 #pragma once
 
-namespace wetmelon::control {
+namespace wet {
 
 // Result type goes here
 
@@ -55,4 +55,4 @@ public:
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

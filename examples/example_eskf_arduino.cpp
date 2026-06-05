@@ -8,7 +8,7 @@
 #include "wet/geometry.hpp"
 #include "wet/matrix/matrix.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // Mock functions to simulate IMU readings (replace with actual sensor code)
 Vec3<float> readAccelerometer() {

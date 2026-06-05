@@ -9,7 +9,7 @@
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -808,4 +808,4 @@ public:
     constexpr size_t get_delay_samples() const { return delay_samples_; }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

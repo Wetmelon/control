@@ -6,7 +6,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -196,4 +196,4 @@ public:
         u_prev_ = T{0};
     }
 };
-} // namespace wetmelon::control
+} // namespace wet

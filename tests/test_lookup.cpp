@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "wet/utility/lookup.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // Breakpoint lookup tables: 1-D linear/nearest + 2-D bilinear.
 
@@ -38,7 +38,8 @@ TEST_SUITE("Lookup tables") {
         constexpr Lut2D<2, 2, double> lut{
             {0.0, 1.0}, // rows
             {0.0, 1.0}, // cols
-            {{0.0, 10.0}, {20.0, 30.0}}};
+            {{0.0, 10.0}, {20.0, 30.0}}
+        };
         // Corners are the grid values.
         CHECK(lut(0.0, 0.0) == doctest::Approx(0.0));
         CHECK(lut(0.0, 1.0) == doctest::Approx(10.0));

@@ -3,7 +3,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // LQGI = LQI (state feedback with integral action) + Kalman estimator. The
 // integral state drives steady-state output error to zero for constant

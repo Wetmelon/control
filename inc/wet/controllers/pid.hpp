@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <limits>
 
-namespace wetmelon::control {
+namespace wet {
 namespace design {
 
 /**
@@ -388,4 +388,4 @@ using PController = PIDController<T, PIDMode::P>;
 template<typename T = float>
 using PIController = PIDController<T, PIDMode::PI>;
 
-} // namespace wetmelon::control
+} // namespace wet

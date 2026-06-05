@@ -6,7 +6,7 @@
 #include "wet/filters/sogi.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 /**
  * @brief Single-Phase PLL
  *
@@ -105,4 +105,4 @@ private:
     T phase_estimate{};     // Estimated phase of the input signal
     T frequency_estimate{}; // Estimated frequency of the input signal
 };
-} // namespace wetmelon::control
+} // namespace wet

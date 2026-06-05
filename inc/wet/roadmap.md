@@ -1,4 +1,4 @@
-# wetmelon::control Library Roadmap
+# wet Library Roadmap
 
 Date: 2026-05-25
 Owner: controls core
@@ -17,7 +17,7 @@ Status: draft
 
 ## Purpose
 
-`wetmelon::control` is a **controls** library, built on a deliberately thin, layered base. Generic embedded plumbing comes from ETL (Layer 0). On top of that the library **first** delivers the foundational linear / first-order primitives that *every* controls algorithm leans on — linear algebra, constexpr math, LTI system types, first-order and biquad filters, signal-conditioning blocks — and only on that foundation the controllers, estimators, and synthesis. Work the stack **bottom-up**: see [Architecture layers & build priority](#architecture-layers--build-priority).
+`wet` is a **controls** library, built on a deliberately thin, layered base. Generic embedded plumbing comes from ETL (Layer 0). On top of that the library **first** delivers the foundational linear / first-order primitives that *every* controls algorithm leans on — linear algebra, constexpr math, LTI system types, first-order and biquad filters, signal-conditioning blocks — and only on that foundation the controllers, estimators, and synthesis. Work the stack **bottom-up**: see [Architecture layers & build priority](#architecture-layers--build-priority).
 
 This roadmap tracks planned additions across controllers, estimators, and signal-processing/identification, held to a common synthesis workflow using the three-tier pattern:
 

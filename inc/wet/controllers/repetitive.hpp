@@ -5,7 +5,7 @@
  * @brief Placeholder header for repetitive control feature.
  */
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -27,4 +27,4 @@ struct RepetitiveRuntimeBundle {
     constexpr void reset() {}
 };
 
-} // namespace wetmelon::control
+} // namespace wet

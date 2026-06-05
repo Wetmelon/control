@@ -11,8 +11,8 @@
 #include "pll_report_support.hpp"
 #include "wet/utility.hpp"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::pll_report;
+using namespace wet;
+using namespace wet::pll_report;
 
 int main(int argc, char** argv) {
     constexpr double f_nom = 50.0;

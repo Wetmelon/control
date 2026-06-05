@@ -3,7 +3,7 @@
 #include "wet/math/wetmelon_math.hpp"
 #include "wet/matrix/matrix.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // The Extended Kalman Filter handles nonlinear dynamics/measurement by
 // linearizing about the current estimate. The user supplies callables that

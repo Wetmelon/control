@@ -5,7 +5,7 @@
 #include "wet/controllers/lqr.hpp"
 #include "wet/systems/state_space.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 int main() {
     constexpr double L = 20e-6;           // Inductance in Henrys

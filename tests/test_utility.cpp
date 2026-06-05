@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Utility") {
     TEST_CASE("unit conversion helpers support float") {

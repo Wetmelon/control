@@ -10,7 +10,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("State-space discrete propagation with control") {
     constexpr double dt = 1.0;

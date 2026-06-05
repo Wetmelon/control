@@ -10,7 +10,7 @@
 #include "matrix_traits.hpp"
 #include "wet/math/constexpr_complex.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace mat {
 
@@ -362,4 +362,4 @@ template<size_t Rows, size_t Cols, typename T>
     return mat::solve(*this, Matrix<Rows, Cols, T>::identity());
 }
 
-} // namespace wetmelon::control
+} // namespace wet

@@ -7,7 +7,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("SOGI design") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0; // 50 Hz

@@ -4,7 +4,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_SUITE("Sliding Mode Control (SMC)") {
     TEST_CASE("SMC gain computation") {

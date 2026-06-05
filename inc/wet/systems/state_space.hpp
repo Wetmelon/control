@@ -4,7 +4,7 @@
 
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace {
 
@@ -406,4 +406,4 @@ constexpr auto operator/(const auto& sys1, const auto& sys2)
 {
     return feedback(sys1, sys2);
 }
-} // namespace wetmelon::control
+} // namespace wet

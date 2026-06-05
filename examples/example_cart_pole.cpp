@@ -10,7 +10,7 @@
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 /**
  * @brief Inverted Pendulum on Cart (Cart-Pole) System

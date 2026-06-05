@@ -6,7 +6,7 @@
 
 #include "state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace tf_detail {
 
@@ -277,4 +277,4 @@ struct ZPK {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

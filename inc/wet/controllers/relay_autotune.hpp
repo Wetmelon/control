@@ -29,7 +29,7 @@
  * #include "wet/controllers/relay_autotune.hpp"
  * #include "wet/controllers/pid_design.hpp"
  *
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * constexpr float Ts = 0.02f;
  *
@@ -96,7 +96,7 @@
 
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -442,4 +442,4 @@ private:
     T Tu_{T{0}};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

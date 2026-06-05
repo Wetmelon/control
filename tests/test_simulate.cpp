@@ -6,8 +6,8 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::sim;
+using namespace wet;
+using namespace wet::sim;
 
 // Pendulum parameters for simulation tests
 constexpr double g_pend = 9.81;

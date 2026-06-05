@@ -6,7 +6,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("Block view basic functionality") {
     Matrix<3, 4, double> mat = {

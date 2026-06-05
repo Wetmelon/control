@@ -7,7 +7,7 @@
 #include "wet/matrix/colvec.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -330,4 +330,4 @@ private:
     T togi_state = {};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

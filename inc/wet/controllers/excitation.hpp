@@ -43,7 +43,7 @@
  * @code
  * #include "wet/controllers/excitation.hpp"
  *
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * constexpr auto chirp_cfg = design::synthesize_chirp<double>({
  *     .amplitude = 1.0,
@@ -75,7 +75,7 @@
 
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace detail {
 
@@ -1152,4 +1152,4 @@ private:
     bool                               valid_{false};
 };
 
-} // namespace wetmelon::control
+} // namespace wet

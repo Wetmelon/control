@@ -2,7 +2,7 @@
 
 #include "matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 // Forward declarations for to_vector()
 template<size_t N, typename T>
@@ -215,4 +215,4 @@ public:
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

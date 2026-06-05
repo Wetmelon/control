@@ -5,7 +5,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("Blkdiag") {
     Matrix<2, 2> mat1 = {{1, 2}, {3, 4}};

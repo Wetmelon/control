@@ -17,7 +17,7 @@
 #include "pr.hpp"
 #include "wet/systems/state_space.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace design {
 
 /**
@@ -507,4 +507,4 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 }
 
 } // namespace design
-} // namespace wetmelon::control
+} // namespace wet

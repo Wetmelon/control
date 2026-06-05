@@ -1,7 +1,7 @@
 #include "doctest.h"
 #include "wet/utility/scaling.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // Scaling / interpolation / calibration helpers.
 

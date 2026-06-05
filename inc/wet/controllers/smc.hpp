@@ -4,7 +4,7 @@
 
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -103,4 +103,4 @@ public:
         error_prev = T{};
     }
 };
-} // namespace wetmelon::control
+} // namespace wet

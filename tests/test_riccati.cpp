@@ -3,9 +3,9 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/riccati.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
-// The Riccati solvers (care/dare, in namespace wetmelon::control) are
+// The Riccati solvers (care/dare, in namespace wet) are
 // foundational: LQR, LQI, LQG and LQGI all stand on top of dare(), yet they had
 // no direct test of their own. These tests validate by residual (plug the
 // returned P back into the defining equation and check the residual is ~0) so
@@ -123,7 +123,7 @@ TEST_SUITE("Riccati Solvers") {
         constexpr Matrix<1, 1> B{{1.0}};
         constexpr Matrix<1, 1> Q{{1.0}};
         constexpr Matrix<1, 1> R{{1.0}};
-        constexpr auto         P = wetmelon::control::dare(A, B, Q, R);
+        constexpr auto         P = wet::dare(A, B, Q, R);
         static_assert(P.has_value(), "scalar DARE must converge at compile time");
     }
 }

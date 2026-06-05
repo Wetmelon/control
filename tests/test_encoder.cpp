@@ -6,7 +6,7 @@
 #include "doctest.h"
 #include "wet/utility/encoder.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 namespace {
 // Quadrature cycles in (A, B), each starting and ending at state 00 so repeated

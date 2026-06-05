@@ -8,7 +8,7 @@
 
 #include "pll_report_support.hpp"
 
-namespace wetmelon::control::pll_report {
+namespace wet::pll_report {
 
 namespace {
 
@@ -181,4 +181,4 @@ std::string make_stdout_report(
     return md.str();
 }
 
-} // namespace wetmelon::control::pll_report
+} // namespace wet::pll_report

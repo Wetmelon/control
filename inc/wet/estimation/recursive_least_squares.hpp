@@ -12,7 +12,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/matrix/matrix_traits.hpp"
 
-namespace wetmelon::control::estimation {
+namespace wet::estimation {
 
 /**
  * @brief Common RLS configuration.
@@ -341,4 +341,4 @@ private:
     bool                                             valid_{true};
 };
 
-} // namespace wetmelon::control::estimation
+} // namespace wet::estimation

@@ -5,7 +5,7 @@
 
 #include "matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace mat {
 /**
@@ -695,4 +695,4 @@ template<typename T, size_t N>
     return (exp_A + exp_neg_A) * T{0.5};
 }
 } // namespace mat
-} // namespace wetmelon::control
+} // namespace wet

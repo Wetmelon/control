@@ -23,7 +23,7 @@
 #include "wet/systems/transfer_function.hpp"
 #include "wet/utility.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 namespace analysis {
 
 template<typename T = double>
@@ -1168,4 +1168,4 @@ template<typename T>
 }
 
 } // namespace analysis
-} // namespace wetmelon::control
+} // namespace wet

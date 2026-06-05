@@ -5,8 +5,8 @@
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::sim;
+using namespace wet;
+using namespace wet::sim;
 
 // ===== Nonlinear Pendulum System =====
 // States: [theta, theta_dot]  (angle from vertical, angular velocity)

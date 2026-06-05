@@ -25,7 +25,7 @@
  *
  * // Option 3: custom backend — inherit StdMathFallback<T> and override
  * //           only the functions your platform provides:
- * namespace wetmelon::control {
+ * namespace wet {
  * template<>
  * struct MathBackend<float> : StdMathFallback<float> {
  *     static float sin(float x)  { return my_platform_sinf(x); }
@@ -33,7 +33,7 @@
  *     static float sqrt(float x) { return my_platform_sqrtf(x); }
  *     // Unoverridden functions (cbrt, exp, log, etc.) fall through to std::
  * };
- * } // namespace wetmelon::control
+ * } // namespace wet
  * @endcode
  *
  * If wet_profile.hpp is not found, the library emits a #warning and falls back
@@ -46,7 +46,7 @@
 
 #include "wet/motor_control.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 int main() {
     // Park/Clarke transforms — these call wet::sin and wet::cos at runtime,

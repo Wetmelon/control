@@ -5,7 +5,7 @@
 #include "state_space.hpp"
 #include "wet/matrix/matrix.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 /**
  * @brief Discretization methods for continuous-time state-space systems
@@ -231,4 +231,4 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
             return detail::discretize_forward_euler_impl(sys, sampling_time);
     }
 }
-} // namespace wetmelon::control
+} // namespace wet

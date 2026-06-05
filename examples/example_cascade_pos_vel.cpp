@@ -43,7 +43,7 @@
 #include "wet/controllers/cascade.hpp"
 #include "wet/controllers/pid.hpp"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 // ===== Position/Velocity Cascade on 1-DOF Mass =====
 //

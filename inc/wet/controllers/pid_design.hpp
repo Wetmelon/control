@@ -25,7 +25,7 @@
 #include "pid.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace design {
 
@@ -601,4 +601,4 @@ pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
 }
 
 } // namespace design
-} // namespace wetmelon::control
+} // namespace wet

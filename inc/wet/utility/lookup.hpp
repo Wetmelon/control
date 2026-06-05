@@ -18,10 +18,10 @@
 #include <algorithm>
 #include <cstddef>
 
-#include "wet/matrix/matrix.hpp"    // Matrix, ColVec
-#include "wet/utility/scaling.hpp"  // lerp, inverse_lerp
+#include "wet/matrix/matrix.hpp"   // Matrix, ColVec
+#include "wet/utility/scaling.hpp" // lerp, inverse_lerp
 
-namespace wetmelon::control {
+namespace wet {
 
 /// Out-of-range behaviour for a @ref Lut1D query beyond its breakpoints.
 enum class Extrapolation {
@@ -81,9 +81,9 @@ template<size_t N, typename T = float>
 struct Lut1D {
     static_assert(N >= 1, "Lut1D needs at least one breakpoint");
 
-    ColVec<N, T>  xs{};                          //!< Strictly increasing breakpoints.
-    ColVec<N, T>  ys{};                          //!< Value at each breakpoint.
-    Extrapolation oob{Extrapolation::Clamp};     //!< Out-of-range policy.
+    ColVec<N, T>  xs{};                      //!< Strictly increasing breakpoints.
+    ColVec<N, T>  ys{};                      //!< Value at each breakpoint.
+    Extrapolation oob{Extrapolation::Clamp}; //!< Out-of-range policy.
 
     /// Linearly interpolated value at @p x (extrapolation per @ref oob).
     [[nodiscard]] constexpr T operator()(T x) const {
@@ -141,9 +141,9 @@ template<size_t R, size_t C, typename T = float>
 struct Lut2D {
     static_assert(R >= 1 && C >= 1, "Lut2D needs at least one breakpoint per axis");
 
-    ColVec<R, T>     rows{}; //!< Strictly increasing row breakpoints.
-    ColVec<C, T>     cols{}; //!< Strictly increasing column breakpoints.
-    Matrix<R, C, T>  z{};    //!< Grid values, z(row, col).
+    ColVec<R, T>    rows{}; //!< Strictly increasing row breakpoints.
+    ColVec<C, T>    cols{}; //!< Strictly increasing column breakpoints.
+    Matrix<R, C, T> z{};    //!< Grid values, z(row, col).
 
     /// Bilinearly interpolated value at (@p r, @p c), clamped to the grid edges.
     [[nodiscard]] constexpr T operator()(T r, T c) const {
@@ -165,4 +165,4 @@ struct Lut2D {
     }
 };
 
-} // namespace wetmelon::control
+} // namespace wet

@@ -6,7 +6,7 @@
 #include "wet/matrix/matrix.hpp"
 #include "wet/matrix/matrix_functions.hpp"
 
-namespace wetmelon::control::sim {
+namespace wet::sim {
 
 /**
  * @struct IntegrationResult
@@ -499,4 +499,4 @@ struct Integrator : public std::variant<
                         DP5<NX, T>,
                         Exact<NX, T> > {};
 
-} // namespace wetmelon::control::sim
+} // namespace wet::sim

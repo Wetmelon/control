@@ -15,7 +15,7 @@
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 // MATLAB®-style matrix functions
 namespace matlab {
 
@@ -425,7 +425,8 @@ template<size_t NX, typename T = double>
     T Td = Ti / 4;
     T Kd = Kp * Td;
     T Kbc = Ki; // Back-calculation gain
-    return ::wetmelon::control::design::PIDResult<T>{
+
+    return wet::design::PIDResult<T>{
         Kp, Ki, Kd, T{0},
         -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(),
         -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(),
@@ -435,4 +436,4 @@ template<size_t NX, typename T = double>
 
 } // namespace matlab
 
-} // namespace wetmelon::control
+} // namespace wet

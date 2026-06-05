@@ -6,8 +6,8 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
-using namespace wetmelon::control::sim;
+using namespace wet;
+using namespace wet::sim;
 
 // Simple exponential decay: dx/dt = -x, x(0) = 1 => x(t) = exp(-t)
 static auto exp_decay = [](double /*t*/, const ColVec<1>& x) -> ColVec<1> {

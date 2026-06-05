@@ -2,7 +2,7 @@
 
 /**
  * @file control.hpp
- * @brief Umbrella header for the embeddable core of wetmelon::control.
+ * @brief Umbrella header for the embeddable core of wet.
  *
  * Includes everything that is allocation-free and safe to compile for an
  * embedded target: the linear-algebra core, LTI system types, all runtime
@@ -16,7 +16,7 @@
  *
  * @code
  * #include "wet/control.hpp"          // one include, embedded-safe
- * using namespace wetmelon::control;
+ * using namespace wet;
  *
  * constexpr auto art = design::synthesize_lqi(sys_d, Q_aug, R);
  * static_assert(art.success);

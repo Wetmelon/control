@@ -10,7 +10,7 @@
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 
-namespace wetmelon::control::pll_report {
+namespace wet::pll_report {
 
 constexpr double TWO_PI = 2.0 * std::numbers::pi;
 using LoopMetrics = analysis::LoopSummary<double>;
@@ -122,4 +122,4 @@ std::string make_stdout_report(
 
 void write_plot_artifacts(const ContinuousResults& cont, const std::vector<double>& omega);
 
-} // namespace wetmelon::control::pll_report
+} // namespace wet::pll_report

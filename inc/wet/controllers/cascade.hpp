@@ -36,7 +36,7 @@
 #include "wet/controllers/controller_concept.hpp"
 #include "wet/controllers/pid.hpp"
 
-namespace wetmelon::control {
+namespace wet {
 
 namespace detail {
 
@@ -209,4 +209,4 @@ using CascadePPI = Cascade<PIDController<T, PIDMode::P>, PIDController<T, PIDMod
 template<typename Outer, typename Middle, typename Inner>
 using Cascade3 = Cascade<Outer, Cascade<Middle, Inner>>;
 
-} // namespace wetmelon::control
+} // namespace wet

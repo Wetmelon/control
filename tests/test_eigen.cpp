@@ -6,7 +6,7 @@
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wetmelon::control;
+using namespace wet;
 
 TEST_CASE("Complex Matrix Support") {
     using Complex = wet::complex<double>;
