@@ -109,8 +109,9 @@ template<typename T, size_t N>
     for (size_t iter = 0; iter < max_iter; ++iter) {
         ColVec<N, T> w = AtA * v;
         T            new_lambda = w.norm();
-        if (new_lambda < tol)
+        if (new_lambda < tol) {
             return T{0};
+        }
 
         v = w * (T{1} / new_lambda);
 
@@ -290,13 +291,16 @@ template<typename T, size_t N>
     }
 
     T scale = T(1);
-    for (size_t i = 0; i < s; ++i)
+    for (size_t i = 0; i < s; ++i) {
         scale *= T(0.5);
+    }
 
     Matrix<N, N, T> A_scaled = A;
-    for (size_t i = 0; i < N; ++i)
-        for (size_t j = 0; j < N; ++j)
+    for (size_t i = 0; i < N; ++i) {
+        for (size_t j = 0; j < N; ++j) {
             A_scaled(i, j) *= scale;
+        }
+    }
 
     // 3️⃣ Precompute powers
     Matrix<N, N, T> A2 = A_scaled * A_scaled;
@@ -338,8 +342,9 @@ template<typename T, size_t N>
     for (int iter = 0; iter < 2; ++iter) {
         Matrix<N, N, T> residual = (V + U) - (V - U) * R;
         auto            delta_opt = solve(V - U, residual);
-        if (!delta_opt)
+        if (!delta_opt) {
             break;
+        }
         R = R + delta_opt.value();
     }
 
@@ -381,8 +386,9 @@ template<typename T, size_t N>
         for (int iter = 0; iter < 50; ++iter) {
             auto Y_inv = Y.inverse();
             auto Z_inv = Z.inverse();
-            if (!Y_inv || !Z_inv)
+            if (!Y_inv || !Z_inv) {
                 break;
+            }
 
             Matrix<N, N, T> Y_next = (Y + Z_inv.value()) * T{0.5};
             Matrix<N, N, T> Z_next = (Z + Y_inv.value()) * T{0.5};
@@ -398,8 +404,9 @@ template<typename T, size_t N>
             Y = Y_next;
             Z = Z_next;
 
-            if (diff < default_tol<T>())
+            if (diff < default_tol<T>()) {
                 break;
+            }
         }
         return Y;
     };

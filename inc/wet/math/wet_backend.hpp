@@ -20,6 +20,7 @@ struct MathBackend<float> : StdMathFallback<float> {
         const auto sc = wet::sincos(x);
         return {sc.sin, sc.cos};
     }
+
     static float sqrt(float x) { return wet::sqrt(x); }
 };
 
