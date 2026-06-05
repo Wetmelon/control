@@ -24,6 +24,22 @@
 
 namespace wet {
 
+namespace detail {
+/**
+ * @brief Round to nearest integer (ties away from zero), returned as long long.
+ *
+ * Used for argument reduction in the constexpr trig/exp paths. Avoids std::round
+ * (not constexpr-usable for our purposes) and the slow, precision-losing
+ * subtract-in-a-loop reduction. The caller is responsible for keeping the
+ * quotient within the range of long long; for the elementary functions here the
+ * inputs that matter for compile-time design code are well within that range.
+ */
+template<typename T>
+constexpr long long lround_away(T x) {
+    return static_cast<long long>(x >= T{0} ? x + T{0.5} : x - T{0.5});
+}
+} // namespace detail
+
 /**
  * @brief Compute square root using Newton's method (constexpr)
  *
@@ -282,16 +298,15 @@ constexpr T cos(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::cos(x);
     }
-    constexpr T pi = std::numbers::pi_v<T>;
-    constexpr T two_pi = T{2} * pi;
-
-    // Reduce to [-π, π]
-    while (x > pi) {
-        x -= two_pi;
-    }
-    while (x < -pi) {
-        x += two_pi;
-    }
+    // Reduce to [-π, π] via k = round(x / 2π), x ← x − k·2π.
+    // 2π is carried as a two-part (Cody–Waite) constant so that k·2π is formed
+    // to ~66 bits, avoiding the precision loss of subtracting a single-double 2π
+    // (and the unbounded iteration count of a subtract-in-a-loop reduction).
+    constexpr T two_pi_hi = T{6.28318530693650245668};
+    constexpr T two_pi_lo = T{2.43084020260247689728e-10};
+    constexpr T inv_two_pi = T{0.15915494309189533577};
+    const T     kreal = static_cast<T>(detail::lround_away(x * inv_two_pi));
+    x = (x - (kreal * two_pi_hi)) - (kreal * two_pi_lo);
 
     // Taylor series: cos(x) = 1 - x²/2! + x⁴/4! - x⁶/6! + ...
     T x2 = x * x;
@@ -320,15 +335,12 @@ constexpr T sin(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::sin(x);
     }
-    constexpr T pi = std::numbers::pi_v<T>;
-    constexpr T two_pi = T{2} * pi;
-
-    while (x > pi) {
-        x -= two_pi;
-    }
-    while (x < -pi) {
-        x += two_pi;
-    }
+    // Reduce to [-π, π] via two-part 2π (see cos() for rationale).
+    constexpr T two_pi_hi = T{6.28318530693650245668};
+    constexpr T two_pi_lo = T{2.43084020260247689728e-10};
+    constexpr T inv_two_pi = T{0.15915494309189533577};
+    const T     kreal = static_cast<T>(detail::lround_away(x * inv_two_pi));
+    x = (x - (kreal * two_pi_hi)) - (kreal * two_pi_lo);
 
     T x2 = x * x;
     T result = x;
@@ -385,13 +397,18 @@ constexpr T tan(T x) {
     constexpr T pi = std::numbers::pi_v<T>;
     constexpr T half_pi = pi / T{2};
 
-    // Reduce to r ∈ [-π/2, π/2] via k = round(x / π)
-    T   k_real = x / pi;
-    int k = static_cast<int>(k_real >= T{0} ? k_real + T{0.5} : k_real - T{0.5});
-    T   r = x - (static_cast<T>(k) * pi);
+    // Reduce to r ∈ [-π/2, π/2] via k = round(x / π), with π carried as a
+    // two-part (Cody–Waite) constant so that k·π is formed to ~66 bits.
+    constexpr T pi_hi = T{3.14159265346825122834};
+    constexpr T pi_lo = T{1.21542010130123844986e-10};
+    constexpr T inv_pi = T{0.31830988618379067154};
+    const T     kreal = static_cast<T>(detail::lround_away(x * inv_pi));
+    T           r = (x - (kreal * pi_hi)) - (kreal * pi_lo);
 
-    // Near ±π/2 the continued fraction converges slowly.
-    // Use tan(r) = −1/tan(π/2 − r) to work with the complementary angle.
+    // Near ±π/2 the continued fraction converges slowly. Work with the
+    // complementary angle via the cotangent identity, valid for r ∈ (0, π/2):
+    //     tan(r) = cot(π/2 − r) = 1 / tan(π/2 − r)
+    // The result's sign follows the sign of r (tan is odd), applied at the end.
     T abs_r = r >= T{0} ? r : -r;
     if (abs_r > T{1.2}) {
         T comp = half_pi - abs_r;
@@ -404,7 +421,7 @@ constexpr T tan(T x) {
             cf = T((2 * i) + 1) - (x2 / cf);
         }
         T tan_comp = comp / cf;
-        T result = -T{1} / tan_comp;
+        T result = T{1} / tan_comp;
         return r >= T{0} ? result : -result;
     }
 
@@ -436,11 +453,45 @@ constexpr T exp(T x) {
     if (!std::is_constant_evaluated()) {
         return MathBackend<T>::exp(x);
     }
+    // Overflow / underflow guards (double range; for float the 2^k scaling
+    // below saturates to ±inf / 0 on its own well before these bounds).
+    if (x > T{709.782712893384}) {
+        return std::numeric_limits<T>::infinity();
+    }
+    if (x < T{-745.133219101941}) {
+        return T{0};
+    }
+
+    // Argument reduction: x = k·ln2 + r with k = round(x/ln2) and |r| ≤ ln2/2,
+    // so exp(x) = 2^k · exp(r). The Taylor series then only ever sees the small,
+    // fast-converging remainder r ∈ [−0.347, 0.347] instead of the raw argument.
+    // ln2 is carried as a two-part (Cody–Waite) constant for an accurate r.
+    constexpr T     ln2_hi = T{6.93147180369123816490e-01};
+    constexpr T     ln2_lo = T{1.90821492927058770002e-10};
+    constexpr T     inv_ln2 = T{1.44269504088896340736};
+    const long long k = detail::lround_away(x * inv_ln2);
+    const T         kreal = static_cast<T>(k);
+    const T         r = (x - (kreal * ln2_hi)) - (kreal * ln2_lo);
+
     T result = T{1};
     T term = T{1};
-    for (int n = 1; n <= 20; ++n) {
-        term *= x / T(n);
+    for (int n = 1; n <= 14; ++n) {
+        term *= r / T(n);
         result += term;
+    }
+
+    // Scale by 2^k. Done by repeated doubling/halving on the O(1)-magnitude
+    // series result so intermediates stay finite — forming 2^k directly (e.g.
+    // via pow) would overflow to ∞ on the final squaring for large k and that
+    // is not a constant expression, even when the final exp(x) is finite.
+    if (k >= 0) {
+        for (long long i = 0; i < k; ++i) {
+            result *= T{2};
+        }
+    } else {
+        for (long long i = 0; i < -k; ++i) {
+            result *= T{0.5};
+        }
     }
     return result;
 }

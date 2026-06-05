@@ -255,3 +255,232 @@ TEST_CASE("compute_eigenvalues_qr - zero matrix") {
     CHECK(result.eigenvalues_real(0, 0) == doctest::Approx(0.0));
     CHECK(result.eigenvalues_real(1, 1) == doctest::Approx(0.0));
 }
+
+namespace {
+
+// Largest |A - B| element over an N x M pair.
+template<size_t N, size_t M>
+double max_abs_diff(const Matrix<N, M>& A, const Matrix<N, M>& B) {
+    double worst = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        for (size_t j = 0; j < M; ++j) {
+            worst = std::max(worst, std::abs(A(i, j) - B(i, j)));
+        }
+    }
+    return worst;
+}
+
+// Returns {real, imag} eigenvalue pairs sorted by real then imag part, reading
+// the QR/Schur result's diagonal real part and corresponding imaginary part.
+template<size_t N>
+std::array<std::pair<double, double>, N> eig_pairs(const EigenResult<double, N>& r) {
+    std::array<std::pair<double, double>, N> out;
+    for (size_t i = 0; i < N; ++i) {
+        out[i] = {r.eigenvalues_real(i, i), r.eigenvalues_imag(i, i)};
+    }
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
+} // namespace
+
+TEST_CASE("qr_decompose reconstructs A and Q is orthonormal") {
+    SUBCASE("square 3x3") {
+        Matrix<3, 3> A = {
+            {12.0, -51.0, 4.0},
+            {6.0, 167.0, -68.0},
+            {-4.0, 24.0, -41.0},
+        };
+        auto qr = qr_decompose(A);
+        REQUIRE(qr.is_valid());
+
+        // Q * R == A
+        CHECK(max_abs_diff(qr.Q * qr.R, A) < 1e-9);
+
+        // Qᵀ Q == I (orthonormal columns)
+        Matrix<3, 3> QtQ = qr.Q.transpose() * qr.Q;
+        CHECK(max_abs_diff(QtQ, Matrix<3, 3>::identity()) < 1e-9);
+
+        // R is upper triangular
+        CHECK(std::abs(qr.R(1, 0)) < 1e-9);
+        CHECK(std::abs(qr.R(2, 0)) < 1e-9);
+        CHECK(std::abs(qr.R(2, 1)) < 1e-9);
+    }
+
+    SUBCASE("tall 4x2") {
+        Matrix<4, 2> A = {
+            {1.0, 2.0},
+            {3.0, 4.0},
+            {5.0, 6.0},
+            {7.0, 9.0},
+        };
+        auto qr = qr_decompose(A);
+        REQUIRE(qr.is_valid());
+        CHECK(max_abs_diff(qr.Q * qr.R, A) < 1e-9);
+        // Columns of Q orthonormal: QᵀQ == I_2
+        Matrix<2, 2> QtQ = qr.Q.transpose() * qr.Q;
+        CHECK(max_abs_diff(QtQ, Matrix<2, 2>::identity()) < 1e-9);
+    }
+}
+
+TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
+    SUBCASE("2x2 pure rotation has eigenvalues ±i") {
+        Matrix<2, 2> A = {
+            {0.0, -1.0},
+            {1.0, 0.0},
+        };
+        auto r = compute_eigenvalues(A);
+        REQUIRE(r.converged);
+        CHECK(std::abs(r.values[0].real()) < 1e-9);
+        CHECK(std::abs(r.values[1].real()) < 1e-9);
+        CHECK(std::abs(std::abs(r.values[0].imag()) - 1.0) < 1e-9);
+        CHECK(r.values[0].imag() == doctest::Approx(-r.values[1].imag())); // conjugate pair
+    }
+
+    SUBCASE("2x2 damped oscillator: λ = -1 ± 2i") {
+        // [[-1, -2], [2, -1]] has eigenvalues -1 ± 2i.
+        Matrix<2, 2> A = {
+            {-1.0, -2.0},
+            {2.0, -1.0},
+        };
+        auto r = compute_eigenvalues(A);
+        REQUIRE(r.converged);
+        CHECK(r.values[0].real() == doctest::Approx(-1.0).epsilon(1e-9));
+        CHECK(r.values[1].real() == doctest::Approx(-1.0).epsilon(1e-9));
+        CHECK(std::abs(std::abs(r.values[0].imag()) - 2.0) < 1e-9);
+    }
+
+    SUBCASE("compute_eigenvalues_qr now resolves complex pairs (Francis double-shift)") {
+        // Previously the QR path returned only real diagonal entries and left
+        // eigenvalues_imag zero. With the Francis double-shift it resolves the
+        // 2x2 block into a true conjugate pair.
+        Matrix<2, 2> A = {
+            {0.0, -1.0},
+            {1.0, 0.0},
+        };
+        auto r = compute_eigenvalues_qr(A);
+        REQUIRE(r.converged);
+        CHECK(std::abs(r.eigenvalues_real(0, 0)) < 1e-9);
+        CHECK(std::abs(r.eigenvalues_real(1, 1)) < 1e-9);
+        CHECK(std::abs(std::abs(r.eigenvalues_imag(0, 0)) - 1.0) < 1e-9);
+        CHECK(r.eigenvalues_imag(0, 0) == doctest::Approx(-r.eigenvalues_imag(1, 1)));
+    }
+
+    SUBCASE("compute_eigenvalues_qr - 6x6 mixed real and two complex pairs") {
+        // Block diagonal: rotation(4±3i), real 2 and -1, rotation(±5i).
+        Matrix<6, 6> A = {
+            {4.0, -3.0, 0.0, 0.0, 0.0, 0.0},
+            {3.0, 4.0, 0.0, 0.0, 0.0, 0.0},
+            {0.0, 0.0, 2.0, 0.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0, -1.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0, 0.0, 0.0, -5.0},
+            {0.0, 0.0, 0.0, 0.0, 5.0, 0.0},
+        };
+        auto r = compute_eigenvalues_qr(A);
+        REQUIRE(r.converged);
+        auto                                     got = eig_pairs(r);
+        std::array<std::pair<double, double>, 6> want = {{
+            {-1.0, 0.0},
+            {2.0, 0.0},
+            {4.0, -3.0},
+            {4.0, 3.0},
+            {0.0, -5.0},
+            {0.0, 5.0},
+        }};
+        std::sort(want.begin(), want.end());
+        for (size_t i = 0; i < 6; ++i) {
+            CHECK(got[i].first == doctest::Approx(want[i].first).epsilon(1e-9));
+            CHECK(got[i].second == doctest::Approx(want[i].second).epsilon(1e-9));
+        }
+    }
+
+    SUBCASE("companion matrix recovers polynomial roots 1..5") {
+        // Companion of (x-1)(x-2)(x-3)(x-4)(x-5): eigenvalues 1,2,3,4,5.
+        Matrix<5, 5> A = {
+            {15.0, -85.0, 225.0, -274.0, 120.0},
+            {1.0, 0.0, 0.0, 0.0, 0.0},
+            {0.0, 1.0, 0.0, 0.0, 0.0},
+            {0.0, 0.0, 1.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0, 1.0, 0.0},
+        };
+        auto r = compute_eigenvalues_qr(A);
+        REQUIRE(r.converged);
+        auto got = eig_pairs(r);
+        for (size_t i = 0; i < 5; ++i) {
+            CHECK(got[i].first == doctest::Approx(static_cast<double>(i + 1)).epsilon(1e-6));
+            CHECK(std::abs(got[i].second) < 1e-6);
+        }
+    }
+}
+
+TEST_CASE("compute_eigenvalues_qr is constexpr-evaluable") {
+    // Locks that the Hessenberg + Francis path contains no construct that
+    // breaks constant evaluation (design-time eigenvalue computation).
+    constexpr auto spectrum_ok = []() consteval {
+        Matrix<3, 3> A = {
+            {2.0, -1.0, 0.0},
+            {-1.0, 2.0, -1.0},
+            {0.0, -1.0, 2.0},
+        };
+        auto r = compute_eigenvalues_qr(A);
+        if (!r.converged) {
+            return false;
+        }
+        // trace is preserved: sum of eigenvalues == 6
+        double s = r.eigenvalues_real(0, 0) + r.eigenvalues_real(1, 1) + r.eigenvalues_real(2, 2);
+        return wet::abs(s - 6.0) < 1e-9;
+    };
+    static_assert(spectrum_ok(), "compute_eigenvalues_qr must work at compile time");
+    CHECK(spectrum_ok());
+}
+
+TEST_CASE("compute_eigenvalues_qr - 4x4 symmetric matches known spectrum") {
+    // Tridiagonal [2 on diag, -1 off-diag] has eigenvalues
+    // 2 - 2cos(k·π/5), k=1..4.
+    Matrix<4, 4> A = {
+        {2.0, -1.0, 0.0, 0.0},
+        {-1.0, 2.0, -1.0, 0.0},
+        {0.0, -1.0, 2.0, -1.0},
+        {0.0, 0.0, -1.0, 2.0},
+    };
+    auto r = compute_eigenvalues_qr(A);
+    REQUIRE(r.converged);
+
+    auto                  got = eig_pairs(r);
+    const double          pi = std::numbers::pi;
+    std::array<double, 4> want;
+    for (int k = 1; k <= 4; ++k) {
+        want[k - 1] = 2.0 - 2.0 * std::cos(k * pi / 5.0);
+    }
+    std::sort(want.begin(), want.end());
+    for (size_t i = 0; i < 4; ++i) {
+        CHECK(got[i].first == doctest::Approx(want[i]).epsilon(1e-6));
+        CHECK(std::abs(got[i].second) < 1e-6); // symmetric => real spectrum
+    }
+}
+
+TEST_CASE("ordered_schur partitions stable/unstable eigenvalues") {
+    SUBCASE("continuous: split by sign of real part") {
+        // Diagonal eigenvalues -3, -1, +2: two stable, one unstable.
+        Matrix<3, 3> A = {
+            {-3.0, 0.0, 0.0},
+            {0.0, -1.0, 0.0},
+            {0.0, 0.0, 2.0},
+        };
+        auto s = ordered_schur_continuous(A);
+        REQUIRE(s.converged);
+        CHECK(s.n_stable == 2);
+    }
+
+    SUBCASE("discrete: split by magnitude vs 1") {
+        // Eigenvalues 0.5, -0.2, 1.5: two stable (|λ|<1), one unstable.
+        Matrix<3, 3> A = {
+            {0.5, 0.0, 0.0},
+            {0.0, -0.2, 0.0},
+            {0.0, 0.0, 1.5},
+        };
+        auto s = ordered_schur_discrete(A);
+        REQUIRE(s.converged);
+        CHECK(s.n_stable == 2);
+    }
+}

@@ -1,6 +1,8 @@
 ﻿#pragma once
 
+#include <array>
 #include <cstddef>
+#include <limits>
 
 #include "matrix.hpp"
 #include "wet/math/math.hpp"
@@ -763,14 +765,321 @@ struct EigenResult {
     bool            converged = false;  ///< Whether algorithm converged
 };
 
+namespace detail {
+
 /**
- * @brief Compute eigenvalues and eigenvectors via QR algorithm
+ * @brief Reduce a square matrix to upper Hessenberg form by Householder reflections.
  *
- * @param A  input matrix
- * @param max_iter  maximum number of QR iterations
- * @param tol  convergence tolerance for off-diagonal norm
+ * On return @p H is upper Hessenberg and @p Z holds the orthogonal similarity
+ * transform with Zᵀ·A·Z = H (eigenvalues preserved). @p Z is seeded with the
+ * identity and accumulates the reflections, so the subsequent Francis sweeps can
+ * continue accumulating Schur vectors into the same matrix.
  *
- * @return EigenResult containing eigenvalues, eigenvectors, and convergence status
+ * @see EISPACK `orthes` / `ortran`
+ */
+template<typename T, size_t N>
+constexpr void hessenberg_reduce(Matrix<N, N, T>& H, Matrix<N, N, T>& Z) {
+    Z = Matrix<N, N, T>::identity();
+    if constexpr (N > 2) {
+        std::array<T, N> ort{};
+        for (size_t m = 1; m + 1 < N; ++m) {
+            T scale = T{0};
+            for (size_t i = m; i < N; ++i) {
+                scale += wet::abs(H(i, m - 1));
+            }
+            if (scale == T{0}) {
+                continue;
+            }
+            // Build the Householder vector for column m-1 below the subdiagonal.
+            T h = T{0};
+            for (size_t i = N; i-- > m;) {
+                ort[i] = H(i, m - 1) / scale;
+                h += ort[i] * ort[i];
+            }
+            T g = wet::sqrt(h);
+            if (ort[m] > T{0}) {
+                g = -g;
+            }
+            h -= ort[m] * g;
+            ort[m] -= g;
+            // H ← (I − v·vᵀ/h)·H   (left)
+            for (size_t j = m; j < N; ++j) {
+                T f = T{0};
+                for (size_t i = N; i-- > m;) {
+                    f += ort[i] * H(i, j);
+                }
+                f /= h;
+                for (size_t i = m; i < N; ++i) {
+                    H(i, j) -= f * ort[i];
+                }
+            }
+            // H ← H·(I − v·vᵀ/h)   (right)
+            for (size_t i = 0; i < N; ++i) {
+                T f = T{0};
+                for (size_t j = N; j-- > m;) {
+                    f += ort[j] * H(i, j);
+                }
+                f /= h;
+                for (size_t j = m; j < N; ++j) {
+                    H(i, j) -= f * ort[j];
+                }
+            }
+            // Z ← Z·(I − v·vᵀ/h)   (accumulate Schur vectors)
+            for (size_t i = 0; i < N; ++i) {
+                T f = T{0};
+                for (size_t j = N; j-- > m;) {
+                    f += ort[j] * Z(i, j);
+                }
+                f /= h;
+                for (size_t j = m; j < N; ++j) {
+                    Z(i, j) -= f * ort[j];
+                }
+            }
+            H(m, m - 1) = scale * g;
+            for (size_t i = m + 1; i < N; ++i) {
+                H(i, m - 1) = T{0};
+            }
+        }
+    }
+}
+
+/**
+ * @brief Francis double-shift QR on an upper Hessenberg matrix.
+ *
+ * Reduces @p H to real Schur (quasi-triangular) form in place, accumulating the
+ * orthogonal transforms into @p Z, and writes the eigenvalues to @p wr (real
+ * parts) and @p wi (imaginary parts). Complex eigenvalues emerge as conjugate
+ * pairs from the surviving 2×2 diagonal blocks. The implicit double shift makes
+ * this robust for complex and equal-magnitude spectra that unshifted QR cannot
+ * deflate.
+ *
+ * @return true if every eigenvalue deflated within the iteration budget.
+ * @see EISPACK `hqr2`; Golub & Van Loan, "Matrix Computations" §7.5
+ */
+template<typename T, size_t N>
+constexpr bool francis_qr(
+    Matrix<N, N, T>&  H,
+    Matrix<N, N, T>&  Z,
+    std::array<T, N>& wr,
+    std::array<T, N>& wi
+) {
+    constexpr T  eps = std::numeric_limits<T>::epsilon();
+    const size_t max_its = (30 * N) + 30;
+
+    T anorm = T{0};
+    for (size_t i = 0; i < N; ++i) {
+        for (size_t j = (i ? i - 1 : 0); j < N; ++j) {
+            anorm += wet::abs(H(i, j));
+        }
+    }
+
+    int    nn = static_cast<int>(N) - 1;
+    T      t = T{0}; // accumulated shift
+    bool   converged = true;
+    size_t its = 0;
+
+    while (nn >= 0) {
+        bool deflated = false;
+        while (!deflated) {
+            // Locate the first small subdiagonal element (deflation point).
+            int l = nn;
+            while (l > 0) {
+                T s = wet::abs(H(l - 1, l - 1)) + wet::abs(H(l, l));
+                if (s == T{0}) {
+                    s = anorm;
+                }
+                if (wet::abs(H(l, l - 1)) <= eps * s) {
+                    H(l, l - 1) = T{0};
+                    break;
+                }
+                --l;
+            }
+
+            T x = H(nn, nn);
+            if (l == nn) {
+                // One real eigenvalue has converged.
+                wr[nn] = x + t;
+                wi[nn] = T{0};
+                --nn;
+                deflated = true;
+                break;
+            }
+
+            T y = H(nn - 1, nn - 1);
+            T w = H(nn, nn - 1) * H(nn - 1, nn);
+            if (l == nn - 1) {
+                // A 2×2 block has converged: solve its characteristic quadratic.
+                T p = T{0.5} * (y - x);
+                T q = (p * p) + w;
+                T z = wet::sqrt(wet::abs(q));
+                x += t;
+                if (q >= T{0}) {
+                    // Real eigenvalue pair.
+                    z = p + wet::copysign(z, p);
+                    wr[nn - 1] = x + z;
+                    wr[nn] = (z != T{0}) ? (x - (w / z)) : (x + z);
+                    wi[nn - 1] = T{0};
+                    wi[nn] = T{0};
+                } else {
+                    // Complex conjugate pair.
+                    wr[nn - 1] = x + p;
+                    wr[nn] = x + p;
+                    wi[nn - 1] = z;
+                    wi[nn] = -z;
+                }
+                nn -= 2;
+                deflated = true;
+                break;
+            }
+
+            if (its >= max_its) {
+                // Give up on this eigenvalue but keep going (honest convergence flag).
+                converged = false;
+                wr[nn] = x + t;
+                wi[nn] = T{0};
+                --nn;
+                deflated = true;
+                break;
+            }
+
+            // Exceptional shift every 10 iterations to break out of cycles.
+            if ((its % 10 == 9) && (its != 0)) {
+                t += x;
+                for (int i = 0; i <= nn; ++i) {
+                    H(i, i) -= x;
+                }
+                T s = wet::abs(H(nn, nn - 1)) + wet::abs(H(nn - 1, nn - 2));
+                x = T{0.75} * s;
+                y = x;
+                w = T{-0.4375} * s * s;
+            }
+            ++its;
+
+            // Find two consecutive small subdiagonals to start the bulge.
+            int m = nn - 2;
+            T   p = T{0};
+            T   q = T{0};
+            T   r = T{0};
+            while (m >= l) {
+                T z2 = H(m, m);
+                r = x - z2;
+                T s = y - z2;
+                p = (((r * s) - w) / H(m + 1, m)) + H(m, m + 1);
+                q = H(m + 1, m + 1) - z2 - r - s;
+                r = H(m + 2, m + 1);
+                T s2 = wet::abs(p) + wet::abs(q) + wet::abs(r);
+                p /= s2;
+                q /= s2;
+                r /= s2;
+                if (m == l) {
+                    break;
+                }
+                T u = wet::abs(H(m, m - 1)) * (wet::abs(q) + wet::abs(r));
+                T v = wet::abs(p) * (wet::abs(H(m - 1, m - 1)) + wet::abs(z2) + wet::abs(H(m + 1, m + 1)));
+                if (u <= eps * v) {
+                    break;
+                }
+                --m;
+            }
+            for (int i = m + 2; i <= nn; ++i) {
+                H(i, i - 2) = T{0};
+                if (i != m + 2) {
+                    H(i, i - 3) = T{0};
+                }
+            }
+
+            // Double-shift QR sweep: chase the bulge down the band, applying the
+            // 3×3 (and trailing 2×2) Householder reflections to H rows, H columns,
+            // and the Schur-vector accumulator Z.
+            for (int k = m; k <= nn - 1; ++k) {
+                if (k != m) {
+                    p = H(k, k - 1);
+                    q = H(k + 1, k - 1);
+                    r = (k != nn - 1) ? H(k + 2, k - 1) : T{0};
+                    x = wet::abs(p) + wet::abs(q) + wet::abs(r);
+                    if (x != T{0}) {
+                        p /= x;
+                        q /= x;
+                        r /= x;
+                    }
+                }
+                T s = wet::copysign(wet::sqrt((p * p) + (q * q) + (r * r)), p);
+                if (s == T{0}) {
+                    continue;
+                }
+                if (k == m) {
+                    if (l != m) {
+                        H(k, k - 1) = -H(k, k - 1);
+                    }
+                } else {
+                    H(k, k - 1) = -s * x;
+                }
+                p += s;
+                const T px = p / s;
+                const T qx = q / s;
+                const T rx = r / s;
+                const T qq = q / p;
+                const T rr = r / p;
+                // Row modification.
+                for (int j = k; j < static_cast<int>(N); ++j) {
+                    p = H(k, j) + (qq * H(k + 1, j));
+                    if (k != nn - 1) {
+                        p += rr * H(k + 2, j);
+                        H(k + 2, j) -= p * rx;
+                    }
+                    H(k + 1, j) -= p * qx;
+                    H(k, j) -= p * px;
+                }
+                const int row_max = (nn < k + 3) ? nn : (k + 3);
+                // Column modification.
+                for (int i = 0; i <= row_max; ++i) {
+                    p = (px * H(i, k)) + (qx * H(i, k + 1));
+                    if (k != nn - 1) {
+                        p += rx * H(i, k + 2);
+                        H(i, k + 2) -= p * rr;
+                    }
+                    H(i, k + 1) -= p * qq;
+                    H(i, k) -= p;
+                }
+                // Schur-vector accumulation.
+                for (int i = 0; i < static_cast<int>(N); ++i) {
+                    p = (px * Z(i, k)) + (qx * Z(i, k + 1));
+                    if (k != nn - 1) {
+                        p += rx * Z(i, k + 2);
+                        Z(i, k + 2) -= p * rr;
+                    }
+                    Z(i, k + 1) -= p * qq;
+                    Z(i, k) -= p;
+                }
+            }
+        }
+    }
+    return converged;
+}
+
+} // namespace detail
+
+/**
+ * @brief Compute eigenvalues (real and imaginary parts) and Schur vectors via the
+ *        Hessenberg + Francis double-shift QR algorithm.
+ *
+ * Robustly resolves both real and complex-conjugate eigenvalues for general real
+ * matrices of any size. Complex eigenvalues are returned through
+ * EigenResult::eigenvalues_imag; for a real (e.g. symmetric) spectrum the
+ * imaginary diagonal is zero. The eigenvectors field holds the orthogonal Schur
+ * basis, which coincides with the true eigenvectors for symmetric/normal A.
+ *
+ * @note Compare with MATLAB's eig(A). For 2×2–4×4 closed-form complex
+ *       eigenvalues, see compute_eigenvalues().
+ *
+ * @param A         input matrix
+ * @param max_iter  unused; retained for API compatibility (the internal budget
+ *                  scales with N)
+ * @param tol       unused; retained for API compatibility (deflation uses the
+ *                  machine epsilon relative to the matrix norm)
+ *
+ * @return EigenResult with eigenvalues on the real/imag diagonals, Schur vectors,
+ *         and an honest convergence flag.
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr EigenResult<T, N> compute_eigenvalues_qr(
@@ -778,39 +1087,23 @@ template<typename T, size_t N>
     size_t                 max_iter = 100,
     T                      tol = T{1e-8}
 ) {
+    (void)max_iter;
+    (void)tol;
     EigenResult<T, N> result;
-    Matrix<N, N, T>   Ak = A;
-    Matrix<N, N, T>   Q_total = Matrix<N, N, T>::identity();
 
-    for (size_t iter = 0; iter < max_iter; ++iter) {
-        auto qr = qr_decompose(Ak, tol);
-        if (!qr.is_valid()) {
-            break;
-        }
+    Matrix<N, N, T> H = A;
+    Matrix<N, N, T> Z;
+    detail::hessenberg_reduce(H, Z);
 
-        Ak = qr.R * qr.Q;
-        Q_total = Q_total * qr.Q;
-
-        T off_diag_norm = T{0};
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = 0; j < N; ++j) {
-                if (i != j) {
-                    off_diag_norm += std::abs(Ak(i, j));
-                }
-            }
-        }
-
-        if (off_diag_norm < tol) {
-            result.converged = true;
-            break;
-        }
-    }
+    std::array<T, N> wr{};
+    std::array<T, N> wi{};
+    result.converged = detail::francis_qr(H, Z, wr, wi);
 
     for (size_t i = 0; i < N; ++i) {
-        result.eigenvalues_real(i, i) = Ak(i, i);
+        result.eigenvalues_real(i, i) = wr[i];
+        result.eigenvalues_imag(i, i) = wi[i];
     }
-
-    result.eigenvectors = Q_total;
+    result.eigenvectors = Z;
     return result;
 }
 

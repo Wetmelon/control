@@ -213,4 +213,115 @@ TEST_SUITE("Matrix Functions") {
         Matrix<2, 2> Z = Matrix<2, 2>::zeros();
         CHECK(mat::rank(Z) == 0);
     }
+
+    // Largest |A - B| element, for comparing matrix-function results.
+    static constexpr auto max_abs_diff = []<size_t N>(const Matrix<N, N>& A, const Matrix<N, N>& B) {
+        double worst = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            for (size_t j = 0; j < N; ++j) {
+                worst = std::max(worst, std::abs(A(i, j) - B(i, j)));
+            }
+        }
+        return worst;
+    };
+
+    TEST_CASE("Matrix logarithm is the inverse of expm") {
+        // log(exp(A)) == A for a non-trivial, well-conditioned A.
+        Matrix<3, 3> A = {
+            {0.1, 0.2, 0.0},
+            {-0.1, 0.3, 0.1},
+            {0.0, -0.2, 0.2},
+        };
+        Matrix<3, 3> roundtrip = mat::log(mat::expm(A));
+        CHECK(max_abs_diff(roundtrip, A) < 1e-9);
+
+        // exp(log(B)) == B for an SPD matrix B (log well-defined).
+        Matrix<2, 2> B = {
+            {4.0, 1.0},
+            {1.0, 3.0},
+        };
+        Matrix<2, 2> back = mat::expm(mat::log(B));
+        CHECK(max_abs_diff(back, B) < 1e-9);
+
+        // log(identity) == 0
+        Matrix<3, 3> logI = mat::log(Matrix<3, 3>::identity());
+        CHECK(max_abs_diff(logI, Matrix<3, 3>::zeros()) < 1e-12);
+
+        // log(diagonal) == diagonal of logs
+        Matrix<2, 2> D = {{2.0, 0.0}, {0.0, 5.0}};
+        Matrix<2, 2> logD = mat::log(D);
+        // logm uses inverse scaling-and-squaring; accuracy degrades for
+        // eigenvalues far from 1 (more squaring steps), ~1e-7 here.
+        CHECK(logD(0, 0) == doctest::Approx(std::log(2.0)).epsilon(1e-6));
+        CHECK(logD(1, 1) == doctest::Approx(std::log(5.0)).epsilon(1e-6));
+    }
+
+    TEST_CASE("Matrix square root: sqrtm(A)^2 == A") {
+        Matrix<2, 2> A = {
+            {5.0, 4.0},
+            {1.0, 2.0},
+        };
+        auto S = mat::sqrt(A);
+        REQUIRE(S.has_value());
+        Matrix<2, 2> squared = S.value() * S.value();
+        CHECK(max_abs_diff(squared, A) < 1e-8);
+
+        // SPD 3x3
+        Matrix<3, 3> B = {
+            {4.0, 1.0, 0.0},
+            {1.0, 3.0, 1.0},
+            {0.0, 1.0, 2.0},
+        };
+        auto SB = mat::sqrt(B);
+        REQUIRE(SB.has_value());
+        CHECK(max_abs_diff(SB.value() * SB.value(), B) < 1e-7);
+
+        // sqrt(identity) == identity
+        auto SI = mat::sqrt(Matrix<3, 3>::identity());
+        REQUIRE(SI.has_value());
+        CHECK(max_abs_diff(SI.value(), Matrix<3, 3>::identity()) < 1e-10);
+    }
+
+    TEST_CASE("Matrix real-exponent power") {
+        Matrix<2, 2> A = {
+            {5.0, 4.0},
+            {1.0, 2.0},
+        };
+        // A^0.5 squared == A
+        Matrix<2, 2> half = mat::pow(A, 0.5);
+        CHECK(max_abs_diff(half * half, A) < 1e-7);
+
+        // A^2.0 == A*A
+        Matrix<2, 2> sq = mat::pow(A, 2.0);
+        CHECK(max_abs_diff(sq, A * A) < 1e-7);
+
+        // A^1.0 == A, A^0.0 == I
+        CHECK(max_abs_diff(mat::pow(A, 1.0), A) < 1e-9);
+        CHECK(max_abs_diff(mat::pow(A, 0.0), Matrix<2, 2>::identity()) < 1e-9);
+    }
+
+    TEST_CASE("sincos / sin / cos consistency") {
+        Matrix<3, 3> A = {
+            {0.3, 0.1, 0.0},
+            {-0.2, 0.4, 0.1},
+            {0.0, -0.1, 0.5},
+        };
+        auto [S, C] = mat::sincos(A);
+
+        // sin(A) and cos(A) agree with the paired primitive ...
+        CHECK(max_abs_diff(mat::sin(A), S) < 1e-12);
+        // ... and the standalone cos path matches sincos's cos exactly.
+        CHECK(max_abs_diff(mat::cos(A), C) < 1e-12);
+
+        // Pythagorean identity sin^2 + cos^2 == I
+        Matrix<3, 3> id = (S * S) + (C * C);
+        CHECK(max_abs_diff(id, Matrix<3, 3>::identity()) < 1e-9);
+
+        // Larger norm exercises the scaling/doubling path
+        Matrix<2, 2> B = {{2.0, 1.0}, {0.5, 3.0}};
+        auto [SB, CB] = mat::sincos(B);
+        CHECK(max_abs_diff(mat::cos(B), CB) < 1e-10);
+        CHECK(max_abs_diff(mat::sin(B), SB) < 1e-10);
+        CHECK(max_abs_diff((SB * SB) + (CB * CB), Matrix<2, 2>::identity()) < 1e-8);
+    }
 }

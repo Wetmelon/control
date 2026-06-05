@@ -669,7 +669,47 @@ template<typename T, size_t N>
  */
 template<typename T, size_t N>
 [[nodiscard]] constexpr Matrix<N, N, T> cos(const Matrix<N, N, T>& A) {
-    return sincos(A).second;
+    // Unlike sin (whose double-angle step sin(2x)=2·sin·cos needs cos), cos can
+    // be reconstructed from cos alone via cos(2x)=2·cos²−1, so this avoids the
+    // sin Taylor series and sin doubling that sincos(A).second would discard.
+    Matrix<N, N, T> I = Matrix<N, N, T>::identity();
+
+    // Scale down until ||A/2^s|| < 0.5
+    size_t s = 0;
+    T      scaled_norm = infinity_norm(A);
+    while (scaled_norm > T{0.5}) {
+        scaled_norm *= T{0.5};
+        ++s;
+    }
+
+    T scale = T{1};
+    for (size_t i = 0; i < s; ++i) {
+        scale *= T{0.5};
+    }
+
+    Matrix<N, N, T> As = A * scale;
+    Matrix<N, N, T> As2 = As * As;
+
+    // Taylor series for cos(As) = I - As²/2! + As⁴/4! - ...
+    Matrix<N, N, T> cosA = I;
+    {
+        Matrix<N, N, T> A_power = I;
+        T               factorial = T{1};
+        T               sign = T{-1};
+        for (size_t n = 2; n <= 20; n += 2) {
+            factorial *= static_cast<T>(n - 1) * static_cast<T>(n);
+            A_power = A_power * As2;
+            cosA = cosA + A_power * (sign / factorial);
+            sign = -sign;
+        }
+    }
+
+    // Double-angle reconstruction: cos(2x) = 2·cos²(x) − 1
+    for (size_t i = 0; i < s; ++i) {
+        cosA = (cosA * cosA * T{2}) - I;
+    }
+
+    return cosA;
 }
 
 /**

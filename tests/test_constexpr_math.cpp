@@ -248,6 +248,141 @@ TEST_SUITE("constexpr_math") {
         static_assert(!wet::isfinite(std::numeric_limits<double>::quiet_NaN()));
     }
 
+    // Forces evaluation of the constexpr (series / Newton) path — NOT the runtime
+    // MathBackend — by capturing into a constexpr variable, then compares against
+    // std at runtime. The plain `wet::f(x)` runtime sweeps elsewhere in this file
+    // exercise the backend; these exercise the compile-time implementation.
+#define CEXPR_APPROX(expr, ref, eps)                    \
+    do {                                                \
+        constexpr double v_ = (expr);                   \
+        CHECK(v_ == doctest::Approx(ref).epsilon(eps)); \
+    } while (0)
+
+    TEST_CASE("constexpr exp matches std (argument reduction over full range)") {
+        CEXPR_APPROX(wet::exp(0.0), std::exp(0.0), 1e-15);
+        CEXPR_APPROX(wet::exp(1.0), std::exp(1.0), 1e-14);
+        CEXPR_APPROX(wet::exp(-1.0), std::exp(-1.0), 1e-14);
+        CEXPR_APPROX(wet::exp(0.5), std::exp(0.5), 1e-14);
+        CEXPR_APPROX(wet::exp(5.0), std::exp(5.0), 1e-13);
+        CEXPR_APPROX(wet::exp(-5.0), std::exp(-5.0), 1e-13);
+        CEXPR_APPROX(wet::exp(20.0), std::exp(20.0), 1e-12);
+        CEXPR_APPROX(wet::exp(-20.0), std::exp(-20.0), 1e-12);
+        CEXPR_APPROX(wet::exp(50.0), std::exp(50.0), 1e-12);
+        CEXPR_APPROX(wet::exp(700.0), std::exp(700.0), 1e-11);
+        CEXPR_APPROX(wet::exp(-700.0), std::exp(-700.0), 1e-11);
+
+        // Overflow / underflow guards
+        static_assert(wet::exp(800.0) == std::numeric_limits<double>::infinity());
+        static_assert(wet::exp(-800.0) == 0.0);
+
+        // float specialization stays finite/zero past its narrower range
+        CEXPR_APPROX(wet::exp(10.0f), std::exp(10.0), 1e-5);
+    }
+
+    TEST_CASE("constexpr log / pow / log10 match std") {
+        CEXPR_APPROX(wet::log(1.0), std::log(1.0), 1e-15);
+        CEXPR_APPROX(wet::log(2.0), std::log(2.0), 1e-13);
+        CEXPR_APPROX(wet::log(0.5), std::log(0.5), 1e-13);
+        CEXPR_APPROX(wet::log(1000.0), std::log(1000.0), 1e-13);
+        CEXPR_APPROX(wet::log(1e-9), std::log(1e-9), 1e-13);
+        CEXPR_APPROX(wet::log10(1000.0), std::log10(1000.0), 1e-13);
+        CEXPR_APPROX(wet::log10(1e-9), std::log10(1e-9), 1e-13);
+        CEXPR_APPROX(wet::pow(2.0, 10.0), std::pow(2.0, 10.0), 1e-12);
+        CEXPR_APPROX(wet::pow(2.0, 0.5), std::pow(2.0, 0.5), 1e-13);
+        CEXPR_APPROX(wet::pow(10.0, -3.0), std::pow(10.0, -3.0), 1e-12);
+        static_assert(wet::log(0.0) == 0.0);  // guarded
+        static_assert(wet::log(-1.0) == 0.0); // guarded
+    }
+
+    TEST_CASE("constexpr sin/cos/tan match std for large arguments") {
+        // The previous subtract-2π-in-a-loop reduction lost precision (and looped
+        // ~10^6 times) for large arguments; the Cody–Waite reduction is O(1).
+        CEXPR_APPROX(wet::sin(100.0), std::sin(100.0), 1e-12);
+        CEXPR_APPROX(wet::cos(100.0), std::cos(100.0), 1e-12);
+        CEXPR_APPROX(wet::sin(1000.0), std::sin(1000.0), 1e-11);
+        CEXPR_APPROX(wet::cos(1000.0), std::cos(1000.0), 1e-11);
+        CEXPR_APPROX(wet::sin(-500.0), std::sin(-500.0), 1e-11);
+        CEXPR_APPROX(wet::cos(1e6), std::cos(1e6), 1e-7);
+        CEXPR_APPROX(wet::sin(1e6), std::sin(1e6), 1e-7);
+        CEXPR_APPROX(wet::tan(1000.0), std::tan(1000.0), 1e-10);
+
+        // Regression: the complementary-angle path (|reduced r| > 1.2) once had a
+        // sign error — tan(r) = 1/tan(π/2−r), not −1/tan(...). These compile-time
+        // points sit squarely in that branch and would flip sign if it returns.
+        CEXPR_APPROX(wet::tan(1.5), std::tan(1.5), 1e-9);
+        CEXPR_APPROX(wet::tan(-1.6), std::tan(-1.6), 1e-9);
+        static_assert(wet::tan(1.5) > 0.0, "tan(1.5) must be positive");
+        static_assert(wet::tan(-1.6) > 0.0, "tan(-1.6) must be positive");
+    }
+
+    // Property-based checks evaluated entirely at compile time across a sweep.
+    // These need no std reference values and so run inside consteval.
+    TEST_CASE("constexpr identities hold at compile time") {
+        constexpr auto pythag_ok = []() consteval {
+            for (int i = -200; i <= 200; ++i) {
+                const double x = i * 0.37;
+                const double s = wet::sin(x);
+                const double c = wet::cos(x);
+                if (wet::abs((s * s) + (c * c) - 1.0) > 1e-12) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        static_assert(pythag_ok(), "sin^2 + cos^2 == 1 across sweep");
+
+        constexpr auto exp_log_roundtrip = []() consteval {
+            for (int i = 1; i <= 100; ++i) {
+                const double x = i * 0.5;
+                if (wet::abs(wet::log(wet::exp(x)) - x) > 1e-9 * x) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        static_assert(exp_log_roundtrip(), "log(exp(x)) == x across sweep");
+
+        constexpr auto exp_addition = []() consteval {
+            for (int i = -20; i <= 20; ++i) {
+                const double a = i * 0.3;
+                const double b = i * 0.17;
+                if (wet::abs(wet::exp(a + b) - (wet::exp(a) * wet::exp(b))) > 1e-10 * wet::exp(a + b)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        static_assert(exp_addition(), "exp(a+b) == exp(a)*exp(b) across sweep");
+
+        constexpr auto tan_quotient = []() consteval {
+            for (int i = -30; i <= 30; ++i) {
+                const double x = i * 0.1; // avoid exact π/2
+                const double c = wet::cos(x);
+                if (wet::abs(c) < 1e-3) {
+                    continue;
+                }
+                const double t = wet::tan(x);
+                if (wet::abs(t - (wet::sin(x) / c)) > 1e-9 * (1.0 + wet::abs(t))) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        static_assert(tan_quotient(), "tan == sin/cos across sweep");
+
+        constexpr auto sin_periodic = []() consteval {
+            constexpr double two_pi = 6.283185307179586476925286766559;
+            for (int i = -50; i <= 50; ++i) {
+                const double x = i * 0.13;
+                if (wet::abs(wet::sin(x) - wet::sin(x + (10.0 * two_pi))) > 1e-9) {
+                    return false;
+                }
+            }
+            return true;
+        };
+        static_assert(sin_periodic(), "sin is 2π-periodic across sweep");
+    }
+
     TEST_CASE("constexpr verification") {
         // Verify all functions can be used in constexpr context
         constexpr double sqrt_val = wet::sqrt(4.0);
