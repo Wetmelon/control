@@ -4,7 +4,7 @@
 #include <numbers>
 
 #include "wet/filters/sogi.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 
 namespace wet {
 /**

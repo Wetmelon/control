@@ -15,7 +15,7 @@
 
 #include <utility>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/cholesky.hpp"
 #include "wet/matrix/matrix.hpp"
 

@@ -10,8 +10,8 @@
 #include <utility>
 
 #include "matrix_traits.hpp"
-#include "wet/math/constexpr_complex.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
 
 namespace wet {
 

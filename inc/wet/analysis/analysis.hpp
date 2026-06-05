@@ -15,8 +15,8 @@
 #include <optional>
 #include <vector>
 
-#include "wet/math/constexpr_complex.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"

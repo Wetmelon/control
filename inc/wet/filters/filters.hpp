@@ -3,7 +3,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"

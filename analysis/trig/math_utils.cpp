@@ -1,11 +1,11 @@
 
-#include "wet/math/wet_trig.hpp"
+#include "wet/math/trig.hpp"
 #include "math_utils.hpp"
 
 // Force emission of wet:: constexpr functions for instruction-count analysis.
 // constexpr implies inline linkage, which means they'd be optimized away with
 // no extern caller.  These wrappers live in a separate namespace to avoid
-// colliding with wet_trig.hpp's `namespace wet`.
+// colliding with trig.hpp's `namespace wet`.
 namespace wet_emit {
 
 float sin(float x) { return wet::sin(x); }

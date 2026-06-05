@@ -3,7 +3,7 @@
 #include <numbers>
 #include <utility>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/systems/state_space.hpp"
 

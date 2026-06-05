@@ -2,9 +2,10 @@
 
 #include <complex>
 
-#include "wetmelon_math.hpp"
+#include "math.hpp"
 
 using namespace std::complex_literals;
+
 namespace wet {
 
 /**
@@ -90,7 +91,7 @@ struct complex {
      * @return Product of this and other
      */
     constexpr complex operator*(const complex& other) const {
-        return {(real_ * other.real_) - imag_ * other.imag_, real_ * other.imag_ + imag_ * other.real_};
+        return {(real_ * other.real_) - (imag_ * other.imag_), (real_ * other.imag_) + (imag_ * other.real_)};
     }
 
     /**
@@ -100,7 +101,7 @@ struct complex {
      */
     constexpr complex operator/(const complex& other) const {
         T denom = (other.real_ * other.real_) + (other.imag_ * other.imag_);
-        return {((real_ * other.real_) + (imag_ * other.imag_)) / denom, (imag_ * other.real_ - real_ * other.imag_) / denom};
+        return {((real_ * other.real_) + (imag_ * other.imag_)) / denom, ((imag_ * other.real_) - (real_ * other.imag_)) / denom};
     }
 
     /**
@@ -131,8 +132,8 @@ struct complex {
      * @return Reference to this
      */
     constexpr complex& operator*=(const complex& other) {
-        T new_real = real_ * other.real_ - imag_ * other.imag_;
-        T new_imag = real_ * other.imag_ + imag_ * other.real_;
+        T new_real = (real_ * other.real_) - (imag_ * other.imag_);
+        T new_imag = (real_ * other.imag_) + (imag_ * other.real_);
         real_ = new_real;
         imag_ = new_imag;
         return *this;
@@ -144,9 +145,9 @@ struct complex {
      * @return Reference to this
      */
     constexpr complex& operator/=(const complex& other) {
-        T denom = other.real_ * other.real_ + other.imag_ * other.imag_;
-        T new_real = (real_ * other.real_ + imag_ * other.imag_) / denom;
-        T new_imag = (imag_ * other.real_ - real_ * other.imag_) / denom;
+        T denom = (other.real_ * other.real_) + (other.imag_ * other.imag_);
+        T new_real = ((real_ * other.real_) + (imag_ * other.imag_)) / denom;
+        T new_imag = ((imag_ * other.real_) - (real_ * other.imag_)) / denom;
         real_ = new_real;
         imag_ = new_imag;
         return *this;
@@ -209,7 +210,7 @@ struct complex {
      * @return |z|² = real² + imag²
      */
     constexpr T norm() const {
-        return real_ * real_ + imag_ * imag_;
+        return (real_ * real_) + (imag_ * imag_);
     }
 
     /**

@@ -1,7 +1,7 @@
 ﻿#pragma once
 
 /**
- * @file wetmelon_math.hpp
+ * @file math.hpp
  * @brief Math dispatch layer: constexpr series at compile time, MathBackend at runtime
  *
  * Each function uses std::is_constant_evaluated() to dispatch:

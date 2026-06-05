@@ -9,7 +9,7 @@
 #include "wet/analysis/linearization.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/controllers/pid.hpp"
-#include "wet/math/constexpr_complex.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"

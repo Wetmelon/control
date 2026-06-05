@@ -1,6 +1,6 @@
 #include "doctest.h"
 #include "wet/estimation/ekf.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
 using namespace wet;

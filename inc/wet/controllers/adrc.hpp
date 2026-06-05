@@ -3,7 +3,7 @@
 #include <array>
 #include <cstddef>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
 namespace wet {

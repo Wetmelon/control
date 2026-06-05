@@ -15,7 +15,7 @@
 #include <span>
 #include <type_traits>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
 namespace wet {

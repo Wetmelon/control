@@ -27,7 +27,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet {

@@ -135,7 +135,7 @@ _PI_HI, _PI_LO, _PI_LO2 = _split_pi()
 
 
 def wet_sin_codywaite(x):
-    """wet::sin with explicit Cody-Waite (matches shipped wet_trig.hpp)."""
+    """wet::sin with explicit Cody-Waite (matches shipped trig.hpp)."""
     x = x.astype(np.float32)
     n = np.rint(x * INV_PI_F32).astype(np.float32)
     r = (x - n * _PI_HI).astype(np.float32)

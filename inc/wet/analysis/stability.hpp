@@ -9,7 +9,7 @@
  */
 #include <cstddef>
 
-#include "wet/math/constexpr_complex.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
 

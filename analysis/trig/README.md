@@ -2,7 +2,7 @@
 
 ## Scope
 
-`wet::` ([`inc/wet/math/wet_trig.hpp`](../../inc/wet/math/wet_trig.hpp)) is a header-only
+`wet::` ([`inc/wet/math/trig.hpp`](../../inc/wet/math/trig.hpp)) is a header-only
 single-precision trig library for Cortex-M7. This directory benchmarks it
 against three alternatives:
 

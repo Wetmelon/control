@@ -3,7 +3,7 @@
  * @brief Tests for Middlebrook impedance stability analysis
  */
 #include "wet/analysis/analysis.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/utility.hpp"
 

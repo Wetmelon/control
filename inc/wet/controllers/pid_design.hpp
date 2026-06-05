@@ -23,7 +23,7 @@
 #include <numbers>
 
 #include "pid.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 
 namespace wet {
 

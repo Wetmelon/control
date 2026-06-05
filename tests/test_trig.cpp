@@ -3,7 +3,7 @@
 #include <initializer_list>
 #include <numbers>
 
-#include "wet/math/wet_trig.hpp"
+#include "wet/math/trig.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -11,7 +11,7 @@
 // ~8 ULP accuracy on float32; epsilon(1e-5) gives comfortable margin
 static constexpr float kEps = 1e-5f;
 
-TEST_SUITE("wet_trig") {
+TEST_SUITE("trig") {
 
     TEST_CASE("sin - known values") {
         using std::numbers::pi_v;
@@ -207,4 +207,4 @@ TEST_SUITE("wet_trig") {
         }
     }
 
-} // TEST_SUITE("wet_trig")
+} // TEST_SUITE("trig")

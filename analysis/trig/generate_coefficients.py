@@ -1,5 +1,5 @@
 """
-Generate float32 minimax polynomial coefficients for wet_trig.hpp.
+Generate float32 minimax polynomial coefficients for trig.hpp.
 
 Fits three approximations via L-infinity (minimax) linear programming,
 then iteratively rounds each coefficient to float32:
@@ -130,7 +130,7 @@ def generate_atan_coeffs(degree=7, n_grid=20000):
 
 
 # ---------------------------------------------------------------------------
-# Shipped coefficients (must match wet_trig.hpp)
+# Shipped coefficients (must match trig.hpp)
 # ---------------------------------------------------------------------------
 
 SIN_COEFFS = generate_sin_coeffs()
@@ -189,7 +189,7 @@ def float_to_c(f):
 
 
 def print_cpp_constants(sin_c, asin_c, atan_c):
-    print("\nC++ constants for wet_trig.hpp:")
+    print("\nC++ constants for trig.hpp:")
     print("=" * 60)
 
     sections = [

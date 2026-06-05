@@ -8,7 +8,7 @@
 
 #include "matrix.hpp"
 #include "matrix_traits.hpp"
-#include "wet/math/constexpr_complex.hpp"
+#include "wet/math/complex.hpp"
 
 namespace wet {
 

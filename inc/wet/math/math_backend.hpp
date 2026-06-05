@@ -27,14 +27,15 @@ struct StdMathFallback {
     /// Combined sin/cos. Returns {sin(x), cos(x)}. Platform backends should
     /// override this with a shared-range-reduction implementation.
     static std::pair<T, T> sincos(T x) { return {std::sin(x), std::cos(x)}; }
-    static T               sqrt(T x) { return std::sqrt(x); }
-    static T               abs(T x) { return std::abs(x); }
-    static T               cbrt(T x) { return std::cbrt(x); }
-    static T               exp(T x) { return std::exp(x); }
-    static T               log(T x) { return std::log(x); }
-    static T               log10(T x) { return std::log10(x); }
-    static T               floor(T x) { return std::floor(x); }
-    static T               ceil(T x) { return std::ceil(x); }
+
+    static T sqrt(T x) { return std::sqrt(x); }
+    static T abs(T x) { return std::abs(x); }
+    static T cbrt(T x) { return std::cbrt(x); }
+    static T exp(T x) { return std::exp(x); }
+    static T log(T x) { return std::log(x); }
+    static T log10(T x) { return std::log10(x); }
+    static T floor(T x) { return std::floor(x); }
+    static T ceil(T x) { return std::ceil(x); }
 
     static T    pow(T base, T exponent) { return std::pow(base, exponent); }
     static T    fmod(T x, T y) { return std::fmod(x, y); }
@@ -72,8 +73,8 @@ struct MathBackend;
 
 // Auto-discover user backend profile. If not found, fall back to std:: with a warning.
 #if __has_include("wet_profile.hpp")
-#include "wet_profile.hpp"
+#include "wet_profile.hpp" // IWYU pragma: keep
 #else
 #warning "wet_profile.hpp not found in include path. Using std:: math backend. Create wet_profile.hpp to select a platform backend."
-#include "std_backend.hpp"
+#include "std_backend.hpp" // IWYU pragma: keep
 #endif

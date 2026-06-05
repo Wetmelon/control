@@ -3,7 +3,7 @@
 // Not self-contained. Must be included after StdMathFallback<T> and MathBackend<T>
 // are declared by math_backend.hpp. Include via wet_profile.hpp.
 #include "math_backend.hpp"
-#include "wet_trig.hpp"
+#include "trig.hpp"
 
 namespace wet {
 

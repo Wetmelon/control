@@ -1,5 +1,5 @@
 ﻿#include "wet/controllers/lqr.hpp"
-#include "wet/math/wetmelon_math.hpp"
+#include "wet/math/math.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 
