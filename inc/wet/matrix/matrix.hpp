@@ -1,15 +1,12 @@
 ﻿#pragma once
 
-#include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <initializer_list>
-#include <optional>
 #include <type_traits>
-#include <utility>
 
 #include "matrix_traits.hpp"
+#include "wet/backend.hpp" // wet::array, wet::optional, wet::index_sequence, wet::max
 #include "wet/math/constexpr_complex.hpp"
 #include "wet/math/wetmelon_math.hpp"
 
@@ -64,7 +61,7 @@ struct TransposeView;
 template<size_t Rows, size_t Cols, typename T = double>
 struct Matrix {
 protected:
-    std::array<T, Rows * Cols> data_{};
+    wet::array<T, Rows * Cols> data_{};
 
     template<size_t, size_t, typename>
     friend struct Matrix;
@@ -87,15 +84,15 @@ public:
      * enabling full scalar replacement of local Matrix variables.
      */
     constexpr Matrix(const Matrix& other) {
-        [&]<size_t... I>(std::index_sequence<I...>) {
+        [&]<size_t... I>(wet::index_sequence<I...>) {
             ((data_[I] = other.data_[I]), ...);
-        }(std::make_index_sequence<Rows * Cols>{});
+        }(wet::make_index_sequence<Rows * Cols>{});
     }
 
     constexpr Matrix& operator=(const Matrix& other) {
-        [&]<size_t... I>(std::index_sequence<I...>) {
+        [&]<size_t... I>(wet::index_sequence<I...>) {
             ((data_[I] = other.data_[I]), ...);
-        }(std::make_index_sequence<Rows * Cols>{});
+        }(wet::make_index_sequence<Rows * Cols>{});
         return *this;
     }
 
@@ -184,9 +181,9 @@ public:
     }
 
     /**
-     * @brief Constructor from std::array, enables class template argument deduction
+     * @brief Constructor from wet::array, enables class template argument deduction
      */
-    constexpr Matrix(const std::array<T, Rows * Cols>& arr) : Matrix() {
+    constexpr Matrix(const wet::array<T, Rows * Cols>& arr) : Matrix() {
         for (size_t i = 0; i < Rows * Cols; ++i) {
             data_[i] = arr[i];
         }
@@ -359,7 +356,7 @@ public:
      * @param diag Array containing the diagonal elements
      * @return Diagonal matrix with the specified diagonal elements
      */
-    [[nodiscard]] static constexpr Matrix diagonal(const std::array<T, Rows>& diag)
+    [[nodiscard]] static constexpr Matrix diagonal(const wet::array<T, Rows>& diag)
         requires(Rows == Cols)
     {
         Matrix result{};
@@ -688,7 +685,7 @@ public:
      *
      * @return Inverse matrix if invertible, nullopt if singular
      */
-    [[nodiscard]] constexpr std::optional<Matrix> inverse() const
+    [[nodiscard]] constexpr wet::optional<Matrix> inverse() const
         requires(Rows == Cols);
 
     /**
@@ -790,8 +787,8 @@ using Mat4x3 = Matrix<4, 3, T>;
  */
 template<MatrixLike A, MatrixLike B>
 [[nodiscard]] constexpr auto operator+(const A& a, const B& b) {
-    constexpr size_t ResRows = std::max(A::rows(), B::rows());
-    constexpr size_t ResCols = std::max(A::cols(), B::cols());
+    constexpr size_t ResRows = wet::max(A::rows(), B::rows());
+    constexpr size_t ResCols = wet::max(A::cols(), B::cols());
     static_assert(
         (A::rows() == 1 || A::rows() == ResRows) && (B::rows() == 1 || B::rows() == ResRows),
         "Incompatible row dimensions for broadcasting"
@@ -823,8 +820,8 @@ template<MatrixLike A, MatrixLike B>
  */
 template<MatrixLike A, MatrixLike B>
 [[nodiscard]] constexpr auto operator-(const A& a, const B& b) {
-    constexpr size_t ResRows = std::max(A::rows(), B::rows());
-    constexpr size_t ResCols = std::max(A::cols(), B::cols());
+    constexpr size_t ResRows = wet::max(A::rows(), B::rows());
+    constexpr size_t ResCols = wet::max(A::cols(), B::cols());
     static_assert(
         (A::rows() == 1 || A::rows() == ResRows) && (B::rows() == 1 || B::rows() == ResRows),
         "Incompatible row dimensions for broadcasting"

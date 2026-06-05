@@ -1,9 +1,7 @@
 ﻿#pragma once
 
-#include <algorithm>
-#include <utility>
-
 #include "matrix.hpp"
+#include "wet/backend.hpp" // wet::optional, wet::pair, wet::nullopt, wet::swap
 
 namespace wetmelon::control {
 
@@ -179,7 +177,7 @@ template<typename T, size_t N>
         size_t swaps = 0;
         for (size_t i = 0; i < N; ++i) {
             while (p[i] != i) {
-                std::swap(p[i], p[p[i]]);
+                wet::swap(p[i], p[p[i]]);
                 ++swaps;
             }
         }
@@ -223,7 +221,7 @@ template<typename T, size_t N>
         // Swap rows if needed
         if (pivot_row != rank) {
             for (size_t j = 0; j < N; ++j) {
-                std::swap(temp(rank, j), temp(pivot_row, j));
+                wet::swap(temp(rank, j), temp(pivot_row, j));
             }
         }
 
@@ -443,7 +441,7 @@ template<typename T, size_t N>
  *
  * Converges: Y → √A, Z → (√A)⁻¹.
  *
- * Returns std::nullopt if the iteration fails to converge or encounters
+ * Returns wet::nullopt if the iteration fails to converge or encounters
  * a singular iterate (e.g., A has a real negative eigenvalue).
  *
  * @note Compare with MATLAB's sqrtm(A).
@@ -452,10 +450,10 @@ template<typename T, size_t N>
  * @tparam T Element type
  * @tparam N Matrix dimension
  * @param A Square matrix (must have no real negative eigenvalues)
- * @return Principal matrix square root √A, or std::nullopt on failure
+ * @return Principal matrix square root √A, or wet::nullopt on failure
  */
 template<typename T, size_t N>
-[[nodiscard]] constexpr std::optional<Matrix<N, N, T>> sqrt(const Matrix<N, N, T>& A) {
+[[nodiscard]] constexpr wet::optional<Matrix<N, N, T>> sqrt(const Matrix<N, N, T>& A) {
     Matrix<N, N, T> Y = A;
     Matrix<N, N, T> Z = Matrix<N, N, T>::identity();
 
@@ -464,7 +462,7 @@ template<typename T, size_t N>
         auto Z_inv = Z.inverse();
 
         if (!Y_inv || !Z_inv) {
-            return std::nullopt;
+            return wet::nullopt;
         }
 
         Matrix<N, N, T> Y_next = (Y + Z_inv.value()) * T{0.5};
@@ -485,7 +483,7 @@ template<typename T, size_t N>
         }
     }
 
-    return std::nullopt;
+    return wet::nullopt;
 }
 
 /**
@@ -576,7 +574,7 @@ template<typename T, size_t N>
  * @return {sin(A), cos(A)}
  */
 template<typename T, size_t N>
-[[nodiscard]] constexpr std::pair<Matrix<N, N, T>, Matrix<N, N, T>> sincos(const Matrix<N, N, T>& A) {
+[[nodiscard]] constexpr wet::pair<Matrix<N, N, T>, Matrix<N, N, T>> sincos(const Matrix<N, N, T>& A) {
     Matrix<N, N, T> I = Matrix<N, N, T>::identity();
 
     // Scale down until ||A/2^s|| < 0.5

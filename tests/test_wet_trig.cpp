@@ -85,6 +85,20 @@ TEST_SUITE("wet_trig") {
         }
     }
 
+    TEST_CASE("tan - known values") {
+        using std::numbers::pi_v;
+        CHECK(wet::tan(0.0f) == doctest::Approx(0.0f).epsilon(kEps));
+        CHECK(wet::tan(pi_v<float> / 6.0f) == doctest::Approx(std::tan(pi_v<float> / 6.0f)).epsilon(kEps));
+        CHECK(wet::tan(pi_v<float> / 4.0f) == doctest::Approx(1.0f).epsilon(kEps));
+        CHECK(wet::tan(-pi_v<float> / 4.0f) == doctest::Approx(-1.0f).epsilon(kEps));
+    }
+
+    TEST_CASE("tan - matches std::tan away from poles") {
+        for (float x : {0.1f, 0.3f, 0.7f, 1.0f, -0.5f, -1.2f, 2.0f, -2.7f}) {
+            CHECK(wet::tan(x) == doctest::Approx(std::tan(x)).epsilon(kEps));
+        }
+    }
+
     // -------------------------------------------------------------------------
 
     TEST_CASE("asin - known values") {
