@@ -1,3 +1,4 @@
+#include <cmath>
 #include <complex>
 #include <numbers>
 
@@ -20,6 +21,16 @@ double biquad_mag(const design::SecondOrderCoeffs<double>& c, double f, double T
 }
 
 constexpr double Ts = 1.0 / 1000.0; // 1 kHz
+
+// Closed-form gains at the band edges, evaluated from the *stored* coefficients
+// the way the difference equation does (z = +1 at DC, z = −1 at Nyquist). These
+// are the exact identities a fast-math reassociation could disturb.
+double dc_gain(const design::SecondOrderCoeffs<double>& c) {
+    return (c.b0 + c.b1 + c.b2) / (1.0 + c.a1 + c.a2);
+}
+double nyquist_gain(const design::SecondOrderCoeffs<double>& c) {
+    return (c.b0 - c.b1 + c.b2) / (1.0 - c.a1 + c.a2);
+}
 
 } // namespace
 
@@ -63,6 +74,41 @@ TEST_SUITE("Biquad Designs") {
         const double expected = std::pow(10.0, 6.0 / 20.0);
         CHECK(biquad_mag(c, 490.0, Ts) == doctest::Approx(expected).epsilon(0.02)); // HF boosted
         CHECK(biquad_mag(c, 1.0, Ts) == doctest::Approx(1.0).epsilon(0.02));        // DC unity
+    }
+
+    // The test runner builds with -ffast-math (see tests/Tupfile.lua). These check
+    // each designer's exact band-edge gain identity straight from the stored
+    // coefficients, tightly — guarding against an associative-math reordering
+    // quietly breaking a cancellation the property relies on (roadmap #17 sweep).
+    TEST_CASE("band-edge gain identities hold tightly under -ffast-math") {
+        // notch: unity passband at both DC and Nyquist.
+        const auto n = design::notch<double>(50.0, 5.0, Ts);
+        CHECK(dc_gain(n) == doctest::Approx(1.0).epsilon(1e-9));
+        CHECK(nyquist_gain(n) == doctest::Approx(1.0).epsilon(1e-9));
+
+        // bandpass: blocks DC and Nyquist exactly (numerator {α, 0, −α}).
+        const auto bp = design::bandpass<double>(50.0, 5.0, Ts);
+        CHECK(std::abs(dc_gain(bp)) < 1e-12);
+        CHECK(std::abs(nyquist_gain(bp)) < 1e-12);
+
+        // highpass: zero gain at DC.
+        const auto hp = design::highpass_2nd<double>(100.0, Ts);
+        CHECK(std::abs(dc_gain(hp)) < 1e-9);
+
+        // lowpass_2nd: unity DC gain by construction (the lead #17 fix).
+        const auto lp = design::lowpass_2nd<double>(100.0, Ts, 0.707); // (fc, Ts, zeta) coeffs overload
+        CHECK(dc_gain(lp) == doctest::Approx(1.0).epsilon(1e-12));
+
+        // peaking & shelves: unity gain away from the affected band.
+        const auto pk = design::peaking<double>(50.0, 5.0, 6.0, Ts);
+        CHECK(dc_gain(pk) == doctest::Approx(1.0).epsilon(1e-9));
+        CHECK(nyquist_gain(pk) == doctest::Approx(1.0).epsilon(1e-9));
+
+        const auto ls = design::lowshelf<double>(100.0, 6.0, Ts);
+        CHECK(nyquist_gain(ls) == doctest::Approx(1.0).epsilon(1e-9)); // unity above corner
+
+        const auto hs = design::highshelf<double>(100.0, 6.0, Ts);
+        CHECK(dc_gain(hs) == doctest::Approx(1.0).epsilon(1e-9)); // unity below corner
     }
 
     TEST_CASE("notch coefficients are symmetric and constexpr") {
