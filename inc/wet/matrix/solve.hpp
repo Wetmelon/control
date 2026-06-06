@@ -61,24 +61,6 @@ constexpr ColVec<N, T> backward_substitute_transpose(const Matrix<N, N, T>& L, c
 }
 
 /**
- * @brief Backward substitution to solve U * x = b where U is upper-triangular
- */
-template<size_t N, typename T>
-constexpr ColVec<N, T> backward_substitute_upper(const Matrix<N, N, T>& U, const ColVec<N, T>& b) {
-    ColVec<N, T> x;
-
-    for (int i = int(N) - 1; i >= 0; --i) {
-        T sum = b(i);
-        for (size_t j = i + 1; j < N; ++j) {
-            sum -= U(i, j) * x(j);
-        }
-        x(i) = sum / U(i, i);
-    }
-
-    return x;
-}
-
-/**
  * @brief Solve lower-triangular system L * X = B via forward substitution
  *
  * Requires that L is a non-singular lower-triangular matrix (all diagonal

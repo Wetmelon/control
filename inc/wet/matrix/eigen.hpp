@@ -560,38 +560,6 @@ constexpr DirectEigenResult<N, T> compute_eigenvalues(const Matrix<N, N, T>& A) 
 }
 
 /**
- * @brief Extract real parts from complex eigenvalues
- *
- * @param v Input vector of complex numbers
- *
- * @return Column vector of real numbers representing real parts
- */
-template<size_t N, typename T = double>
-constexpr ColVec<N, T> real(const ColVec<N, wet::complex<T>>& v) {
-    ColVec<N, T> result = ColVec<N, T>::zeros();
-    for (size_t i = 0; i < N; ++i) {
-        result[i] = v[i].real();
-    }
-    return result;
-}
-
-/**
- * @brief Extract imaginary parts from complex eigenvalues
- *
- * @param v Input vector of complex numbers
- *
- * @return Column vector of real numbers representing imaginary parts
- */
-template<size_t N, typename T = double>
-constexpr ColVec<N, T> imag(const ColVec<N, wet::complex<T>>& v) {
-    ColVec<N, T> result = ColVec<N, T>::zeros();
-    for (size_t i = 0; i < N; ++i) {
-        result[i] = v[i].imag();
-    }
-    return result;
-}
-
-/**
  * @ingroup linear_decompositions
  * @brief Result of eigenvalue computation via QR algorithm
  *
