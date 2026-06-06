@@ -16,7 +16,7 @@
 #include <utility>
 
 #include "wet/math/math.hpp"
-#include "wet/matrix/cholesky.hpp"
+#include "wet/matrix/solve.hpp"
 #include "wet/matrix/matrix.hpp"
 
 namespace wet {

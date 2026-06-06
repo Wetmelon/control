@@ -1,11 +1,17 @@
 ﻿#pragma once
 
-#include <array>
-#include <cmath>
+/**
+ * @file solve.hpp
+ * @brief Linear-system solvers built on the factorizations in decomposition.hpp:
+ *        triangular substitution, Cholesky/LU solves, the SPD-aware generic
+ *        solve(), and the Matrix::inverse() definition.
+ */
+
 #include <cstddef>
 #include <optional>
 #include <type_traits>
 
+#include "decomposition.hpp"
 #include "matrix.hpp"
 #include "matrix_traits.hpp"
 #include "wet/math/complex.hpp"
@@ -13,93 +19,6 @@
 namespace wet {
 
 namespace mat {
-
-template<size_t N, typename T>
-constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
-    if constexpr (std::is_floating_point_v<T>) {
-        constexpr auto tol = default_tol<T>();
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = i + 1; j < N; ++j) {
-                if (wet::abs(A(i, j) - A(j, i)) > tol) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    } else {
-        constexpr auto tol = default_tol<T>();
-        constexpr auto tol_sq = tol * tol;
-        // Hermitian requires real diagonal elements
-        for (size_t i = 0; i < N; ++i) {
-            auto imag_diag = wet::imag(A(i, i));
-            if (imag_diag * imag_diag > tol_sq) {
-                return false;
-            }
-        }
-        // Off-diagonal: A(i,j) == conj(A(j,i))
-        for (size_t i = 0; i < N; ++i) {
-            for (size_t j = i + 1; j < N; ++j) {
-                auto diff = A(i, j) - wet::conj(A(j, i));
-                auto mag_sq = wet::real(diff * wet::conj(diff));
-                if (mag_sq > tol_sq) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
-}
-
-/**
- * @brief Cholesky decomposition for positive-definite matrices
- *
- * For real matrices, computes L such that A = LLᵀ (A must be symmetric).
- * For complex matrices, computes L such that A = LLᴴ (A must be Hermitian).
- *
- * @note Compare with MATLAB's chol(A, 'lower').
- * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §4.2
- *
- * @param A Symmetric positive-definite (real) or Hermitian positive-definite (complex) matrix
- * @return Lower-triangular L, or std::nullopt if A is not PD or not symmetric/Hermitian
- */
-template<size_t N, typename T>
-constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
-    if (!is_symmetric_or_hermitian(A)) {
-        return std::nullopt;
-    }
-
-    Matrix<N, N, T> L = Matrix<N, N, T>::zeros();
-
-    for (size_t i = 0; i < N; ++i) {
-        for (size_t j = 0; j <= i; ++j) {
-
-            T sum = A(i, j);
-            for (size_t k = 0; k < j; ++k) {
-                sum -= L(i, k) * wet::conj(L(j, k));
-            }
-
-            if (i == j) {
-                if constexpr (std::is_floating_point_v<T>) {
-                    auto diag_val = sum;
-                    if (diag_val <= 0) {
-                        return std::nullopt;
-                    }
-                    L(i, j) = wet::sqrt(diag_val);
-                } else {
-                    auto diag_val = wet::real(sum);
-                    if (diag_val <= 0) {
-                        return std::nullopt;
-                    }
-                    L(i, j) = wet::sqrt(diag_val);
-                }
-            } else {
-                L(i, j) = sum / L(j, j);
-            }
-        }
-    }
-
-    return L;
-}
 
 /**
  * @brief Forward substitution to solve L * x = b
@@ -256,68 +175,6 @@ constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A
     // Backward substitution: solve Lᴴ * X = Y
     const auto Lh = L.conjugate_transpose();
     return solve(Lh.upper_triangle(), Y_opt.value());
-}
-
-/**
- * @brief LU decomposition with partial pivoting
- *
- * Returns pair<L,U> and a pivot vector piv such that P*A = L*U
- * L: lower triangular with unit diagonal
- * U: upper triangular
- */
-template<size_t N, typename T>
-constexpr std::optional<std::tuple<Matrix<N, N, T>, Matrix<N, N, T>, std::array<size_t, N>>>
-lu_decomposition(const Matrix<N, N, T>& A) {
-    Matrix<N, N, T>       L = Matrix<N, N, T>::identity();
-    Matrix<N, N, T>       U = A;
-    std::array<size_t, N> piv;
-    for (size_t i = 0; i < N; ++i) {
-        piv[i] = i;
-    }
-
-    for (size_t i = 0; i < N; ++i) {
-        // Partial pivot
-        size_t max_row = i;
-        auto   max_val = wet::abs(U(i, i));
-        for (size_t r = i + 1; r < N; ++r) {
-            auto val = wet::abs(U(r, i));
-            if (val > max_val) {
-                max_val = val;
-                max_row = r;
-            }
-        }
-
-        constexpr auto singularity_tol = std::is_same_v<decltype(max_val), float>
-                                           ? decltype(max_val){1e-6}
-                                           : decltype(max_val){1e-12};
-        if (max_val < singularity_tol) {
-            return std::nullopt;
-        }
-
-        if (max_row != i) {
-            // Swap rows in U
-            for (size_t col = 0; col < N; ++col) {
-                std::swap(U(i, col), U(max_row, col));
-            }
-            // Swap previous columns in L
-            for (size_t col = 0; col < i; ++col) {
-                std::swap(L(i, col), L(max_row, col));
-            }
-            // Track pivot
-            std::swap(piv[i], piv[max_row]);
-        }
-
-        // Elimination
-        for (size_t j = i + 1; j < N; ++j) {
-            auto factor = U(j, i) / U(i, i);
-            L(j, i) = factor;
-            for (size_t k = i; k < N; ++k) {
-                U(j, k) -= factor * U(i, k);
-            }
-        }
-    }
-
-    return std::make_tuple(L, U, piv);
 }
 
 /**

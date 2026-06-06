@@ -10,6 +10,7 @@
 #include "doctest.h"
 
 using namespace wet;
+using namespace wet::mat;
 
 /**
  * @brief Tests specifically for 4x4 systems to ensure numerical accuracy
@@ -475,7 +476,6 @@ TEST_SUITE("4x4 Matrix Exponential") {
 }
 
 TEST_CASE("Matrix exponential (exp) - compile-time and runtime verification") {
-    using namespace wet::mat;
 
     // Test 1: exp(0) = I (identity matrix)
     constexpr Matrix<2, 2, double> A_zero = Matrix<2, 2, double>::zeros();

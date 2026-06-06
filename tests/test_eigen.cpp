@@ -7,6 +7,7 @@
 #include "doctest.h"
 
 using namespace wet;
+using namespace wet::mat;
 
 TEST_CASE("Complex Matrix Support") {
     using Complex = wet::complex<double>;

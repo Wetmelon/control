@@ -6,6 +6,7 @@
 #include "doctest.h"
 
 using namespace wet;
+using namespace wet::mat;
 
 TEST_SUITE("Luenberger Observer") {
     TEST_CASE("synthesize_observer places error poles at requested (real) locations") {

@@ -8,6 +8,7 @@
 #include "wet/math/math.hpp"
 
 namespace wet {
+namespace mat {
 
 /**
  * @brief Structure to hold eigenvalue computation results
@@ -591,166 +592,6 @@ constexpr ColVec<N, T> imag(const ColVec<N, wet::complex<T>>& v) {
 }
 
 /**
- * @brief Compute the determinant of a square matrix
- *
- * @param A Input square matrix
- *
- * @return Determinant of the matrix
- */
-template<size_t N, typename T>
-constexpr T determinant(const Matrix<N, N, T>& A) {
-    if constexpr (N == 1) {
-        return A(0, 0);
-    } else if constexpr (N == 2) {
-        return A(0, 0) * A(1, 1) - A(0, 1) * A(1, 0);
-    } else if constexpr (N == 3) {
-        return A(0, 0) * (A(1, 1) * A(2, 2) - A(1, 2) * A(2, 1))
-             - A(0, 1) * (A(1, 0) * A(2, 2) - A(1, 2) * A(2, 0))
-             + A(0, 2) * (A(1, 0) * A(2, 1) - A(1, 1) * A(2, 0));
-    } else if constexpr (N == 4) {
-        T det = T{0};
-        for (size_t j = 0; j < 4; ++j) {
-            T m[3][3];
-            for (size_t ri = 0; ri < 3; ++ri) {
-                size_t ci = 0;
-                for (size_t k = 0; k < 4; ++k) {
-                    if (k == j)
-                        continue;
-                    m[ri][ci] = A(ri + 1, k);
-                    ++ci;
-                }
-            }
-            T det3 = m[0][0] * (m[1][1] * m[2][2] - m[1][2] * m[2][1])
-                   - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
-                   + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
-            T sign = (j % 2 == 0) ? T{1} : T{-1};
-            det += sign * A(0, j) * det3;
-        }
-        return det;
-    } else {
-        // LU decomposition for larger matrices
-        Matrix<N, N, T> U = A;
-        T               det = T{1};
-
-        for (size_t i = 0; i < N; ++i) {
-            // Find pivot
-            size_t pivot = i;
-            T      max_val = wet::abs(U(i, i));
-            for (size_t k = i + 1; k < N; ++k) {
-                T val = wet::abs(U(k, i));
-                if (val > max_val) {
-                    max_val = val;
-                    pivot = k;
-                }
-            }
-
-            if (max_val < T{1e-15}) {
-                return T{0}; // Singular
-            }
-
-            if (pivot != i) {
-                for (size_t j = 0; j < N; ++j) {
-                    T tmp = U(i, j);
-                    U(i, j) = U(pivot, j);
-                    U(pivot, j) = tmp;
-                }
-                det = -det;
-            }
-
-            det *= U(i, i);
-
-            for (size_t k = i + 1; k < N; ++k) {
-                T factor = U(k, i) / U(i, i);
-                for (size_t j = i; j < N; ++j) {
-                    U(k, j) -= factor * U(i, j);
-                }
-            }
-        }
-
-        return det;
-    }
-}
-
-/**
- * @ingroup linear_decompositions
- * @brief QR decomposition via Gram-Schmidt orthogonalization
- *
- * Computes Q (orthogonal) and R (upper triangular) such that A = Q*R.
- * Uses modified Gram-Schmidt for better numerical stability.
- */
-
-template<typename T, size_t N, size_t M>
-struct QRDecomposition {
-    Matrix<N, M, T> Q{};
-    Matrix<M, M, T> R{};
-
-    /**
-     * @brief Check validity of QR decomposition
-     * @return true if all diagonal elements of R are sufficiently non-zero
-     */
-    [[nodiscard]] constexpr bool is_valid() const {
-        for (size_t i = 0; i < M; ++i) {
-            if (std::abs(R(i, i)) < T{1e-12}) {
-                return false;
-            }
-        }
-        return true;
-    }
-};
-
-/**
- * @brief Perform QR decomposition on a matrix
- * @tparam T   Scalar type
- * @tparam N   Number of rows
- * @tparam M   Number of columns
- * @param A    Input matrix
- * @param eps  Tolerance for zero diagonal elements
- * @return QR decomposition with Q and R matrices
- */
-template<typename T, size_t N, size_t M>
-[[nodiscard]] constexpr QRDecomposition<T, N, M> qr_decompose(
-    const Matrix<N, M, T>& A,
-    T                      eps = T{1e-12}
-) {
-    QRDecomposition<T, N, M> result;
-    result.Q = A; // Start with columns of A
-
-    // Modified Gram-Schmidt
-    for (size_t j = 0; j < M; ++j) {
-        // Compute R(j,j) = norm of column j
-        T col_norm_sq = T{0};
-        for (size_t i = 0; i < N; ++i) {
-            col_norm_sq += result.Q(i, j) * result.Q(i, j);
-        }
-        result.R(j, j) = wet::sqrt(col_norm_sq);
-
-        if (result.R(j, j) > eps) {
-            // Normalize column j
-            for (size_t i = 0; i < N; ++i) {
-                result.Q(i, j) /= result.R(j, j);
-            }
-
-            // Orthogonalize remaining columns against column j
-            for (size_t k = j + 1; k < M; ++k) {
-                // R(j,k) = dot(Q(:,j), Q(:,k))
-                T dot_prod = T{0};
-                for (size_t i = 0; i < N; ++i) {
-                    dot_prod += result.Q(i, j) * result.Q(i, k);
-                }
-                result.R(j, k) = dot_prod;
-
-                // Q(:,k) -= R(j,k) * Q(:,j)
-                for (size_t i = 0; i < N; ++i) {
-                    result.Q(i, k) -= result.R(j, k) * result.Q(i, j);
-                }
-            }
-        }
-    }
-
-    return result;
-}
-
-/**
  * @ingroup linear_decompositions
  * @brief Result of eigenvalue computation via QR algorithm
  *
@@ -932,124 +773,132 @@ constexpr bool francis_qr(
                 break;
             }
 
-            if (its >= max_its) {
-                // Give up on this eigenvalue but keep going (honest convergence flag).
-                converged = false;
-                wr[nn] = x + t;
-                wi[nn] = T{0};
-                --nn;
-                deflated = true;
-                break;
-            }
-
-            // Exceptional shift every 10 iterations to break out of cycles.
-            if ((its % 10 == 9) && (its != 0)) {
-                t += x;
-                for (int i = 0; i <= nn; ++i) {
-                    H(i, i) -= x;
-                }
-                T s = wet::abs(H(nn, nn - 1)) + wet::abs(H(nn - 1, nn - 2));
-                x = T{0.75} * s;
-                y = x;
-                w = T{-0.4375} * s * s;
-            }
-            ++its;
-
-            // Find two consecutive small subdiagonals to start the bulge.
-            int m = nn - 2;
-            T   p = T{0};
-            T   q = T{0};
-            T   r = T{0};
-            while (m >= l) {
-                T z2 = H(m, m);
-                r = x - z2;
-                T s = y - z2;
-                p = (((r * s) - w) / H(m + 1, m)) + H(m, m + 1);
-                q = H(m + 1, m + 1) - z2 - r - s;
-                r = H(m + 2, m + 1);
-                T s2 = wet::abs(p) + wet::abs(q) + wet::abs(r);
-                p /= s2;
-                q /= s2;
-                r /= s2;
-                if (m == l) {
+            // 1×1 and 2×2 active blocks always deflate via the two branches
+            // above; only a 3×3-or-larger active window ever reaches the bulge
+            // chase below. Guarding it with `if constexpr (N >= 3)` keeps the
+            // H(nn-1, nn-2)-style indices out of the N<3 instantiations entirely
+            // — they are unreachable there, but the optimizer cannot prove it
+            // and would emit a -Warray-bounds false positive for N == 2.
+            if constexpr (N >= 3) {
+                if (its >= max_its) {
+                    // Give up on this eigenvalue but keep going (honest convergence flag).
+                    converged = false;
+                    wr[nn] = x + t;
+                    wi[nn] = T{0};
+                    --nn;
+                    deflated = true;
                     break;
                 }
-                T u = wet::abs(H(m, m - 1)) * (wet::abs(q) + wet::abs(r));
-                T v = wet::abs(p) * (wet::abs(H(m - 1, m - 1)) + wet::abs(z2) + wet::abs(H(m + 1, m + 1)));
-                if (u <= eps * v) {
-                    break;
-                }
-                --m;
-            }
-            for (int i = m + 2; i <= nn; ++i) {
-                H(i, i - 2) = T{0};
-                if (i != m + 2) {
-                    H(i, i - 3) = T{0};
-                }
-            }
 
-            // Double-shift QR sweep: chase the bulge down the band, applying the
-            // 3×3 (and trailing 2×2) Householder reflections to H rows, H columns,
-            // and the Schur-vector accumulator Z.
-            for (int k = m; k <= nn - 1; ++k) {
-                if (k != m) {
-                    p = H(k, k - 1);
-                    q = H(k + 1, k - 1);
-                    r = (k != nn - 1) ? H(k + 2, k - 1) : T{0};
-                    x = wet::abs(p) + wet::abs(q) + wet::abs(r);
-                    if (x != T{0}) {
-                        p /= x;
-                        q /= x;
-                        r /= x;
+                // Exceptional shift every 10 iterations to break out of cycles.
+                if ((its % 10 == 9) && (its != 0)) {
+                    t += x;
+                    for (int i = 0; i <= nn; ++i) {
+                        H(i, i) -= x;
+                    }
+                    T s = wet::abs(H(nn, nn - 1)) + wet::abs(H(nn - 1, nn - 2));
+                    x = T{0.75} * s;
+                    y = x;
+                    w = T{-0.4375} * s * s;
+                }
+                ++its;
+
+                // Find two consecutive small subdiagonals to start the bulge.
+                int m = nn - 2;
+                T   p = T{0};
+                T   q = T{0};
+                T   r = T{0};
+                while (m >= l) {
+                    T z2 = H(m, m);
+                    r = x - z2;
+                    T s = y - z2;
+                    p = (((r * s) - w) / H(m + 1, m)) + H(m, m + 1);
+                    q = H(m + 1, m + 1) - z2 - r - s;
+                    r = H(m + 2, m + 1);
+                    T s2 = wet::abs(p) + wet::abs(q) + wet::abs(r);
+                    p /= s2;
+                    q /= s2;
+                    r /= s2;
+                    if (m == l) {
+                        break;
+                    }
+                    T u = wet::abs(H(m, m - 1)) * (wet::abs(q) + wet::abs(r));
+                    T v = wet::abs(p) * (wet::abs(H(m - 1, m - 1)) + wet::abs(z2) + wet::abs(H(m + 1, m + 1)));
+                    if (u <= eps * v) {
+                        break;
+                    }
+                    --m;
+                }
+                for (int i = m + 2; i <= nn; ++i) {
+                    H(i, i - 2) = T{0};
+                    if (i != m + 2) {
+                        H(i, i - 3) = T{0};
                     }
                 }
-                T s = wet::copysign(wet::sqrt((p * p) + (q * q) + (r * r)), p);
-                if (s == T{0}) {
-                    continue;
-                }
-                if (k == m) {
-                    if (l != m) {
-                        H(k, k - 1) = -H(k, k - 1);
+
+                // Double-shift QR sweep: chase the bulge down the band, applying
+                // the 3×3 (and trailing 2×2) Householder reflections to H rows, H
+                // columns, and the Schur-vector accumulator Z.
+                for (int k = m; k <= nn - 1; ++k) {
+                    if (k != m) {
+                        p = H(k, k - 1);
+                        q = H(k + 1, k - 1);
+                        r = (k != nn - 1) ? H(k + 2, k - 1) : T{0};
+                        x = wet::abs(p) + wet::abs(q) + wet::abs(r);
+                        if (x != T{0}) {
+                            p /= x;
+                            q /= x;
+                            r /= x;
+                        }
                     }
-                } else {
-                    H(k, k - 1) = -s * x;
-                }
-                p += s;
-                const T px = p / s;
-                const T qx = q / s;
-                const T rx = r / s;
-                const T qq = q / p;
-                const T rr = r / p;
-                // Row modification.
-                for (int j = k; j < static_cast<int>(N); ++j) {
-                    p = H(k, j) + (qq * H(k + 1, j));
-                    if (k != nn - 1) {
-                        p += rr * H(k + 2, j);
-                        H(k + 2, j) -= p * rx;
+                    T s = wet::copysign(wet::sqrt((p * p) + (q * q) + (r * r)), p);
+                    if (s == T{0}) {
+                        continue;
                     }
-                    H(k + 1, j) -= p * qx;
-                    H(k, j) -= p * px;
-                }
-                const int row_max = (nn < k + 3) ? nn : (k + 3);
-                // Column modification.
-                for (int i = 0; i <= row_max; ++i) {
-                    p = (px * H(i, k)) + (qx * H(i, k + 1));
-                    if (k != nn - 1) {
-                        p += rx * H(i, k + 2);
-                        H(i, k + 2) -= p * rr;
+                    if (k == m) {
+                        if (l != m) {
+                            H(k, k - 1) = -H(k, k - 1);
+                        }
+                    } else {
+                        H(k, k - 1) = -s * x;
                     }
-                    H(i, k + 1) -= p * qq;
-                    H(i, k) -= p;
-                }
-                // Schur-vector accumulation.
-                for (int i = 0; i < static_cast<int>(N); ++i) {
-                    p = (px * Z(i, k)) + (qx * Z(i, k + 1));
-                    if (k != nn - 1) {
-                        p += rx * Z(i, k + 2);
-                        Z(i, k + 2) -= p * rr;
+                    p += s;
+                    const T px = p / s;
+                    const T qx = q / s;
+                    const T rx = r / s;
+                    const T qq = q / p;
+                    const T rr = r / p;
+                    // Row modification.
+                    for (int j = k; j < static_cast<int>(N); ++j) {
+                        p = H(k, j) + (qq * H(k + 1, j));
+                        if (k != nn - 1) {
+                            p += rr * H(k + 2, j);
+                            H(k + 2, j) -= p * rx;
+                        }
+                        H(k + 1, j) -= p * qx;
+                        H(k, j) -= p * px;
                     }
-                    Z(i, k + 1) -= p * qq;
-                    Z(i, k) -= p;
+                    const int row_max = (nn < k + 3) ? nn : (k + 3);
+                    // Column modification.
+                    for (int i = 0; i <= row_max; ++i) {
+                        p = (px * H(i, k)) + (qx * H(i, k + 1));
+                        if (k != nn - 1) {
+                            p += rx * H(i, k + 2);
+                            H(i, k + 2) -= p * rr;
+                        }
+                        H(i, k + 1) -= p * qq;
+                        H(i, k) -= p;
+                    }
+                    // Schur-vector accumulation.
+                    for (int i = 0; i < static_cast<int>(N); ++i) {
+                        p = (px * Z(i, k)) + (qx * Z(i, k + 1));
+                        if (k != nn - 1) {
+                            p += rx * Z(i, k + 2);
+                            Z(i, k + 2) -= p * rr;
+                        }
+                        Z(i, k + 1) -= p * qq;
+                        Z(i, k) -= p;
+                    }
                 }
             }
         }
@@ -1091,19 +940,51 @@ template<typename T, size_t N>
     (void)tol;
     EigenResult<T, N> result;
 
-    Matrix<N, N, T> H = A;
-    Matrix<N, N, T> Z;
-    detail::hessenberg_reduce(H, Z);
+    if constexpr (N == 1) {
+        // Scalar: the lone entry is the eigenvalue.
+        result.eigenvalues_real(0, 0) = A(0, 0);
+        result.eigenvectors = Matrix<1, 1, T>::identity();
+        result.converged = true;
+    } else if constexpr (N == 2) {
+        // A 2×2 is already its own real Schur form (Schur vectors = I); solve the
+        // characteristic quadratic λ² − tr·λ + det = 0 directly. Handling N ≤ 2
+        // here keeps the Hessenberg + Francis core instantiated only for N ≥ 3,
+        // where its bulge-chase index arithmetic is provably in bounds.
+        const T a = A(0, 0);
+        const T b = A(0, 1);
+        const T c = A(1, 0);
+        const T d = A(1, 1);
+        const T trace = a + d;
+        const T det = (a * d) - (b * c);
+        const T disc = (trace * trace) - (T{4} * det);
+        if (disc >= T{0}) {
+            const T s = wet::sqrt(disc);
+            result.eigenvalues_real(0, 0) = (trace + s) / T{2};
+            result.eigenvalues_real(1, 1) = (trace - s) / T{2};
+        } else {
+            const T s = wet::sqrt(-disc);
+            result.eigenvalues_real(0, 0) = trace / T{2};
+            result.eigenvalues_real(1, 1) = trace / T{2};
+            result.eigenvalues_imag(0, 0) = s / T{2};
+            result.eigenvalues_imag(1, 1) = -s / T{2};
+        }
+        result.eigenvectors = Matrix<2, 2, T>::identity();
+        result.converged = true;
+    } else {
+        Matrix<N, N, T> H = A;
+        Matrix<N, N, T> Z;
+        detail::hessenberg_reduce(H, Z);
 
-    std::array<T, N> wr{};
-    std::array<T, N> wi{};
-    result.converged = detail::francis_qr(H, Z, wr, wi);
+        std::array<T, N> wr{};
+        std::array<T, N> wi{};
+        result.converged = detail::francis_qr(H, Z, wr, wi);
 
-    for (size_t i = 0; i < N; ++i) {
-        result.eigenvalues_real(i, i) = wr[i];
-        result.eigenvalues_imag(i, i) = wi[i];
+        for (size_t i = 0; i < N; ++i) {
+            result.eigenvalues_real(i, i) = wr[i];
+            result.eigenvalues_imag(i, i) = wi[i];
+        }
+        result.eigenvectors = Z;
     }
-    result.eigenvectors = Z;
     return result;
 }
 
@@ -1212,4 +1093,5 @@ template<typename T, size_t N>
     result.n_stable = stable_count;
     return result;
 }
+} // namespace mat
 } // namespace wet

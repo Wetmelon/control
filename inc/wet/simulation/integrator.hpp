@@ -4,7 +4,7 @@
 
 #include "wet/matrix/colvec.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/matrix/matrix_functions.hpp"
+#include "wet/matrix/functions.hpp"
 
 namespace wet::sim {
 

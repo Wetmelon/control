@@ -30,7 +30,7 @@ namespace stability {
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr bool is_stable_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
-    auto eigen = compute_eigenvalues(A);
+    auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged)
         return false;
 
@@ -83,7 +83,7 @@ template<size_t NX, size_t NU, typename T = double>
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_continuous(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
-    auto eigen = compute_eigenvalues(A);
+    auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged)
         return T{1}; // Return unstable indicator
 
@@ -112,7 +112,7 @@ template<size_t N, typename T = double>
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
-    auto eigen = compute_eigenvalues(A);
+    auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged)
         return T{-1}; // Return unstable indicator
 
@@ -151,7 +151,7 @@ template<size_t NX, size_t NU, typename T = double>
 ) {
     static_assert(NX <= 4, "Pole computation only supported for systems up to 4 states");
     Matrix<NX, NX, T> A_cl = A - B * K;
-    auto              eigen = compute_eigenvalues(A_cl);
+    auto              eigen = mat::compute_eigenvalues(A_cl);
     return eigen.values;
 }
 

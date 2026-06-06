@@ -527,11 +527,6 @@ public:
         return *this;
     }
 
-    [[nodiscard]] constexpr auto eigenvalues() const {
-        // Use QR algorithm to compute eigenvalues
-        return compute_eigenvalues_qr(*this);
-    }
-
     /**
      * @brief Matrix transpose (concrete copy)
      * @return Transposed matrix (Cols × Rows)
@@ -988,9 +983,10 @@ template<MatrixLike A, typename Scalar>
 
 } // namespace wet
 
-#include "block.hpp"            // IWYU pragma: keep
-#include "cholesky.hpp"         // IWYU pragma: keep
-#include "colvec.hpp"           // IWYU pragma: keep
-#include "matrix_functions.hpp" // IWYU pragma: keep
-#include "rowvec.hpp"           // IWYU pragma: keep
-#include "views.hpp"            // IWYU pragma: keep
+#include "block.hpp"         // IWYU pragma: keep
+#include "decomposition.hpp" // IWYU pragma: keep
+#include "solve.hpp"         // IWYU pragma: keep
+#include "colvec.hpp"        // IWYU pragma: keep
+#include "functions.hpp"     // IWYU pragma: keep
+#include "rowvec.hpp"        // IWYU pragma: keep
+#include "views.hpp"         // IWYU pragma: keep

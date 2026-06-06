@@ -828,7 +828,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr ColVec<NX, wet::complex<T>> poles(const Matrix<NX, NX, T>& A) {
     static_assert(NX <= 4, "Pole computation only supported for systems up to 4 states");
-    auto eigen = compute_eigenvalues(A);
+    auto eigen = mat::compute_eigenvalues(A);
     return eigen.values;
 }
 
@@ -843,7 +843,7 @@ template<size_t NX, typename T = double>
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr bool is_stable_continuous(const Matrix<NX, NX, T>& A) {
     static_assert(NX <= 4, "Stability analysis only supported for systems up to 4 states");
-    auto eigen = compute_eigenvalues(A);
+    auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
         return false;
     }
@@ -876,7 +876,7 @@ template<size_t NX, typename T = double>
 [[nodiscard]] constexpr std::array<PoleInfo<T>, NX>
 damp(const Matrix<NX, NX, T>& A) {
     static_assert(NX <= 4, "Damp only supported for systems up to 4 states");
-    auto                        eigen = compute_eigenvalues(A);
+    auto                        eigen = mat::compute_eigenvalues(A);
     std::array<PoleInfo<T>, NX> info{};
     for (size_t i = 0; i < NX; ++i) {
         auto p = eigen.values[i];

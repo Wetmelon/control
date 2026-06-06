@@ -36,7 +36,7 @@ constexpr bool is_stabilizable(
 ) {
     // Compute eigenvalues of A — use direct formulas for N ≤ 4, QR algorithm for N > 4
     if constexpr (NX <= 4) {
-        auto eigen = compute_eigenvalues(A);
+        auto eigen = mat::compute_eigenvalues(A);
         if (!eigen.converged) {
             return false;
         }
@@ -108,7 +108,7 @@ constexpr bool is_stabilizable(
         return true;
     } else {
         // N > 4: use QR algorithm which returns real eigenvalues on diagonal
-        auto eigen = compute_eigenvalues_qr(A);
+        auto eigen = mat::compute_eigenvalues_qr(A);
         if (!eigen.converged) {
             // If QR didn't converge, skip the stabilizability check — let the
             // SDA loop itself detect divergence via its iteration limit.
