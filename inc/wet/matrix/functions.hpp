@@ -4,6 +4,8 @@
 #include <utility>
 
 #include "matrix.hpp"
+#include "solve.hpp" // expm()/sqrtm() use mat::solve; include directly so this
+                     // does not depend on aggregation order (formatter sorts includes)
 
 namespace wet {
 

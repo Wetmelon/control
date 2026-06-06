@@ -3,8 +3,8 @@
 #include <variant>
 
 #include "wet/matrix/colvec.hpp"
-#include "wet/matrix/matrix.hpp"
 #include "wet/matrix/functions.hpp"
+#include "wet/matrix/matrix.hpp"
 
 namespace wet::sim {
 
