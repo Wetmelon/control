@@ -9,6 +9,7 @@
 #include "wet/analysis/linearization.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/controllers/pid.hpp"
+#include "wet/controllers/pole_placement.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
@@ -345,6 +346,33 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
 
         return temp;
     }
+}
+
+/**
+ * @brief Robust multi-input pole placement (MATLAB's place)
+ *
+ * Thin alias for design::place — Kautsky–Nichols–Van Dooren robust eigenvalue
+ * assignment, spending the multi-input freedom to minimize eigenvector
+ * conditioning. Use this (not acker) for multi-input systems; acker remains the
+ * single-input Ackermann path.
+ *
+ * @param A State matrix
+ * @param B Input matrix
+ * @param p Desired poles (std::array<std::complex<T>, NX> or std::array<_Complex T, NX>)
+ * @return State-feedback gain K (NU×NX), or nullopt if not assignable.
+ *
+ * @note Compare with MATLAB's K = place(A, B, p).
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const auto&              p
+) {
+    const auto poles = std::apply(
+        [](const auto&... elems) { return std::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p
+    );
+    return design::place(A, B, poles);
 }
 
 /**

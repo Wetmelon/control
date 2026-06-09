@@ -46,7 +46,7 @@ The library is layered; build and prioritize **bottom-up**. Each layer depends o
 
 **Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses.** This comes *first*; most of it already exists.
 - *In place:* the linear-algebra core (`Matrix`/`ColVec`/`RowVec`, decompositions, `mat::solve`), the constexpr math backend (`wet::sin/sqrt/exp/...`), LTI system types (`StateSpace`/`TransferFunction`), first-order + biquad filters (#2 ☑), and the everyday signal-conditioning blocks / embedded primitives — scaling & calibration, interpolation tables, EWMA·peak·envelope, software timers, encoder/tach (#19 ☑).
-- *Remaining foundational gaps — prioritize these over any new algorithm:* robust MIMO pole placement (#16, the numerical routine observers/controllers build on), fast-math-robust filter coefficient designs (#17), and the freestanding / ETL-backend profile (#21).
+- *Remaining foundational gap — prioritize over any new algorithm:* the freestanding / ETL-backend profile (#21 — config plumbing now done, core alias migration remaining). Done: robust MIMO pole placement (#16 ☑, `design::place` via Kautsky–Nichols–Van Dooren + `mat::full_qr`), fast-math-robust filter coefficient designs (#17 ☑), and the robust nonsymmetric eigensolver (Hessenberg + Francis double-shift, real+complex spectra).
 
 **Layer 2 — core controls & estimation building blocks.** Single-purpose laws/estimators that sit directly on Layer 1: Luenberger/reduced observer (#1 ☑), disturbance observer (#4), UKF (#12), and the identification / excitation / cascade / model-builder infrastructure (#3).
 
@@ -62,7 +62,7 @@ What each part needs. The headline: the **embeddable core (`wet/control.hpp`) ha
 |---|---|---|---|
 | **Embeddable core** (`wet/control.hpp`) | one backend profile + the `wet::` math backend | — | ✅ |
 | ↳ backend profile (array/optional/tuple/clamp/numbers) | one of: C++ stdlib · ETL | — | ✅ |
-| ↳ `wet::` math backend (`wet::sin/sqrt/exp/...`) | freestanding-capable; default impl uses `<cmath>`, swappable via `wet_profile.hpp` | platform intrinsics | ✅ |
+| ↳ `wet::` math backend (`wet::sin/sqrt/exp/...`) | freestanding-capable; default impl uses `<cmath>`, swappable via `wet/config.hpp` profile macros | platform intrinsics | ✅ |
 | **Host superset** (`wet/toolbox.hpp`): analysis, simulation, MATLAB-style aliases | full hosted C++ stdlib (`<vector>`, `<string>`, …) | — | ❌ |
 | ↳ plotting (`plotting/plot*.hpp`) | plotlypp | — | ❌ |
 | **Examples** | hosted stdlib + fmt | plotlypp | ❌ |
@@ -145,15 +145,15 @@ These are **leaf utilities**, so most deliberately deviate from the three-tier s
 
 **Decision items (this section):** LUT out-of-range default (clamp vs extrapolate) and index-search strategy (binary vs cached hint); encoder count-type width and wrap convention; software-timer time source abstraction (integer ticks vs `T`-seconds with `dt`).
 
-### 16. Robust MIMO pole placement (true `place`) ☐
+### 16. Robust MIMO pole placement (true `place`) ☑
 
-Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`. Upgrades the Ackermann-only placement used today by `matlab::place`, the Luenberger/reduced observers (#1, via the dual `acker(Aᵀ, Cᵀ, p)ᵀ`), and any pole-placement controller to true MIMO.
+Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`.
 
-- Naming fix: the current `matlab::place` is single-input Ackermann — i.e. MATLAB's `acker`, not `place`. Plan: rename it to `acker` and reserve `place` for this robust MIMO routine.
-- Interface: `design::acker(A, B, desired_poles)` → gain `K`.
+- **Done (`controllers/pole_placement.hpp`, 2026-06).** `design::place(A, B, poles)` → `std::optional<K>` via Kautsky–Nichols–Van Dooren. Real-pole path runs KNV **Method 0** (each eigenvector iteratively re-chosen within its admissible subspace to be maximally orthogonal to the others, minimizing κ(X)); complex-conjugate poles are assigned in **real arithmetic** via real (Re v, Im v) eigenvector pairs and 2×2 real Λ-blocks `[[σ,ω],[−ω,σ]]`, so K stays real. Built on a new `mat::full_qr` (full Householder QR — the orthogonal complement of B and the per-eigenvalue admissible null spaces). Single-input reduces to and matches `matlab::acker`; `NU == NX` uses the direct `B⁻¹(A − Λ)` form. Rejects (→ `nullopt`) rank-deficient B, multiplicity > NU (non-defective spectra only), and unpaired complex poles. Fully constexpr. `matlab::place` is the thin alias.
+- Naming: `matlab::acker` (single-input Ackermann) already existed; `place` is the new robust MIMO routine — no rename was needed.
 - Reference: J. Kautsky, N. K. Nichols, P. Van Dooren, "Robust pole assignment in linear state feedback," Int. J. Control, 1985. https://doi.org/10.1080/00207178508933420
-- Acceptance: places assignable MIMO spectra; rejects pole multiplicity exceeding the input count; better conditioning than naive placement; matches MATLAB `place` on references.
-- Note: foundational — pull earlier than its number if MIMO observers/controllers are needed.
+- Acceptance ☑: places assignable MIMO real & complex spectra to ~1e-12 (`test_pole_placement.cpp`); rejects multiplicity > NU, rank-deficient B, and dangling complex poles; single-input matches `acker`; constexpr-evaluable.
+- Remaining refinement (optional): the conditioning sweep is applied on the all-real path; complex pairs assign from the orthonormal admissible basis without the extra sweep (placement still exact, conditioning good but not sweep-optimized).
 
 ### 17. Fast-math-robust filter coefficient designs ☑
 
@@ -166,12 +166,14 @@ Restructure bilinear filter designers so that the unit-DC-gain identity (and oth
 
 ### 21. Backend-agnostic core: stdlib or ETL (freestanding-capable) ⊘
 
-Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) can compile for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with a *backend profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to **one of two** backends, selected through the existing `wet_profile.hpp` mechanism (mirrors the math backend):
+Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) can compile for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with a *backend profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to **one of two** backends, selected through the unified `wet/config.hpp` profile macros (shared with the math backend):
 
 - **`stdlib`** (default, hosted) — aliases → `std::`. What exists today; unchanged for hosted users, and usable standalone (no third-party lib).
 - **`etl`** — aliases → `etl::` ([Embedded Template Library](https://www.etlcpp.com) supplies the types). Freestanding; pairs naturally with ETL for plumbing.
 
 We deliberately do **not** add a third "invent our own primitives" backend — anything not from the stdlib comes from ETL (see Design Constraints). Both backends preserve the constexpr-first invariant. Toolbox, tests, and examples stay hosted on `std`; only the embeddable umbrella must be freestanding-clean.
+
+**Progress (2026-06): the unified config plumbing is built; the alias migration is not.** A single `wet/config.hpp` is now the one discovery point: it `__has_include`s a user `wet_profile.hpp` (else warns + host defaults) and is read by *both* facilities. Selection is **per-facility macros** (decision below, resolved): containers via `WET_BACKEND_ETL` (in `backend.hpp`), scalar math via `WET_MATH_BACKEND_WET` / `WET_MATH_BACKEND_HEADER "h"` (default std, in `math/math_backend.hpp`). `wet_profile.hpp` is now **macro-only** — it must not include a backend impl — which is what lets `config.hpp` be read safely both early (containers, before any types) and late (math, after `StdMathFallback` is declared). `backend.hpp` defines the `wet::array/optional/...` aliases but is **not yet `#include`d by the core** (step 3 below). Remaining: stand up `freestanding-check` (step 1) and migrate the core behind the aliases (step 3).
 
 **Feasibility — spiked and confirmed (the gating risk is closed).** The load-bearing question was whether ETL preserves the constexpr-first synthesis invariant. Verified under `-std=c++20`:
 
@@ -195,7 +197,7 @@ ETL constexpr-equivalence confirmed for `array`/`optional` (spike above). Out of
 **Build order:**
 
 1. **`make freestanding-check`** first — compile the `wet/control.hpp` umbrella under the `etl` backend with `-ffreestanding -nostdinc++ -Ilibs/etl/include` (+ a freestanding `wet_profile.hpp`). Stand this up *before* migrating so the property is enforced from commit one. Fold a `matrix.hpp`-with-`etl::index_sequence` constexpr spike into this step to close the last unverified construct.
-2. **`wet/backend.hpp`** alias layer: `wet::array/optional/tuple/pair/clamp/move/forward/...` and `wet::pi_v`, profile-selected (`stdlib` default · `etl`), wired through `wet_profile.hpp` alongside the math backend.
+2. **`wet/backend.hpp`** alias layer: `wet::array/optional/tuple/pair/clamp/move/forward/...` and `wet::pi_v`, profile-selected (`stdlib` default · `etl`). ☑ The header + the unified `wet/config.hpp` discovery are built (see Progress); `pi_v` aliasing and the per-facility `WET_BACKEND_ETL` wiring are in place.
 3. **Migrate the core behind the alias**, header by header (matrix → systems → analysis → controllers/estimators/filters → utility), keeping `freestanding-check` green throughout.
 4. Default profile stays `stdlib` (no behavior change, no ETL dependency for hosted users); `etl` is strictly opt-in.
 
@@ -207,7 +209,11 @@ ETL constexpr-equivalence confirmed for `array`/`optional` (spike above). Out of
 - Default (`stdlib`) profile is byte-for-byte unchanged for hosted users; `make embedded-check` and the full test suite stay green.
 - No `#include <...>` of a hosted header reachable from `wet/control.hpp` under the `etl` backend; no ETL include reachable under the `stdlib` backend.
 
-**Decision items (this section):** profile selection surface (single `WET_BACKEND` enum macro vs per-facility toggles); whether `wet::` aliases live in one `backend.hpp` or split per facility; error-reporting model under the `etl` backend (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract); `std::numbers` replacement (ETL constants vs own).
+**Decision items (this section):**
+- ☑ **Profile selection surface → per-facility macros.** One `wet/config.hpp` discovers a macro-only `wet_profile.hpp`; containers key off `WET_BACKEND_ETL`, math off `WET_MATH_BACKEND_*`. Orthogonal, mix-and-match; not a single `WET_BACKEND` enum.
+- ☑ **Alias home → one `backend.hpp`** for the container/utility aliases (math backend stays in `math/math_backend.hpp`); both wired through `wet/config.hpp`.
+- ☐ Error-reporting model under the `etl` backend (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract).
+- ☐ `std::numbers` replacement (ETL constants vs own).
 
 **Layer 2 — core controls & estimation building blocks.**
 
@@ -345,7 +351,7 @@ Feedforward command shaping for resonance suppression (ZV/ZVD/EI shapers) on ref
 - Interface: `design::synthesize_input_shaper(natural_frequency, damping_ratio, shaper_type)`, `..._from_modes(mode_list, shaper_type)` → `InputShaperResult` / `InputShaperRuntime` + multi-axis bank helper.
 - References: Singer & Seering, "Preshaping Command Inputs to Reduce System Vibration," ASME JDSMC, 1990, https://doi.org/10.1115/1.2894142; Singhose et al., ASME JMD, 1994, https://doi.org/10.1115/1.2919428
 - Acceptance: coefficient normalization / delay ordering; residual-vibration attenuation under nominal/detuned resonance.
-- Open: place in `controllers/` vs `filters/`.
+- Placement: `controllers/` (resolved — it generates/shapes commands; pairs with motion #20).
 
 ### 7. Online PID tuning (relay + IFT) ⊘
 
@@ -398,7 +404,7 @@ Output-feedback synthesis for weighted generalized plants. Targets: flexible str
 - Interface: `design::synthesize_hinf(augmented_plant, weighting_filters, gamma_search_bounds)` → `HInfResult` / `HInfArtifacts` + S/T analysis models. Workflow: coupled Riccati solves over gamma; select feasible controller.
 - References: Doyle et al., "State-Space Solutions to Standard H2 and H-infinity Control Problems," IEEE TAC, 1989, https://doi.org/10.1109/9.29425; Glover & Doyle, Systems & Control Letters, 1988, https://doi.org/10.1016/0167-6911(88)90055-2
 - Acceptance: weighted robust-stability/performance; regression vs known references.
-- Open: `control.hpp` vs `toolbox.hpp` placement (gamma search may allocate).
+- Placement: `toolbox.hpp` (resolved — gamma search allocates / iterates).
 
 ### 14. Constrained MPC ⊘
 
@@ -407,7 +413,7 @@ Finite-horizon constrained control with a deterministic runtime iteration budget
 - Interface: `design::synthesize_mpc(plant, horizon, weights, constraints, solver_budget)` → `MPCResult` / `MPCArtifacts` + fixed-iteration warm-start runtime.
 - References: García, Prett & Morari, "Model Predictive Control: Theory and Practice — A Survey," Automatica, 1989, https://doi.org/10.1016/0005-1098(89)90002-2; Qin & Badgwell, Control Engineering Practice, 2003, https://doi.org/10.1016/S0967-0661(02)00186-7
 - Acceptance: deterministic per-tick runtime bound; constraint-satisfaction regression; tracking/regulation tests.
-- Open: `control.hpp` vs `toolbox.hpp` placement.
+- Placement: `toolbox.hpp` (resolved — QP solver allocates / iterates).
 
 ### 15. Moving horizon estimation (MHE) ☐
 
@@ -469,12 +475,12 @@ The current simulation harness (`simulation/simulate.hpp`) advances every block 
 
 ## Decision Items
 
-- Runtime status-return policy for `step(...)` in bundles with fallible observer/estimator updates.
-- `control.hpp` vs `toolbox.hpp` placement for H-infinity, MPC, MHE, and spectral tools (allocators/solvers → toolbox).
-- Repetitive control rollout scope: SISO first or direct MIMO.
-- Module placement for input shaping: `controllers/` vs `filters/`.
-- Default first online tuning method and shared safety policy (excitation, clamps, rollback).
+- ☑ Runtime `step(...)` status policy → **out-of-band `status()`**. `step(r, y) → control` stays the allocation-free hot path; per-tick health is read via a `status()` / `last_status` accessor. Rationale: a degraded controller still actuates, so the runtime is always-value-plus-health (a *product* type), not the sum type `expected<T, E>` models; per-tick unwrap also adds branch cost/noise in ISRs. `tl::expected`/`std::expected` not adopted — wrong shape here, and not freestanding-available (third-party / C++23) against the no-mandatory-dep constraint. Design-time keeps the established `{Result, bool success}` contract.
+- ☑ `control.hpp` vs `toolbox.hpp` placement → **H∞ (#13), MPC (#14), MHE (#15) are toolbox** (allocators / iterative solvers); spectral (#9 Goertzel) is embeddable.
+- ☑ Repetitive control (#5) rollout → **SISO first**, then MIMO (matches every other rollout).
+- ☑ Input shaping (#6) placement → **`controllers/`** (it generates/shapes commands, not a signal filter; pairs with motion #20).
+- ☑ First online tuning method → **relay autotuner** (#7, done) with the Tyreus-Luyben default; shared safety policy (clamps, slew, bumpless, rollback) is the cross-cutting requirement on every tuning runtime.
 - Default ESC perturbation policy for MPPT (frequency, amplitude schedule, freeze criteria).
 - Anti-chatter suppressor update strategy: continuous adaptation vs gated updates.
-- FFT/spectral dependency: in-house Goertzel/RFFT vs optional third-party (host only).
-- Observer API shape: shared `design::synthesize_observer` returning `L`, vs folding into existing `place`.
+- ☑ FFT/spectral dependency → **in-house Goertzel** for the known-frequency embeddable path (#9 `filters/spectral.hpp`); host RFFT/FRF stays a separate toolbox concern.
+- ☑ Observer API shape → **shared `design::synthesize_observer`** returning `L` (#1), kept orthogonal to the (future) robust `place` (#16).

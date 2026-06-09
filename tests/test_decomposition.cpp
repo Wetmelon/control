@@ -610,3 +610,76 @@ TEST_SUITE("cholesky") {
         }
     }
 }
+
+TEST_SUITE("full_qr") {
+    // Largest |A - B| element.
+    static constexpr auto max_abs_diff = []<size_t R, size_t C>(const Matrix<R, C>& A, const Matrix<R, C>& B) {
+        double worst = 0.0;
+        for (size_t i = 0; i < R; ++i) {
+            for (size_t j = 0; j < C; ++j) {
+                worst = wet::abs(A(i, j) - B(i, j)) > worst ? wet::abs(A(i, j) - B(i, j)) : worst;
+            }
+        }
+        return worst;
+    };
+
+    TEST_CASE("full_qr reconstructs A with an orthogonal full Q") {
+        SUBCASE("square 3x3") {
+            Matrix<3, 3> A = {
+                {12.0, -51.0, 4.0},
+                {6.0, 167.0, -68.0},
+                {-4.0, 24.0, -41.0},
+            };
+            auto qr = mat::full_qr(A);
+            // Q·R == A
+            CHECK(max_abs_diff(qr.Q * qr.R, A) < 1e-9);
+            // QᵀQ == I (full orthogonality)
+            CHECK(max_abs_diff(qr.Q.transpose() * qr.Q, Matrix<3, 3>::identity()) < 1e-9);
+            // R upper triangular
+            CHECK(wet::abs(qr.R(1, 0)) < 1e-9);
+            CHECK(wet::abs(qr.R(2, 0)) < 1e-9);
+            CHECK(wet::abs(qr.R(2, 1)) < 1e-9);
+        }
+
+        SUBCASE("tall 4x2 — trailing Q columns span the orthogonal complement") {
+            Matrix<4, 2> B = {
+                {1.0, 2.0},
+                {3.0, 4.0},
+                {5.0, 6.0},
+                {7.0, 9.0},
+            };
+            auto qr = mat::full_qr(B);
+            CHECK(max_abs_diff(qr.Q * qr.R, B) < 1e-9);
+            CHECK(max_abs_diff(qr.Q.transpose() * qr.Q, Matrix<4, 4>::identity()) < 1e-9);
+
+            // Columns 2..3 of Q (the complement U₁) are orthogonal to range(B):
+            // U₁ᵀ·B == 0.
+            for (size_t c = 2; c < 4; ++c) {
+                for (size_t j = 0; j < 2; ++j) {
+                    double d = 0.0;
+                    for (size_t i = 0; i < 4; ++i) {
+                        d += qr.Q(i, c) * B(i, j);
+                    }
+                    CHECK(wet::abs(d) < 1e-9);
+                }
+            }
+        }
+    }
+
+    TEST_CASE("full_qr is constexpr-evaluable") {
+        constexpr auto ortho_ok = []() consteval {
+            Matrix<3, 2> B = {{1.0, 0.0}, {1.0, 1.0}, {0.0, 1.0}};
+            auto         qr = mat::full_qr(B);
+            // U₁ (column 2) ⟂ range(B)
+            double d0 = 0.0;
+            double d1 = 0.0;
+            for (size_t i = 0; i < 3; ++i) {
+                d0 += qr.Q(i, 2) * B(i, 0);
+                d1 += qr.Q(i, 2) * B(i, 1);
+            }
+            return wet::abs(d0) < 1e-12 && wet::abs(d1) < 1e-12;
+        };
+        static_assert(ortho_ok(), "full_qr complement must be constexpr-correct");
+        CHECK(ortho_ok());
+    }
+}

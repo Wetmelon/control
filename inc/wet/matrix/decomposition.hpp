@@ -248,5 +248,90 @@ template<typename T, size_t N, size_t M>
     return result;
 }
 
+/**
+ * @brief Result of a full (complete) QR factorization.
+ *
+ * A = Q·R with Q an N×N orthogonal matrix and R N×M upper-triangular. Unlike
+ * qr_decompose (thin modified-Gram-Schmidt, N×M Q), this retains the *full*
+ * orthogonal factor: its leading rank columns span the range of A and its
+ * trailing columns span the left null space (orthogonal complement). Those
+ * complement columns are what robust pole placement (#16) needs from B.
+ */
+template<typename T, size_t N, size_t M>
+struct FullQR {
+    Matrix<N, N, T> Q{}; ///< Orthogonal factor (full N×N).
+    Matrix<N, M, T> R{}; ///< Upper-triangular factor (N×M).
+};
+
+/**
+ * @brief Full QR factorization via Householder reflections (real T).
+ *
+ * Numerically robust (orthogonal reflections, not Gram-Schmidt). For A with
+ * full column rank M ≤ N, columns 0..M−1 of Q form an orthonormal basis of
+ * range(A) and columns M..N−1 form an orthonormal basis of its complement
+ * (Qᵀ_⊥·A = 0).
+ *
+ * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §5.2
+ */
+template<typename T, size_t N, size_t M>
+[[nodiscard]] constexpr FullQR<T, N, M> full_qr(const Matrix<N, M, T>& A) {
+    FullQR<T, N, M> out;
+    out.Q = Matrix<N, N, T>::identity();
+    out.R = A;
+
+    constexpr size_t steps = (M < N) ? M : (N - 1); // columns to reflect
+    for (size_t k = 0; k < steps; ++k) {
+        // Householder vector v that zeroes R(k+1.., k).
+        T norm_sq = T{0};
+        for (size_t i = k; i < N; ++i) {
+            norm_sq += out.R(i, k) * out.R(i, k);
+        }
+        T alpha = wet::sqrt(norm_sq);
+        if (alpha == T{0}) {
+            continue; // column already zero below the diagonal
+        }
+        if (out.R(k, k) > T{0}) {
+            alpha = -alpha; // choose sign to avoid cancellation in v[k]
+        }
+
+        std::array<T, N> v{};
+        v[k] = out.R(k, k) - alpha;
+        for (size_t i = k + 1; i < N; ++i) {
+            v[i] = out.R(i, k);
+        }
+        T vtv = T{0};
+        for (size_t i = k; i < N; ++i) {
+            vtv += v[i] * v[i];
+        }
+        if (vtv == T{0}) {
+            continue;
+        }
+
+        // Apply H = I − 2·v·vᵀ/(vᵀv) to R from the left: R −= (2/vᵀv)·v·(vᵀR).
+        for (size_t j = 0; j < M; ++j) {
+            T dot = T{0};
+            for (size_t i = k; i < N; ++i) {
+                dot += v[i] * out.R(i, j);
+            }
+            const T s = (T{2} * dot) / vtv;
+            for (size_t i = k; i < N; ++i) {
+                out.R(i, j) -= s * v[i];
+            }
+        }
+        // Accumulate Q = Q·H from the right: Q −= (2/vᵀv)·(Q·v)·vᵀ.
+        for (size_t i = 0; i < N; ++i) {
+            T dot = T{0};
+            for (size_t j = k; j < N; ++j) {
+                dot += out.Q(i, j) * v[j];
+            }
+            const T s = (T{2} * dot) / vtv;
+            for (size_t j = k; j < N; ++j) {
+                out.Q(i, j) -= s * v[j];
+            }
+        }
+    }
+    return out;
+}
+
 } // namespace mat
 } // namespace wet
