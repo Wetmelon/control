@@ -9,7 +9,6 @@
 #include "wet/systems/discretization.hpp"
 #include "wet/matlab.hpp"
 #include "pll_report_support.hpp"
-#include "wet/utility.hpp"
 
 using namespace wet;
 using namespace wet::pll_report;

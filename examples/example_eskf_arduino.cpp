@@ -5,8 +5,8 @@
 
 #include "wet/estimation/kalman.hpp"
 #include "wet/estimation/sensor_fusion.hpp"
-#include "wet/geometry.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/utility/geometry.hpp"
 
 using namespace wet;
 

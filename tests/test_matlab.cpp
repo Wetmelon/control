@@ -173,8 +173,8 @@ TEST_CASE("MATLAB structural analysis aliases") {
 
     auto Co_short = matlab::ctrb(A, B);
     auto Ob_short = matlab::obsv(A, C);
-    auto Co_core = analysis::controllability_matrix(A, B);
-    auto Ob_core = analysis::observability_matrix(A, C);
+    auto Co_core = stability::controllability_matrix(A, B);
+    auto Ob_core = stability::observability_matrix(A, C);
 
     CHECK(Co_short == Co_core);
     CHECK(Ob_short == Ob_core);

@@ -58,7 +58,7 @@ tf(const TNum (&num)[Nnum], const TDen (&den)[Nden]) noexcept {
  */
 template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr Matrix<NX, NX * NU, T> ctrb(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B) noexcept {
-    return analysis::controllability_matrix(A, B);
+    return stability::controllability_matrix(A, B);
 }
 
 /**
@@ -66,7 +66,7 @@ template<size_t NX, size_t NU, typename T = double>
  */
 template<size_t NX, size_t NY, typename T = double>
 [[nodiscard]] constexpr Matrix<NX * NY, NX, T> obsv(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noexcept {
-    return analysis::observability_matrix(A, C);
+    return stability::observability_matrix(A, C);
 }
 
 /**

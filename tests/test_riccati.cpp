@@ -1,7 +1,7 @@
 #include "doctest.h"
+#include "wet/analysis/riccati.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/riccati.hpp"
 
 using namespace wet;
 

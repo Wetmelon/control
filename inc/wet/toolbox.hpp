@@ -32,7 +32,6 @@
 
 // --- Host-only design & analysis tooling (heap-allocating) ------------------
 #include "wet/analysis/analysis.hpp"   // IWYU pragma: keep  (Bode/Nyquist/margins/sweeps)
-#include "wet/matlab.hpp"              // IWYU pragma: keep  (MATLAB-style aliases)
 #include "wet/plotting/plot.hpp"       // IWYU pragma: keep  (text/console plotting)
 #include "wet/simulation/simulate.hpp" // IWYU pragma: keep  (closed-loop simulation)
 #include "wet/simulation/solver.hpp"   // IWYU pragma: keep  (RK4/RK45 solvers)

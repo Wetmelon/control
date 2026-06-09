@@ -124,7 +124,7 @@ Or reach for a single feature directly:
 #include "wet/estimation/kalman.hpp"    // Kalman filter
 #include "wet/controllers/pid.hpp"      // PID with anti-windup
 #include "wet/filters/filters.hpp"      // LowPass and delay/filter helpers
-#include "wet/geometry.hpp"             // DCM, Quaternion, Euler, Transform4
+#include "wet/utility/geometry.hpp"             // DCM, Quaternion, Euler, Transform4
 #include "wet/systems/state_space.hpp"  // StateSpace type and interconnections
 ```
 

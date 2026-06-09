@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "wet/analysis/analysis.hpp"
+#include "wet/analysis/stability.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
@@ -25,12 +26,12 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<2, 1> B{{0.0}, {1.0}};
 
-        auto Co = analysis::controllability_matrix(A, B);
-        CHECK(analysis::rank(Co) == 2);
-        CHECK(analysis::is_controllable(A, B));
+        auto Co = stability::controllability_matrix(A, B);
+        CHECK(stability::rank(Co) == 2);
+        CHECK(stability::is_controllable(A, B));
 
         // Compile-time check
-        static_assert(analysis::is_controllable(
+        static_assert(stability::is_controllable(
             Matrix<2, 2>{{0.0, 1.0}, {-2.0, -3.0}},
             Matrix<2, 1>{{0.0}, {1.0}}
         ));
@@ -41,16 +42,16 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{1.0, 0.0}, {0.0, 2.0}};
         Matrix<2, 1> B{{0.0}, {0.0}};
 
-        CHECK_FALSE(analysis::is_controllable(A, B));
+        CHECK_FALSE(stability::is_controllable(A, B));
     }
 
     TEST_CASE("Observable 2x2 system") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<1, 2> C{{1.0, 0.0}};
 
-        auto Ob = analysis::observability_matrix(A, C);
-        CHECK(analysis::rank(Ob) == 2);
-        CHECK(analysis::is_observable(A, C));
+        auto Ob = stability::observability_matrix(A, C);
+        CHECK(stability::rank(Ob) == 2);
+        CHECK(stability::is_observable(A, C));
     }
 
     TEST_CASE("Unobservable 2x2 system") {
@@ -58,10 +59,10 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<2, 2> A{{1.0, 0.0}, {0.0, 2.0}};
         Matrix<1, 2> C{{1.0, 0.0}};
 
-        auto Ob = analysis::observability_matrix(A, C);
+        auto Ob = stability::observability_matrix(A, C);
         // Ob = [1 0; 1 0] — rank 1, not rank 2
-        CHECK(analysis::rank(Ob) == 1);
-        CHECK_FALSE(analysis::is_observable(A, C));
+        CHECK(stability::rank(Ob) == 1);
+        CHECK_FALSE(stability::is_observable(A, C));
     }
 
     TEST_CASE("Controllable 3x3 system") {
@@ -69,31 +70,31 @@ TEST_SUITE("Analysis - Controllability and Observability") {
         Matrix<3, 3> A{{0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}, {-6.0, -11.0, -6.0}};
         Matrix<3, 1> B{{0.0}, {0.0}, {1.0}};
 
-        CHECK(analysis::is_controllable(A, B));
+        CHECK(stability::is_controllable(A, B));
     }
 
     TEST_CASE("MIMO controllability") {
         Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
         Matrix<2, 2> B{{1.0, 0.0}, {0.0, 1.0}};
 
-        auto Co = analysis::controllability_matrix(A, B);
+        auto Co = stability::controllability_matrix(A, B);
         // Controllability matrix is 2x4, should have rank 2
-        CHECK(analysis::rank(Co) == 2);
-        CHECK(analysis::is_controllable(A, B));
+        CHECK(stability::rank(Co) == 2);
+        CHECK(stability::is_controllable(A, B));
     }
 
     TEST_CASE("Matrix rank computation") {
         // Full rank 3x3
         Matrix<3, 3> M1{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
-        CHECK(analysis::rank(M1) == 3);
+        CHECK(stability::rank(M1) == 3);
 
         // Rank 2 (third row = first + second)
         Matrix<3, 3> M2{{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {1.0, 1.0, 0.0}};
-        CHECK(analysis::rank(M2) == 2);
+        CHECK(stability::rank(M2) == 2);
 
         // Rank 1
         Matrix<3, 3> M3{{1.0, 2.0, 3.0}, {2.0, 4.0, 6.0}, {3.0, 6.0, 9.0}};
-        CHECK(analysis::rank(M3) == 1);
+        CHECK(stability::rank(M3) == 1);
     }
 }
 

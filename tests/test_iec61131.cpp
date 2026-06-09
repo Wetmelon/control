@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "wet/iec61131.hpp"
+#include "wet/utility/iec61131.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

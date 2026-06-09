@@ -1,5 +1,6 @@
 ﻿#include <cmath>
 
+#include "wet/analysis/riccati.hpp"
 #include "wet/controllers/lqg.hpp"
 #include "wet/controllers/lqgi.hpp"
 #include "wet/controllers/lqi.hpp"
@@ -7,7 +8,6 @@
 #include "wet/estimation/eskf.hpp"
 #include "wet/estimation/kalman.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/riccati.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

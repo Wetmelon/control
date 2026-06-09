@@ -2,9 +2,9 @@
 
 #include <cstddef>
 
+#include "wet/analysis/riccati.hpp"
 #include "wet/analysis/stability.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/riccati.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 

@@ -39,6 +39,7 @@
 #include "wet/analysis/stability.hpp"     // IWYU pragma: keep
 
 // --- Controllers + design synthesis -----------------------------------------
+#include "wet/analysis/riccati.hpp"           // IWYU pragma: keep
 #include "wet/controllers/adrc.hpp"           // IWYU pragma: keep
 #include "wet/controllers/cascade.hpp"        // IWYU pragma: keep
 #include "wet/controllers/excitation.hpp"     // IWYU pragma: keep
@@ -54,7 +55,6 @@
 #include "wet/controllers/relay_autotune.hpp" // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"            // IWYU pragma: keep
 #include "wet/controllers/synthesis.hpp"      // IWYU pragma: keep
-#include "wet/riccati.hpp"                    // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
 #include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep
@@ -80,10 +80,9 @@
 #include "wet/simulation/integrator.hpp" // IWYU pragma: keep
 
 // --- Domain helpers ---------------------------------------------------------
-#include "wet/geometry.hpp"      // IWYU pragma: keep
-#include "wet/iec61131.hpp"      // IWYU pragma: keep
-#include "wet/motor_control.hpp" // IWYU pragma: keep
-#include "wet/utility.hpp"       // IWYU pragma: keep
+#include "wet/utility/geometry.hpp"      // IWYU pragma: keep
+#include "wet/utility/iec61131.hpp"      // IWYU pragma: keep
+#include "wet/utility/motor_control.hpp" // IWYU pragma: keep
 
 // --- Embedded firmware primitives (allocation-free leaf utilities) ----------
 // Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)
