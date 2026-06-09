@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <algorithm>
-
 #include "matrix.hpp"
 #include "solve.hpp" // expm()/sqrtm() use mat::solve; include directly so this
 #include "wet/backend.hpp"

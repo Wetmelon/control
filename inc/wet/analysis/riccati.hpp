@@ -3,7 +3,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"

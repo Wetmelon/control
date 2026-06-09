@@ -3,11 +3,11 @@
 // ODrive / CMSIS-style lookup-table trig, trimmed to the sin/cos/atan2 chain
 // for instruction-count comparison against wet:: and ti_arm_.
 
-#include <algorithm>
+
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <utility>
+
 
 #define FAST_MATH_TABLE_SIZE  512
 

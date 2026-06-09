@@ -9,7 +9,6 @@
  */
 
 #include <cstddef>
-#include <tuple>
 #include <type_traits>
 
 #include "matrix.hpp"

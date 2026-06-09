@@ -15,7 +15,6 @@
  * @see utility/scaling.hpp for the affine / polynomial conversions.
  */
 
-#include <algorithm>
 #include <cstddef>
 
 #include "wet/matrix/matrix.hpp"   // Matrix, ColVec

@@ -1,8 +1,6 @@
 ﻿#pragma once
 
-#include <algorithm>
 #include <numbers>
-#include <tuple>
 
 #include "wet/math/math.hpp"
 

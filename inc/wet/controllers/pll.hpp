@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <numbers>
 
 #include "wet/filters/sogi.hpp"
