@@ -1,5 +1,6 @@
 #pragma once
 
-// Explicit std:: backend selection for host/test builds.
-// Suppresses the "wet_profile.hpp not found" warning from math_backend.hpp.
-#include "wet/math/std_backend.hpp"
+// Host profile for tests: stdlib containers + std:: math backend (the library
+// defaults). wet_profile.hpp is MACRO-ONLY configuration — see wet/config.hpp
+// for the recognized macros. The host defaults need none, so this file is empty
+// apart from existing: its presence selects an explicit, warning-free config.

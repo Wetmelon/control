@@ -20,9 +20,13 @@
  * ETL. `std::initializer_list` is intentionally *not* aliased: it is a core
  * language facility (`<initializer_list>`), available even freestanding.
  *
- * @note The constexpr math backend (`wet::sin/sqrt/...`) is selected separately
- *       in `wet/math/`; this header covers only the container/utility types.
+ * @note Selection is unified through `wet/config.hpp`: a single `wet_profile.hpp`
+ *       sets `WET_BACKEND_ETL` (this header) alongside the math-backend macros
+ *       (`wet/math/math_backend.hpp`). This header covers only the
+ *       container/utility types.
  */
+
+#include "wet/config.hpp" // pulls the profile's backend-selection macros
 
 #if defined(WET_BACKEND_ETL)
 

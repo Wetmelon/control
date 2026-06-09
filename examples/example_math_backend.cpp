@@ -12,19 +12,22 @@
  * always uses the built-in constexpr series expansions regardless of backend.
  * Backends only affect runtime execution.
  *
- * Backend selection is done via a user-created wet_profile.hpp:
+ * Backend selection is done via a user-created, macro-only wet_profile.hpp (see
+ * wet/config.hpp for the full surface):
  *
  * @code
- * // wet_profile.hpp  — place anywhere in your project's include path
+ * // wet_profile.hpp  — place anywhere in your project's include path (macros only)
  *
- * // Option 1: std:: backend (desktop / host builds — same as this example)
- * #include "std_backend.hpp"
+ * // Option 1: std:: backend (desktop / host builds — the default, no macro needed)
  *
- * // Option 2: TI ARM backend (ARMv7 embedded targets)
- * #include "ti_arm.hpp"
+ * // Option 2: built-in fast float math (wet/math/trig.hpp)
+ * #define WET_MATH_BACKEND_WET
  *
- * // Option 3: custom backend — inherit StdMathFallback<T> and override
- * //           only the functions your platform provides:
+ * // Option 3: custom platform backend — point at a header that defines it:
+ * #define WET_MATH_BACKEND_HEADER "ti_arm_backend.hpp"
+ *
+ * // ...where ti_arm_backend.hpp inherits StdMathFallback<T> and overrides only
+ * // the functions the platform provides:
  * namespace wet {
  * template<>
  * struct MathBackend<float> : StdMathFallback<float> {
@@ -36,8 +39,8 @@
  * } // namespace wet
  * @endcode
  *
- * If wet_profile.hpp is not found, the library emits a #warning and falls back
- * to std_backend.hpp automatically.
+ * If no wet_profile.hpp is found, the library uses the std:: backend and emits a
+ * one-time #warning so the choice is never silent.
  */
 
 // This example uses the std:: backend via examples/wet_profile.hpp.

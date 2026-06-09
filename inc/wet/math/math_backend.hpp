@@ -3,6 +3,8 @@
 #include <cmath>
 #include <utility>
 
+#include "wet/config.hpp" // pulls the profile's backend-selection macros
+
 namespace wet {
 
 /**
@@ -47,23 +49,18 @@ struct StdMathFallback {
  * @brief Pluggable math backend for runtime scalar operations
  *
  * Primary template is intentionally undefined — a backend specialization must
- * be provided for each scalar type used at runtime. The recommended approach
- * is to create a wet_profile.hpp anywhere in your project's include path and
- * include your chosen backend there:
+ * be provided for each scalar type used at runtime. The selection is driven by
+ * the profile macros read through wet/config.hpp (set in your wet_profile.hpp):
  *
- * @code
- * // wet_profile.hpp  (user-created, anywhere in include path)
- * #include "ti_arm_backend.hpp"            // or std_backend.hpp, arm_cmsis_dsp.hpp, etc.
- * @endcode
- *
- * If wet_profile.hpp is not found, std_backend.hpp is used automatically with
- * a compiler warning. To silence the warning on host/test builds, create a
- * wet_profile.hpp that explicitly includes std_backend.hpp.
+ *   - default                       → std_backend.hpp (the std:: backend)
+ *   - WET_MATH_BACKEND_WET          → wet_backend.hpp (fast float math/trig.hpp)
+ *   - WET_MATH_BACKEND_HEADER "h"   → include "h", which defines MathBackend<T>
  *
  * Backend authors: inherit from StdMathFallback<T> and override only the
  * functions your platform library provides. The rest fall through to <cmath>.
  *
  * @see StdMathFallback
+ * @see config.hpp for the unified profile / macro surface
  * @tparam T Scalar type (float, double)
  */
 template<typename T>
@@ -71,10 +68,13 @@ struct MathBackend;
 
 } // namespace wet
 
-// Auto-discover user backend profile. If not found, fall back to std:: with a warning.
-#if __has_include("wet_profile.hpp")
-#include "wet_profile.hpp" // IWYU pragma: keep
+// Bind the runtime backend selected by the profile macros (see config.hpp). The
+// chosen header is included here, after the types above are declared, so that
+// its MathBackend<T> specializations see StdMathFallback<T>. Default: std::.
+#if defined(WET_MATH_BACKEND_HEADER)
+#include WET_MATH_BACKEND_HEADER // IWYU pragma: keep
+#elif defined(WET_MATH_BACKEND_WET)
+#include "wet_backend.hpp" // IWYU pragma: keep
 #else
-#warning "wet_profile.hpp not found in include path. Using std:: math backend. Create wet_profile.hpp to select a platform backend."
 #include "std_backend.hpp" // IWYU pragma: keep
 #endif

@@ -1,7 +1,9 @@
 #pragma once
 
-// Explicit std:: backend selection for host/example builds.
-// Suppresses the "wet_profile.hpp not found" warning from math_backend.hpp.
-// For embedded targets, replace this include with your platform backend,
-// e.g.: #include "ti_arm_backend.hpp"
-#include "wet/math/std_backend.hpp"
+// Host profile for the examples: stdlib containers + std:: math backend (the
+// library defaults). wet_profile.hpp is MACRO-ONLY configuration — see
+// wet/config.hpp for the recognized macros. The host defaults need none.
+//
+// For an embedded target you would instead set, e.g.:
+//   #define WET_BACKEND_ETL                              // ETL containers
+// #define WET_MATH_BACKEND_HEADER "wet_backend.hpp" // platform math
