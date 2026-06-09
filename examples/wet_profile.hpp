@@ -5,5 +5,5 @@
 // wet/config.hpp for the recognized macros. The host defaults need none.
 //
 // For an embedded target you would instead set, e.g.:
-//   #define WET_BACKEND_ETL                              // ETL containers
-// #define WET_MATH_BACKEND_HEADER "wet_backend.hpp" // platform math
+// #define WET_BACKEND_ETL
+// #define WET_MATH_BACKEND_WET

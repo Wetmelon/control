@@ -26,10 +26,10 @@
  * @see matlab::acker for the single-input Ackermann path
  */
 
-#include <array>
 #include <cstddef>
 #include <optional>
 
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
@@ -59,7 +59,7 @@ template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
-    const std::array<T, NX>& poles
+    const wet::array<T, NX>& poles
 ) {
     static_assert(NU <= NX, "place requires NU <= NX (no more inputs than states)");
 
@@ -87,7 +87,7 @@ template<size_t NX, size_t NU, typename T = double>
         // For each eigenvalue λ_j, the admissible eigenvectors are the null space
         // of U1ᵀ(A − λ_j I): vectors x with (A − λ_j I)x ∈ range(B). A basis S_j
         // (NX×NU) is the trailing NU columns of the full QR of (A − λ_j I)ᵀ·U1.
-        std::array<Matrix<NX, NU, T>, NX> S{};
+        wet::array<Matrix<NX, NU, T>, NX> S{};
         for (size_t j = 0; j < NX; ++j) {
             // Mtʲ = (A − λ_j I)ᵀ · U1   (NX×NC), whose left null space (the
             // trailing NU columns of its full-Q) is the admissible space S_j.
@@ -140,12 +140,12 @@ template<size_t NX, size_t NU, typename T = double>
                 }
                 const auto qrO = mat::full_qr(others);
                 // q⊥ = trailing column of Q (orthogonal to span(others)).
-                std::array<T, NX> qperp{};
+                wet::array<T, NX> qperp{};
                 for (size_t i = 0; i < NX; ++i) {
                     qperp[i] = qrO.Q(i, NX - 1);
                 }
                 // Project q⊥ onto S_j: x_new = S_j (S_jᵀ q⊥).
-                std::array<T, NU> coeffs{};
+                wet::array<T, NU> coeffs{};
                 for (size_t s = 0; s < NU; ++s) {
                     T acc = T{0};
                     for (size_t i = 0; i < NX; ++i) {
@@ -153,7 +153,7 @@ template<size_t NX, size_t NU, typename T = double>
                     }
                     coeffs[s] = acc;
                 }
-                std::array<T, NX> xnew{};
+                wet::array<T, NX> xnew{};
                 T                 nrm_sq = T{0};
                 for (size_t i = 0; i < NX; ++i) {
                     T acc = T{0};
@@ -263,7 +263,7 @@ template<size_t NX, size_t NU, typename T = double>
 [[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
     const Matrix<NX, NX, T>&               A,
     const Matrix<NX, NU, T>&               B,
-    const std::array<wet::complex<T>, NX>& poles
+    const wet::array<wet::complex<T>, NX>& poles
 ) {
     static_assert(NU <= NX, "place requires NU <= NX (no more inputs than states)");
     constexpr T tol_im = T{1e-9};
@@ -277,7 +277,7 @@ template<size_t NX, size_t NU, typename T = double>
         }
     }
     if (all_real) {
-        std::array<T, NX> rp{};
+        wet::array<T, NX> rp{};
         for (size_t i = 0; i < NX; ++i) {
             rp[i] = poles[i].real();
         }

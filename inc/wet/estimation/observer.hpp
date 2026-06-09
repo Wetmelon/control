@@ -56,9 +56,9 @@
  * @see kalman.hpp for the stochastic estimator (and MIMO outputs)
  */
 
-#include <array>
 #include <cstddef>
 
+#include "wet/backend.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
@@ -157,7 +157,7 @@ template<size_t NX, size_t NY, typename T = double>
 
         // Desired characteristic polynomial: φ(s) = Π (s − pᵢ).
         // Build with complex arithmetic so conjugate pairs cancel to real coeffs.
-        std::array<wet::complex<T>, NX + 1> cc{};
+        wet::array<wet::complex<T>, NX + 1> cc{};
         cc[0] = wet::complex<T>{T{1}, T{0}};
         for (size_t i = 0; i < NX; ++i) {
             const wet::complex<T> root = desired_poles[i];
@@ -169,7 +169,7 @@ template<size_t NX, size_t NY, typename T = double>
                 carry = next;
             }
         }
-        std::array<T, NX + 1> coeffs{};
+        wet::array<T, NX + 1> coeffs{};
         for (size_t k = 0; k <= NX; ++k) {
             coeffs[k] = cc[k].real();
         }

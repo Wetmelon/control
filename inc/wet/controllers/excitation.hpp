@@ -67,12 +67,12 @@
  * @see Van Overschee & De Moor, "Subspace Identification for Linear Systems" (1996)
  */
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 
 namespace wet {
@@ -533,7 +533,7 @@ struct Tone {
  */
 template<std::size_t NTones, typename T = double>
 struct MultiSineConfig {
-    std::array<Tone<T>, NTones> tones{}; ///< Fixed tone table
+    wet::array<Tone<T>, NTones> tones{}; ///< Fixed tone table
 
     /**
      * @brief Validate multi-sine configuration.

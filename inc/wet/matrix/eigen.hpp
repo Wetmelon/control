@@ -1,10 +1,10 @@
 ﻿#pragma once
 
-#include <array>
 #include <cstddef>
 #include <limits>
 
 #include "matrix.hpp"
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 
 namespace wet {
@@ -590,7 +590,7 @@ template<typename T, size_t N>
 constexpr void hessenberg_reduce(Matrix<N, N, T>& H, Matrix<N, N, T>& Z) {
     Z = Matrix<N, N, T>::identity();
     if constexpr (N > 2) {
-        std::array<T, N> ort{};
+        wet::array<T, N> ort{};
         for (size_t m = 1; m + 1 < N; ++m) {
             T scale = T{0};
             for (size_t i = m; i < N; ++i) {
@@ -669,8 +669,8 @@ template<typename T, size_t N>
 constexpr bool francis_qr(
     Matrix<N, N, T>&  H,
     Matrix<N, N, T>&  Z,
-    std::array<T, N>& wr,
-    std::array<T, N>& wi
+    wet::array<T, N>& wr,
+    wet::array<T, N>& wi
 ) {
     constexpr T  eps = std::numeric_limits<T>::epsilon();
     const size_t max_its = (30 * N) + 30;
@@ -943,8 +943,8 @@ template<typename T, size_t N>
         Matrix<N, N, T> Z;
         detail::hessenberg_reduce(H, Z);
 
-        std::array<T, N> wr{};
-        std::array<T, N> wi{};
+        wet::array<T, N> wr{};
+        wet::array<T, N> wi{};
         result.converged = detail::francis_qr(H, Z, wr, wi);
 
         for (size_t i = 0; i < N; ++i) {

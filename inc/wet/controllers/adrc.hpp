@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <array>
 #include <cstddef>
 
 #include "wet/math/math.hpp"
@@ -25,7 +24,7 @@ struct ADRCResult {
     T wo{}; //< Observer bandwidth
     T b0{}; //< Plant gain
 
-    std::array<T, NX + 1> beta{}; //< ESO gains
+    wet::array<T, NX + 1> beta{}; //< ESO gains
 
     T Kp{}; //< Proportional gain
     T Kd{}; //< Derivative gain
@@ -57,7 +56,7 @@ struct ADRCResult {
  */
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr ADRCResult<NX, T> adrc(T wc, T wo, T b0, T Ts) {
-    std::array<T, NX + 1> beta{};
+    wet::array<T, NX + 1> beta{};
     size_t                n = NX + 1;
     for (size_t i = 1; i <= n; ++i) {
         T binom = T{1};
@@ -109,7 +108,7 @@ class ADRCController {
     T Kd{1.0f}; //< derivative gain
     T Ts{1.0f}; //< sampling time
 
-    std::array<T, NX + 1> beta{};             //< ESO gains [β1, β2, ..., β_{NX+1}]
+    wet::array<T, NX + 1> beta{};             //< ESO gains [β1, β2, ..., β_{NX+1}]
     ColVec<NX + 1, T>     z{};                //< ESO state: [z1, z2, ..., z_{NX+1}]
     T                     u_prev_{T{0}};      //< Last applied command (post-saturation)
     T                     ki_factor_{T{1.0}}; //< Integrator gain-scheduling factor

@@ -558,10 +558,10 @@ template<typename T = float>
 template<size_t N, typename T = float>
 class LowPass {
 private:
-    std::array<T, N + 1> b{};      //!< Numerator coefficients
-    std::array<T, N>     a{};      //!< Denominator coefficients
-    std::array<T, N>     x_prev{}; //!< Previous inputs
-    std::array<T, N>     y_prev{}; //!< Previous outputs
+    wet::array<T, N + 1> b{};      //!< Numerator coefficients
+    wet::array<T, N>     a{};      //!< Denominator coefficients
+    wet::array<T, N>     x_prev{}; //!< Previous inputs
+    wet::array<T, N>     y_prev{}; //!< Previous outputs
 
 public:
     /**
@@ -586,7 +586,7 @@ public:
         // Compute impulse response
         constexpr size_t MaxK = 2 * N;
 
-        std::array<T, MaxK + 1> h{};
+        wet::array<T, MaxK + 1> h{};
         h[0] = sys_d.D(0, 0);
         Matrix<N, N, T> A_pow{};
         for (size_t i = 0; i < N; ++i) {
@@ -622,12 +622,12 @@ public:
         }
     }
 
-    constexpr LowPass(const std::array<T, N + 1>& b_, const std::array<T, N>& a_)
-        : b(b_), a(a_), x_prev{}, y_prev{} {}
+    constexpr LowPass(const wet::array<T, N + 1>& b_, const wet::array<T, N>& a_)
+        : b(b_), a(a_) {}
 
     constexpr LowPass(const design::FirstOrderCoeffs<T>& coeffs)
         requires(N == 1)
-        : b{coeffs.b0, coeffs.b1}, a{coeffs.a1}, x_prev{}, y_prev{} {}
+        : b{coeffs.b0, coeffs.b1}, a{coeffs.a1} {}
 
     constexpr auto operator()(T x) {
         T y = b[0] * x;
@@ -724,7 +724,7 @@ class BiquadCascade {
 public:
     constexpr BiquadCascade() = default;
 
-    constexpr explicit BiquadCascade(const std::array<design::SecondOrderCoeffs<T>, NSections>& sections) {
+    constexpr explicit BiquadCascade(const wet::array<design::SecondOrderCoeffs<T>, NSections>& sections) {
         for (size_t i = 0; i < NSections; ++i) {
             sections_[i] = Biquad<T>(sections[i]);
         }
@@ -746,7 +746,7 @@ public:
     }
 
 private:
-    std::array<Biquad<T>, NSections> sections_{};
+    wet::array<Biquad<T>, NSections> sections_{};
 };
 
 /**
@@ -758,7 +758,7 @@ private:
 template<size_t MaxDelay, typename T = float>
 class Delay {
 private:
-    std::array<T, MaxDelay> buffer_{};         //!< Circular buffer for delayed samples
+    wet::array<T, MaxDelay> buffer_{};         //!< Circular buffer for delayed samples
     size_t                  write_idx_{0};     //!< Current write position
     size_t                  delay_samples_{1}; //!< Number of samples to delay
 

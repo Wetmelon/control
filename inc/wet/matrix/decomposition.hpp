@@ -8,7 +8,6 @@
  *        solve.hpp; the eigensolver in eigen.hpp.
  */
 
-#include <array>
 #include <cstddef>
 #include <optional>
 #include <tuple>
@@ -16,6 +15,7 @@
 
 #include "matrix.hpp"
 #include "matrix_traits.hpp"
+#include "wet/backend.hpp"
 #include "wet/math/complex.hpp"
 
 namespace wet {
@@ -117,11 +117,11 @@ constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
  * U: upper triangular
  */
 template<size_t N, typename T>
-constexpr std::optional<std::tuple<Matrix<N, N, T>, Matrix<N, N, T>, std::array<size_t, N>>>
+constexpr std::optional<std::tuple<Matrix<N, N, T>, Matrix<N, N, T>, wet::array<size_t, N>>>
 lu_decomposition(const Matrix<N, N, T>& A) {
     Matrix<N, N, T>       L = Matrix<N, N, T>::identity();
     Matrix<N, N, T>       U = A;
-    std::array<size_t, N> piv;
+    wet::array<size_t, N> piv;
     for (size_t i = 0; i < N; ++i) {
         piv[i] = i;
     }
@@ -294,7 +294,7 @@ template<typename T, size_t N, size_t M>
             alpha = -alpha; // choose sign to avoid cancellation in v[k]
         }
 
-        std::array<T, N> v{};
+        wet::array<T, N> v{};
         v[k] = out.R(k, k) - alpha;
         for (size_t i = k + 1; i < N; ++i) {
             v[i] = out.R(i, k);

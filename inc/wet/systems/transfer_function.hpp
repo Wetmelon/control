@@ -1,17 +1,17 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <type_traits>
 
 #include "state_space.hpp"
+#include "wet/backend.hpp"
 
 namespace wet {
 
 namespace tf_detail {
 
 template<size_t Nres, size_t Nsrc, typename T>
-constexpr void accumulate_poly(std::array<T, Nres>& dst, const std::array<T, Nsrc>& src, T scale = T{1}) {
+constexpr void accumulate_poly(wet::array<T, Nres>& dst, const wet::array<T, Nsrc>& src, T scale = T{1}) {
     constexpr size_t N = (Nsrc < Nres) ? Nsrc : Nres;
     for (size_t i = 0; i < N; ++i) {
         dst[i] += scale * src[i];
@@ -19,8 +19,8 @@ constexpr void accumulate_poly(std::array<T, Nres>& dst, const std::array<T, Nsr
 }
 
 template<size_t Na, size_t Nb, typename T>
-[[nodiscard]] constexpr std::array<T, Na + Nb - 1> convolve_poly(const std::array<T, Na>& a, const std::array<T, Nb>& b) {
-    std::array<T, Na + Nb - 1> result{};
+[[nodiscard]] constexpr wet::array<T, Na + Nb - 1> convolve_poly(const wet::array<T, Na>& a, const wet::array<T, Nb>& b) {
+    wet::array<T, Na + Nb - 1> result{};
     for (size_t i = 0; i < Na; ++i) {
         for (size_t j = 0; j < Nb; ++j) {
             result[i + j] += a[i] * b[j];
@@ -40,8 +40,8 @@ using transfer_function_scalar_t = std::conditional_t<
 template<size_t Nnum, size_t Nden, typename T = double>
     requires std::is_floating_point_v<T>
 struct TransferFunction {
-    std::array<T, Nnum> num{}; //!< Numerator coefficients
-    std::array<T, Nden> den{}; //!< Denominator coefficients
+    wet::array<T, Nnum> num{}; //!< Numerator coefficients
+    wet::array<T, Nden> den{}; //!< Denominator coefficients
 
     template<typename U>
     [[nodiscard]] constexpr TransferFunction<Nnum, Nden, U> as() const {
@@ -96,7 +96,7 @@ struct TransferFunction {
 };
 
 template<typename TNum, size_t Nnum, typename TDen, size_t Nden>
-TransferFunction(const std::array<TNum, Nnum>&, const std::array<TDen, Nden>&)
+TransferFunction(const wet::array<TNum, Nnum>&, const wet::array<TDen, Nden>&)
     -> TransferFunction<Nnum, Nden, transfer_function_scalar_t<TNum, TDen>>;
 
 template<typename TNum, size_t Nnum, typename TDen, size_t Nden>
@@ -223,8 +223,8 @@ template<size_t Nnum1, size_t Nden1, size_t Nnum2, size_t Nden2, typename T>
 template<size_t Nz, size_t Np, typename T = double>
     requires std::is_floating_point_v<T>
 struct ZPK {
-    std::array<wet::complex<T>, Nz> zeros{}; //!< Zeros of the transfer function
-    std::array<wet::complex<T>, Np> poles{}; //!< Poles of the transfer function
+    wet::array<wet::complex<T>, Nz> zeros{}; //!< Zeros of the transfer function
+    wet::array<wet::complex<T>, Np> poles{}; //!< Poles of the transfer function
     T                               gain{1}; //!< Gain of the transfer function
 
     template<typename U>

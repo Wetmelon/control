@@ -86,9 +86,9 @@ template<typename T = double>
  * @return Array of PRResult, one per harmonic
  */
 template<size_t N, typename T = double>
-[[nodiscard]] constexpr std::array<PRResult<T>, N>
-pr_harmonics(T Kp, T Ki_fund, T w_fund, T wc, T Ts, const std::array<size_t, N>& harmonics) {
-    std::array<PRResult<T>, N> results{};
+[[nodiscard]] constexpr wet::array<PRResult<T>, N>
+pr_harmonics(T Kp, T Ki_fund, T w_fund, T wc, T Ts, const wet::array<size_t, N>& harmonics) {
+    wet::array<PRResult<T>, N> results{};
     for (size_t i = 0; i < N; ++i) {
         T w_h = w_fund * static_cast<T>(harmonics[i]);
         // Typically reduce Ki for higher harmonics
@@ -255,7 +255,7 @@ struct MultiPRController {
     constexpr MultiPRController() = default;
 
     template<size_t M>
-    constexpr MultiPRController(const std::array<design::PRResult<T>, M>& results)
+    constexpr MultiPRController(const wet::array<design::PRResult<T>, M>& results)
         requires(M == N)
     {
         Kp = results[0].Kp;

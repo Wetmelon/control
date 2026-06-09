@@ -48,8 +48,8 @@ struct ColVec : public Matrix<N, 1, T> {
         }
     }
 
-    // Constructor from std::array<T, N> - enables CTAD
-    constexpr ColVec(const std::array<T, N>& arr) : Matrix<N, 1, T>() {
+    // Constructor from wet::array<T, N> - enables CTAD
+    constexpr ColVec(const wet::array<T, N>& arr) : Matrix<N, 1, T>() {
         for (size_t i = 0; i < N; ++i) {
             this->data_[i] = arr[i];
         }
@@ -280,7 +280,7 @@ template<typename U, size_t M>
 ColVec(Matrix<M, 1, U>) -> ColVec<M, U>;
 
 template<typename T, size_t N>
-ColVec(const std::array<T, N>&) -> ColVec<N, T>;
+ColVec(const wet::array<T, N>&) -> ColVec<N, T>;
 
 // Common aliases
 template<typename T>

@@ -260,7 +260,7 @@ template<typename U, size_t M>
 RowVec(Matrix<1, M, U>) -> RowVec<M, U>;
 
 template<typename T, size_t N>
-RowVec(const std::array<T, N>&) -> RowVec<N, T>;
+RowVec(const wet::array<T, N>&) -> RowVec<N, T>;
 
 template<typename T>
 using RowVec2 = RowVec<2, T>;

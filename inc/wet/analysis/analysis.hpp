@@ -329,8 +329,8 @@ template<size_t NX, size_t NW, size_t NV, typename T>
  */
 template<size_t Nnum, size_t Nden, typename T>
 [[nodiscard]] constexpr BodeResult<T> bode(
-    const std::array<T, Nnum>& num,
-    const std::array<T, Nden>& den,
+    const wet::array<T, Nnum>& num,
+    const wet::array<T, Nden>& den,
     const std::vector<T>&      omega
 ) {
     using C = wet::complex<T>;
@@ -728,11 +728,11 @@ struct PoleInfo {
  * @return Array of PoleInfo with ωn, ζ, τ for each pole
  */
 template<size_t NX, typename T = double>
-[[nodiscard]] constexpr std::array<PoleInfo<T>, NX>
+[[nodiscard]] constexpr wet::array<PoleInfo<T>, NX>
 damp(const Matrix<NX, NX, T>& A) {
     static_assert(NX <= 4, "Damp only supported for systems up to 4 states");
     auto                        eigen = mat::compute_eigenvalues(A);
-    std::array<PoleInfo<T>, NX> info{};
+    wet::array<PoleInfo<T>, NX> info{};
     for (size_t i = 0; i < NX; ++i) {
         auto p = eigen.values[i];
         T    wn = wet::abs(p);

@@ -13,10 +13,11 @@
  * @see motor_control.hpp for the Clarke/Park transforms these feed.
  */
 
-#include <array>
 #include <cstdint>
 #include <numbers>
 #include <type_traits>
+
+#include "wet/backend.hpp"
 
 namespace wet {
 
@@ -111,7 +112,7 @@ public:
 private:
     // Quadrature transition table indexed by (prev<<2 | curr); +1 forward,
     // -1 reverse, 0 for no movement or an illegal (both-bits) transition.
-    static constexpr std::array<int8_t, 16> kTransition{
+    static constexpr wet::array<int8_t, 16> kTransition{
         0, +1, -1, 0,
         -1, 0, 0, +1,
         +1, 0, 0, -1,

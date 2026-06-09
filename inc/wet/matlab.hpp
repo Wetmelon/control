@@ -1,12 +1,11 @@
 ﻿#pragma once
 
-#include <array>
 #include <cstddef>
 #include <optional>
 #include <type_traits>
 
-#include "wet/analysis/analysis.hpp"
 #include "wet/analysis/linearization.hpp"
+#include "wet/backend.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/controllers/pole_placement.hpp"
@@ -27,7 +26,7 @@ namespace matlab {
  */
 template<size_t Nnum, size_t Nden, typename T = double>
 [[nodiscard]] constexpr TransferFunction<Nnum, Nden, T>
-tf(const std::array<T, Nnum>& num, const std::array<T, Nden>& den) noexcept {
+tf(const wet::array<T, Nnum>& num, const wet::array<T, Nden>& den) noexcept {
     return TransferFunction<Nnum, Nden, T>{.num = num, .den = den};
 }
 
@@ -152,7 +151,7 @@ template<typename... Args>
  * @return Matrix<N, N, T>
  */
 template<size_t N, typename T, int k = 0>
-[[nodiscard]] constexpr auto diag(const std::array<T, N>& diag) noexcept {
+[[nodiscard]] constexpr auto diag(const wet::array<T, N>& diag) noexcept {
     Matrix<N, N, T> result = Matrix<N, N, T>::zeros();
     for (size_t i = 0; i < N; ++i) {
         size_t row = i;
@@ -279,7 +278,7 @@ constexpr auto reg(const StateSpace<NX, NU, NY, NW, NV, T>& sys, const Matrix<NU
  *
  * @param A State matrix
  * @param B Input matrix
- * @param p Desired poles (accepts std::array<std::complex<T>, NX> or std::array<_Complex T, NX>)
+ * @param p Desired poles (accepts wet::array<std::complex<T>, NX> or wet::array<_Complex T, NX>)
  *
  * @return std::optional<Matrix<NU, NX, T>> State-feedback gain K, or nullopt if not implementable
  */
@@ -290,7 +289,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
     const auto&              p
 ) noexcept {
     // Convert poles to wet::complex<T> array
-    const auto poles = std::apply([](const auto&... elems) { return std::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p);
+    const auto poles = std::apply([](const auto&... elems) { return wet::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p);
 
     if constexpr (NU != 1) {
         // Multi-input pole placement not implemented yet
@@ -317,7 +316,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
         auto Co_inv = *Co_inv_opt;
 
         // Compute desired characteristic polynomial coefficients (assuming real poles)
-        std::array<T, NX + 1> coeffs{};
+        wet::array<T, NX + 1> coeffs{};
         coeffs[0] = 1.0;
         for (size_t i = 0; i < NX; ++i) {
             T root = poles[i].real(); // Use real part
@@ -358,7 +357,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
  *
  * @param A State matrix
  * @param B Input matrix
- * @param p Desired poles (std::array<std::complex<T>, NX> or std::array<_Complex T, NX>)
+ * @param p Desired poles (wet::array<std::complex<T>, NX> or wet::array<_Complex T, NX>)
  * @return State-feedback gain K (NU×NX), or nullopt if not assignable.
  *
  * @note Compare with MATLAB's K = place(A, B, p).
@@ -370,7 +369,7 @@ template<size_t NX, size_t NU, typename T = double>
     const auto&              p
 ) {
     const auto poles = std::apply(
-        [](const auto&... elems) { return std::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p
+        [](const auto&... elems) { return wet::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p
     );
     return design::place(A, B, poles);
 }

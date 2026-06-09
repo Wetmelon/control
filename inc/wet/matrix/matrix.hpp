@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <cstddef>
 #include <initializer_list>
@@ -10,6 +9,7 @@
 #include <utility>
 
 #include "matrix_traits.hpp"
+#include "wet/backend.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/math/math.hpp"
 
@@ -64,7 +64,7 @@ struct TransposeView;
 template<size_t Rows, size_t Cols, typename T = double>
 struct Matrix {
 protected:
-    std::array<T, Rows * Cols> data_{};
+    wet::array<T, Rows * Cols> data_{};
 
     template<size_t, size_t, typename>
     friend struct Matrix;
@@ -184,9 +184,9 @@ public:
     }
 
     /**
-     * @brief Constructor from std::array, enables class template argument deduction
+     * @brief Constructor from wet::array, enables class template argument deduction
      */
-    constexpr Matrix(const std::array<T, Rows * Cols>& arr) : Matrix() {
+    constexpr Matrix(const wet::array<T, Rows * Cols>& arr) : Matrix() {
         for (size_t i = 0; i < Rows * Cols; ++i) {
             data_[i] = arr[i];
         }
@@ -359,7 +359,7 @@ public:
      * @param diag Array containing the diagonal elements
      * @return Diagonal matrix with the specified diagonal elements
      */
-    [[nodiscard]] static constexpr Matrix diagonal(const std::array<T, Rows>& diag)
+    [[nodiscard]] static constexpr Matrix diagonal(const wet::array<T, Rows>& diag)
         requires(Rows == Cols)
     {
         Matrix result{};
