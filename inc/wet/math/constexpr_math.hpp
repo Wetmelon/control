@@ -17,7 +17,8 @@
 
 #include <limits>
 #include <numbers>
-#include <utility>
+
+#include "wet/backend.hpp"
 
 namespace wet::detail {
 
@@ -210,7 +211,7 @@ constexpr T sin(T x) {
 
 /// {sin(x), cos(x)}.
 template<typename T>
-constexpr std::pair<T, T> sincos(T x) {
+constexpr wet::pair<T, T> sincos(T x) {
     return {sin(x), cos(x)};
 }
 

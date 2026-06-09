@@ -264,7 +264,7 @@ template<size_t NX, size_t NU, size_t NY, typename T>
 }
 
 template<size_t NX, size_t NU, size_t NY, typename T>
-[[nodiscard]] constexpr std::pair<Matrix<NU, NX, T>, Matrix<NU, NY, T>> split_lqi_gain(const Matrix<NU, NX + NY, T>& K) {
+[[nodiscard]] constexpr wet::pair<Matrix<NU, NX, T>, Matrix<NU, NY, T>> split_lqi_gain(const Matrix<NU, NX + NY, T>& K) {
     Matrix<NU, NX, T> Kx{};
     Matrix<NU, NY, T> Ki{};
 

@@ -215,7 +215,7 @@ bool step_to_gnuplot(const std::string& basename, const std::vector<T>& time, co
  * @return pair of {time_vector, output_vector}
  */
 template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] constexpr std::pair<std::vector<T>, std::vector<T>>
+[[nodiscard]] constexpr wet::pair<std::vector<T>, std::vector<T>>
 step_response(const StateSpace<NX, 1, 1, NW, NV, T>& sys, size_t n_steps) {
     std::vector<T> time;
     std::vector<T> output;
@@ -242,7 +242,7 @@ step_response(const StateSpace<NX, 1, 1, NW, NV, T>& sys, size_t n_steps) {
  * @return pair of {time_vector, output_vector}
  */
 template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] constexpr std::pair<std::vector<T>, std::vector<T>>
+[[nodiscard]] constexpr wet::pair<std::vector<T>, std::vector<T>>
 impulse_response(const StateSpace<NX, 1, 1, NW, NV, T>& sys, size_t n_steps) {
     std::vector<T> time;
     std::vector<T> output;

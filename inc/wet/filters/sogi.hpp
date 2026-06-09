@@ -1,8 +1,8 @@
 ﻿#pragma once
 
 #include <numbers>
-#include <utility>
 
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/systems/state_space.hpp"
@@ -226,7 +226,7 @@ class SOGI {
 public:
     constexpr SOGI() = default;
 
-    [[nodiscard]] constexpr std::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
+    [[nodiscard]] constexpr wet::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
         const auto wT = freq * T{2} * std::numbers::pi_v<T> * Ts;
         const auto [sin_wt, cos_wt] = wet::sincos(wT); // sin(wT), cos(wT)
 
@@ -289,7 +289,7 @@ class MSTOGI {
 public:
     constexpr MSTOGI() = default;
 
-    [[nodiscard]] constexpr std::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
+    [[nodiscard]] constexpr wet::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
         const T wT = freq * T{2} * std::numbers::pi_v<T> * Ts;
         const auto [sin_wt, cos_wt] = wet::sincos(wT); // sin(wT), cos(wT)
 

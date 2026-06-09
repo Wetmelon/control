@@ -1,9 +1,9 @@
 #include <array>
 #include <cstdint>
 #include <numbers>
-#include <utility>
 
 #include "doctest.h"
+#include "wet/backend.hpp"
 #include "wet/utility/encoder.hpp"
 
 using namespace wet;
@@ -12,12 +12,12 @@ namespace {
 // Quadrature cycles in (A, B), each starting and ending at state 00 so repeated
 // cycles chain cleanly from the decoder's initial 00 state.
 // Forward: 00 -> 01 -> 11 -> 10 -> 00.
-constexpr std::array<std::pair<bool, bool>, 4> kForward{{{false, true}, {true, true}, {true, false}, {false, false}}};
+constexpr std::array<wet::pair<bool, bool>, 4> kForward{{{false, true}, {true, true}, {true, false}, {false, false}}};
 // Reverse: 00 -> 10 -> 11 -> 01 -> 00.
-constexpr std::array<std::pair<bool, bool>, 4> kReverse{{{true, false}, {true, true}, {false, true}, {false, false}}};
+constexpr std::array<wet::pair<bool, bool>, 4> kReverse{{{true, false}, {true, true}, {false, true}, {false, false}}};
 
 template<typename Dec>
-constexpr void drive(Dec& d, const std::array<std::pair<bool, bool>, 4>& seq, int cycles) {
+constexpr void drive(Dec& d, const std::array<wet::pair<bool, bool>, 4>& seq, int cycles) {
     for (int c = 0; c < cycles; ++c) {
         for (const auto& s : seq) {
             d.update(s.first, s.second);

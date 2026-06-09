@@ -1,11 +1,11 @@
 ﻿#pragma once
 
 #include <algorithm>
-#include <utility>
 
 #include "matrix.hpp"
 #include "solve.hpp" // expm()/sqrtm() use mat::solve; include directly so this
-                     // does not depend on aggregation order (formatter sorts includes)
+#include "wet/backend.hpp"
+// does not depend on aggregation order (formatter sorts includes)
 
 namespace wet {
 
@@ -585,7 +585,7 @@ template<typename T, size_t N>
  * @return {sin(A), cos(A)}
  */
 template<typename T, size_t N>
-[[nodiscard]] constexpr std::pair<Matrix<N, N, T>, Matrix<N, N, T>> sincos(const Matrix<N, N, T>& A) {
+[[nodiscard]] constexpr wet::pair<Matrix<N, N, T>, Matrix<N, N, T>> sincos(const Matrix<N, N, T>& A) {
     Matrix<N, N, T> I = Matrix<N, N, T>::identity();
 
     // Scale down until ||A/2^s|| < 0.5

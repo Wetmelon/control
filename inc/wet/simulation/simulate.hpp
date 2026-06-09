@@ -18,9 +18,9 @@
  * @endcode
  */
 
-#include <utility>
 #include <vector>
 
+#include "wet/backend.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet::sim {
@@ -69,7 +69,7 @@ SimulationResult<NX, NU, NY, T> simulate(
     Controller&&           controller,
     const Solver&          solver,
     const ColVec<NX, T>&   x0,
-    const std::pair<T, T>& t_span
+    const wet::pair<T, T>& t_span
 ) {
     // Capture controller output so the plant closure can use it
     ColVec<NU, T> u_current{};
@@ -129,7 +129,7 @@ SimulationResult<NX, NU, NY, T> simulate_state_feedback(
     Controller&&           controller,
     const Solver&          solver,
     const ColVec<NX, T>&   x0,
-    const std::pair<T, T>& t_span
+    const wet::pair<T, T>& t_span
 ) {
     ColVec<NU, T> u_current{};
 
@@ -181,7 +181,7 @@ SimulationResult<NX, NU, NY, T> simulate_lti(
     Controller&&                             controller,
     const Solver&                            solver,
     const ColVec<NX, T>&                     x0,
-    const std::pair<T, T>&                   t_span
+    const wet::pair<T, T>&                   t_span
 ) {
     auto plant = [&](T /*t*/, const ColVec<NX, T>& x, const ColVec<NU, T>& u) -> ColVec<NX, T> {
         return sys.A * x + sys.B * u;

@@ -274,8 +274,8 @@ double max_abs_diff(const Matrix<N, M>& A, const Matrix<N, M>& B) {
 // Returns {real, imag} eigenvalue pairs sorted by real then imag part, reading
 // the QR/Schur result's diagonal real part and corresponding imaginary part.
 template<size_t N>
-std::array<std::pair<double, double>, N> eig_pairs(const EigenResult<double, N>& r) {
-    std::array<std::pair<double, double>, N> out;
+std::array<wet::pair<double, double>, N> eig_pairs(const EigenResult<double, N>& r) {
+    std::array<wet::pair<double, double>, N> out;
     for (size_t i = 0; i < N; ++i) {
         out[i] = {r.eigenvalues_real(i, i), r.eigenvalues_imag(i, i)};
     }
@@ -380,7 +380,7 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
         auto r = compute_eigenvalues_qr(A);
         REQUIRE(r.converged);
         auto                                     got = eig_pairs(r);
-        std::array<std::pair<double, double>, 6> want = {{
+        std::array<wet::pair<double, double>, 6> want = {{
             {-1.0, 0.0},
             {2.0, 0.0},
             {4.0, -3.0},

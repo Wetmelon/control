@@ -1,8 +1,8 @@
 #pragma once
 
 #include <cmath>
-#include <utility>
 
+#include "wet/backend.hpp"
 #include "wet/config.hpp" // pulls the profile's backend-selection macros
 
 namespace wet {
@@ -28,7 +28,7 @@ struct StdMathFallback {
 
     /// Combined sin/cos. Returns {sin(x), cos(x)}. Platform backends should
     /// override this with a shared-range-reduction implementation.
-    static std::pair<T, T> sincos(T x) { return {std::sin(x), std::cos(x)}; }
+    static wet::pair<T, T> sincos(T x) { return {std::sin(x), std::cos(x)}; }
 
     static T sqrt(T x) { return std::sqrt(x); }
     static T abs(T x) { return std::abs(x); }

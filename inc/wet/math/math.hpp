@@ -19,10 +19,10 @@
 
 #include <numbers>
 #include <type_traits>
-#include <utility>
 
 #include "constexpr_math.hpp"
 #include "math_backend.hpp"
+#include "wet/backend.hpp"
 
 namespace wet {
 
@@ -167,7 +167,7 @@ constexpr T sin(T x) {
  * @param x Angle in radians
  */
 template<typename T>
-constexpr std::pair<T, T> sincos(T x) {
+constexpr wet::pair<T, T> sincos(T x) {
     if (std::is_constant_evaluated()) {
         return detail::sincos(x);
     }

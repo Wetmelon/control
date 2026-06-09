@@ -13,8 +13,7 @@
  * @see filters/blocks.hpp for the rest of the everyday signal-conditioning blocks.
  */
 
-#include <utility>
-
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/matrix/solve.hpp"
@@ -111,7 +110,7 @@ template<typename T = float>
  */
 template<typename T = float>
 [[nodiscard]] constexpr ThermistorCoeffs<T>
-steinhart_hart(std::pair<T, T> p1, std::pair<T, T> p2, std::pair<T, T> p3) {
+steinhart_hart(wet::pair<T, T> p1, wet::pair<T, T> p2, wet::pair<T, T> p3) {
     const T l1 = wet::log(p1.first);
     const T l2 = wet::log(p2.first);
     const T l3 = wet::log(p3.first);

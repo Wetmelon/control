@@ -6,7 +6,6 @@
 #include <initializer_list>
 #include <optional>
 #include <type_traits>
-#include <utility>
 
 #include "matrix_traits.hpp"
 #include "wet/backend.hpp"

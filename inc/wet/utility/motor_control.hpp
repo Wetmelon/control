@@ -25,10 +25,10 @@ namespace wet {
  * @param b Phase B
  * @param c Phase C
  * @param T Scalar type
- * @return std::pair<T, T> {α, β} components
+ * @return wet::pair<T, T> {α, β} components
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::pair<T, T> clarke_transform(T a, T b, T c) {
+[[nodiscard]] constexpr wet::pair<T, T> clarke_transform(T a, T b, T c) {
     const T alpha = ((T{2} * a) - b - c) / T{3};
     const T beta = (b - c) / std::numbers::sqrt3_v<T>;
     return {alpha, beta};
@@ -62,10 +62,10 @@ template<typename T = float>
  * @param beta β component
  * @param theta Rotor angle [rad]
  * @param T Scalar type
- * @return std::pair<T, T> {d, q} components
+ * @return wet::pair<T, T> {d, q} components
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::pair<T, T> park_transform(T alpha, T beta, T theta) {
+[[nodiscard]] constexpr wet::pair<T, T> park_transform(T alpha, T beta, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T d = (alpha * cos_theta) + (beta * sin_theta);
@@ -83,10 +83,10 @@ template<typename T = float>
  * @param q q component
  * @param theta Rotor angle [rad]
  * @param T Scalar type
- * @return std::pair<T, T> {α, β} components
+ * @return wet::pair<T, T> {α, β} components
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::pair<T, T> inverse_park_transform(T d, T q, T theta) {
+[[nodiscard]] constexpr wet::pair<T, T> inverse_park_transform(T d, T q, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T alpha = (d * cos_theta) - (q * sin_theta);
@@ -105,10 +105,10 @@ template<typename T = float>
  * @param c Phase C
  * @param theta Rotor angle [rad]
  * @param T Scalar type
- * @return std::pair<T, T> {d, q} components
+ * @return wet::pair<T, T> {d, q} components
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::pair<T, T> clarke_park_transform(T a, T b, T c, T theta) {
+[[nodiscard]] constexpr wet::pair<T, T> clarke_park_transform(T a, T b, T c, T theta) {
     const auto [alpha, beta] = clarke_transform(a, b, c);
     return park_transform(alpha, beta, theta);
 }

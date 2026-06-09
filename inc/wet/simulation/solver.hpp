@@ -20,10 +20,10 @@
 #include <algorithm>
 #include <functional>
 #include <tuple>
-#include <utility>
 #include <vector>
 
 #include "integrator.hpp"
+#include "wet/backend.hpp"
 
 namespace wet::sim {
 
@@ -48,7 +48,7 @@ struct SolveResult {
     struct Iterator {
         using iterator_category = std::forward_iterator_tag;
         using difference_type = std::ptrdiff_t;
-        using value_type = std::pair<T, const ColVec<NX, T>&>;
+        using value_type = wet::pair<T, const ColVec<NX, T>&>;
         using reference = value_type;
 
         Iterator(const std::vector<T>* t_vec, const std::vector<ColVec<NX, T>>* x_vec, size_t idx)
@@ -108,7 +108,7 @@ public:
      * @return SolveResult with full time/state history
      */
     template<typename F>
-    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const std::pair<T, T>& t_span) const {
+    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
         // Reset multi-step integrators if they have a reset() method
         if constexpr (requires { integrator_.reset(); }) {
             integrator_.reset();
@@ -234,7 +234,7 @@ public:
      * @return SolveResult with full time/state history
      */
     template<typename F>
-    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const std::pair<T, T>& t_span) const {
+    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
         if constexpr (requires { integrator_.reset(); }) {
             integrator_.reset();
         }

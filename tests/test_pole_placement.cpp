@@ -117,8 +117,8 @@ TEST_SUITE("pole_placement") {
         Matrix<NX, NX> ABK = A - (B * Kopt.value());
         auto           r = mat::compute_eigenvalues_qr(ABK);
 
-        std::array<std::pair<double, double>, NX> got;
-        std::array<std::pair<double, double>, NX> want;
+        std::array<wet::pair<double, double>, NX> got;
+        std::array<wet::pair<double, double>, NX> want;
         for (size_t i = 0; i < NX; ++i) {
             got[i] = {r.eigenvalues_real(i, i), std::abs(r.eigenvalues_imag(i, i))};
             want[i] = {poles[i].real(), std::abs(poles[i].imag())};

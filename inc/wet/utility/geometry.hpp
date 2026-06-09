@@ -837,7 +837,7 @@ struct Transform4 : public Mat4<T> {
     }
 
     // Convert to quaternion + translation
-    [[nodiscard]] constexpr std::pair<Quaternion<T>, Vec3<T>> to_quaternion_translation() const {
+    [[nodiscard]] constexpr wet::pair<Quaternion<T>, Vec3<T>> to_quaternion_translation() const {
         DCM<T>  R = rotation();
         auto    q_opt = R.to_quaternion();
         Vec3<T> t = translation();
@@ -846,7 +846,7 @@ struct Transform4 : public Mat4<T> {
 
     // Convert to Euler + translation
     template<EulerOrder Order = EulerOrder::ZYX>
-    [[nodiscard]] constexpr std::pair<Euler<T, Order>, Vec3<T>> to_euler_translation() const {
+    [[nodiscard]] constexpr wet::pair<Euler<T, Order>, Vec3<T>> to_euler_translation() const {
         DCM<T>          R = rotation();
         Euler<T, Order> e = R.template to_euler<Order>();
         Vec3<T>         t = translation();

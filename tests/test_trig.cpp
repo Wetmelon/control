@@ -3,6 +3,7 @@
 #include <initializer_list>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/math/trig.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
@@ -185,7 +186,7 @@ TEST_SUITE("trig") {
     }
 
     TEST_CASE("atan2 - matches std::atan2") {
-        const std::array pairs = std::to_array<std::pair<float, float>>({
+        const std::array pairs = std::to_array<wet::pair<float, float>>({
             {1.0f, 2.0f},
             {-1.0f, 2.0f},
             {1.0f, -2.0f},

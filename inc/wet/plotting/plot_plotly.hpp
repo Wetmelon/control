@@ -220,7 +220,7 @@ plotlypp::Figure plot_line(
  */
 template<typename T>
 plotlypp::Figure plot_step(
-    const std::pair<std::vector<T>, std::vector<T>>& time_values,
+    const wet::pair<std::vector<T>, std::vector<T>>& time_values,
     const std::string&                               title = "Step Response"
 ) {
     return plot_line(time_values.first, time_values.second, title);
