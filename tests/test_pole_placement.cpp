@@ -30,7 +30,7 @@ double placement_error(const Matrix<NX, NX>& A, const Matrix<NX, NU>& B, const s
     std::sort(want.begin(), want.end());
     double worst = 0.0;
     for (size_t i = 0; i < NX; ++i) {
-        worst = std::max(worst, std::abs(got[i] - want[i]));
+        worst = wet::max(worst, std::abs(got[i] - want[i]));
     }
     return worst;
 }
@@ -127,8 +127,8 @@ TEST_SUITE("pole_placement") {
         std::sort(want.begin(), want.end());
         double worst = 0.0;
         for (size_t i = 0; i < NX; ++i) {
-            worst = std::max(worst, std::abs(got[i].first - want[i].first));
-            worst = std::max(worst, std::abs(got[i].second - want[i].second));
+            worst = wet::max(worst, std::abs(got[i].first - want[i].first));
+            worst = wet::max(worst, std::abs(got[i].second - want[i].second));
         }
         return worst;
     };

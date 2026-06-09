@@ -437,7 +437,7 @@ TEST_CASE("Block view operations") {
     // const_block(0, 0) = 300; // This should not compile if const-correct
 
     // Test move operations (basic check)
-    auto block4 = std::move(block3);
+    auto block4 = wet::move(block3);
     CHECK(block4(0, 0) == 200);
 }
 
@@ -489,13 +489,13 @@ TEST_SUITE("Matrix Inversion Tests") {
     }
 
     template<size_t... I>
-    void test_all_sizes(std::index_sequence<I...>) {
+    void test_all_sizes(wet::index_sequence<I...>) {
         // I = 0..8  →  N = 1..9
         (test_inverse_for_size<I + 1>(), ...);
     }
 
     TEST_CASE("Matrix Inversion for sizes 1 to 9") {
-        test_all_sizes(std::make_index_sequence<9>{});
+        test_all_sizes(wet::make_index_sequence<9>{});
     }
 }
 

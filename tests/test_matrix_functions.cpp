@@ -219,7 +219,7 @@ TEST_SUITE("Matrix Functions") {
         double worst = 0.0;
         for (size_t i = 0; i < N; ++i) {
             for (size_t j = 0; j < N; ++j) {
-                worst = std::max(worst, std::abs(A(i, j) - B(i, j)));
+                worst = wet::max(worst, std::abs(A(i, j) - B(i, j)));
             }
         }
         return worst;

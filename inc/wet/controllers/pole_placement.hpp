@@ -27,7 +27,6 @@
  */
 
 #include <cstddef>
-#include <optional>
 
 #include "wet/backend.hpp"
 #include "wet/math/math.hpp"
@@ -49,14 +48,14 @@ namespace design {
  * @param A      State matrix (NX×NX)
  * @param B      Input matrix (NX×NU), assumed full column rank (controllable)
  * @param poles  Desired closed-loop eigenvalues (real)
- * @return Gain K (NU×NX), or std::nullopt if B is rank-deficient or the assigned
+ * @return Gain K (NU×NX), or wet::nullopt if B is rank-deficient or the assigned
  *         eigenvectors are linearly dependent (e.g. a pole repeated more than NU
  *         times — not assignable with independent eigenvectors).
  *
  * @note Compare with MATLAB's K = place(A, B, poles).
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
+[[nodiscard]] constexpr wet::optional<Matrix<NU, NX, T>> place(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const wet::array<T, NX>& poles
@@ -193,7 +192,7 @@ template<size_t NX, size_t NU, typename T = double>
     // Recover the gain. A − B·K = X·Λ·X⁻¹, so B·K = A − X·Λ·X⁻¹.
     const auto Xinv_opt = X.inverse();
     if (!Xinv_opt) {
-        return std::nullopt; // eigenvectors dependent (e.g. multiplicity > NU)
+        return wet::nullopt; // eigenvectors dependent (e.g. multiplicity > NU)
     }
     const auto& Xinv = Xinv_opt.value();
 
@@ -211,7 +210,7 @@ template<size_t NX, size_t NU, typename T = double>
         // K = B⁻¹·(A − M).
         const auto Binv_opt = B.inverse();
         if (!Binv_opt) {
-            return std::nullopt; // B not invertible
+            return wet::nullopt; // B not invertible
         }
         return Binv_opt.value() * A_minus_M;
     } else {
@@ -232,7 +231,7 @@ template<size_t NX, size_t NU, typename T = double>
         }
         const auto Zinv_opt = Z.inverse();
         if (!Zinv_opt) {
-            return std::nullopt; // B rank-deficient
+            return wet::nullopt; // B rank-deficient
         }
         return Zinv_opt.value() * (U0.transpose() * A_minus_M);
     }
@@ -254,13 +253,13 @@ template<size_t NX, size_t NU, typename T = double>
  *
  * @param poles Desired closed-loop eigenvalues as adjacent conjugate pairs
  *              (real poles may appear anywhere).
- * @return Gain K (NU×NX), or std::nullopt if B is rank-deficient, the poles are
+ * @return Gain K (NU×NX), or wet::nullopt if B is rank-deficient, the poles are
  *         not in valid conjugate pairs, or the eigenvectors are dependent.
  *
  * @note Compare with MATLAB's K = place(A, B, poles) for complex spectra.
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
+[[nodiscard]] constexpr wet::optional<Matrix<NU, NX, T>> place(
     const Matrix<NX, NX, T>&               A,
     const Matrix<NX, NU, T>&               B,
     const wet::array<wet::complex<T>, NX>& poles
@@ -296,12 +295,12 @@ template<size_t NX, size_t NU, typename T = double>
                 ++j;
             } else {
                 if (j + 1 >= NX) {
-                    return std::nullopt; // dangling complex pole
+                    return wet::nullopt; // dangling complex pole
                 }
                 const T sg = poles[j].real();
                 const T w = poles[j].imag();
                 if (wet::abs(poles[j + 1].real() - sg) > T{1e-7} || wet::abs(poles[j + 1].imag() + w) > T{1e-7}) {
-                    return std::nullopt; // not a conjugate pair
+                    return wet::nullopt; // not a conjugate pair
                 }
                 Lambda(j, j) = sg;
                 Lambda(j, j + 1) = w;
@@ -316,7 +315,7 @@ template<size_t NX, size_t NU, typename T = double>
         // X = I ⇒ A − B·K = Λ, so K = B⁻¹·(A − Λ).
         const auto Binv_opt = B.inverse();
         if (!Binv_opt) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         return Binv_opt.value() * (A - Lambda);
     } else {
@@ -400,12 +399,12 @@ template<size_t NX, size_t NU, typename T = double>
 
         const auto Xinv_opt = X.inverse();
         if (!Xinv_opt) {
-            return std::nullopt; // eigenvectors dependent
+            return wet::nullopt; // eigenvectors dependent
         }
         const Matrix<NX, NX, T> M = (X * Lambda) * Xinv_opt.value();
         const auto              Zinv_opt = Z.inverse();
         if (!Zinv_opt) {
-            return std::nullopt; // B rank-deficient
+            return wet::nullopt; // B rank-deficient
         }
         return Zinv_opt.value() * (U0.transpose() * (A - M));
     }

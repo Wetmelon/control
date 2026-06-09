@@ -153,8 +153,8 @@ TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental"
         const auto [bp, q] = mstogi(v, f0, alpha, Ts);
 
         if (i > n - 2000) {
-            bp_amp = std::max(bp_amp, std::abs(bp));
-            q_amp = std::max(q_amp, std::abs(q));
+            bp_amp = wet::max(bp_amp, std::abs(bp));
+            q_amp = wet::max(q_amp, std::abs(q));
             q_mean += q;
             ++n_mean;
         }
@@ -198,8 +198,8 @@ TEST_CASE("MSTOGI runtime - frequency retune (center frequency moves mid-run)") 
         phase += two_pi * 60.0f * Ts;
         const auto [bp, q] = mstogi(std::sin(phase), 60.0f, alpha, Ts);
         if (i > 2000) {
-            bp_amp = std::max(bp_amp, std::abs(bp));
-            q_amp = std::max(q_amp, std::abs(q));
+            bp_amp = wet::max(bp_amp, std::abs(bp));
+            q_amp = wet::max(q_amp, std::abs(q));
         }
     }
     CHECK(bp_amp == doctest::Approx(1.0f).epsilon(0.05f)); // re-locked to 60 Hz
@@ -224,8 +224,8 @@ TEST_CASE("SOGI runtime - resonator form") {
         const auto [bp, quad] = sogi(input, f0, alpha, Ts);
 
         if (i > 2500) {
-            max_bp = std::max(max_bp, std::abs(bp));
-            max_quad = std::max(max_quad, std::abs(quad));
+            max_bp = wet::max(max_bp, std::abs(bp));
+            max_quad = wet::max(max_quad, std::abs(quad));
         }
     }
 
@@ -250,7 +250,7 @@ TEST_CASE("SOGI runtime - frequency retuning") {
         const auto [bp, q] = sogi(std::sin(omega_60 * t), 60.0f, alpha, Ts);
         (void)q;
         if (i > 2000) {
-            max_bp = std::max(max_bp, std::abs(bp));
+            max_bp = wet::max(max_bp, std::abs(bp));
         }
     }
 
@@ -273,7 +273,7 @@ TEST_CASE("SOGI runtime exposes derived notch output") {
 
         if (i > 2500) {
             const float notch = input - bp;
-            max_notch = std::max(max_notch, std::abs(notch));
+            max_notch = wet::max(max_notch, std::abs(notch));
         }
     }
 
@@ -363,8 +363,8 @@ TEST_CASE("SOGI runtime - simple per-call frequency interface") {
         const float in = std::sin(omega * t);
         const auto [bp, q] = sogi(in, f0, alpha, Ts);
         if (i > 2500) {
-            max_bp = std::max(max_bp, std::abs(bp));
-            max_q = std::max(max_q, std::abs(q));
+            max_bp = wet::max(max_bp, std::abs(bp));
+            max_q = wet::max(max_q, std::abs(q));
         }
     }
 
@@ -387,8 +387,8 @@ TEST_CASE("MSTOGI runtime - simple per-call frequency interface") {
         const float v = std::sin(omega * t);
         const auto [bp, q] = mstogi(v, f0, alpha, Ts);
         if (i > 2500) {
-            bp_amp = std::max(bp_amp, std::abs(bp));
-            q_amp = std::max(q_amp, std::abs(q));
+            bp_amp = wet::max(bp_amp, std::abs(bp));
+            q_amp = wet::max(q_amp, std::abs(q));
         }
     }
 

@@ -11,10 +11,10 @@
  * @see Diebel, "Representing Attitude: Euler Angles, Unit Quaternions, and Rotation Vectors" (2006)
  */
 
-#include <optional>
 #include <span>
 #include <type_traits>
 
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
@@ -138,7 +138,7 @@ struct DCM : public Mat3<T> {
     [[nodiscard]] constexpr Mat3<T>&       matrix() { return *this; }
 
     // Convert to quaternion
-    [[nodiscard]] constexpr std::optional<Quaternion<T>> to_quaternion(T eps = T{1e-6}) const;
+    [[nodiscard]] constexpr wet::optional<Quaternion<T>> to_quaternion(T eps = T{1e-6}) const;
 
     // Convert to Euler angles
     template<EulerOrder Order>
@@ -152,10 +152,10 @@ struct DCM : public Mat3<T> {
     [[nodiscard]] static constexpr DCM from_quaternion(const Quaternion<T>& q);
 
     // Construct from axis-angle
-    [[nodiscard]] static constexpr std::optional<DCM> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
+    [[nodiscard]] static constexpr wet::optional<DCM> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
         T axis_norm2 = axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2];
         if (axis_norm2 <= eps) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         T inv_norm = T{1} / wet::sqrt(axis_norm2);
         T ux = axis[0] * inv_norm;
@@ -462,10 +462,10 @@ struct Quaternion : public Matrix<4, 1, T> {
     [[nodiscard]] constexpr T norm() const { return wet::sqrt(norm_squared()); }
 
     // Normalization utilities
-    [[nodiscard]] constexpr std::optional<Quaternion> normalized_safe(T eps = T{1e-9}) const {
+    [[nodiscard]] constexpr wet::optional<Quaternion> normalized_safe(T eps = T{1e-9}) const {
         T n2 = norm_squared();
         if (n2 <= eps) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         T inv_n = T{1} / wet::sqrt(n2);
         return Quaternion{w() * inv_n, x() * inv_n, y() * inv_n, z() * inv_n};
@@ -492,10 +492,10 @@ struct Quaternion : public Matrix<4, 1, T> {
     // Conjugate and inverse
     [[nodiscard]] constexpr Quaternion conjugate() const { return Quaternion{w(), -x(), -y(), -z()}; }
 
-    [[nodiscard]] constexpr std::optional<Quaternion> inverse(T eps = T{1e-9}) const {
+    [[nodiscard]] constexpr wet::optional<Quaternion> inverse(T eps = T{1e-9}) const {
         T n2 = norm_squared();
         if (n2 <= eps) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         T inv_n2 = T{1} / n2;
         return Quaternion{w() * inv_n2, -x() * inv_n2, -y() * inv_n2, -z() * inv_n2};
@@ -570,7 +570,7 @@ struct Quaternion : public Matrix<4, 1, T> {
     }
 
     // Construct from DCM
-    [[nodiscard]] static constexpr std::optional<Quaternion> from_dcm(const DCM<T>& R, T eps = T{1e-6}) {
+    [[nodiscard]] static constexpr wet::optional<Quaternion> from_dcm(const DCM<T>& R, T eps = T{1e-6}) {
         T          trace = R(0, 0) + R(1, 1) + R(2, 2);
         Quaternion q;
         if (trace > T{0}) {
@@ -584,7 +584,7 @@ struct Quaternion : public Matrix<4, 1, T> {
             if (R(0, 0) > R(1, 1) && R(0, 0) > R(2, 2)) {
                 T s = wet::sqrt(T{1} + R(0, 0) - R(1, 1) - R(2, 2));
                 if (s <= eps) {
-                    return std::nullopt;
+                    return wet::nullopt;
                 }
                 T inv_s = T{0.5} / s;
                 q.x() = T{0.5} * s;
@@ -594,7 +594,7 @@ struct Quaternion : public Matrix<4, 1, T> {
             } else if (R(1, 1) > R(2, 2)) {
                 T s = wet::sqrt(T{1} + R(1, 1) - R(0, 0) - R(2, 2));
                 if (s <= eps) {
-                    return std::nullopt;
+                    return wet::nullopt;
                 }
                 T inv_s = T{0.5} / s;
                 q.x() = (R(0, 1) + R(1, 0)) * inv_s;
@@ -604,7 +604,7 @@ struct Quaternion : public Matrix<4, 1, T> {
             } else {
                 T s = wet::sqrt(T{1} + R(2, 2) - R(0, 0) - R(1, 1));
                 if (s <= eps) {
-                    return std::nullopt;
+                    return wet::nullopt;
                 }
                 T inv_s = T{0.5} / s;
                 q.x() = (R(0, 2) + R(2, 0)) * inv_s;
@@ -614,7 +614,7 @@ struct Quaternion : public Matrix<4, 1, T> {
             }
         }
         if (!q.normalize_in_place(eps)) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         return q;
     }
@@ -627,10 +627,10 @@ struct Quaternion : public Matrix<4, 1, T> {
     }
 
     // Construct from axis-angle
-    [[nodiscard]] static constexpr std::optional<Quaternion> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
+    [[nodiscard]] static constexpr wet::optional<Quaternion> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
         T axis_norm2 = axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2];
         if (axis_norm2 <= eps) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         T inv_axis_norm = T{1} / wet::sqrt(axis_norm2);
         T half = angle * T{0.5};
@@ -696,7 +696,7 @@ template<typename T>
 /** @brief Deferred implementations (need full type definitions) */
 
 template<typename T>
-constexpr std::optional<Quaternion<T>> DCM<T>::to_quaternion(T eps) const {
+constexpr wet::optional<Quaternion<T>> DCM<T>::to_quaternion(T eps) const {
     return Quaternion<T>::from_dcm(*this, eps);
 }
 
@@ -828,10 +828,10 @@ struct Transform4 : public Mat4<T> {
     }
 
     // Inverse transform
-    [[nodiscard]] constexpr std::optional<Transform4> inverse() const {
+    [[nodiscard]] constexpr wet::optional<Transform4> inverse() const {
         auto mat_inv = Mat4<T>::inverse();
         if (!mat_inv) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         return Transform4(*mat_inv);
     }

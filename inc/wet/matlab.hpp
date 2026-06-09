@@ -1,7 +1,6 @@
 ﻿#pragma once
 
 #include <cstddef>
-#include <optional>
 #include <type_traits>
 
 #include "wet/analysis/linearization.hpp"
@@ -280,10 +279,10 @@ constexpr auto reg(const StateSpace<NX, NU, NY, NW, NV, T>& sys, const Matrix<NU
  * @param B Input matrix
  * @param p Desired poles (accepts wet::array<std::complex<T>, NX> or wet::array<_Complex T, NX>)
  *
- * @return std::optional<Matrix<NU, NX, T>> State-feedback gain K, or nullopt if not implementable
+ * @return wet::optional<Matrix<NU, NX, T>> State-feedback gain K, or nullopt if not implementable
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NU, NX, T>> acker(
+constexpr wet::optional<Matrix<NU, NX, T>> acker(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const auto&              p
@@ -293,7 +292,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
 
     if constexpr (NU != 1) {
         // Multi-input pole placement not implemented yet
-        return std::nullopt;
+        return wet::nullopt;
     } else {
         // Compute controllability matrix
         Matrix<NX, NX, T> Co;
@@ -311,7 +310,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
         // Check controllability by inverting Co
         auto Co_inv_opt = Co.inverse();
         if (!Co_inv_opt) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         auto Co_inv = *Co_inv_opt;
 
@@ -363,7 +362,7 @@ constexpr std::optional<Matrix<NU, NX, T>> acker(
  * @note Compare with MATLAB's K = place(A, B, p).
  */
 template<size_t NX, size_t NU, typename T = double>
-[[nodiscard]] constexpr std::optional<Matrix<NU, NX, T>> place(
+[[nodiscard]] constexpr wet::optional<Matrix<NU, NX, T>> place(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const auto&              p

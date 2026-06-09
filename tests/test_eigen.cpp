@@ -41,7 +41,7 @@ TEST_CASE("Eigen Decomposition") {
         double ev2 = lambda2.real();
 
         if (ev1 < ev2)
-            std::swap(ev1, ev2);
+            wet::swap(ev1, ev2);
 
         CHECK(ev1 == doctest::Approx(4.618).epsilon(0.01));
         CHECK(ev2 == doctest::Approx(2.382).epsilon(0.01));
@@ -265,7 +265,7 @@ double max_abs_diff(const Matrix<N, M>& A, const Matrix<N, M>& B) {
     double worst = 0.0;
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < M; ++j) {
-            worst = std::max(worst, std::abs(A(i, j) - B(i, j)));
+            worst = wet::max(worst, std::abs(A(i, j) - B(i, j)));
         }
     }
     return worst;

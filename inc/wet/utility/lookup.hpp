@@ -147,8 +147,8 @@ struct Lut2D {
 
     /// Bilinearly interpolated value at (@p r, @p c), clamped to the grid edges.
     [[nodiscard]] constexpr T operator()(T r, T c) const {
-        const T rc = std::clamp(r, rows[0], rows[R - 1]);
-        const T cc = std::clamp(c, cols[0], cols[C - 1]);
+        const T rc = wet::clamp(r, rows[0], rows[R - 1]);
+        const T cc = wet::clamp(c, cols[0], cols[C - 1]);
 
         const size_t i = (R == 1) ? 0 : lut_segment(rows, rc);
         const size_t j = (C == 1) ? 0 : lut_segment(cols, cc);

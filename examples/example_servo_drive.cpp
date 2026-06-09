@@ -254,7 +254,7 @@ int main() {
                       .yaxis(5, Layout::Yaxis().title([](auto& t) { t.text("Twist (rad)"); }))
                       .height(1200);
 
-    fig.setLayout(std::move(layout));
+    fig.setLayout(wet::move(layout));
     fig.writeHtml("servo_drive.html");
     fmt::print("\nPlot written to servo_drive.html\n");
 

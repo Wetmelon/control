@@ -128,7 +128,7 @@ int main() {
 
         // Cascade tick (unrolled equivalent of cascade.control(r_pos, pos))
         const float r_vel_unsat = pos_loop.control(r_pos, pos);
-        const float r_vel = std::clamp(r_vel_unsat, v_min, v_max);
+        const float r_vel = wet::clamp(r_vel_unsat, v_min, v_max);
         const float u = vel_loop.control(r_vel, vel);
 
         // Plant integration (Forward Euler)

@@ -42,10 +42,10 @@ template<typename T = float>
  * @param alpha α component
  * @param beta β component
  * @param T Scalar type
- * @return std::tuple<T, T, T> {A, B, C} phases
+ * @return wet::tuple<T, T, T> {A, B, C} phases
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::tuple<T, T, T> inverse_clarke_transform(T alpha, T beta) {
+[[nodiscard]] constexpr wet::tuple<T, T, T> inverse_clarke_transform(T alpha, T beta) {
     const T a = alpha;
     const T b = (-alpha / T{2}) + (std::numbers::sqrt3_v<T> * beta / T{2});
     const T c = (-alpha / T{2}) - (std::numbers::sqrt3_v<T> * beta / T{2});
@@ -122,10 +122,10 @@ template<typename T = float>
  * @param q q component
  * @param theta Rotor angle [rad]
  * @param T Scalar type
- * @return std::tuple<T, T, T> {A, B, C} phases
+ * @return wet::tuple<T, T, T> {A, B, C} phases
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::tuple<T, T, T> inverse_park_clarke_transform(T d, T q, T theta) {
+[[nodiscard]] constexpr wet::tuple<T, T, T> inverse_park_clarke_transform(T d, T q, T theta) {
     const auto [alpha, beta] = inverse_park_transform(d, q, theta);
     return inverse_clarke_transform(alpha, beta);
 }
@@ -140,10 +140,10 @@ template<typename T = float>
  * @param v_beta β voltage component
  * @param v_dc DC bus voltage
  * @param T Scalar type
- * @return std::tuple<T, T, T> {duty_A, duty_B, duty_C}
+ * @return wet::tuple<T, T, T> {duty_A, duty_B, duty_C}
  */
 template<typename T = float>
-[[nodiscard]] constexpr std::tuple<T, T, T> svm_duty_cycles(T v_alpha, T v_beta, T v_dc) {
+[[nodiscard]] constexpr wet::tuple<T, T, T> svm_duty_cycles(T v_alpha, T v_beta, T v_dc) {
     // Normalize voltages
     const T v_a_norm = v_alpha / (v_dc / std::numbers::sqrt3_v<T>);
     const T v_b_norm = v_beta / (v_dc / std::numbers::sqrt3_v<T>);
@@ -156,7 +156,7 @@ template<typename T = float>
     const T duty_b = T{0.5} - (v_a_norm / T{4}) + (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
     const T duty_c = T{0.5} - (v_a_norm / T{4}) - (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
 
-    return {std::clamp(duty_a, T{0}, T{1}), std::clamp(duty_b, T{0}, T{1}), std::clamp(duty_c, T{0}, T{1})};
+    return {wet::clamp(duty_a, T{0}, T{1}), wet::clamp(duty_b, T{0}, T{1}), wet::clamp(duty_c, T{0}, T{1})};
 }
 
 } // namespace wet

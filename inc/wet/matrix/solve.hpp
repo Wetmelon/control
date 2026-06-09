@@ -8,12 +8,12 @@
  */
 
 #include <cstddef>
-#include <optional>
 #include <type_traits>
 
 #include "decomposition.hpp"
 #include "matrix.hpp"
 #include "matrix_traits.hpp"
+#include "wet/backend.hpp"
 #include "wet/math/complex.hpp"
 
 namespace wet {
@@ -64,10 +64,10 @@ constexpr ColVec<N, T> backward_substitute_transpose(const Matrix<N, N, T>& L, c
  * @brief Solve lower-triangular system L * X = B via forward substitution
  *
  * Requires that L is a non-singular lower-triangular matrix (all diagonal
- * elements non-zero). Returns std::nullopt if any diagonal element is zero.
+ * elements non-zero). Returns wet::nullopt if any diagonal element is zero.
  */
 template<size_t N, size_t M, typename T>
-constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
+constexpr wet::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& B) {
     using VT = std::remove_const_t<T>;
     constexpr auto tol = default_tol<VT>();
@@ -82,7 +82,7 @@ solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& 
         ColVec<N, VT> x;
         for (size_t i = 0; i < N; ++i) {
             if (wet::abs(L(i, i)) < tol) {
-                return std::nullopt;
+                return wet::nullopt;
             }
             VT sum = b(i);
             for (size_t j = 0; j < i; ++j) {
@@ -102,10 +102,10 @@ solve(const LowerTriangle<N, T>& L, const Matrix<N, M, std::remove_const_t<T>>& 
  * @brief Solve upper-triangular system U * X = B via backward substitution
  *
  * Requires that U is a non-singular upper-triangular matrix (all diagonal
- * elements non-zero). Returns std::nullopt if any diagonal element is zero.
+ * elements non-zero). Returns wet::nullopt if any diagonal element is zero.
  */
 template<size_t N, size_t M, typename T>
-constexpr std::optional<Matrix<N, M, std::remove_const_t<T>>>
+constexpr wet::optional<Matrix<N, M, std::remove_const_t<T>>>
 solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& B) {
     using VT = std::remove_const_t<T>;
     constexpr auto tol = default_tol<VT>();
@@ -120,7 +120,7 @@ solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& 
         ColVec<N, VT> x;
         for (int i = int(N) - 1; i >= 0; --i) {
             if (wet::abs(U(size_t(i), size_t(i))) < tol) {
-                return std::nullopt;
+                return wet::nullopt;
             }
             VT sum = b(i);
             for (size_t j = size_t(i) + 1; j < N; ++j) {
@@ -140,10 +140,10 @@ solve(const UpperTriangle<N, T>& U, const Matrix<N, M, std::remove_const_t<T>>& 
  * @brief Solve linear system A * X = B using Cholesky decomposition
  */
 template<size_t N, size_t M, typename T>
-constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
+constexpr wet::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
     auto Lopt = cholesky(A);
     if (!Lopt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     const auto& L = Lopt.value();
@@ -151,7 +151,7 @@ constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A
     // Forward substitution: solve L * Y = B
     auto Y_opt = solve(L.lower_triangle(), B);
     if (!Y_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     // Backward substitution: solve Lᴴ * X = Y
@@ -163,10 +163,10 @@ constexpr std::optional<Matrix<N, M, T>> cholesky_solve(const Matrix<N, N, T>& A
  * @brief Solve linear system using LU decomposition (with pivot vector)
  */
 template<size_t N, size_t M, typename T>
-constexpr std::optional<Matrix<N, M, T>> lu_solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
+constexpr wet::optional<Matrix<N, M, T>> lu_solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
     auto lu_opt = lu_decomposition(A);
     if (!lu_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     const auto& [L, U, piv] = lu_opt.value();
@@ -182,7 +182,7 @@ constexpr std::optional<Matrix<N, M, T>> lu_solve(const Matrix<N, N, T>& A, cons
     // Forward substitution: solve L * Y = P*B
     auto Y_opt = solve(L.lower_triangle(), B_perm);
     if (!Y_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     // Backward substitution: solve U * X = Y
@@ -193,7 +193,7 @@ constexpr std::optional<Matrix<N, M, T>> lu_solve(const Matrix<N, N, T>& A, cons
  * @brief Solve linear system using Cholesky if SPD, else LU
  */
 template<size_t N, size_t M, typename T>
-constexpr std::optional<Matrix<N, M, T>> solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
+constexpr wet::optional<Matrix<N, M, T>> solve(const Matrix<N, N, T>& A, const Matrix<N, M, T>& B) {
     // Try Cholesky for symmetric (or Hermitian) positive-definite matrices, fall back to LU
     if (is_symmetric_or_hermitian<N, T>(A)) {
         auto Xopt = cholesky_solve(A, B);
@@ -211,7 +211,7 @@ constexpr std::optional<Matrix<N, M, T>> solve(const Matrix<N, N, T>& A, const M
  * @brief Matrix inverse using mat::solve()
  */
 template<size_t Rows, size_t Cols, typename T>
-[[nodiscard]] constexpr std::optional<Matrix<Rows, Cols, T>> Matrix<Rows, Cols, T>::inverse() const
+[[nodiscard]] constexpr wet::optional<Matrix<Rows, Cols, T>> Matrix<Rows, Cols, T>::inverse() const
     requires(Rows == Cols)
 {
     return mat::solve(*this, Matrix<Rows, Cols, T>::identity());

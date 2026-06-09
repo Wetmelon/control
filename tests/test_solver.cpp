@@ -190,7 +190,7 @@ TEST_CASE("FixedStepSolver - Van der Pol oscillator") {
     size_t start_idx = result.t.size() * 2 / 3;
     for (size_t i = start_idx; i < result.t.size(); ++i) {
         double val = std::abs(result.x[i](0, 0));
-        x_max = std::max(val, x_max);
+        x_max = wet::max(val, x_max);
     }
     // Limit cycle peak amplitude is slightly above 2 for mu=1
     CHECK(x_max == doctest::Approx(2.009).epsilon(0.01));

@@ -1,9 +1,10 @@
 #pragma once
 
-#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+
+#include "wet/backend.hpp"
 
 namespace wet {
 namespace design {
@@ -175,21 +176,21 @@ struct PIDController<T, PIDMode::PID> {
             //   u_would_be = Kp*(b*r - y) + Ki*integral + Kd*derivative ≡ u_track
             if (Ki != T{0}) {
                 const T target = (u_track - (Kp * ((b * r) - y)) - (Kd * derivative)) / Ki;
-                integral = std::clamp(target, i_min, i_max);
+                integral = wet::clamp(target, i_min, i_max);
             }
-            return std::clamp(u_track, u_min, u_max);
+            return wet::clamp(u_track, u_min, u_max);
         }
 
         const T e = r - y;
         const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral) + (Kd * derivative);
-        const T u = std::clamp(u_unsat, u_min, u_max);
+        const T u = wet::clamp(u_unsat, u_min, u_max);
 
         if (Kbc != T{0}) {
             integral += Ts * (e + ((u - u_unsat) / Kbc));
         } else {
             integral += e * Ts;
         }
-        integral = std::clamp(integral, i_min, i_max);
+        integral = wet::clamp(integral, i_min, i_max);
 
         return u;
     }
@@ -235,7 +236,7 @@ struct PIDController<T, PIDMode::PID> {
         } else {
             integral += Ts * (u_sat - u_unsat);
         }
-        integral = std::clamp(integral, i_min, i_max);
+        integral = wet::clamp(integral, i_min, i_max);
     }
 };
 
@@ -280,21 +281,21 @@ struct PIDController<T, PIDMode::PI> {
         if (runtime_mode == PIDRuntimeMode::Tracking) {
             if (Ki != T{0}) {
                 const T target = (u_track - (Kp * ((b * r) - y))) / Ki;
-                integral = std::clamp(target, i_min, i_max);
+                integral = wet::clamp(target, i_min, i_max);
             }
-            return std::clamp(u_track, u_min, u_max);
+            return wet::clamp(u_track, u_min, u_max);
         }
 
         const T e = r - y;
         const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral);
-        const T u = std::clamp(u_unsat, u_min, u_max);
+        const T u = wet::clamp(u_unsat, u_min, u_max);
 
         if (Kbc != T{0}) {
             integral += Ts * (e + ((u - u_unsat) / Kbc));
         } else {
             integral += e * Ts;
         }
-        integral = std::clamp(integral, i_min, i_max);
+        integral = wet::clamp(integral, i_min, i_max);
         return u;
     }
 
@@ -323,7 +324,7 @@ struct PIDController<T, PIDMode::PI> {
         } else {
             integral += Ts * (u_sat - u_unsat);
         }
-        integral = std::clamp(integral, i_min, i_max);
+        integral = wet::clamp(integral, i_min, i_max);
     }
 };
 
@@ -364,9 +365,9 @@ struct PIDController<T, PIDMode::P> {
      */
     [[nodiscard]] constexpr T control(T r, T y) {
         if (runtime_mode == PIDRuntimeMode::Tracking) {
-            return std::clamp(u_track, u_min, u_max);
+            return wet::clamp(u_track, u_min, u_max);
         }
-        return std::clamp(Kp * ((b * r) - y), u_min, u_max);
+        return wet::clamp(Kp * ((b * r) - y), u_min, u_max);
     }
 
     constexpr void reset() {}

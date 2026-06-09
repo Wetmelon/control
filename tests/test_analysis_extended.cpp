@@ -145,7 +145,7 @@ TEST_SUITE("Analysis - Bode Response") {
         // There should be a resonant peak around wn (zeta < 0.707)
         double peak_db = -300;
         for (const auto& pt : result.points) {
-            peak_db = std::max(pt.magnitude_db, peak_db);
+            peak_db = wet::max(pt.magnitude_db, peak_db);
         }
         CHECK(peak_db > 0.0); // Should have resonant peak above 0 dB
     }
@@ -291,7 +291,7 @@ TEST_SUITE("Analysis - Pole Analysis") {
         auto r0 = p[0].real();
         auto r1 = p[1].real();
         if (r0 > r1) {
-            std::swap(r0, r1);
+            wet::swap(r0, r1);
         }
         CHECK(r0 == doctest::Approx(-3.0).epsilon(1e-10));
         CHECK(r1 == doctest::Approx(-2.0).epsilon(1e-10));

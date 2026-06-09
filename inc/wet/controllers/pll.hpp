@@ -67,11 +67,11 @@ struct SinglePhasePLL {
         // 1/leak, so a transient or biased phase error doesn't park a permanent
         // offset in the integrator. leak == 0 recovers a pure integrator.
         integrator_state += ((params.Ki * phase_error) - (params.integrator_leak * integrator_state)) * Ts;
-        integrator_state = std::clamp(integrator_state, params.integrator_min, params.integrator_max);
+        integrator_state = wet::clamp(integrator_state, params.integrator_min, params.integrator_max);
 
         // Compute output frequency estimate [Hz] around nominal frequency
         frequency_estimate = nominal_frequency + proportional + integrator_state;
-        frequency_estimate = std::clamp(frequency_estimate, params.output_min, params.output_max);
+        frequency_estimate = wet::clamp(frequency_estimate, params.output_min, params.output_max);
 
         // Update phase estimate [rad] from frequency estimate [Hz]
         const T two_pi = T{2} * std::numbers::pi_v<T>;

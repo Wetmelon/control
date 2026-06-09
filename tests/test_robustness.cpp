@@ -27,7 +27,7 @@ T inverse_residual(const Matrix<N, N, T>& A) {
     T               worst = T{0};
     for (size_t i = 0; i < N; ++i) {
         for (size_t j = 0; j < N; ++j) {
-            worst = std::max(worst, std::abs(prod(i, j) - I(i, j)));
+            worst = wet::max(worst, std::abs(prod(i, j) - I(i, j)));
         }
     }
     return worst;

@@ -89,7 +89,7 @@ plotlypp::Figure plot_simulation(
                          .y(extract_channel(sim.x, i))
                          .mode({Scatter::Mode::Lines})
                          .name("x" + std::to_string(i));
-        fig.addTrace(std::move(trace));
+        fig.addTrace(wet::move(trace));
     }
 
     // Outputs subplot (row 2)
@@ -101,7 +101,7 @@ plotlypp::Figure plot_simulation(
                          .name("y" + std::to_string(i))
                          .xaxis("x2")
                          .yaxis("y2");
-        fig.addTrace(std::move(trace));
+        fig.addTrace(wet::move(trace));
     }
 
     // Inputs subplot (row 3)
@@ -113,7 +113,7 @@ plotlypp::Figure plot_simulation(
                          .name("u" + std::to_string(i))
                          .xaxis("x3")
                          .yaxis("y3");
-        fig.addTrace(std::move(trace));
+        fig.addTrace(wet::move(trace));
     }
 
     auto layout = Layout()
@@ -126,7 +126,7 @@ plotlypp::Figure plot_simulation(
                       .xaxis(3, Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }))
                       .yaxis(3, Layout::Yaxis().title([](auto& t) { t.text("Inputs"); }));
 
-    fig.setLayout(std::move(layout));
+    fig.setLayout(wet::move(layout));
     return fig;
 }
 
@@ -178,9 +178,9 @@ plotlypp::Figure plot_bode(
                       .yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("Phase (deg)"); }));
 
     return Figure()
-        .addTrace(std::move(mag_trace))
-        .addTrace(std::move(phase_trace))
-        .setLayout(std::move(layout));
+        .addTrace(wet::move(mag_trace))
+        .addTrace(wet::move(phase_trace))
+        .setLayout(wet::move(layout));
 }
 
 /**
@@ -209,7 +209,7 @@ plotlypp::Figure plot_line(
                       .xaxis(Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); }))
                       .yaxis(Layout::Yaxis().title([](auto& t) { t.text("Value"); }));
 
-    return Figure().addTrace(std::move(trace)).setLayout(std::move(layout));
+    return Figure().addTrace(wet::move(trace)).setLayout(wet::move(layout));
 }
 
 /**

@@ -4,7 +4,6 @@
 #include <cmath>
 #include <cstddef>
 #include <initializer_list>
-#include <optional>
 #include <type_traits>
 
 #include "matrix_traits.hpp"
@@ -86,15 +85,15 @@ public:
      * enabling full scalar replacement of local Matrix variables.
      */
     constexpr Matrix(const Matrix& other) {
-        [&]<size_t... I>(std::index_sequence<I...>) {
+        [&]<size_t... I>(wet::index_sequence<I...>) {
             ((data_[I] = other.data_[I]), ...);
-        }(std::make_index_sequence<Rows * Cols>{});
+        }(wet::make_index_sequence<Rows * Cols>{});
     }
 
     constexpr Matrix& operator=(const Matrix& other) {
-        [&]<size_t... I>(std::index_sequence<I...>) {
+        [&]<size_t... I>(wet::index_sequence<I...>) {
             ((data_[I] = other.data_[I]), ...);
-        }(std::make_index_sequence<Rows * Cols>{});
+        }(wet::make_index_sequence<Rows * Cols>{});
         return *this;
     }
 
@@ -682,7 +681,7 @@ public:
      *
      * @return Inverse matrix if invertible, nullopt if singular
      */
-    [[nodiscard]] constexpr std::optional<Matrix> inverse() const
+    [[nodiscard]] constexpr wet::optional<Matrix> inverse() const
         requires(Rows == Cols);
 
     /**
@@ -784,8 +783,8 @@ using Mat4x3 = Matrix<4, 3, T>;
  */
 template<MatrixLike A, MatrixLike B>
 [[nodiscard]] constexpr auto operator+(const A& a, const B& b) {
-    constexpr size_t ResRows = std::max(A::rows(), B::rows());
-    constexpr size_t ResCols = std::max(A::cols(), B::cols());
+    constexpr size_t ResRows = wet::max(A::rows(), B::rows());
+    constexpr size_t ResCols = wet::max(A::cols(), B::cols());
     static_assert(
         (A::rows() == 1 || A::rows() == ResRows) && (B::rows() == 1 || B::rows() == ResRows),
         "Incompatible row dimensions for broadcasting"
@@ -817,8 +816,8 @@ template<MatrixLike A, MatrixLike B>
  */
 template<MatrixLike A, MatrixLike B>
 [[nodiscard]] constexpr auto operator-(const A& a, const B& b) {
-    constexpr size_t ResRows = std::max(A::rows(), B::rows());
-    constexpr size_t ResCols = std::max(A::cols(), B::cols());
+    constexpr size_t ResRows = wet::max(A::rows(), B::rows());
+    constexpr size_t ResCols = wet::max(A::cols(), B::cols());
     static_assert(
         (A::rows() == 1 || A::rows() == ResRows) && (B::rows() == 1 || B::rows() == ResRows),
         "Incompatible row dimensions for broadcasting"

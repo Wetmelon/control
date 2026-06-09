@@ -200,9 +200,9 @@ struct ServoSim {
         const double omega_e_abs = std::abs(mp.pole_pairs * omega_m);
         const double lambda_elec = std::sqrt(sigma_e * sigma_e + omega_e_abs * omega_e_abs);
         // Shaft resonance eigenvalue: ω_shaft = sqrt(Ks / J_reduced)
-        const double J_red = (mp.Jm * mp.JL) / std::max(mp.Jm + mp.JL, 1e-12);
+        const double J_red = (mp.Jm * mp.JL) / wet::max(mp.Jm + mp.JL, 1e-12);
         const double omega_shaft = std::sqrt(mp.Ks / J_red);
-        const double lambda_max_now = std::max(lambda_elec, omega_shaft);
+        const double lambda_max_now = wet::max(lambda_elec, omega_shaft);
         // Target: |λ|*dt_sub ≤ 1.0 (well within RK4 stability limit of 2.78)
         constexpr double target_courant = 1.0;
         int              substeps = static_cast<int>(std::ceil(lambda_max_now * dt / target_courant));
@@ -253,13 +253,13 @@ struct ServoSim {
         ref_filt_wn = (cp.ref_filter_bw > 0.0) ? pi2 * cp.ref_filter_bw : 0.0;
 
         pi_d = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / wet::max(Ki_i, 1e-6), v_lim / wet::max(Ki_i, 1e-6), Ki_i)
         };
         pi_q = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / std::max(Ki_i, 1e-6), v_lim / std::max(Ki_i, 1e-6), Ki_i)
+            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / wet::max(Ki_i, 1e-6), v_lim / wet::max(Ki_i, 1e-6), Ki_i)
         };
         pi_speed = PIDController<double>{
-            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / std::max(Ki_s, 1e-6), i_lim / std::max(Ki_s, 1e-6), Ki_s)
+            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / wet::max(Ki_s, 1e-6), i_lim / wet::max(Ki_s, 1e-6), Ki_s)
         };
 
         speed_decim = 0;
@@ -399,7 +399,7 @@ SERVO_API ServoState servo_get_state(void* handle) {
     s.tau_mech = (sim->mp.Bm > 1e-12) ? sim->mp.Jm / sim->mp.Bm : 1e6;
 
     // Shaft natural frequency: sqrt(Ks * (1/Jm + 1/JL))
-    double J_red = (sim->mp.Jm * sim->mp.JL) / std::max(sim->mp.Jm + sim->mp.JL, 1e-12);
+    double J_red = (sim->mp.Jm * sim->mp.JL) / wet::max(sim->mp.Jm + sim->mp.JL, 1e-12);
     s.omega_shaft = std::sqrt(sim->mp.Ks / J_red);
 
     // Largest eigenvalue magnitude of the electrical subsystem
@@ -409,7 +409,7 @@ SERVO_API ServoState servo_get_state(void* handle) {
     double lambda_elec = std::sqrt(sigma_e * sigma_e + omega_e_abs * omega_e_abs);
 
     // Overall max eigenvalue (electrical vs mechanical shaft)
-    s.lambda_max = std::max(lambda_elec, s.omega_shaft);
+    s.lambda_max = wet::max(lambda_elec, s.omega_shaft);
 
     // RK4 stability diagnostics use the actual sub-step dt
     double dt = sim->last_dt;

@@ -9,7 +9,6 @@
  */
 
 #include <cstddef>
-#include <optional>
 #include <tuple>
 #include <type_traits>
 
@@ -68,12 +67,12 @@ constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
  * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §4.2
  *
  * @param A Symmetric positive-definite (real) or Hermitian positive-definite (complex) matrix
- * @return Lower-triangular L, or std::nullopt if A is not PD or not symmetric/Hermitian
+ * @return Lower-triangular L, or wet::nullopt if A is not PD or not symmetric/Hermitian
  */
 template<size_t N, typename T>
-constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
+constexpr wet::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
     if (!is_symmetric_or_hermitian(A)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     Matrix<N, N, T> L = Matrix<N, N, T>::zeros();
@@ -90,13 +89,13 @@ constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
                 if constexpr (std::is_floating_point_v<T>) {
                     auto diag_val = sum;
                     if (diag_val <= 0) {
-                        return std::nullopt;
+                        return wet::nullopt;
                     }
                     L(i, j) = wet::sqrt(diag_val);
                 } else {
                     auto diag_val = wet::real(sum);
                     if (diag_val <= 0) {
-                        return std::nullopt;
+                        return wet::nullopt;
                     }
                     L(i, j) = wet::sqrt(diag_val);
                 }
@@ -117,7 +116,7 @@ constexpr std::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
  * U: upper triangular
  */
 template<size_t N, typename T>
-constexpr std::optional<std::tuple<Matrix<N, N, T>, Matrix<N, N, T>, wet::array<size_t, N>>>
+constexpr wet::optional<wet::tuple<Matrix<N, N, T>, Matrix<N, N, T>, wet::array<size_t, N>>>
 lu_decomposition(const Matrix<N, N, T>& A) {
     Matrix<N, N, T>       L = Matrix<N, N, T>::identity();
     Matrix<N, N, T>       U = A;
@@ -142,20 +141,20 @@ lu_decomposition(const Matrix<N, N, T>& A) {
                                            ? decltype(max_val){1e-6}
                                            : decltype(max_val){1e-12};
         if (max_val < singularity_tol) {
-            return std::nullopt;
+            return wet::nullopt;
         }
 
         if (max_row != i) {
             // Swap rows in U
             for (size_t col = 0; col < N; ++col) {
-                std::swap(U(i, col), U(max_row, col));
+                wet::swap(U(i, col), U(max_row, col));
             }
             // Swap previous columns in L
             for (size_t col = 0; col < i; ++col) {
-                std::swap(L(i, col), L(max_row, col));
+                wet::swap(L(i, col), L(max_row, col));
             }
             // Track pivot
-            std::swap(piv[i], piv[max_row]);
+            wet::swap(piv[i], piv[max_row]);
         }
 
         // Elimination
@@ -168,7 +167,7 @@ lu_decomposition(const Matrix<N, N, T>& A) {
         }
     }
 
-    return std::make_tuple(L, U, piv);
+    return wet::make_tuple(L, U, piv);
 }
 
 /**

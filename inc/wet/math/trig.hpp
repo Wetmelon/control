@@ -174,7 +174,7 @@ inline float asin(float x) {
         negate = true;
     }
 
-    x = std::min(x, 1.0f);
+    x = wet::min(x, 1.0f);
 
     float sqrt_1_minus_x = sqrt(1.0f - x);
     float p = detail::estrin_eval(x, detail::asin_coeffs);
@@ -197,7 +197,7 @@ inline float acos(float x) {
         negate = true;
     }
 
-    x = std::min(x, 1.0f);
+    x = wet::min(x, 1.0f);
 
     float sqrt_1_minus_x = sqrt(1.0f - x);
     float p = detail::estrin_eval(x, detail::asin_coeffs);

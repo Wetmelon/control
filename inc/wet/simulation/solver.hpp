@@ -17,9 +17,7 @@
  * @endcode
  */
 
-#include <algorithm>
 #include <functional>
-#include <tuple>
 #include <vector>
 
 #include "integrator.hpp"
@@ -171,13 +169,13 @@ public:
     /// Set callback invoked after each accepted step
     template<typename Callback>
     void set_on_step(Callback&& cb) {
-        on_step_ = std::forward<Callback>(cb);
+        on_step_ = wet::forward<Callback>(cb);
     }
 
     /// Set condition to stop simulation early: returns true to stop
     template<typename Condition>
     void set_stop_condition(Condition&& cond) {
-        stop_condition_ = std::forward<Condition>(cond);
+        stop_condition_ = wet::forward<Condition>(cond);
     }
 
     /**
@@ -188,7 +186,7 @@ public:
      */
     template<typename Detector>
     void set_event_detector(Detector&& det) {
-        event_detector_ = std::forward<Detector>(det);
+        event_detector_ = wet::forward<Detector>(det);
     }
 
     void set_step_size(T h) { h_ = h; }
@@ -200,7 +198,7 @@ private:
 
     std::function<void(T, const ColVec<NX, T>&)>                                  on_step_;
     std::function<bool(T, const ColVec<NX, T>&)>                                  stop_condition_;
-    std::function<std::tuple<bool, ColVec<NX, T>, bool>(T, const ColVec<NX, T>&)> event_detector_;
+    std::function<wet::tuple<bool, ColVec<NX, T>, bool>(T, const ColVec<NX, T>&)> event_detector_;
 };
 /// CTAD deduction guides for FixedStepSolver
 template<template<size_t, typename> class Int, size_t NX, typename T>
@@ -277,7 +275,7 @@ public:
 
             if (error_norm > T(0)) {
                 scale = safety_factor * wet::pow(tol_ / error_norm, T(0.2));
-                scale = std::clamp(scale, min_scale, max_scale);
+                scale = wet::clamp(scale, min_scale, max_scale);
             }
 
             // Accept step if error is within tolerance or at minimum step
@@ -332,7 +330,7 @@ public:
                 }
 
                 consecutive_rejections = 0;
-                h = std::clamp(target_step * scale, h_min_, h_max_);
+                h = wet::clamp(target_step * scale, h_min_, h_max_);
 
                 if (event_detector_ && !step_accepted) {
                     auto [triggered, new_state, stop] = event_detector_(t, x);
@@ -350,7 +348,7 @@ public:
                 }
             } else {
                 // Reject step, retry with smaller step
-                h = std::clamp(target_step * scale, h_min_, h_max_);
+                h = wet::clamp(target_step * scale, h_min_, h_max_);
                 ++consecutive_rejections;
 
                 if (consecutive_rejections >= max_consecutive_rejections) {
@@ -366,22 +364,22 @@ public:
     /// Add a zero-crossing function to monitor
     template<typename ZCF>
     void add_zero_crossing(ZCF&& zcf) {
-        zero_crossings_.push_back(std::forward<ZCF>(zcf));
+        zero_crossings_.push_back(wet::forward<ZCF>(zcf));
     }
 
     template<typename Callback>
     void set_on_step(Callback&& cb) {
-        on_step_ = std::forward<Callback>(cb);
+        on_step_ = wet::forward<Callback>(cb);
     }
 
     template<typename Condition>
     void set_stop_condition(Condition&& cond) {
-        stop_condition_ = std::forward<Condition>(cond);
+        stop_condition_ = wet::forward<Condition>(cond);
     }
 
     template<typename Detector>
     void set_event_detector(Detector&& det) {
-        event_detector_ = std::forward<Detector>(det);
+        event_detector_ = wet::forward<Detector>(det);
     }
 
     void set_tolerance(T tol) { tol_ = tol; }
@@ -441,7 +439,7 @@ private:
 
     std::function<void(T, const ColVec<NX, T>&)>                                  on_step_;
     std::function<bool(T, const ColVec<NX, T>&)>                                  stop_condition_;
-    std::function<std::tuple<bool, ColVec<NX, T>, bool>(T, const ColVec<NX, T>&)> event_detector_;
+    std::function<wet::tuple<bool, ColVec<NX, T>, bool>(T, const ColVec<NX, T>&)> event_detector_;
     std::vector<std::function<T(T, const ColVec<NX, T>&)>>                        zero_crossings_;
 };
 
