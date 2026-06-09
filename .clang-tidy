@@ -1,41 +1,43 @@
 ---
 Checks: "*,
-        -abseil-*,
-        -altera-*,
-        -android-*,
-        -fuchsia-*,
-        -google-*,
-        -llvm*,
-        -modernize-use-trailing-return-type,
-        -modernize-use-nodiscard,
-        -zircon-*,
-        -readability-else-after-return,
-        -readability-static-accessed-through-instance,
-        -readability-avoid-const-params-in-decls,
-        -readability-uppercase-literal-suffix,
-        -readability-magic-numbers,
-        -readability-identifier-length,
-        -readability-function-cognitive-complexity,
-        -misc-non-private-member-variables-in-classes,
-        -misc-use-anonymous-namespace,
-        -hicpp-uppercase-literal-suffix,
-        -hicpp-avoid-c-arrays,
-        -hicpp-signed-bitwise,
-        -modernize-avoid-c-arrays,
-        -bugprone-easily-swappable-parameters,
-        -cppcoreguidelines-avoid-c-arrays,
-        -cppcoreguidelines-avoid-magic-numbers,
-        -cppcoreguidelines-pro-bounds-constant-array-index,
-        -cppcoreguidelines-non-private-member-variables-in-classes,
-        -cppcoreguidelines-virtual-class-destructor"
-WarningsAsErrors: ''
-HeaderFilterRegex: ''
-FormatStyle:     none
+  -abseil-*,
+  -altera-*,
+  -android-*,
+  -fuchsia-*,
+  -google-*,
+  -llvm*,
+  -zircon-*,
+  -bugprone-easily-swappable-parameters,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-pro-bounds-constant-array-index,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -cppcoreguidelines-virtual-class-destructor,
+  -modernize-use-trailing-return-type,
+  -modernize-use-nodiscard,
+  -modernize-avoid-c-arrays,
+  -misc-non-private-member-variables-in-classes,
+  -misc-use-anonymous-namespace,
+  -readability-else-after-return,
+  -readability-static-accessed-through-instance,
+  -readability-avoid-const-params-in-decls,
+  -readability-uppercase-literal-suffix,
+  -readability-magic-numbers,
+  -readability-identifier-length,
+  -readability-function-cognitive-complexity,
+  -hicpp-uppercase-literal-suffix,
+  -hicpp-avoid-c-arrays,
+  -hicpp-signed-bitwise,
+  -hicpp-explicit-conversions"
+
+WarningsAsErrors: ""
+HeaderFilterRegex: ""
+FormatStyle: none
 
 CheckOptions:
   - key: readability-identifier-length.IgnoredVariableNames
-    value: 'x|y|z|Id|Iq'
+    value: "x|y|z|Id|Iq"
   - key: readability-identifier-length.IgnoredParameterNames
-    value: 'x|y|z|Id|Iq'
+    value: "x|y|z|Id|Iq"
   - key: cppcoreguidelines-avoid-non-const-global-variables.AllowInternalLinkage
-    value: 'true'
+    value: "true"

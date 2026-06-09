@@ -21,7 +21,7 @@ double placement_error(const Matrix<NX, NX>& A, const Matrix<NX, NU>& B, const s
     Matrix<NX, NX> ABK = A - (B * Kopt.value());
     auto           r = mat::compute_eigenvalues_qr(ABK);
 
-    std::array<double, NX> got;
+    std::array<double, NX> got{};
     for (size_t i = 0; i < NX; ++i) {
         got[i] = r.eigenvalues_real(i, i);
     }

@@ -40,8 +40,9 @@ TEST_CASE("Eigen Decomposition") {
         double ev1 = lambda1.real();
         double ev2 = lambda2.real();
 
-        if (ev1 < ev2)
+        if (ev1 < ev2) {
             wet::swap(ev1, ev2);
+        }
 
         CHECK(ev1 == doctest::Approx(4.618).epsilon(0.01));
         CHECK(ev2 == doctest::Approx(2.382).epsilon(0.01));
@@ -53,13 +54,13 @@ TEST_CASE("Eigen Decomposition") {
         auto result = compute_eigenvalues(D);
         CHECK(result.converged);
 
-        std::array<double, 3> evs;
+        std::array<double, 3> evs{};
         for (size_t i = 0; i < 3; ++i) {
             evs[i] = result.values[i].real();
             CHECK(std::abs(result.values[i].imag()) < 1e-6);
         }
 
-        std::sort(evs.begin(), evs.end());
+        std::ranges::sort(evs);
 
         CHECK(evs[0] == doctest::Approx(-3.0));
         CHECK(evs[1] == doctest::Approx(2.0));
@@ -388,7 +389,7 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
             {0.0, -5.0},
             {0.0, 5.0},
         }};
-        std::sort(want.begin(), want.end());
+        std::ranges::sort(want);
         for (size_t i = 0; i < 6; ++i) {
             CHECK(got[i].first == doctest::Approx(want[i].first).epsilon(1e-9));
             CHECK(got[i].second == doctest::Approx(want[i].second).epsilon(1e-9));
@@ -447,13 +448,13 @@ TEST_CASE("compute_eigenvalues_qr - 4x4 symmetric matches known spectrum") {
     auto r = compute_eigenvalues_qr(A);
     REQUIRE(r.converged);
 
-    auto                  got = eig_pairs(r);
-    const double          pi = std::numbers::pi;
-    std::array<double, 4> want;
+    std::array<double, 4> want{};
     for (int k = 1; k <= 4; ++k) {
-        want[k - 1] = 2.0 - 2.0 * std::cos(k * pi / 5.0);
+        want[k - 1] = 2.0 - (2.0 * std::cos(k * std::numbers::pi / 5.0));
     }
-    std::sort(want.begin(), want.end());
+
+    auto got = eig_pairs(r);
+    std::ranges::sort(want);
     for (size_t i = 0; i < 4; ++i) {
         CHECK(got[i].first == doctest::Approx(want[i]).epsilon(1e-6));
         CHECK(std::abs(got[i].second) < 1e-6); // symmetric => real spectrum

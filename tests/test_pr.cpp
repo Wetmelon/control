@@ -42,7 +42,7 @@ TEST_SUITE("PR Controller") {
         size_t n_steps = 20000; // 2 seconds at 10 kHz
 
         for (size_t k = 0; k < n_steps; ++k) {
-            double t = k * Ts;
+            double t = (double)k * Ts;
             double ref = std::sin(w0 * t);
             double error = ref - y;
             double u = ctrl.control(error);

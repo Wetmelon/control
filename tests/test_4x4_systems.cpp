@@ -129,10 +129,12 @@ TEST_SUITE("4x4 Eigenvalue Computation") {
         bool has_positive = false;
         bool has_negative = false;
         for (size_t i = 0; i < 4; ++i) {
-            if (result.values[i].real() > 0.1)
+            if (result.values[i].real() > 0.1) {
                 has_positive = true;
-            if (result.values[i].real() < -0.1)
+            }
+            if (result.values[i].real() < -0.1) {
                 has_negative = true;
+            }
         }
         CHECK(has_positive);
         CHECK(has_negative);
@@ -398,7 +400,7 @@ TEST_SUITE("4x4 Matrix Inverse") {
 
         auto A_inv_opt = A.inverse();
         REQUIRE(A_inv_opt.has_value());
-        auto A_inv = A_inv_opt.value();
+        const auto& A_inv = A_inv_opt.value();
 
         // Verify A * A^{-1} = I
         auto I_check = A * A_inv;
@@ -620,7 +622,7 @@ TEST_SUITE("Larger Systems (5x5+)") {
         auto A_inv_opt = A.inverse();
         REQUIRE(A_inv_opt.has_value());
 
-        auto A_inv = A_inv_opt.value();
+        const auto& A_inv = A_inv_opt.value();
         for (size_t i = 0; i < 6; ++i) {
             for (size_t j = 0; j < 6; ++j) {
             }
