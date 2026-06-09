@@ -117,7 +117,7 @@ public:
     constexpr Matrix& operator=(const Matrix<Rows, Cols, U>& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(other.data_[r * Cols + c]);
+                data_[(r * Cols) + c] = static_cast<T>(other.data_[(r * Cols) + c]);
             }
         }
         return *this;
@@ -130,7 +130,7 @@ public:
     constexpr Matrix& operator=(Matrix<Rows, Cols, U>&& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(other.data_[r * Cols + c]);
+                data_[(r * Cols) + c] = static_cast<T>(other.data_[(r * Cols) + c]);
             }
         }
         return *this;
@@ -145,7 +145,7 @@ public:
             size_t c = 0;
             for (const auto& val : row) {
                 if (r < Rows && c < Cols) {
-                    data_[r * Cols + c] = val;
+                    data_[(r * Cols) + c] = val;
                 }
                 ++c;
             }
@@ -161,7 +161,7 @@ public:
     explicit constexpr Matrix(const Matrix<Rows, Cols, U>& other) : Matrix() {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(other.data_[r * Cols + c]);
+                data_[(r * Cols) + c] = static_cast<T>(other.data_[(r * Cols) + c]);
             }
         }
     }
@@ -175,7 +175,7 @@ public:
             size_t c = 0;
             for (const auto& val : row) {
                 if (r < Rows && c < Cols) {
-                    data_[r * Cols + c] = val;
+                    data_[(r * Cols) + c] = val;
                 }
                 ++c;
             }
@@ -207,7 +207,7 @@ public:
         if constexpr (Brows == 0 || Bcols == 0) {
             return Block<Brows, Bcols, Cols, T>{nullptr, 0};
         } else {
-            return Block<Brows, Bcols, Cols, T>{&data_[0], start_row * Cols + start_col};
+            return Block<Brows, Bcols, Cols, T>{data_.data(), (start_row * Cols) + start_col};
         }
     }
 
@@ -216,7 +216,7 @@ public:
         if constexpr (Brows == 0 || Bcols == 0) {
             return Block<Brows, Bcols, Cols, const T>{nullptr, 0};
         } else {
-            return Block<Brows, Bcols, Cols, const T>{&data_[0], start_row * Cols + start_col};
+            return Block<Brows, Bcols, Cols, const T>{data_.data(), (start_row * Cols) + start_col};
         }
     }
 
@@ -294,7 +294,7 @@ public:
     constexpr Matrix(const Block<Rows, Cols, ParentCols, U>& block) : Matrix() {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(block(r, c));
+                data_[(r * Cols) + c] = static_cast<T>(block(r, c));
             }
         }
     }
@@ -307,7 +307,7 @@ public:
     constexpr Matrix(const M& other) : Matrix() {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(other(r, c));
+                data_[(r * Cols) + c] = static_cast<T>(other(r, c));
             }
         }
     }
@@ -320,7 +320,7 @@ public:
     constexpr Matrix& operator=(const M& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] = static_cast<T>(other(r, c));
+                data_[(r * Cols) + c] = static_cast<T>(other(r, c));
             }
         }
         return *this;
@@ -348,7 +348,7 @@ public:
     {
         Matrix result{};
         for (size_t r = 0; r < Rows; ++r) {
-            result.data_[r * Cols + r] = T{1};
+            result.data_[(r * Cols) + r] = T{1};
         }
         return result;
     }
@@ -364,7 +364,7 @@ public:
     {
         Matrix result{};
         for (size_t r = 0; r < Rows; ++r) {
-            result.data_[r * Cols + r] = diag[r];
+            result.data_[(r * Cols) + r] = diag[r];
         }
         return result;
     }
@@ -397,12 +397,12 @@ public:
     /**
      * @brief Get const pointer to data in row-major order
      */
-    [[nodiscard]] constexpr const T* data() const { return &data_[0]; }
+    [[nodiscard]] constexpr const T* data() const { return data_.data(); }
 
     /**
      * @brief Get pointer to data in row-major order
      */
-    [[nodiscard]] constexpr T* data() { return &data_[0]; }
+    [[nodiscard]] constexpr T* data() { return data_.data(); }
 
     /**
      * @brief Iterator begin for range-based access
@@ -430,7 +430,7 @@ public:
      * @param col Column index
      * @return Value of element at (row, col)
      */
-    constexpr T operator()(size_t row, size_t col) const { return data_[row * Cols + col]; }
+    constexpr T operator()(size_t row, size_t col) const { return data_[(row * Cols) + col]; }
 
     /**
      * @brief Element access operator
@@ -438,7 +438,7 @@ public:
      * @param col Column index
      * @return Reference to element at (row, col)
      */
-    constexpr T& operator()(size_t row, size_t col) { return data_[row * Cols + col]; }
+    constexpr T& operator()(size_t row, size_t col) { return data_[(row * Cols) + col]; }
 
     /**
      * @brief Equality comparison operator
@@ -446,7 +446,7 @@ public:
     [[nodiscard]] constexpr bool operator==(const Matrix& other) const {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                if (data_[r * Cols + c] != other.data_[r * Cols + c]) {
+                if (data_[(r * Cols) + c] != other.data_[(r * Cols) + c]) {
                     return false;
                 }
             }
@@ -467,7 +467,7 @@ public:
     constexpr Matrix& operator+=(const M& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] += static_cast<T>(other(r, c));
+                data_[(r * Cols) + c] += static_cast<T>(other(r, c));
             }
         }
         return *this;
@@ -481,7 +481,7 @@ public:
     constexpr Matrix& operator-=(const M& other) {
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                data_[r * Cols + c] -= static_cast<T>(other(r, c));
+                data_[(r * Cols) + c] -= static_cast<T>(other(r, c));
             }
         }
         return *this;
@@ -536,7 +536,7 @@ public:
         Matrix<Cols, Rows, T> result;
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                result.data_[c * Rows + r] = data_[r * Cols + c];
+                result.data_[(c * Rows) + r] = data_[(r * Cols) + c];
             }
         }
         return result;
@@ -566,7 +566,7 @@ public:
         Matrix<Cols, Rows, T> result;
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                result.data_[c * Rows + r] = wet::conj(data_[r * Cols + c]);
+                result.data_[(c * Rows) + r] = wet::conj(data_[(r * Cols) + c]);
             }
         }
         return result;
@@ -603,7 +603,7 @@ public:
     {
         T accum = T{0};
         for (size_t i = 0; i < Rows; ++i) {
-            accum += data_[i * Cols + i];
+            accum += data_[(i * Cols) + i];
         }
         return accum;
     }
@@ -627,7 +627,7 @@ public:
         real_t sum_sq = real_t{0};
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                auto abs_val = wet::abs(data_[r * Cols + c]);
+                auto abs_val = wet::abs(data_[(r * Cols) + c]);
                 sum_sq += abs_val * abs_val;
             }
         }
@@ -647,7 +647,7 @@ public:
         T result = T{0};
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                result += wet::conj(data_[r * Cols + c]) * other.data_[r * Cols + c];
+                result += wet::conj(data_[(r * Cols) + c]) * other.data_[(r * Cols) + c];
             }
         }
         return result;
@@ -661,7 +661,7 @@ public:
         T result = T{0};
         for (size_t r = 0; r < Rows; ++r) {
             for (size_t c = 0; c < Cols; ++c) {
-                result += data_[r * Cols + c];
+                result += data_[(r * Cols) + c];
             }
         }
         return result;
@@ -694,7 +694,7 @@ public:
     [[nodiscard]] constexpr Matrix<1, Cols, T> row_vector(size_t r_idx) const {
         Matrix<1, Cols, T> result;
         for (size_t c = 0; c < Cols; ++c) {
-            result.data_[c] = data_[r_idx * Cols + c];
+            result.data_[c] = data_[(r_idx * Cols) + c];
         }
         return result;
     }
@@ -707,7 +707,7 @@ public:
     [[nodiscard]] constexpr Matrix<Rows, 1, T> col_vector(size_t c_idx) const {
         Matrix<Rows, 1, T> result;
         for (size_t r = 0; r < Rows; ++r) {
-            result.data_[r] = data_[r * Cols + c_idx];
+            result.data_[r] = data_[(r * Cols) + c_idx];
         }
         return result;
     }
@@ -720,7 +720,7 @@ public:
     template<size_t NewRows>
     [[nodiscard]] constexpr Block<NewRows, Cols, Cols, T> head() {
         static_assert(NewRows <= Rows, "head<NewRows> called with NewRows > Rows");
-        return Block<NewRows, Cols, Cols, T>(&data_[0], 0);
+        return Block<NewRows, Cols, Cols, T>(data_.data(), 0);
     }
 
     /**
@@ -731,7 +731,7 @@ public:
     template<size_t NewRows>
     [[nodiscard]] constexpr Block<NewRows, Cols, Cols, const T> head() const {
         static_assert(NewRows <= Rows, "head<NewRows> called with NewRows > Rows");
-        return Block<NewRows, Cols, Cols, const T>(&data_[0], 0);
+        return Block<NewRows, Cols, Cols, const T>(data_.data(), 0);
     }
 
     /**
