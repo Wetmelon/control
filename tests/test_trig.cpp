@@ -3,7 +3,6 @@
 #include <initializer_list>
 #include <numbers>
 
-#include "wet/backend.hpp"
 #include "wet/math/trig.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

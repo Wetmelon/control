@@ -11,6 +11,8 @@
 #include <limits>
 #include <numbers>
 
+#include "wet/backend.hpp"
+
 namespace wet {
 
 inline float sin(float angle_rad);
