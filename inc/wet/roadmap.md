@@ -346,7 +346,9 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 
 **Layer 3 — advanced controls & estimation.**
 
-### 5. Repetitive controller ⊘
+### 5. Repetitive controller ◐ (core built)
+
+**Built (2026-06):** plug-in `RepetitiveController<MaxPeriod,T>` + `design::synthesize_repetitive(fs, f0, gain, Q, lead)` (`controllers/repetitive.hpp`, `test_repetitive.cpp`). Internal-model period-delay loop (`w[k]=Q·w[k-N]+e`, `u_rc=k_rc·w[k-N+m]`): one delay rejects the fundamental *and all harmonics*; scalar robustness Q and integer phase-lead m; fixed-size buffer (allocation-free), constexpr. Verified: periodic tracking error → 0, multi-harmonic (fundamental+3rd) disturbance rejection, Q<1 boundedness. Remaining (refinements): a low-pass (FIR) Q-filter option, plant-aware phase-lead/stability-margin design (vs a hand-tuned m), and the LQI/LQGI integration bundle.
 
 Internal-model compensation for periodic disturbances over selected harmonics. Targets: grid-tied inverters, precision motion with periodic trajectories, rotating-machinery ripple. Depends on #2 (delay line + robustness filter).
 

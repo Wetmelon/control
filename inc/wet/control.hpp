@@ -53,6 +53,7 @@
 #include "wet/controllers/pll.hpp"            // IWYU pragma: keep
 #include "wet/controllers/pr.hpp"             // IWYU pragma: keep
 #include "wet/controllers/relay_autotune.hpp" // IWYU pragma: keep
+#include "wet/controllers/repetitive.hpp"     // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"            // IWYU pragma: keep
 #include "wet/controllers/synthesis.hpp"      // IWYU pragma: keep
 
