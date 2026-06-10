@@ -46,7 +46,7 @@ The library is layered; build and prioritize **bottom-up**. Each layer depends o
 
 **Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses.** This comes *first*; most of it already exists.
 - *In place:* the linear-algebra core (`Matrix`/`ColVec`/`RowVec`, decompositions, `mat::solve`), the constexpr math backend (`wet::sin/sqrt/exp/...`), LTI system types (`StateSpace`/`TransferFunction`), first-order + biquad filters (#2 ☑), and the everyday signal-conditioning blocks / embedded primitives — scaling & calibration, interpolation tables, EWMA·peak·envelope, software timers, encoder/tach (#19 ☑).
-- *Remaining foundational gap — prioritize over any new algorithm:* the freestanding / ETL-backend profile (#21 — config plumbing now done, core alias migration remaining). Done: robust MIMO pole placement (#16 ☑, `design::place` via Kautsky–Nichols–Van Dooren + `mat::full_qr`), fast-math-robust filter coefficient designs (#17 ☑), and the robust nonsymmetric eigensolver (Hessenberg + Francis double-shift, real+complex spectra).
+- *Foundation complete.* All Layer-1 gaps are done: the freestanding / ETL-backend profile (#21 ☑ — core compiles and the full suite passes under both `std` and `etl` backends), robust MIMO pole placement (#16 ☑, `design::place` via Kautsky–Nichols–Van Dooren + `mat::full_qr`), fast-math-robust filter coefficient designs (#17 ☑), and the robust nonsymmetric eigensolver (Hessenberg + Francis double-shift, real+complex spectra). New work can build on a solid foundation; Layer 2+ is next.
 
 **Layer 2 — core controls & estimation building blocks.** Single-purpose laws/estimators that sit directly on Layer 1: Luenberger/reduced observer (#1 ☑), disturbance observer (#4), UKF (#12), and the identification / excitation / cascade / model-builder infrastructure (#3).
 
@@ -85,7 +85,7 @@ We don't invent our own primitives — anything not from the stdlib comes from E
 
 ## Roadmap
 
-Items are listed in **build-priority order**, grouped by the layers from [Architecture layers & build priority](#architecture-layers--build-priority) (foundation first). The item **numbers are stable IDs** — referenced across this doc, `AGENTS.md`, and source/test comments — so they are deliberately *not* sequential here; order on the page is the priority, the number is just the ID. Status tags: ☑ done · ⊘ sketched (header exists) · ☐ planned.
+Items are listed in **build-priority order**, grouped by the layers from [Architecture layers & build priority](#architecture-layers--build-priority) (foundation first). The item **numbers are stable IDs** — referenced across this doc, `AGENTS.md`, and source/test comments — so they are deliberately *not* sequential here; order on the page is the priority, the number is just the ID. Status tags: ☑ done · ◐ partially built (some sub-parts done, others not) · ⊘ sketched (header stub exists) · ☐ planned.
 
 **Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses (build first).**
 
@@ -105,7 +105,7 @@ The bread-and-butter building blocks an embedded engineer reaches for *before* a
 **Scope boundary — defer generic plumbing to ETL.** Containers, queues, byte FIFOs, CRC/checksums, and the like are *not* this library's job; the [Embedded Template Library](https://www.etlcpp.com) already does them well and battle-tested. Pair the two: use `etl::circular_buffer` / `etl::queue_spsc_*` / `etl::crc*` / `etl::debounce` for plumbing, and this library for the controls/DSP-specific helpers below. The core stays zero-dependency — we don't `#include <etl/...>` anywhere; ETL is a *recommended companion*, not a dependency.
 
 **Done.** The controls/DSP-specific primitives shipped, embeddable, with one test TU each (`make embedded-check` green):
-- `utility/scaling.hpp` — `lerp`, `inverse_lerp`, `rescale`, `AffineCal` (+`.as<U>()`), `two_point_cal`, `poly_horner` (`clamp` uses `std::clamp`).
+- `utility/scaling.hpp` — `lerp`, `inverse_lerp`, `rescale`, `AffineCal` (+`.as<U>()`), `two_point_cal`, `poly_horner` (`clamp` uses `wet::clamp`).
 - `utility/lookup.hpp` — `Lut1D<N>` (linear/`nearest`, clamp-or-extrapolate `oob` policy, binary `lut_segment`), `Lut2D<R,C>` (bilinear, edge-clamped).
 - `filters/blocks.hpp` (extended) — `ExponentialFilter` + `alpha_from_cutoff`/`alpha_from_time_constant`, `PeakHold`/`MinHold` (optional leak), `EnvelopeDetector` (attack/release).
 - `utility/timing.hpp` — `Stopwatch`, `Timeout` (clamped accumulator), `Periodic` (drift-free, catch-up).
@@ -149,7 +149,7 @@ These are **leaf utilities**, so most deliberately deviate from the three-tier s
 
 Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`.
 
-- **Done (`controllers/pole_placement.hpp`, 2026-06).** `design::place(A, B, poles)` → `std::optional<K>` via Kautsky–Nichols–Van Dooren. Real-pole path runs KNV **Method 0** (each eigenvector iteratively re-chosen within its admissible subspace to be maximally orthogonal to the others, minimizing κ(X)); complex-conjugate poles are assigned in **real arithmetic** via real (Re v, Im v) eigenvector pairs and 2×2 real Λ-blocks `[[σ,ω],[−ω,σ]]`, so K stays real. Built on a new `mat::full_qr` (full Householder QR — the orthogonal complement of B and the per-eigenvalue admissible null spaces). Single-input reduces to and matches `matlab::acker`; `NU == NX` uses the direct `B⁻¹(A − Λ)` form. Rejects (→ `nullopt`) rank-deficient B, multiplicity > NU (non-defective spectra only), and unpaired complex poles. Fully constexpr. `matlab::place` is the thin alias.
+- **Done (`controllers/pole_placement.hpp`, 2026-06).** `design::place(A, B, poles)` → `wet::optional<K>` via Kautsky–Nichols–Van Dooren. Real-pole path runs KNV **Method 0** (each eigenvector iteratively re-chosen within its admissible subspace to be maximally orthogonal to the others, minimizing κ(X)); complex-conjugate poles are assigned in **real arithmetic** via real (Re v, Im v) eigenvector pairs and 2×2 real Λ-blocks `[[σ,ω],[−ω,σ]]`, so K stays real. Built on a new `mat::full_qr` (full Householder QR — the orthogonal complement of B and the per-eigenvalue admissible null spaces). Single-input reduces to and matches `matlab::acker`; `NU == NX` uses the direct `B⁻¹(A − Λ)` form. Rejects (→ `nullopt`) rank-deficient B, multiplicity > NU (non-defective spectra only), and unpaired complex poles. Fully constexpr. `matlab::place` is the thin alias.
 - Naming: `matlab::acker` (single-input Ackermann) already existed; `place` is the new robust MIMO routine — no rename was needed.
 - Reference: J. Kautsky, N. K. Nichols, P. Van Dooren, "Robust pole assignment in linear state feedback," Int. J. Control, 1985. https://doi.org/10.1080/00207178508933420
 - Acceptance ☑: places assignable MIMO real & complex spectra to ~1e-12 (`test_pole_placement.cpp`); rejects multiplicity > NU, rank-deficient B, and dangling complex poles; single-input matches `acker`; constexpr-evaluable.
@@ -164,7 +164,7 @@ Restructure bilinear filter designers so that the unit-DC-gain identity (and oth
 - Reference: Higham, "Accuracy and Stability of Numerical Algorithms" (2nd ed., 2002), §3 on conditioned summation; Oppenheim & Schafer, "Discrete-Time Signal Processing" (3rd ed., 2009), bilinear-transform chapter.
 - Acceptance ☑: DC-gain regression tests hold under the runner's `-ffast-math` — `lowpass_2nd` (`test_filters.cpp`: DC-gain at 1e-3, settling at 0.01, plus a cross-zeta unity-gain case), and the six RBJ designers (`test_biquad.cpp`: band-edge gain identities from stored coefficients, 1e-9–1e-12). `to_coeffs` reviewed — no enforced identity to guard.
 
-### 21. Backend-agnostic core: stdlib or ETL (freestanding-capable) ⊘
+### 21. Backend-agnostic core: stdlib or ETL (freestanding-capable) ☑
 
 Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) can compile for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with a *backend profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to **one of two** backends, selected through the unified `wet/config.hpp` profile macros (shared with the math backend):
 
@@ -173,7 +173,11 @@ Drop the assumption that a hosted C++ standard library exists, so the embeddable
 
 We deliberately do **not** add a third "invent our own primitives" backend — anything not from the stdlib comes from ETL (see Design Constraints). Both backends preserve the constexpr-first invariant. Toolbox, tests, and examples stay hosted on `std`; only the embeddable umbrella must be freestanding-clean.
 
-**Progress (2026-06): the unified config plumbing is built; the alias migration is not.** A single `wet/config.hpp` is now the one discovery point: it `__has_include`s a user `wet_profile.hpp` (else warns + host defaults) and is read by *both* facilities. Selection is **per-facility macros** (decision below, resolved): containers via `WET_BACKEND_ETL` (in `backend.hpp`), scalar math via `WET_MATH_BACKEND_WET` / `WET_MATH_BACKEND_HEADER "h"` (default std, in `math/math_backend.hpp`). `wet_profile.hpp` is now **macro-only** — it must not include a backend impl — which is what lets `config.hpp` be read safely both early (containers, before any types) and late (math, after `StdMathFallback` is declared). `backend.hpp` defines the `wet::array/optional/...` aliases but is **not yet `#include`d by the core** (step 3 below). Remaining: stand up `freestanding-check` (step 1) and migrate the core behind the aliases (step 3).
+**Done (2026-06): the core compiles and the full test suite passes under both backends.** Delivered:
+- **Unified config** — a single `wet/config.hpp` discovery point `__has_include`s a macro-only `wet_profile.hpp` (else warns + host defaults), read by *both* facilities. Per-facility macros: containers `WET_BACKEND_ETL` (`backend.hpp`), scalar math `WET_MATH_BACKEND_WET` / `WET_MATH_BACKEND_FREESTANDING` / `WET_MATH_BACKEND_HEADER "h"` (default std). Macro-only profiles let `config.hpp` be read both early (containers) and late (math) without ordering hazards.
+- **Aliases + own constants** — the core uses `wet::array/optional/tuple/pair/clamp/min/max/move/forward/...` (from `backend.hpp`, → `std::` or `etl::`) and `wet::numbers::pi_v/...` (our own constexpr constants; resolves the `std::numbers` decision). No `<numbers>` anywhere in the core.
+- **Freestanding math backend** — `math_backend.hpp` is `<cmath>`-free (the `StdMathFallback`/`<cmath>` moved to `std_fallback.hpp`, hosted-only); `WET_MATH_BACKEND_FREESTANDING` selects `series_backend.hpp`, which routes runtime math to the constexpr series in `constexpr_math.hpp`. `std::complex` interop in `complex.hpp` is `__has_include`-guarded.
+- **Enforcement** — `make freestanding-check` (umbrella compiles under ETL + series math; no *our* header unconditionally pulls a hosted std header). A tup `etl` build **variant** (`Tuprules.lua` honors `CONFIG_BACKEND=ETL`) compiles and **runs the entire test suite** (678 cases / 9739 assertions) on ETL containers + series math, alongside the `std` variant — both green in `make`.
 
 **Feasibility — spiked and confirmed (the gating risk is closed).** The load-bearing question was whether ETL preserves the constexpr-first synthesis invariant. Verified under `-std=c++20`:
 
@@ -184,9 +188,9 @@ We deliberately do **not** add a third "invent our own primitives" backend — a
 
 | `wet::` alias | `stdlib` | `etl` |
 |---|---|---|
-| `array` | `std::array` | `etl::array` |
-| `optional` / `nullopt` | `std::optional` | `etl::optional` |
-| `tuple` / `pair` | `std::tuple` / `pair` | `etl::tuple` / `pair` |
+| `array` | `wet::array` | `etl::array` |
+| `optional` / `nullopt` | `wet::optional` | `etl::optional` |
+| `tuple` / `pair` | `wet::tuple` / `pair` | `etl::tuple` / `pair` |
 | `clamp`/`min`/`max`/`swap` | `<algorithm>` | `etl/algorithm.h` |
 | `pi_v` & constants | `std::numbers` | ETL / own constants |
 | `index_sequence`, fold (matrix SRA) | `<utility>` (freestanding) | `etl::index_sequence` |
@@ -194,26 +198,26 @@ We deliberately do **not** add a third "invent our own primitives" backend — a
 
 ETL constexpr-equivalence confirmed for `array`/`optional` (spike above). Out of scope (already host-only behind `toolbox.hpp`, excluded by `embedded-check`): `<vector>`, `<string>`, `<functional>`, `<cstdio>`, `std::complex` (core uses `wet::complex`).
 
-**Build order:**
+**Build order (all done ☑):**
 
-1. **`make freestanding-check`** first — compile the `wet/control.hpp` umbrella under the `etl` backend with `-ffreestanding -nostdinc++ -Ilibs/etl/include` (+ a freestanding `wet_profile.hpp`). Stand this up *before* migrating so the property is enforced from commit one. Fold a `matrix.hpp`-with-`etl::index_sequence` constexpr spike into this step to close the last unverified construct.
-2. **`wet/backend.hpp`** alias layer: `wet::array/optional/tuple/pair/clamp/move/forward/...` and `wet::pi_v`, profile-selected (`stdlib` default · `etl`). ☑ The header + the unified `wet/config.hpp` discovery are built (see Progress); `pi_v` aliasing and the per-facility `WET_BACKEND_ETL` wiring are in place.
-3. **Migrate the core behind the alias**, header by header (matrix → systems → analysis → controllers/estimators/filters → utility), keeping `freestanding-check` green throughout.
-4. Default profile stays `stdlib` (no behavior change, no ETL dependency for hosted users); `etl` is strictly opt-in.
+1. ☑ **`make freestanding-check`** — compiles the `wet/control.hpp` umbrella under the `etl` + series-math backend and asserts no *our* header unconditionally pulls a hosted std header. (Implemented as a compile + source-grep rather than `-nostdinc++`: that flag also strips the freestanding C++ headers — `<cstddef>`, `<type_traits>`, `<limits>` — that ETL itself needs, so it can't compile ETL in this toolchain. The grep enforces the same property on the headers we own; ETL's own transitive includes are its per-target concern.)
+2. ☑ **`wet/backend.hpp`** alias layer + `wet::numbers` constants + unified `wet/config.hpp` discovery.
+3. ☑ **Core migrated behind the aliases** — every umbrella header off `std::array/optional/tuple/pair/clamp/...`, `std::numbers`, and `<cmath>`/`std::sin…`. The tup `etl` variant runs the whole suite as the regression gate.
+4. ☑ Default profile stays `stdlib`; `etl` is opt-in (per-facility macros / the `etl` build variant).
 
-**References:** ISO C++ [freestanding] implementation requirements; ETLCPP documentation (https://www.etlcpp.com). See also the math-backend pattern already in `wet/math/math_backend.hpp`.
+**References:** ISO C++ [freestanding] implementation requirements; ETLCPP documentation (https://www.etlcpp.com).
 
-**Acceptance:**
+**Acceptance ☑:**
 
-- `make freestanding-check` compiles the umbrella with no hosted stdlib under the `etl` backend; a representative `design::synthesize_*` still `static_assert`s `success`.
-- Default (`stdlib`) profile is byte-for-byte unchanged for hosted users; `make embedded-check` and the full test suite stay green.
-- No `#include <...>` of a hosted header reachable from `wet/control.hpp` under the `etl` backend; no ETL include reachable under the `stdlib` backend.
+- `make freestanding-check` green: umbrella compiles under the `etl` + series-math backend with no hosted-header leak from our headers. The `etl` build variant runs the **full test suite (678 cases / 9739 assertions) green** on ETL containers + series math (a stronger check than a single representative synthesis).
+- Default (`stdlib`) profile unchanged for hosted users; the `std` variant suite, `make embedded-check`, and `make freestanding-check` all stay green in `make`.
+- No `#include <...>` of a hosted header reachable from *our* `wet/control.hpp` headers under the `etl` backend.
 
 **Decision items (this section):**
 - ☑ **Profile selection surface → per-facility macros.** One `wet/config.hpp` discovers a macro-only `wet_profile.hpp`; containers key off `WET_BACKEND_ETL`, math off `WET_MATH_BACKEND_*`. Orthogonal, mix-and-match; not a single `WET_BACKEND` enum.
 - ☑ **Alias home → one `backend.hpp`** for the container/utility aliases (math backend stays in `math/math_backend.hpp`); both wired through `wet/config.hpp`.
-- ☐ Error-reporting model under the `etl` backend (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract).
-- ☐ `std::numbers` replacement (ETL constants vs own).
+- ☑ **`std::numbers` replacement → our own constants** (`wet::numbers::pi_v/...` in `backend.hpp`), no dependency on `<numbers>` or ETL constants.
+- ☐ Error-reporting model under the `etl` backend (ETL's error-handler callback vs the existing `bool success` result structs — keep the latter as the public contract). Deferred until an ETL target actually needs the callback path; `bool success` remains the public contract.
 
 **Layer 2 — core controls & estimation building blocks.**
 
@@ -226,9 +230,11 @@ Deterministic state observers via pole placement; the counterpart to the Kalman 
 - References: D. G. Luenberger, "An Introduction to Observers," IEEE TAC, 1971, https://doi.org/10.1109/TAC.1971.1099826; B. Gopinath, "On the Synthesis of Minimal-Order Observers," BSTJ, 1971.
 - Acceptance: error dynamics match placed poles ✓; constexpr design ✓; reduced-order reconstructs unmeasured states ✓.
 
-### 4. Disturbance observer + DOB control law ⊘
+### 4. Disturbance observer + DOB control law ◐ (partially built)
 
-Observer-based disturbance estimation integrated with a base controller. Targets: PMSM/BLDC servo drives with load-torque disturbances, robot joints with friction/backlash, precision stages with external force. Estimator core sketched in `estimation/disturbance_observer.hpp`; this adds the control-law wiring. Depends on #1.
+**Re-baseline (2026-06):** a lightweight **scalar innovation-based** `DisturbanceObserver` runtime + `synthesize_disturbance_observer` is built & tested (`estimation/disturbance_observer.hpp`, `test_disturbance_observer`): `d̂[k+1] = (1−leak)·d̂ + gain·(y_meas − y_pred)`, `compensate(u) = u − d̂`. Not built: the **classic `Pn⁻¹·Q` structure** (nominal-inverse + Q-filter) and the **base-controller wiring** from the interface below. **Overlap note:** ESO-based disturbance rejection is *already* delivered by `controllers/adrc.hpp` (ADRC, tested) — so #4's distinct, additive value is the *classic* DOB as a **bolt-on for an existing controller** (not another full controller). Scope #4 to that.
+
+Observer-based disturbance estimation integrated with a base controller. Targets: PMSM/BLDC servo drives with load-torque disturbances, robot joints with friction/backlash, precision stages with external force. Depends on #1.
 
 - Interface: `design::synthesize_dob(plant, nominal_inverse, q_filter_spec, base_controller)` → `DOBResult` / `DOBArtifacts` + runtime with per-tick compensation.
 - References: S. Li et al., "Disturbance Observer-Based Control," CRC Press, 2016, https://doi.org/10.1201/b16570; W.-H. Chen et al., "Disturbance-Observer-Based Control... An Overview," IEEE TIE, 2016, https://doi.org/10.1109/TIE.2015.2478397
@@ -242,7 +248,11 @@ Unscented filter for nonlinear estimation where EKF linearization is poor (map i
 - Reference: Julier & Uhlmann, "Unscented Filtering and Nonlinear Estimation," Proc. IEEE, 2004. https://doi.org/10.1109/JPROC.2003.823141
 - Acceptance: matches EKF on near-linear systems; outperforms on strongly nonlinear references.
 
-### 3. Identification and excitation infrastructure ⊘
+### 3. Identification and excitation infrastructure ◐ (partially built)
+
+**Re-baseline (2026-06):** built & tested — **excitation generators** (`controllers/excitation.hpp`, ~1150 lines, Chirp/PRBS/StepTrain/Ramp/MultiSine + `synthesize_*`, `test_excitation`) and the **generic `Cascade`** (`controllers/cascade.hpp`, `test_cascade`). Not built — `models.hpp` (Tier-2 builders), `utility/ring_log.hpp`, and all host-side identification (`analysis/identification.hpp` `tfest`/`ssest`, `analysis/frf.hpp`). So the on-target *excitation* half is largely done; the model-builders, ring-log, and the whole host-side ID/FRF half remain.
+
+**Decision (2026-06): keep `Cascade` + the `SISOController` concept; redesign holistically when ready (not removed).** Verified the coupling is tiny — the `SISOController`/`SISOControllerWithBackCalculation` concepts (`controllers/controller_concept.hpp`) are used *only* by `cascade.hpp`, its `test_controller_concept.cpp`, and a `static_assert` in `test_cascade.cpp`; the other controllers merely `#include`/`@ref` it (inert). Both are *narrow but working/tested*, so rather than delete-and-rewrite (churn, lost tests, a gap), the concept header is marked **provisional** and will be folded into a **unified controller + observer concept** — one box every controller and observer fits, easy for users to extend (SISO + MIMO/`StateSpace`). Natural companion to #3's cascade-from-model synthesis. The north star: controllers and observers each satisfy a single, documented, user-extensible protocol.
 
 The commissioning workflow: drive the plant with a known excitation signal, log the response, identify a model, synthesize gains, deploy. The library never asks "what kind of plant?" — the user describes their system by constructing a `StateSpace` / `TransferFunction` (directly or via Tier 2 model builders), and identification produces those same universal types from time-series data.
 
@@ -253,10 +263,10 @@ The commissioning workflow: drive the plant with a known excitation signal, log 
   - `PRBS<T>` — maximum-length pseudo-random binary sequence; config `(amplitude, lfsr_order, clock_period_s, seed)`; reproducible across builds.
   - `StepTrain<T>` — alternating ±A steps with configurable hold; config `(amplitude, hold_s, cycles)`.
   - `Ramp<T>` — rate-limited slope with end-of-segment freeze; config `(target, rate, hold_at_end_s)`.
-  - `MultiSine<NTones, T>` — sum of `NTones` sinusoids, `std::array<Tone, NTones>` where `Tone = {amplitude, freq_hz, phase_rad}`; useful for crest-factor-controlled FRF excitation.
+  - `MultiSine<NTones, T>` — sum of `NTones` sinusoids, `wet::array<Tone, NTones>` where `Tone = {amplitude, freq_hz, phase_rad}`; useful for crest-factor-controlled FRF excitation.
   - Each gets a corresponding `design::synthesize_*` validating the config (positive amplitudes, finite durations, etc.).
 - **Generic cascade controller** (`controllers/cascade.hpp`, new). `template<typename Outer, typename Inner> class Cascade` composing any two controllers that satisfy a small `Controller` concept (`T control(T r, T y)`, `void reset()`). Outer-loop output becomes inner-loop reference; inner-loop output goes to the plant. Anti-windup is the inner controller's responsibility (existing `PIDController` already handles it). Tier 2 alias: `template<typename T> using CascadePPI = Cascade<PController<T>, PIDController<T>>;` (a tiny `PController<T>` may need to be extracted from `pid.hpp` — `PIDController` with `Ki=Kd=0` works but a dedicated struct is cleaner). Test against a hand-written cascade composition on a synthetic plant.
-- **Data-logger ring buffer** (`utility/ring_log.hpp`, new). `template<std::size_t N, typename... Channels> class RingLog` — fixed-size SOA, `push(t, ch1, ch2, ...)`, overwrite-oldest semantics. Flush via `for_each([](auto t, auto... ch){ ... })` callback that hands ordered tuples to user-supplied transport (UART/SPI/JSON). No allocation, no opinions on wire format. Channel storage is `std::tuple<std::array<Channels, N>...>` so flush can stream one channel at a time if needed.
+- **Data-logger ring buffer** (`utility/ring_log.hpp`, new). `template<std::size_t N, typename... Channels> class RingLog` — fixed-size SOA, `push(t, ch1, ch2, ...)`, overwrite-oldest semantics. Flush via `for_each([](auto t, auto... ch){ ... })` callback that hands ordered tuples to user-supplied transport (UART/SPI/JSON). No allocation, no opinions on wire format. Channel storage is `wet::tuple<wet::array<Channels, N>...>` so flush can stream one channel at a time if needed.
 - **Tier 2 model builders** (`models.hpp`, new top-level header, embeddable — these only construct `StateSpace` / `TransferFunction`):
   - `models::single_mass(T M, T c)` → `StateSpace<2,1,1,T>` representing `M·ẍ + c·ẋ = u`, states `[x, ẋ]`, output `x`.
   - `models::second_order(T omega_n, T zeta)` → `StateSpace<2,1,1,T>` for standard underdamped/overdamped second-order in normalized form.
@@ -376,7 +386,7 @@ Online optimization of a measured objective without an explicit model. Targets: 
 
 Online dominant-harmonic detection and suppression via notch/PR/repetitive elements. Targets: lathe-turning chatter, spindle-tool resonance in CNC, gearbox tonal vibration. Depends on #2 (notch) and harmonic estimation. Includes the spectral primitives (windowed RFFT / Goertzel) and a harmonic tracker (`estimation/harmonic_estimation.hpp` is currently a placeholder).
 
-- **Spectral primitive ☑** (`filters/spectral.hpp`, embeddable). Generalized Goertzel single-bin DFT (`Goertzel<T>`, arbitrary/non-integer bin), plus `HarmonicAnalyzer<K,N,T>` — a windowed, optionally one-pole-smoothed Goertzel bank over a fundamental and its K−1 harmonics giving per-harmonic amplitude/phase, `total_rms()`, `thd()`, and a ripple-free fundamental `rms()` (the leakage-immune replacement for a boxcar `RunningRMS` on periodic signals). Windows: `Rectangular` (synchronous/IEC 61000-4-7 ideal), `Hann` (default), `FlatTop` (best off-bin amplitude, needs ≥~5 cycles/block). Constexpr, allocation-free, float/double. Decided in favour of in-house Goertzel over RFFT/third-party for the known-frequency case (closes that decision item for the embeddable path). Targets: grid V/I THD, motor torque-ripple and structural-resonance detection.
+- **Spectral primitive ☑** (`filters/spectral.hpp`, `test_spectral.cpp`, in the umbrella; embeddable + freestanding-clean). Deliberately *basic* — controls layer, not a DSP library. `Goertzel<T>` — a generalized single-bin DFT (arbitrary frequency) via the two-state recurrence (no buffer, O(1) memory): streaming `push(x)`, then `amplitude()`/`magnitude()`/`power()`/`phase()`, auto-restarting per block; exact for coherent sampling. `HarmonicAnalyzer<K,T>` — a Goertzel bank over a fundamental + K−1 harmonics giving per-harmonic `amplitude`/`phase`, `thd()`, fundamental `rms()`, and `total_harmonic_rms()`. Constexpr, allocation-free, float/double. Scope intentionally lean (rectangular/coherent only — no window zoo, no FFT; choose N for coherent sampling). Targets: grid V/I THD, motor torque-ripple. (`SOGI` and `PR`/resonant controllers — the related single-frequency PE primitives — are likewise already built/tested.)
 - Interface: `analysis::detect_dominant_harmonics(signal_window, sample_rate)` (host); `design::synthesize_harmonic_suppressor(harmonic_set, suppressor_type, robustness_settings)`; `design::synthesize_chatter_suppressor_turning(machine_model, spindle_speed, sensor_config)`.
 - References: Altintas & Budak, "Analytical Prediction of Stability Lobes in Milling," CIRP Annals, 1995, https://doi.org/10.1016/S0007-8506(07)62342-7; Mojiri & Bakhshai, "An Adaptive Notch Filter for Frequency Estimation," IEEE TAC, 2004, https://doi.org/10.1109/TAC.2003.822862; Goertzel, Amer. Math. Monthly, 1958, https://doi.org/10.2307/2308968
 - Acceptance: detection latency / false-positive benchmarks; measured harmonic-amplitude reduction; closed-loop stability + actuator effort with adaptive updates.
@@ -390,6 +400,8 @@ Gain scheduling over an operating-point grid. Targets: UAV dynamics vs airspeed/
 - Acceptance: continuity across transitions; stability over the certified envelope.
 
 ### 11. Super-twisting SMC ⊘
+
+**Re-baseline (2026-06):** **first-order** SMC is built & tested (`controllers/smc.hpp`, `test_smc`): `u = −(k/b0)·sign(s)` with a boundary layer. #11 is specifically the **second-order super-twisting** algorithm (continuous control, no boundary-layer chattering) — *not* yet built.
 
 Second-order sliding-mode runtime with design-time gain synthesis. Targets: electromechanical drives with bounded matched disturbances, hydraulic/pneumatic actuators, converter current loops.
 
@@ -482,5 +494,5 @@ The current simulation harness (`simulation/simulate.hpp`) advances every block 
 - ☑ First online tuning method → **relay autotuner** (#7, done) with the Tyreus-Luyben default; shared safety policy (clamps, slew, bumpless, rollback) is the cross-cutting requirement on every tuning runtime.
 - Default ESC perturbation policy for MPPT (frequency, amplitude schedule, freeze criteria).
 - Anti-chatter suppressor update strategy: continuous adaptation vs gated updates.
-- ☑ FFT/spectral dependency → **in-house Goertzel** for the known-frequency embeddable path (#9 `filters/spectral.hpp`); host RFFT/FRF stays a separate toolbox concern.
+- **Direction set (not yet built):** FFT/spectral dependency → **in-house Goertzel** for the known-frequency embeddable path (#9); host RFFT/FRF stays a separate toolbox concern. (`filters/spectral.hpp` is still ☐ — see #9.)
 - ☑ Observer API shape → **shared `design::synthesize_observer`** returning `L` (#1), kept orthogonal to the (future) robust `place` (#16).

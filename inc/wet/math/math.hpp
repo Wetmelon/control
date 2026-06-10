@@ -17,7 +17,6 @@
  * @see math_backend.hpp for backend selection via wet_profile.hpp
  */
 
-#include <numbers>
 #include <type_traits>
 
 #include "constexpr_math.hpp"
@@ -99,7 +98,7 @@ constexpr T atan(T x) {
  */
 template<typename T>
 constexpr T asin(T x) {
-    constexpr T half_pi = std::numbers::pi_v<T> / T{2};
+    constexpr T half_pi = wet::numbers::pi_v<T> / T{2};
     if (x >= T{1}) {
         return half_pi;
     }
@@ -122,7 +121,7 @@ constexpr T acos(T x) {
         return T{0};
     }
     if (x <= T{-1}) {
-        return std::numbers::pi_v<T>;
+        return wet::numbers::pi_v<T>;
     }
     if (std::is_constant_evaluated()) {
         return detail::acos(x);
@@ -379,13 +378,13 @@ constexpr T db2mag(T db) {
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T rad2deg(T rad) {
-    return rad * (T{180} / std::numbers::pi_v<T>);
+    return rad * (T{180} / wet::numbers::pi_v<T>);
 }
 
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T deg2rad(T deg) {
-    return deg * (std::numbers::pi_v<T> / T{180});
+    return deg * (wet::numbers::pi_v<T> / T{180});
 }
 
 template<typename T>

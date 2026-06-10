@@ -1,9 +1,9 @@
 #pragma once
 
-// Not self-contained. Must be included after StdMathFallback<T> and MathBackend<T>
-// are declared by math_backend.hpp. Include via wet_profile.hpp or the automatic
-// fallback in math_backend.hpp — do not include directly.
+// Not self-contained. Bound by math_backend.hpp after MathBackend<T> is
+// declared. Provides the std:: (<cmath>) backend — the hosted default.
 #include "math_backend.hpp"
+#include "std_fallback.hpp"
 
 namespace wet {
 

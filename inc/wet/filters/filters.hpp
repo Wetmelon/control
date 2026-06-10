@@ -1,8 +1,5 @@
 #pragma once
 
-#include <cmath>
-#include <numbers>
-
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
@@ -72,7 +69,7 @@ struct SecondOrderCoeffs {
 template<typename T = float>
 [[nodiscard]] constexpr FirstOrderCoeffs<T> lowpass_1st(T fc, T Ts) {
     // Design discrete-time first-order low-pass filter using bilinear transform
-    const T omega_c = T{2} * std::numbers::pi_v<T> * fc;
+    const T omega_c = T{2} * wet::numbers::pi_v<T> * fc;
     const T k = T{2} / Ts; // Pre-warping factor
 
     const T             denom = omega_c + k;
@@ -97,7 +94,7 @@ template<typename T = float>
  */
 template<typename T = double>
 [[nodiscard]] constexpr TransferFunction<2, 2, T> lowpass_1st(T fc) {
-    const T tau = T{1} / (T{2} * std::numbers::pi_v<T> * fc);
+    const T tau = T{1} / (T{2} * wet::numbers::pi_v<T> * fc);
     return TransferFunction<2, 2, T>{{T{1}, T{0}}, {tau, T{1}}};
 }
 
@@ -119,7 +116,7 @@ template<typename T = float>
     // s ← k·(1 − z⁻¹)/(1 + z⁻¹), k = 2/Ts. Clearing (1 + z⁻¹)² gives a numerator
     // proportional to (1 + z⁻¹)² (tap shape 1 : 2 : 1) over a denominator with
     //   a0 = k² + 2ζω₀k + ω₀².
-    const T omega_0 = T{2} * std::numbers::pi_v<T> * fc;
+    const T omega_0 = T{2} * wet::numbers::pi_v<T> * fc;
     const T k = T{2} / Ts; // bilinear gain (cutoff assumed well below Nyquist; no pre-warp)
     const T k_sq = k * k;
     const T omega_0_sq = omega_0 * omega_0;
@@ -158,7 +155,7 @@ template<typename T = float>
  */
 template<typename T = double>
 [[nodiscard]] constexpr TransferFunction<3, 3, T> lowpass_2nd(T fc, T zeta = T{0.707}) {
-    const T omega_0 = T{2} * std::numbers::pi_v<T> * fc;
+    const T omega_0 = T{2} * wet::numbers::pi_v<T> * fc;
     const T omega_0_sq = omega_0 * omega_0;
     const T two_zeta_omega = T{2} * zeta * omega_0;
 
@@ -182,7 +179,7 @@ template<typename T = double>
 template<size_t Order, typename T = double>
     requires(Order >= 1 && Order <= 4)
 [[nodiscard]] constexpr auto butterworth_lowpass(T fc) {
-    const T omega_c = T{2} * std::numbers::pi_v<T> * fc;
+    const T omega_c = T{2} * wet::numbers::pi_v<T> * fc;
 
     if constexpr (Order == 1) {
         return lowpass_1st<T>(fc).to_state_space();
@@ -425,7 +422,7 @@ template<typename T>
  */
 template<typename T = float>
 [[nodiscard]] constexpr SecondOrderCoeffs<T> notch(T f0, T Q, T Ts) {
-    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T w0 = T{2} * wet::numbers::pi_v<T> * f0 * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     return detail::normalize_biquad<T>(T{1}, T{-2} * cw, T{1}, T{1} + alpha, T{-2} * cw, T{1} - alpha);
@@ -444,7 +441,7 @@ template<typename T = float>
  */
 template<typename T = float>
 [[nodiscard]] constexpr SecondOrderCoeffs<T> bandpass(T f0, T Q, T Ts) {
-    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T w0 = T{2} * wet::numbers::pi_v<T> * f0 * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     return detail::normalize_biquad<T>(alpha, T{0}, -alpha, T{1} + alpha, T{-2} * cw, T{1} - alpha);
@@ -463,8 +460,8 @@ template<typename T = float>
  * @see lowpass_2nd()
  */
 template<typename T = float>
-[[nodiscard]] constexpr SecondOrderCoeffs<T> highpass_2nd(T fc, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
-    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+[[nodiscard]] constexpr SecondOrderCoeffs<T> highpass_2nd(T fc, T Ts, T Q = T{1} / wet::numbers::sqrt2_v<T>) {
+    const T w0 = T{2} * wet::numbers::pi_v<T> * fc * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     const T b0 = (T{1} + cw) / T{2};
@@ -484,7 +481,7 @@ template<typename T = float>
 template<typename T = float>
 [[nodiscard]] constexpr SecondOrderCoeffs<T> peaking(T f0, T Q, T gain_db, T Ts) {
     const T A = wet::pow(T{10}, gain_db / T{40});
-    const T w0 = T{2} * std::numbers::pi_v<T> * f0 * Ts;
+    const T w0 = T{2} * wet::numbers::pi_v<T> * f0 * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     return detail::normalize_biquad<T>(
@@ -504,9 +501,9 @@ template<typename T = float>
  * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
  */
 template<typename T = float>
-[[nodiscard]] constexpr SecondOrderCoeffs<T> lowshelf(T fc, T gain_db, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr SecondOrderCoeffs<T> lowshelf(T fc, T gain_db, T Ts, T Q = T{1} / wet::numbers::sqrt2_v<T>) {
     const T A = wet::pow(T{10}, gain_db / T{40});
-    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+    const T w0 = T{2} * wet::numbers::pi_v<T> * fc * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     const T tsa = T{2} * wet::sqrt(A) * alpha;
@@ -533,9 +530,9 @@ template<typename T = float>
  * @see "Cookbook formulae for audio EQ biquad filter coefficients" (Bristow-Johnson)
  */
 template<typename T = float>
-[[nodiscard]] constexpr SecondOrderCoeffs<T> highshelf(T fc, T gain_db, T Ts, T Q = T{1} / std::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr SecondOrderCoeffs<T> highshelf(T fc, T gain_db, T Ts, T Q = T{1} / wet::numbers::sqrt2_v<T>) {
     const T A = wet::pow(T{10}, gain_db / T{40});
-    const T w0 = T{2} * std::numbers::pi_v<T> * fc * Ts;
+    const T w0 = T{2} * wet::numbers::pi_v<T> * fc * Ts;
     const T cw = wet::cos(w0);
     const T alpha = wet::sin(w0) / (T{2} * Q);
     const T tsa = T{2} * wet::sqrt(A) * alpha;

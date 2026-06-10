@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <numbers>
-
 #include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
@@ -28,7 +26,7 @@ namespace design {
  * @return StateSpace<2, 1, 2, 0, 0, T> SOGI system
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi_system(T w0, T alpha = std::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi_system(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
     return {
         .A = Matrix<2, 2, T>{
             {-alpha * w0, -w0},
@@ -129,7 +127,7 @@ template<typename T = float>
  * @return StateSpace<3, 1, 2, 0, 0, T> MSTOGI system (outputs: v_o, q·v_o)
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T w0, T alpha = std::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
     const T alpha_omega = alpha * w0;
 
     return {
@@ -227,7 +225,7 @@ public:
     constexpr SOGI() = default;
 
     [[nodiscard]] constexpr wet::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
-        const auto wT = freq * T{2} * std::numbers::pi_v<T> * Ts;
+        const auto wT = freq * T{2} * wet::numbers::pi_v<T> * Ts;
         const auto [sin_wt, cos_wt] = wet::sincos(wT); // sin(wT), cos(wT)
 
         const StateSpace sys = {
@@ -290,7 +288,7 @@ public:
     constexpr MSTOGI() = default;
 
     [[nodiscard]] constexpr wet::pair<T, T> operator()(T in, T freq, T alpha, T Ts) {
-        const T wT = freq * T{2} * std::numbers::pi_v<T> * Ts;
+        const T wT = freq * T{2} * wet::numbers::pi_v<T> * Ts;
         const auto [sin_wt, cos_wt] = wet::sincos(wT); // sin(wT), cos(wT)
 
         const StateSpace sys = {

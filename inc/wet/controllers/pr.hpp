@@ -24,9 +24,6 @@
  * but this has zero bandwidth around w0 and is sensitive to frequency variations.
  */
 
-#include <cmath>
-#include <numbers>
-
 #include "wet/math/math.hpp"
 #include "wet/systems/state_space.hpp"
 

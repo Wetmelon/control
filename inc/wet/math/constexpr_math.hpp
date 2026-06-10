@@ -16,7 +16,6 @@
  */
 
 #include <limits>
-#include <numbers>
 
 #include "wet/backend.hpp"
 
@@ -88,7 +87,7 @@ constexpr T cbrt(T x) {
 /// reduction. @see Cody & Waite, "Software Manual for the Elementary Functions".
 template<typename T>
 constexpr T atan2(T y, T x) {
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
 
     if (x == T{0}) {
         if (y > T{0}) {
@@ -220,7 +219,7 @@ constexpr wet::pair<T, T> sincos(T x) {
 /// @see Cuyt et al., "Handbook of Continued Fractions for Special Functions" §12.1
 template<typename T>
 constexpr T tan(T x) {
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
     constexpr T half_pi = pi / T{2};
 
     constexpr T pi_hi = T{3.14159265346825122834};

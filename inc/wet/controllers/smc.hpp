@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <cmath>
-
 #include "wet/math/math.hpp"
 
 namespace wet {

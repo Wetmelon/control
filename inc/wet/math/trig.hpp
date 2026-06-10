@@ -9,7 +9,6 @@
 #include <cmath>
 #include <cstddef>
 #include <limits>
-#include <numbers>
 
 #include "wet/backend.hpp"
 
@@ -180,7 +179,7 @@ inline float asin(float x) {
 
     float sqrt_1_minus_x = sqrt(1.0f - x);
     float p = detail::estrin_eval(x, detail::asin_coeffs);
-    float result = (std::numbers::pi_v<float> / 2.0f) - (sqrt_1_minus_x * p);
+    float result = (wet::numbers::pi_v<float> / 2.0f) - (sqrt_1_minus_x * p);
 
     return negate ? -result : result;
 }
@@ -205,7 +204,7 @@ inline float acos(float x) {
     float p = detail::estrin_eval(x, detail::asin_coeffs);
     float result = sqrt_1_minus_x * p;
 
-    return negate ? (std::numbers::pi_v<float> - result) : result;
+    return negate ? (wet::numbers::pi_v<float> - result) : result;
 }
 
 /**
@@ -233,7 +232,7 @@ inline float atan(float x) {
     float result = detail::estrin_eval(x, detail::atan_coeffs);
 
     if (complement) {
-        result = (std::numbers::pi_v<float> / 2.0f) - result;
+        result = (wet::numbers::pi_v<float> / 2.0f) - result;
     }
 
     return negate ? -result : result;
@@ -256,8 +255,8 @@ inline float atan2(float y, float x) {
     float hi = std::fmax(ax, ay) + std::numeric_limits<float>::min();
     float t = detail::estrin_eval(lo / hi, detail::atan_coeffs);
 
-    float r = (ay > ax) ? ((std::numbers::pi_v<float> / 2.0f) - t) : t;
-    r = (x >= 0.0f) ? r : (std::numbers::pi_v<float> - r);
+    float r = (ay > ax) ? ((wet::numbers::pi_v<float> / 2.0f) - t) : t;
+    r = (x >= 0.0f) ? r : (wet::numbers::pi_v<float> - r);
 
     return std::copysign(r, y);
 }
@@ -295,7 +294,7 @@ static inline float reassoc_barrier(float v) {
  *        `#pragma clang fp reassociate(off)`; gcc needs memory barriers
  */
 static inline Reduced wrap(float x) {
-    constexpr float inv_pi = std::numbers::inv_pi_v<float>;
+    constexpr float inv_pi = wet::numbers::inv_pi_v<float>;
     constexpr float PI_HI = 3.140625f;          // pi, low 13 mantissa bits zeroed
     constexpr float PI_LO = 9.6765358467e-04f;  // pi - PI_HI
     constexpr float PI_LO2 = 5.1265658385e-12f; // pi - PI_HI - PI_LO

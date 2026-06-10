@@ -92,7 +92,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <numbers>
 
 #include "wet/math/math.hpp"
 
@@ -413,7 +412,7 @@ private:
             status_ = RelayAutotuneStatus::Failed;
             return;
         }
-        Ku_ = (T{4} * config_.amplitude) / (std::numbers::pi_v<T> * wet::sqrt(arg));
+        Ku_ = (T{4} * config_.amplitude) / (wet::numbers::pi_v<T> * wet::sqrt(arg));
         status_ = RelayAutotuneStatus::Done;
     }
 

@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 
@@ -157,7 +156,7 @@ constexpr bool is_stabilizable(
                 }
                 if (pivot != rank) {
                     for (size_t j = 0; j < NX + NU; ++j) {
-                        std::swap(work(rank, j), work(pivot, j));
+                        wet::swap(work(rank, j), work(pivot, j));
                     }
                 }
                 for (size_t r = rank + 1; r < NX; ++r) {
@@ -193,7 +192,7 @@ namespace detail {
  * @see "Optimal Control" (Anderson & Moore, 1990), §4.3
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
+constexpr wet::optional<Matrix<NX, NX, T>> dare_sda(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -205,7 +204,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
     //! Solve via R * X = Nᵀ  and  R * X = Bᵀ  to avoid explicit R⁻¹
     const auto R_inv_Nt_opt = mat::lu_solve(R, N.transpose());
     if (!R_inv_Nt_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     const Matrix R_inv_Nt = R_inv_Nt_opt.value();
 
@@ -215,7 +214,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
     //! Compute Gk = B R⁻¹ Bᵀ via solve: R * X = Bᵀ → X = R⁻¹Bᵀ → Gk = B * X
     const auto R_inv_Bt_opt = mat::lu_solve(R, B.transpose());
     if (!R_inv_Bt_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Structure-preserving Doubling Algorithm (SDA) for DARE:
@@ -240,7 +239,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
         const Matrix Vk_arg = Matrix<NX, NX, T>::identity() + Gk * Hk;
         const auto   Vk_opt = mat::lu_solve(Vk_arg, Matrix<NX, NX, T>::identity());
         if (!Vk_opt) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         const Matrix Vk = Vk_opt.value();
 
@@ -253,14 +252,14 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
         Gk = Gk_next;
         Hk = Hk_next;
 
-        if (diff < tol * std::max(T{1}, Hk.norm())) {
+        if (diff < tol * wet::max(T{1}, Hk.norm())) {
             converged = true;
             break;
         }
     }
 
     if (!converged) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Symmetrize for numerical cleanup
@@ -283,7 +282,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_sda(
  * @see "Optimal Control" (Anderson & Moore, 1990), §4.2
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
+constexpr wet::optional<Matrix<NX, NX, T>> dare_rde(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -307,7 +306,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
     if (!n_is_zero) {
         const auto R_inv_Nt_opt = mat::lu_solve(R, N.transpose());
         if (!R_inv_Nt_opt) {
-            return std::nullopt; // singular R with non-zero N is unsupported
+            return wet::nullopt; // singular R with non-zero N is unsupported
         }
         const Matrix R_inv_Nt = R_inv_Nt_opt.value();
         A_eff = A - B * R_inv_Nt;
@@ -338,7 +337,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
                 X = Q_eff + Matrix<NX, NX, T>::identity() * (trace_q / T(NX) + T{1});
                 continue;
             }
-            return std::nullopt;
+            return wet::nullopt;
         }
         const Matrix M = M_opt.value();
 
@@ -356,7 +355,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
             }
         }
         if (diverged) {
-            return std::nullopt;
+            return wet::nullopt;
         }
 
         //! Convergence check (Frobenius norm with guard clamping)
@@ -384,14 +383,14 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
 
         X = X_next;
 
-        if (wet::sqrt(diff_norm_sq) < tol * std::max(T{1}, wet::sqrt(x_norm_sq))) {
+        if (wet::sqrt(diff_norm_sq) < tol * wet::max(T{1}, wet::sqrt(x_norm_sq))) {
             converged = true;
             break;
         }
     }
 
     if (!converged) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     return (X + X.t()) * T{0.5};
@@ -422,7 +421,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare_rde(
  * @see Higham, "Functions of Matrices" (2008), §2.3 (sign-function scaling)
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> care_sign(
+constexpr wet::optional<Matrix<NX, NX, T>> care_sign(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -433,11 +432,11 @@ constexpr std::optional<Matrix<NX, NX, T>> care_sign(
     //! Q_eff = Q − N R⁻¹ Nᵀ — solved against R rather than forming R⁻¹.
     const auto Rinv_Bt_opt = mat::lu_solve(R, B.transpose());
     if (!Rinv_Bt_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     const auto Rinv_Nt_opt = mat::lu_solve(R, N.transpose());
     if (!Rinv_Nt_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     const Matrix<NX, NX, T> G = B * Rinv_Bt_opt.value();
     const Matrix<NX, NX, T> A_eff = A - B * Rinv_Nt_opt.value();
@@ -466,7 +465,7 @@ constexpr std::optional<Matrix<NX, NX, T>> care_sign(
     for (int iter = 0; iter < max_iter; ++iter) {
         const auto Zinv_opt = mat::lu_solve(Z, Matrix<M, M, T>::identity());
         if (!Zinv_opt) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         const Matrix<M, M, T> Zinv = Zinv_opt.value();
 
@@ -484,7 +483,7 @@ constexpr std::optional<Matrix<NX, NX, T>> care_sign(
         for (size_t i = 0; i < M; ++i) {
             for (size_t j = 0; j < M; ++j) {
                 if (!wet::isfinite(Z_next(i, j)) || wet::abs(Z_next(i, j)) > guard) {
-                    return std::nullopt;
+                    return wet::nullopt;
                 }
             }
         }
@@ -492,14 +491,14 @@ constexpr std::optional<Matrix<NX, NX, T>> care_sign(
         const T diff = (Z_next - Z).norm();
         Z = Z_next;
 
-        if (diff < tol * std::max(T{1}, Z.norm())) {
+        if (diff < tol * wet::max(T{1}, Z.norm())) {
             converged = true;
             break;
         }
     }
 
     if (!converged) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Partition sign(H) and solve [W₁₂; W₂₂+I] X = −[W₁₁+I; W₂₁] via normal
@@ -525,7 +524,7 @@ constexpr std::optional<Matrix<NX, NX, T>> care_sign(
 
     const auto X_opt = mat::lu_solve(lhs, rhs);
     if (!X_opt) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     const Matrix<NX, NX, T> X = X_opt.value();
 
@@ -565,10 +564,10 @@ enum class DareMethod : uint8_t { Auto,
  * @param method  DareMethod::Auto (default) selects SDA when R > 0, RDE when R ≥ 0.
  *                DareMethod::SDA forces SDA (requires R positive definite).
  *                DareMethod::RDE forces RDE (handles R positive semidefinite).
- * @return Solution matrix X (NX × NX, positive semidefinite) or std::nullopt on failure
+ * @return Solution matrix X (NX × NX, positive semidefinite) or wet::nullopt on failure
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> dare(
+constexpr wet::optional<Matrix<NX, NX, T>> dare(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -578,12 +577,12 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
 ) {
     //! Check R is symmetric
     if (!mat::is_symmetric_or_hermitian(R)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Check Q is symmetric
     if (!mat::is_symmetric_or_hermitian(Q)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Check Q is positive semidefinite via Cholesky of (Q + εI)
@@ -593,26 +592,26 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
     {
         const Matrix<NX, NX, T> Q_shifted = Q + Matrix<NX, NX, T>::identity() * eps;
         if (!mat::cholesky(Q_shifted)) {
-            return std::nullopt;
+            return wet::nullopt;
         }
     }
 
     //! Check (A, B) is stabilizable
     if (!is_stabilizable(A, B)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     const bool r_is_pd = mat::cholesky(R).has_value();
     const bool r_is_psd = r_is_pd || mat::cholesky(R + Matrix<NU, NU, T>::identity() * eps).has_value();
 
     if (!r_is_psd) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     switch (method) {
         case DareMethod::SDA:
             if (!r_is_pd) {
-                return std::nullopt;
+                return wet::nullopt;
             }
             return detail::dare_sda(A, B, Q, R, N);
         case DareMethod::RDE:
@@ -646,7 +645,7 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
  * continuous stabilizability/detectability tests differ from the discrete
  * is_stabilizable() used by dare()). Instead, infeasibility surfaces as the
  * sign-function iteration failing to converge, in which case care() returns
- * std::nullopt.
+ * wet::nullopt.
  *
  * @note Compare with MATLAB's icare(A, B, Q, R) / care(A, B, Q, R).
  *
@@ -660,10 +659,10 @@ constexpr std::optional<Matrix<NX, NX, T>> dare(
  * @param R  Input cost matrix (NU × NU, positive definite)
  * @param N  Cross-term matrix (NX × NU, default: zero)
  * @return Stabilizing solution X (NX × NX, symmetric positive semidefinite) or
- *         std::nullopt on failure
+ *         wet::nullopt on failure
  */
 template<size_t NX, size_t NU, typename T = double>
-constexpr std::optional<Matrix<NX, NX, T>> care(
+constexpr wet::optional<Matrix<NX, NX, T>> care(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const Matrix<NX, NX, T>& Q,
@@ -672,10 +671,10 @@ constexpr std::optional<Matrix<NX, NX, T>> care(
 ) {
     //! R and Q must be symmetric (CARE assumes symmetric weights).
     if (!mat::is_symmetric_or_hermitian(R)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     if (!mat::is_symmetric_or_hermitian(Q)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     //! Q positive semidefinite via Cholesky of (Q + εI) — same trick as dare().
@@ -683,13 +682,13 @@ constexpr std::optional<Matrix<NX, NX, T>> care(
     {
         const Matrix<NX, NX, T> Q_shifted = Q + Matrix<NX, NX, T>::identity() * eps;
         if (!mat::cholesky(Q_shifted)) {
-            return std::nullopt;
+            return wet::nullopt;
         }
     }
 
     //! R must be positive definite (G = B R⁻¹ Bᵀ).
     if (!mat::cholesky(R)) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     return detail::care_sign(A, B, Q, R, N);

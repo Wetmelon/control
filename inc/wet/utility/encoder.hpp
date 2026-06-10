@@ -14,7 +14,6 @@
  */
 
 #include <cstdint>
-#include <numbers>
 #include <type_traits>
 
 #include "wet/backend.hpp"
@@ -158,7 +157,7 @@ public:
 
     /// Convert a rev/s reading to rad/s.
     [[nodiscard]] static constexpr T to_rad_per_s(T rev_per_s) {
-        return rev_per_s * T{2} * std::numbers::pi_v<T>;
+        return rev_per_s * T{2} * wet::numbers::pi_v<T>;
     }
 };
 

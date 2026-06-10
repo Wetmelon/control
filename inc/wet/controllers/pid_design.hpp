@@ -18,9 +18,7 @@
  * - Tyreus-Luyben (conservative Ziegler-Nichols variant)
  */
 
-#include <cmath>
 #include <limits>
-#include <numbers>
 
 #include "pid.hpp"
 #include "wet/math/math.hpp"
@@ -324,7 +322,7 @@ lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
     T           phi = phase_margin * pi / T{180}; // Convert to radians
     T           desired_phase = phi - pi;         // Phase of C(jω) at crossover
 
@@ -400,7 +398,7 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr T damping_ratio_from_overshoot_percent(T overshoot_percent) {
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
 
     if (overshoot_percent <= T{0}) {
         return T{1};
@@ -430,7 +428,7 @@ template<typename T = double>
  */
 template<typename T = double>
 [[nodiscard]] constexpr T phase_margin_from_damping_ratio(T zeta) {
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
 
     if (zeta <= T{0}) {
         return T{30};

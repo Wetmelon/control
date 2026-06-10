@@ -7,6 +7,13 @@
  *        @ref Cascade propagate saturation feedback through user-defined
  *        controllers.
  *
+ * @warning **Provisional.** This is a narrow first cut (SISO `control(r, y)`
+ *          only) and currently constrains only @ref Cascade. It will be folded
+ *          into a unified controller/observer concept — one "box" every
+ *          controller and every observer fits, easy for users to extend
+ *          (SISO + MIMO/`StateSpace`) — pending that holistic redesign (see
+ *          roadmap #3). Treat the exact surface as not-yet-stable.
+ *
  * The library composes controllers by *protocol*, not inheritance. Any class
  * that advertises the right member signatures plays in `Cascade`, in tuning
  * harnesses, in mock plants for tests, etc. — including user-written

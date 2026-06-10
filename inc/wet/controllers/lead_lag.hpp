@@ -26,8 +26,6 @@
  * - Cascade compensator design (lead + lag sections)
  */
 
-#include <cmath>
-
 #include "wet/math/math.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"

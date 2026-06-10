@@ -70,7 +70,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <numbers>
 
 #include "wet/backend.hpp"
 #include "wet/math/math.hpp"
@@ -709,17 +708,17 @@ private:
     [[nodiscard]] constexpr T linear_phase(T t) const {
         const T k = (config_.f_end_hz - config_.f_start_hz) / config_.duration_s;
         const T phase_cycles = (config_.f_start_hz * t) + (T{0.5} * k * t * t);
-        return T{2} * std::numbers::pi_v<T> * phase_cycles;
+        return T{2} * wet::numbers::pi_v<T> * phase_cycles;
     }
 
     [[nodiscard]] constexpr T log_phase(T t) const {
         const T ratio = config_.f_end_hz / config_.f_start_hz;
         const T beta = wet::log(ratio) / config_.duration_s;
         if (wet::abs(beta) <= std::numeric_limits<T>::epsilon()) {
-            return T{2} * std::numbers::pi_v<T> * config_.f_start_hz * t;
+            return T{2} * wet::numbers::pi_v<T> * config_.f_start_hz * t;
         }
         const T phase_cycles = (config_.f_start_hz / beta) * (wet::exp(beta * t) - T{1});
-        return T{2} * std::numbers::pi_v<T> * phase_cycles;
+        return T{2} * wet::numbers::pi_v<T> * phase_cycles;
     }
 
     design::ChirpConfig<T> config_{};
@@ -1102,7 +1101,7 @@ public:
         T       y = T{0};
         for (std::size_t i = 0; i < NTones; ++i) {
             const auto& tone = config_.tones[i];
-            const T     omega_t = (T{2} * std::numbers::pi_v<T> * tone.freq_hz * tc) + tone.phase_rad;
+            const T     omega_t = (T{2} * wet::numbers::pi_v<T> * tone.freq_hz * tc) + tone.phase_rad;
             y += tone.amplitude * wet::sin(omega_t);
         }
         return y;

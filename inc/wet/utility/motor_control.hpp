@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <numbers>
-
 #include "wet/math/math.hpp"
 
 namespace wet {
@@ -28,7 +26,7 @@ namespace wet {
 template<typename T = float>
 [[nodiscard]] constexpr wet::pair<T, T> clarke_transform(T a, T b, T c) {
     const T alpha = ((T{2} * a) - b - c) / T{3};
-    const T beta = (b - c) / std::numbers::sqrt3_v<T>;
+    const T beta = (b - c) / wet::numbers::sqrt3_v<T>;
     return {alpha, beta};
 }
 
@@ -45,8 +43,8 @@ template<typename T = float>
 template<typename T = float>
 [[nodiscard]] constexpr wet::tuple<T, T, T> inverse_clarke_transform(T alpha, T beta) {
     const T a = alpha;
-    const T b = (-alpha / T{2}) + (std::numbers::sqrt3_v<T> * beta / T{2});
-    const T c = (-alpha / T{2}) - (std::numbers::sqrt3_v<T> * beta / T{2});
+    const T b = (-alpha / T{2}) + (wet::numbers::sqrt3_v<T> * beta / T{2});
+    const T c = (-alpha / T{2}) - (wet::numbers::sqrt3_v<T> * beta / T{2});
     return {a, b, c};
 }
 
@@ -143,16 +141,16 @@ template<typename T = float>
 template<typename T = float>
 [[nodiscard]] constexpr wet::tuple<T, T, T> svm_duty_cycles(T v_alpha, T v_beta, T v_dc) {
     // Normalize voltages
-    const T v_a_norm = v_alpha / (v_dc / std::numbers::sqrt3_v<T>);
-    const T v_b_norm = v_beta / (v_dc / std::numbers::sqrt3_v<T>);
+    const T v_a_norm = v_alpha / (v_dc / wet::numbers::sqrt3_v<T>);
+    const T v_b_norm = v_beta / (v_dc / wet::numbers::sqrt3_v<T>);
 
     // Third harmonic injection for better DC bus utilization
     const T v_0 = T{0}; // Zero sequence component
 
     // Calculate duty cycles
     const T duty_a = T{0.5} + (v_a_norm / T{2}) + (v_0 / T{2});
-    const T duty_b = T{0.5} - (v_a_norm / T{4}) + (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
-    const T duty_c = T{0.5} - (v_a_norm / T{4}) - (v_b_norm * std::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
+    const T duty_b = T{0.5} - (v_a_norm / T{4}) + (v_b_norm * wet::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
+    const T duty_c = T{0.5} - (v_a_norm / T{4}) - (v_b_norm * wet::numbers::sqrt3_v<T> / T{4}) + (v_0 / T{2});
 
     return {wet::clamp(duty_a, T{0}, T{1}), wet::clamp(duty_b, T{0}, T{1}), wet::clamp(duty_c, T{0}, T{1})};
 }

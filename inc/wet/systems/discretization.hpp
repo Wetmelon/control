@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <cmath>
-
 #include "state_space.hpp"
 #include "wet/matrix/matrix.hpp"
 

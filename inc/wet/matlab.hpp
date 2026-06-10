@@ -432,7 +432,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr auto pidtune(const StateSpace<NX, 1, 1, 0, 0, T>& sys, T wc) noexcept {
     using C = wet::complex<T>;
-    constexpr T pi = std::numbers::pi_v<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
     C           jwc{0, wc};
     auto        G_frf = eval_frf(sys, jwc);
     // Assume SISO

@@ -11,7 +11,6 @@
 
 #include <cstddef>
 #include <limits>
-#include <numbers>
 #include <optional>
 #include <vector>
 
@@ -43,7 +42,7 @@ constexpr std::vector<T> linspace(T start, T end, size_t num) {
 
 template<typename T = double>
     requires std::is_floating_point_v<T>
-constexpr std::vector<T> linspace(const std::pair<T, T>& span, size_t num) {
+constexpr std::vector<T> linspace(const wet::pair<T, T>& span, size_t num) {
     return linspace(span.first, span.second, num);
 }
 
@@ -69,7 +68,7 @@ constexpr std::vector<T> logspace(T start, T end, size_t num, T base = T{10}) {
 
 template<typename T = double>
     requires std::is_floating_point_v<T>
-constexpr std::vector<T> logspace(const std::pair<T, T>& span, size_t num, T base = T{10}) {
+constexpr std::vector<T> logspace(const wet::pair<T, T>& span, size_t num, T base = T{10}) {
     return logspace(span.first, span.second, num, base);
 }
 
@@ -103,7 +102,7 @@ struct BodeResult {
      *
      * @return {gain_margin_dB, crossover_frequency} or nullopt if no -180° crossing
      */
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> gain_margin() const {
         for (size_t i = 1; i < points.size(); ++i) {
             T phase_prev = points[i - 1].phase_deg;
             T phase_curr = points[i].phase_deg;
@@ -114,10 +113,10 @@ struct BodeResult {
                 T omega_cross = points[i - 1].omega + frac * (points[i].omega - points[i - 1].omega);
                 T mag_db_cross = points[i - 1].magnitude_db + frac * (points[i].magnitude_db - points[i - 1].magnitude_db);
                 T gm = -mag_db_cross; // Gain margin in dB
-                return std::pair{gm, omega_cross};
+                return wet::pair{gm, omega_cross};
             }
         }
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     /**
@@ -128,7 +127,7 @@ struct BodeResult {
      *
      * @return {phase_margin_deg, crossover_frequency} or nullopt if no 0dB crossing
      */
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> phase_margin() const {
         for (size_t i = 1; i < points.size(); ++i) {
             T mag_prev = points[i - 1].magnitude_db;
             T mag_curr = points[i].magnitude_db;
@@ -138,10 +137,10 @@ struct BodeResult {
                 T omega_cross = points[i - 1].omega + frac * (points[i].omega - points[i - 1].omega);
                 T phase_cross = points[i - 1].phase_deg + frac * (points[i].phase_deg - points[i - 1].phase_deg);
                 T pm = T{180} + phase_cross;
-                return std::pair{pm, omega_cross};
+                return wet::pair{pm, omega_cross};
             }
         }
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     /**
@@ -151,9 +150,9 @@ struct BodeResult {
      *
      * @return Bandwidth in rad/s, or nullopt if not found
      */
-    [[nodiscard]] constexpr std::optional<T> bandwidth() const {
+    [[nodiscard]] constexpr wet::optional<T> bandwidth() const {
         if (points.empty()) {
-            return std::nullopt;
+            return wet::nullopt;
         }
         T dc_db = points[0].magnitude_db;
         T threshold = dc_db - T{3};
@@ -164,7 +163,7 @@ struct BodeResult {
                 return points[i - 1].omega + frac * (points[i].omega - points[i - 1].omega);
             }
         }
-        return std::nullopt;
+        return wet::nullopt;
     }
 };
 
@@ -219,9 +218,9 @@ template<typename T>
  * @return {phase_margin_deg, crossover_frequency} or nullopt if no 0dB crossing
  */
 template<typename T>
-[[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin_unwrapped(const BodeResult<T>& result) {
+[[nodiscard]] constexpr wet::optional<wet::pair<T, T>> phase_margin_unwrapped(const BodeResult<T>& result) {
     if (result.points.size() < 2) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     std::vector<T> wrapped_phase;
@@ -239,11 +238,11 @@ template<typename T>
             const T omega_cross = result.points[i - 1].omega + frac * (result.points[i].omega - result.points[i - 1].omega);
             const T phase_cross = unwrapped[i - 1] + frac * (unwrapped[i] - unwrapped[i - 1]);
             const T pm = canonical_phase_margin(T{180} + phase_cross);
-            return std::pair{pm, omega_cross};
+            return wet::pair{pm, omega_cross};
         }
     }
 
-    return std::nullopt;
+    return wet::nullopt;
 }
 
 /**
@@ -255,9 +254,9 @@ template<typename T>
  * @return {gain_margin_dB, crossover_frequency} or nullopt if no -180 crossing
  */
 template<typename T>
-[[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin_unwrapped(const BodeResult<T>& result) {
+[[nodiscard]] constexpr wet::optional<wet::pair<T, T>> gain_margin_unwrapped(const BodeResult<T>& result) {
     if (result.points.size() < 2) {
-        return std::nullopt;
+        return wet::nullopt;
     }
 
     std::vector<T> wrapped_phase;
@@ -275,11 +274,11 @@ template<typename T>
             const T frac = (T{0} - p0) / (p1 - p0);
             const T omega_cross = result.points[i - 1].omega + frac * (result.points[i].omega - result.points[i - 1].omega);
             const T mag_cross = result.points[i - 1].magnitude_db + frac * (result.points[i].magnitude_db - result.points[i - 1].magnitude_db);
-            return std::pair{-mag_cross, omega_cross};
+            return wet::pair{-mag_cross, omega_cross};
         }
     }
 
-    return std::nullopt;
+    return wet::nullopt;
 }
 
 /**
@@ -311,7 +310,7 @@ template<size_t NX, size_t NW, size_t NV, typename T>
         T       mag = wet::abs(G);
         T       phase_rad = wet::arg(G);
         T       mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T       phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
+        T       phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
@@ -360,7 +359,7 @@ template<size_t Nnum, size_t Nden, typename T>
         T mag = wet::abs(G);
         T phase_rad = wet::arg(G);
         T mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
+        T phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
@@ -420,9 +419,9 @@ struct NyquistResult {
      * @brief Minimum Nyquist distance to the critical point -1 + j0
      * @return {minimum_distance, frequency} or nullopt when empty
      */
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> min_distance_to_minus_one() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> min_distance_to_minus_one() const {
         if (points.empty()) {
-            return std::nullopt;
+            return wet::nullopt;
         }
 
         T min_dist = points[0].distance_to_minus_one;
@@ -433,7 +432,7 @@ struct NyquistResult {
                 at_omega = points[i].omega;
             }
         }
-        return std::pair{min_dist, at_omega};
+        return wet::pair{min_dist, at_omega};
     }
 };
 
@@ -453,15 +452,15 @@ struct LoopResponseResult {
     BodeResult<T>    complementary_sensitivity;
     NyquistResult<T> nyquist;
 
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin_unwrapped() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> phase_margin_unwrapped() const {
         return analysis::phase_margin_unwrapped(open_loop);
     }
 
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin_unwrapped() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> gain_margin_unwrapped() const {
         return analysis::gain_margin_unwrapped(open_loop);
     }
 
-    [[nodiscard]] constexpr std::optional<T> closed_loop_bandwidth() const {
+    [[nodiscard]] constexpr wet::optional<T> closed_loop_bandwidth() const {
         return complementary_sensitivity.bandwidth();
     }
 };
@@ -481,10 +480,10 @@ template<size_t NX, size_t NW, size_t NV, typename T>
  */
 template<typename T = double>
 struct LoopSummary {
-    std::optional<std::pair<T, T>> phase_margin;                                             //!< {PM [deg], gain crossover omega [rad/s]}
-    std::optional<std::pair<T, T>> gain_margin;                                              //!< {GM [dB], phase crossover omega [rad/s]}
-    std::optional<T>               bandwidth;                                                //!< Closed-loop bandwidth from T=L/(1+L), rad/s
-    std::optional<std::pair<T, T>> min_nyquist_distance;                                     //!< {min|1+L|, omega [rad/s]}
+    wet::optional<wet::pair<T, T>> phase_margin;                                             //!< {PM [deg], gain crossover omega [rad/s]}
+    wet::optional<wet::pair<T, T>> gain_margin;                                              //!< {GM [dB], phase crossover omega [rad/s]}
+    wet::optional<T>               bandwidth;                                                //!< Closed-loop bandwidth from T=L/(1+L), rad/s
+    wet::optional<wet::pair<T, T>> min_nyquist_distance;                                     //!< {min|1+L|, omega [rad/s]}
     T                              peak_sensitivity_db{-std::numeric_limits<T>::infinity()}; //!< max 20*log10|S|
 };
 
@@ -599,17 +598,17 @@ template<size_t NX, size_t NW, size_t NV, typename T>
 
         const T L_mag = wet::abs(L);
         const T L_mag_db = L_mag > T{0} ? T{20} * wet::log10(L_mag) : T{-300};
-        const T L_phase = wet::arg(L) * T{180} / std::numbers::pi_v<T>;
+        const T L_phase = wet::arg(L) * T{180} / wet::numbers::pi_v<T>;
         result.open_loop.points.push_back({w, L_mag, L_mag_db, L_phase});
 
         const T S_mag = wet::abs(S);
         const T S_mag_db = S_mag > T{0} ? T{20} * wet::log10(S_mag) : T{-300};
-        const T S_phase = wet::arg(S) * T{180} / std::numbers::pi_v<T>;
+        const T S_phase = wet::arg(S) * T{180} / wet::numbers::pi_v<T>;
         result.sensitivity.points.push_back({w, S_mag, S_mag_db, S_phase});
 
         const T T_mag = wet::abs(Tresp);
         const T T_mag_db = T_mag > T{0} ? T{20} * wet::log10(T_mag) : T{-300};
-        const T T_phase = wet::arg(Tresp) * T{180} / std::numbers::pi_v<T>;
+        const T T_phase = wet::arg(Tresp) * T{180} / wet::numbers::pi_v<T>;
         result.complementary_sensitivity.points.push_back({w, T_mag, T_mag_db, T_phase});
 
         const T         dist = wet::abs(one + L);
@@ -656,7 +655,7 @@ template<size_t Nnum, size_t Nden, typename T>
  * @return DC gain matrix, or nullopt if A is singular at the evaluation point
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
-[[nodiscard]] constexpr std::optional<Matrix<NY, NU, T>> dcgain(
+[[nodiscard]] constexpr wet::optional<Matrix<NY, NU, T>> dcgain(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys
 ) noexcept {
     Matrix<NX, NX, T> M;
@@ -669,7 +668,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
     }
     auto inv = M.inverse();
     if (!inv) {
-        return std::nullopt;
+        return wet::nullopt;
     }
     return sys.C * (*inv) * sys.B + sys.D;
 }
@@ -808,7 +807,7 @@ struct MiddlebrookResult {
      *
      * @return {gain_margin_dB, frequency} or nullopt
      */
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> gain_margin() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> gain_margin() const {
         return minor_loop_gain.gain_margin();
     }
 
@@ -820,7 +819,7 @@ struct MiddlebrookResult {
      *
      * @return {phase_margin_deg, frequency} or nullopt
      */
-    [[nodiscard]] constexpr std::optional<std::pair<T, T>> phase_margin() const {
+    [[nodiscard]] constexpr wet::optional<wet::pair<T, T>> phase_margin() const {
         return minor_loop_gain.phase_margin();
     }
 
@@ -833,7 +832,7 @@ struct MiddlebrookResult {
      *
      * @return {min_ratio, frequency_of_worst_case}
      */
-    [[nodiscard]] constexpr std::pair<T, T> worst_case_margin() const {
+    [[nodiscard]] constexpr wet::pair<T, T> worst_case_margin() const {
         T min_ratio = std::numeric_limits<T>::infinity();
         T worst_freq = T{0};
         for (size_t i = 0; i < minor_loop_gain.points.size(); ++i) {
@@ -878,7 +877,7 @@ template<size_t NX, size_t NW, size_t NV, typename T>
         T mag = wet::abs(Z);
         T phase_rad = wet::arg(Z);
         T mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
+        T phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
 
         result.points.push_back({w, Z, mag, mag_db, phase_deg});
     }
@@ -912,7 +911,7 @@ template<size_t NX, size_t NW, size_t NV, typename T>
         T mag = wet::abs(Z);
         T phase_rad = wet::arg(Z);
         T mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T phase_deg = phase_rad * T{180} / std::numbers::pi_v<T>;
+        T phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
 
         result.points.push_back({w, Z, mag, mag_db, phase_deg});
     }
@@ -964,19 +963,19 @@ template<size_t NX_S, size_t NW_S, size_t NV_S, size_t NX_L, size_t NW_L, size_t
 
         // Source impedance point
         T zs_mag = wet::abs(Z_s);
-        T zs_phase = wet::arg(Z_s) * T{180} / std::numbers::pi_v<T>;
+        T zs_phase = wet::arg(Z_s) * T{180} / wet::numbers::pi_v<T>;
         T zs_db = zs_mag > T{0} ? T{20} * wet::log10(zs_mag) : T{-300};
         result.source_impedance.points.push_back({w, Z_s, zs_mag, zs_db, zs_phase});
 
         // Load impedance point
         T zl_mag = wet::abs(Z_L);
-        T zl_phase = wet::arg(Z_L) * T{180} / std::numbers::pi_v<T>;
+        T zl_phase = wet::arg(Z_L) * T{180} / wet::numbers::pi_v<T>;
         T zl_db = zl_mag > T{0} ? T{20} * wet::log10(zl_mag) : T{-300};
         result.load_impedance.points.push_back({w, Z_L, zl_mag, zl_db, zl_phase});
 
         // Minor loop gain point
         T tm_mag = wet::abs(Tm);
-        T tm_phase = wet::arg(Tm) * T{180} / std::numbers::pi_v<T>;
+        T tm_phase = wet::arg(Tm) * T{180} / wet::numbers::pi_v<T>;
         T tm_db = tm_mag > T{0} ? T{20} * wet::log10(tm_mag) : T{-300};
         result.minor_loop_gain.points.push_back({w, tm_mag, tm_db, tm_phase});
     }
@@ -1003,7 +1002,7 @@ template<typename T>
     result.source_impedance = Z_source;
     result.load_impedance = Z_load;
 
-    size_t n = std::min(Z_source.points.size(), Z_load.points.size());
+    size_t n = wet::min(Z_source.points.size(), Z_load.points.size());
     result.minor_loop_gain.points.reserve(n);
 
     for (size_t i = 0; i < n; ++i) {
@@ -1013,7 +1012,7 @@ template<typename T>
         // T_m = Z_s / Z_L
         auto Tm = zs.Z / zl.Z;
         T    tm_mag = wet::abs(Tm);
-        T    tm_phase = wet::arg(Tm) * T{180} / std::numbers::pi_v<T>;
+        T    tm_phase = wet::arg(Tm) * T{180} / wet::numbers::pi_v<T>;
         T    tm_db = tm_mag > T{0} ? T{20} * wet::log10(tm_mag) : T{-300};
 
         result.minor_loop_gain.points.push_back({zs.omega, tm_mag, tm_db, tm_phase});

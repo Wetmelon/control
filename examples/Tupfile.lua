@@ -1,4 +1,10 @@
 
+-- The example programs are hosted demos (fmt / plotlypp). They are not part of
+-- the freestanding contract, so skip them under the ETL backend variant.
+if BACKEND == 'ETL' then
+    return
+end
+
 INCLUDES = '-I.'
 INCLUDES += '-I../inc'
 INCLUDES += '-I../libs'
@@ -6,18 +12,18 @@ INCLUDES += '-I../libs/fmt/include'
 INCLUDES += '-I../libs/plotlypp/include'
 INCLUDES += '-I../libs/json/single_include'
 
--- Compile all fmt source files
+-- Compile all fmt source files into the <fmt> bin so the per-example link can
+-- reference them with %<fmt> (bin paths carry the variant prefix correctly;
+-- a bare $(var) group does not).
 fmt_sources = {'../libs/fmt/src/format.cc', '../libs/fmt/src/os.cc'}
-fmt_objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/fmt/%B.o')
+tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', {'build/fmt/%B.o', '<fmt>'})
 
 -- Compile all .cpp files in the example directory
 ex_objs = tup.foreach_rule('*.cpp', '^j^'..CXX..' '..CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/obj/%B.o')
-ex_objs.extra_inputs = fmt_objs
+ex_objs.extra_inputs = {'<fmt>'}
 
--- tup.foreach_rule(ex_objs, 'objdump -dsC %f > build/%B.asm', 'build/%B.asm')
-
--- Link with g++
-examples = tup.foreach_rule(ex_objs, CXX..' '..CXXFLAGS..' '..LDFLAGS..' %f $(fmt_objs) -o %o', 'build/%B.exe')
+-- Link with g++ (each example + the fmt objects from the bin)
+examples = tup.foreach_rule(ex_objs, CXX..' '..CXXFLAGS..' '..LDFLAGS..' %f %<fmt> -o %o', 'build/%B.exe')
 
 -- Run test executables
 -- tup.frule{inputs = examples, command = './%f', outputs = {}}

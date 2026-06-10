@@ -28,6 +28,30 @@
 
 #include "wet/config.hpp" // pulls the profile's backend-selection macros
 
+namespace wet::numbers {
+
+// Mathematical constants — our own definitions (no <numbers> dependency), so the
+// core stays freestanding under either backend. Mirrors wet::numbers::*_v names
+// so usage reads identically. (Resolves #21's "std::numbers replacement" item.)
+template<typename T>
+inline constexpr T pi_v = static_cast<T>(3.141592653589793238462643383279502884L);
+template<typename T>
+inline constexpr T e_v = static_cast<T>(2.718281828459045235360287471352662498L);
+template<typename T>
+inline constexpr T sqrt2_v = static_cast<T>(1.414213562373095048801688724209698079L);
+template<typename T>
+inline constexpr T sqrt3_v = static_cast<T>(1.732050807568877293527446341505872367L);
+template<typename T>
+inline constexpr T inv_pi_v = static_cast<T>(0.318309886183790671537767526745028724L);
+template<typename T>
+inline constexpr T inv_sqrt3_v = static_cast<T>(0.577350269189625764509148780501957456L);
+template<typename T>
+inline constexpr T ln2_v = static_cast<T>(0.693147180559945309417232121458176568L);
+template<typename T>
+inline constexpr T log2e_v = static_cast<T>(1.442695040888963407359924681001892137L);
+
+} // namespace wet::numbers
+
 #if defined(WET_BACKEND_ETL)
 
 #include <etl/algorithm.h>

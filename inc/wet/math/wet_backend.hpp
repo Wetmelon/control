@@ -1,8 +1,9 @@
 #pragma once
 
-// Not self-contained. Must be included after StdMathFallback<T> and MathBackend<T>
-// are declared by math_backend.hpp. Include via wet_profile.hpp.
+// Not self-contained. Bound by math_backend.hpp after MathBackend<T> is
+// declared. Fast single-precision float math (trig.hpp) over the std:: fallback.
 #include "math_backend.hpp"
+#include "std_fallback.hpp"
 #include "trig.hpp"
 
 namespace wet {

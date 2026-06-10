@@ -1,10 +1,17 @@
 #pragma once
 
-#include <complex>
-
 #include "math.hpp"
 
+// std::complex interop is hosted-only: convenience conversions to/from
+// std::complex and the `i` literals. Guarded so the freestanding core (no
+// <complex>) still provides the full wet::complex type.
+#if __has_include(<complex>)
+#define WET_HAS_STD_COMPLEX 1
+#include <complex>
 using namespace std::complex_literals;
+#else
+#define WET_HAS_STD_COMPLEX 0
+#endif
 
 namespace wet {
 
@@ -39,13 +46,15 @@ struct complex {
     template<typename U>
     constexpr complex(const complex<U>& other) : real_(static_cast<T>(other.real_)), imag_(static_cast<T>(other.imag_)) {}
 
+#if WET_HAS_STD_COMPLEX
     /**
-     * @brief Constructor from std::complex
+     * @brief Constructor from std::complex (hosted only)
      * @tparam U Source element type
      * @param other std::complex number to convert from
      */
     template<typename U>
     constexpr complex(const std::complex<U>& other) : real_(static_cast<T>(other.real())), imag_(static_cast<T>(other.imag())) {}
+#endif
 
     /**
      * @brief Constructor from _Complex

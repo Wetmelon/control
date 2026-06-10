@@ -1,7 +1,5 @@
 #pragma once
 
-#include <numbers>
-
 #include "wet/filters/sogi.hpp"
 #include "wet/math/math.hpp"
 
@@ -51,7 +49,7 @@ struct SinglePhasePLL {
 
     constexpr void step(T input, const T Ts) {
         // Generate bandpass and quadrature signals using SOGI
-        const auto [bp, quadrature] = sogi(input, frequency_estimate, std::numbers::sqrt2_v<T>, Ts);
+        const auto [bp, quadrature] = sogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
         (void)bp;
 
         // Phase error is the product of input and quadrature signal
@@ -73,7 +71,7 @@ struct SinglePhasePLL {
         frequency_estimate = wet::clamp(frequency_estimate, params.output_min, params.output_max);
 
         // Update phase estimate [rad] from frequency estimate [Hz]
-        const T two_pi = T{2} * std::numbers::pi_v<T>;
+        const T two_pi = T{2} * wet::numbers::pi_v<T>;
         phase_estimate += two_pi * frequency_estimate * Ts;
         phase_estimate = wet::fmod(phase_estimate, two_pi);
         if (phase_estimate < T{0}) {
