@@ -75,9 +75,10 @@
 // developing those features.
 
 // --- Signal filters ---------------------------------------------------------
-#include "wet/filters/filters.hpp"  // IWYU pragma: keep
-#include "wet/filters/sogi.hpp"     // IWYU pragma: keep
-#include "wet/filters/spectral.hpp" // IWYU pragma: keep
+#include "wet/filters/differentiator.hpp" // IWYU pragma: keep
+#include "wet/filters/filters.hpp"        // IWYU pragma: keep
+#include "wet/filters/sogi.hpp"           // IWYU pragma: keep
+#include "wet/filters/spectral.hpp"       // IWYU pragma: keep
 
 // --- Fixed-step integration (allocation-free) -------------------------------
 #include "wet/simulation/integrator.hpp" // IWYU pragma: keep

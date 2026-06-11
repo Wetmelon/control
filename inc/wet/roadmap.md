@@ -95,6 +95,7 @@ Complete the biquad family beyond low-pass and add everyday runtime blocks. Cons
 
 - Done (`filters/filters.hpp`): RBJ-cookbook biquad designers `design::notch`, `bandpass`, `highpass_2nd`, `peaking`, `lowshelf`, `highshelf` → `SecondOrderCoeffs` (Q-parameterized, designed directly in the digital domain); runtimes `Biquad` (Direct Form I) and `BiquadCascade<N>` (SOS cascade). All constexpr + float/double.
 - Done (`filters/blocks.hpp`): utility runtime blocks `MovingAverage<N>`, `RunningRMS<N>`, `MedianFilter<N>`, `RateLimiter` (symmetric + asymmetric slew), `DirtyDerivative` (Tustin band-limited d/dt), `ClampedIntegrator` (forward-Euler + anti-windup clamp; named to avoid colliding with the ODE-solver `Integrator<NX,T>` in `simulation/integrator.hpp`), `Deadband` (continuous-slope), `Hysteresis` (Schmitt trigger). All constexpr, allocation-free, one-sample-per-call; in the `wet/control.hpp` umbrella.
+- Done (`filters/differentiator.hpp`, `test_differentiator.cpp`): `RobustExactDifferentiator<T>` (alias `LevantDifferentiator<T>`) — Levant's first-order sliding-mode (super-twisting) differentiator. Model-free clean derivative of a noisy/quantized signal with far less phase lag than an LPF; also exposes a denoised `value()`. `update(f) → ḟ` from a second-derivative bound `L` and the std STA gains (λ0=1.5, λ1=1.1). The matched rate-estimator for the super-twisting controller (#11) and for servo **encoder velocity** (quantization-dominated low-speed differentiation). Constexpr, allocation-free; in the umbrella. Examples: `example_encoder_velocity` (beats raw/LPF'd finite-difference on RMS error *and* near direction reversals), and feeds clean rate in `example_swashplate_stsmc`. Ref: Levant, "Robust exact differentiation via sliding mode technique," Automatica 1998.
 - References: Oppenheim & Schafer, "Discrete-Time Signal Processing," 3rd ed., 2009; R. Bristow-Johnson, "Cookbook formulae for audio EQ biquad filter coefficients."
 - Acceptance: per-type frequency-response checks ✓; SOS cascade ✓; float/double parity ✓; utility blocks (`tests/test_blocks.cpp`: defining-behaviour + fill/reset edges + constexpr construction) ✓.
 
@@ -402,9 +403,11 @@ Gain scheduling over an operating-point grid. Targets: UAV dynamics vs airspeed/
 - References: Rugh & Shamma, "Research on Gain Scheduling," Automatica, 2000, https://doi.org/10.1016/S0005-1098(00)00058-3; Apkarian & Gahinet, IEEE TAC, 1995, https://doi.org/10.1109/9.384219
 - Acceptance: continuity across transitions; stability over the certified envelope.
 
-### 11. Super-twisting SMC ⊘
+### 11. Super-twisting SMC ☑
 
-**Re-baseline (2026-06):** **first-order** SMC is built & tested (`controllers/smc.hpp`, `test_smc`): `u = −(k/b0)·sign(s)` with a boundary layer. #11 is specifically the **second-order super-twisting** algorithm (continuous control, no boundary-layer chattering) — *not* yet built.
+**Built (2026-06):** second-order **super-twisting** algorithm — `design::synthesize_stsmc(L, Ts, λ, k_lin, ε, gain_margin)` (Levant/Moreno gains `k₁=1.5√L`, `k₂=1.1L`) + `design::stsmc(...)` direct-gain factory → `STSMCResult` + `SuperTwistingController` runtime (`controllers/smc.hpp`, `test_stsmc`). Continuous control `u = −k₁(|s|^½sign s + k_lin·s) + v`, `v̇ = −k₂(sign s + 3k_lin|s|^½sign s + 2k_lin²s)`: classic STA at `k_lin=0`, **generalized STA** (linear damping for noisy/under-modelled actuators) at `k_lin>0`, optional boundary layer `ε`. Canonical `control(s)` plus an `(r,y)` surface-builder convenience. Verified: finite-time rejection of a Lipschitz disturbance into an O(Ts) band, continuity vs first-order sign() chattering (the headline test), GSTA convergence, constexpr. Explicit-Euler integral; documented that noisy `s` is the real-world chattering source (filter it / supply `s`).
+
+**Original (first-order baseline):** first-order SMC was already built & tested (`u = −(k/b0)·sign(s)` with boundary layer); #11 added the chattering-free second-order algorithm on top.
 
 Second-order sliding-mode runtime with design-time gain synthesis. Targets: electromechanical drives with bounded matched disturbances, hydraulic/pneumatic actuators, converter current loops.
 

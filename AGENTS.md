@@ -491,6 +491,10 @@ The compile-time series expansions are necessary for consteval but slower than h
 
 **Use `wet::` for every transcendental, not `std::`.** `wet::sin/cos/atan2/sqrt/log/exp/asin/acos/atan/fmod/isfinite/...` dispatch through `MathBackend<T>` at runtime and through constexpr series/Newton/etc. at compile time. Calling `std::sin` directly inside the library breaks constexpr design paths and bypasses the user's chosen backend; `make embedded-check`-style audit greps will catch it (`grep -rnE 'std::(sin|cos|sqrt|...)' inc/wet | grep -v inc/wet/math/` must stay empty).
 
+**Use the `wet::` aliases for every backed type, not `std::`.** The same rule applies to the container/utility facilities the backend layer remaps: `wet::array`, `wet::optional`, `wet::tuple`, `wet::pair`, `wet::clamp`, `wet::min`, `wet::max`, `wet::move`, `wet::forward`, `wet::numbers::*` (and `wet::swap`, `wet::make_tuple`, …). These resolve to either `std::` or `etl::` per the active backend profile; writing `std::pair`/`std::array`/`std::clamp` directly in `inc/wet` defeats the freestanding/ETL build (`make freestanding-check` exists to catch hosted leaks). Reach for a raw `std::` type only when there is genuinely no `wet::` alias for it.
+
+**This holds in `tests/` too, with one carve-out.** Tests may use `std::` math (`std::sin`, `std::sqrt`, `std::abs`, …) deliberately as an *independent oracle* — checking `wet::`'s result against the stdlib's is the point. But there is no oracle reason to reach for `std::pair`/`std::array`/`std::optional`/`std::clamp`: use the `wet::` alias so tests also exercise the active backend. (If you catch a `std::pair` in a new test, that's the smell — swap it for `wet::pair`.)
+
 ### Floating-point and `-ffast-math` contract
 
 The library splits floating-point semantics across two paths, and contributors must keep them straight:
