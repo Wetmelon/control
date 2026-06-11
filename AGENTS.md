@@ -17,7 +17,7 @@ tup --quiet tests   # compile tests without running
 ./tests/build/test_runner.exe   # run already-built tests
 ```
 
-Regenerate `compile_commands.json` for IDE support (clangd, VS Code intellisense):
+Regenerate `compile_commands.json` for IDE support (clangd, VS Code intellisense). This only refreshes the compilation database — it does **not** compile anything, so it is far faster than a full build. Run it after adding/moving files or includes when clangd's diagnostics go stale, instead of a full `make`:
 
 ```bash
 tup --quiet compiledb
@@ -54,7 +54,7 @@ Design functions are `constexpr` — they work at both compile time and runtime.
 ### Type system
 
 - `Matrix<Rows, Cols, T=double>` — owning, stack-allocated via `std::array<T, Rows*Cols>`
-- `ColVec<N, T>` / `RowVec<N, T>` — inherit from `Matrix<N,1,T>` / `Matrix<1,N,T>`
+- `ColVec<N, T>` / `RowVec<N, T>` — inherit from `Matrix<N,1,T>` / `Matrix<1,N,T>`. Same-precision wrapping of an N×1 / 1×N matrix is **implicit** (a no-op — identical shape and storage), so matrix expressions like `A*x + B*u` flow straight back into a `ColVec`/`RowVec` (assignment, `return {expr, …}`, copy-init). Cross-precision conversions (`float`↔`double`) stay **explicit** — use `.as<U>()`. Don't re-`explicit` the same-precision ctor: it added no safety (the shapes are identical) and silently broke every never-instantiated path that returned a matrix expression as a vector.
 - `Block`, `Diagonal`, `RowView`, `ColView`, `TransposeView`, `UpperTriangle`, `LowerTriangle` — non-owning views
 - `StateSpace<NX, NU, NY, NW=0, NV=0, T=double>` — LTI system with operator overloads (`*` series, `+` parallel, `-` differencing, `/` feedback). Block-matrix interconnection operators preserve the noise input matrices `G` (process, `NX × NW`) and `H` (measurement, `NY × NV`) through every composition, so `Q`/`R` covariance propagation stays consistent end-to-end.
 - Result structs (`LQRResult`, `KalmanResult`, `LQGResult`, etc.) — all have `.as<U>()` and `bool success`
@@ -108,6 +108,7 @@ Return `std::optional<T>` for operations that can fail (matrix inversion, Choles
 ### Key conventions
 
 - **Constexpr-first**: all algorithms must support compile-time evaluation. Treat the heavy work — matrix decompositions / solves, Riccati and pole-placement solvers, eigen-analysis, full matrix–matrix products — as **compile-time design work**. The runtime path is limited to lightweight per-tick operations on already-designed gains: one state update, one matrix–vector multiply, scalar arithmetic. If a new algorithm needs an iterative solver at runtime, that's a smell — push it into a `design::` function.
+- **Solve, don't invert**: whenever the goal is `A⁻¹·b` (or `A⁻¹·B`), call `mat::solve` / `mat::cholesky_solve` / `mat::lu_solve` instead of `.inverse()` then multiplying — it's more accurate and faster, and `solve` returning `nullopt` doubles as the singularity check. Only form an explicit `.inverse()` when the inverse matrix itself is the deliverable (e.g. a returned/reused inverse) or when it's a right-factor that a left-solve can't express cleanly (e.g. the similarity `XΛX⁻¹`). See *Numerical Implementation* below for the full rationale and the `Ax = b` rearrangement trick.
 - **Failure handling**: `std::optional` for fallible operations, never exceptions
 - **Tolerances**: use `default_tol<T>()` from `matrix_traits.hpp` (1e-6f for float, 1e-12 for double)
 - **Complex support**: use `wet::conj()`, `wet::abs()`, `wet::sqrt()` — they are identity/passthrough for real types

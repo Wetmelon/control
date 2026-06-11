@@ -143,7 +143,8 @@ struct BackwardEuler {
     template<size_t NU>
     constexpr IntegrationResult<NX, T> evolve(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B, const ColVec<NX, T>& x, const ColVec<NU, T>& u, T h) const {
         Matrix I = Matrix<NX, NX, T>::identity();
-        x_next = (I - h * A).inverse() * (x + h * B * u);
+        // (I − hA)·x_next = x + hBu  (Backward Euler implicit step).
+        x_next = *mat::solve(I - h * A, x + h * B * u);
         return {x_next, 0.0};
     }
 
@@ -210,16 +211,16 @@ struct BDF2 {
 
         if (first_step) {
             // Use Backward Euler for first step
-            Matrix x_next = (I - h * A).inverse() * (x + h * B * u);
+            ColVec<NX, T> x_next = *mat::solve(I - h * A, x + h * B * u);
             x_prev = x;
             first_step = false;
             return {x_next, 0.0};
         }
 
         // BDF2: (I - (2/3)*h*A)*x_{n+1} = (4/3)*x_n - (1/3)*x_{n-1} + (2/3)*h*B*u
-        Matrix lhs = I - c2 * h * A;
-        ColVec rhs = c0 * x + c1 * x_prev + c2 * h * B * u;
-        ColVec x_next = lhs.inverse() * rhs;
+        Matrix        lhs = I - c2 * h * A;
+        ColVec        rhs = c0 * x + c1 * x_prev + c2 * h * B * u;
+        ColVec<NX, T> x_next = *mat::solve(lhs, rhs);
 
         x_prev = x;
         return {x_next, 0.0};
@@ -284,8 +285,8 @@ struct Trapezoidal {
     template<size_t NU>
     constexpr IntegrationResult<NX, T> evolve(const Matrix<NX, NX, T>& A, const Matrix<NX, NU, T>& B, const ColVec<NX, T>& x, const ColVec<NU, T>& u, T h) const {
         Matrix I = Matrix<NX, NX, T>::identity();
-        Matrix M = (I - 0.5 * h * A).inverse();
-        x_next = M * ((I + 0.5 * h * A) * x + h * B * u);
+        // (I − ½hA)·x_next = (I + ½hA)·x + hBu  (trapezoidal / Tustin implicit step).
+        x_next = *mat::solve(I - 0.5 * h * A, (I + 0.5 * h * A) * x + h * B * u);
         return {x_next, 0.0};
     }
 

@@ -207,12 +207,12 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NX, T> A_minus_M = A - M;
 
     if constexpr (NU == NX) {
-        // K = B⁻¹·(A − M).
-        const auto Binv_opt = B.inverse();
-        if (!Binv_opt) {
+        // K = B⁻¹·(A − M) by solving B·K = (A − M).
+        const auto K = mat::solve(B, A_minus_M);
+        if (!K) {
             return wet::nullopt; // B not invertible
         }
-        return Binv_opt.value() * A_minus_M;
+        return *K;
     } else {
         // B = U0·Z with Z the top NU×NU block of R, so U0ᵀ·B = Z and
         // K = Z⁻¹·U0ᵀ·(A − M).
@@ -229,11 +229,12 @@ template<size_t NX, size_t NU, typename T = double>
                 Z(r, c) = qrB.R(r, c);
             }
         }
-        const auto Zinv_opt = Z.inverse();
-        if (!Zinv_opt) {
+        // K = Z⁻¹·U0ᵀ·(A − M) by solving Z·K = U0ᵀ·(A − M).
+        const auto K = mat::solve(Z, Matrix<NU, NX, T>(U0.transpose() * A_minus_M));
+        if (!K) {
             return wet::nullopt; // B rank-deficient
         }
-        return Zinv_opt.value() * (U0.transpose() * A_minus_M);
+        return *K;
     }
 }
 
@@ -312,12 +313,12 @@ template<size_t NX, size_t NU, typename T = double>
     }
 
     if constexpr (NU == NX) {
-        // X = I ⇒ A − B·K = Λ, so K = B⁻¹·(A − Λ).
-        const auto Binv_opt = B.inverse();
-        if (!Binv_opt) {
+        // X = I ⇒ A − B·K = Λ, so K = B⁻¹·(A − Λ) by solving B·K = (A − Λ).
+        const auto K = mat::solve(B, Matrix<NX, NX, T>(A - Lambda));
+        if (!K) {
             return wet::nullopt;
         }
-        return Binv_opt.value() * (A - Lambda);
+        return *K;
     } else {
         const auto        qrB = mat::full_qr(B);
         constexpr size_t  NC = NX - NU;
@@ -402,11 +403,12 @@ template<size_t NX, size_t NU, typename T = double>
             return wet::nullopt; // eigenvectors dependent
         }
         const Matrix<NX, NX, T> M = (X * Lambda) * Xinv_opt.value();
-        const auto              Zinv_opt = Z.inverse();
-        if (!Zinv_opt) {
+        // K = Z⁻¹·U0ᵀ·(A − M) by solving Z·K = U0ᵀ·(A − M).
+        const auto K = mat::solve(Z, Matrix<NU, NX, T>(U0.transpose() * (A - M)));
+        if (!K) {
             return wet::nullopt; // B rank-deficient
         }
-        return Zinv_opt.value() * (U0.transpose() * (A - M));
+        return *K;
     }
 }
 

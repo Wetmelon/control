@@ -666,11 +666,12 @@ template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
         // G(1) = C * (I - A)^{-1} * B + D
         M = Matrix<NX, NX, T>::identity() - sys.A;
     }
-    auto inv = M.inverse();
-    if (!inv) {
+    // M⁻¹·B by solving M·X = B (more accurate than forming the inverse).
+    auto X = mat::solve(M, sys.B);
+    if (!X) {
         return wet::nullopt;
     }
-    return sys.C * (*inv) * sys.B + sys.D;
+    return sys.C * (*X) + sys.D;
 }
 
 /**

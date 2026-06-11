@@ -307,13 +307,6 @@ constexpr wet::optional<Matrix<NU, NX, T>> acker(
             }
         }
 
-        // Check controllability by inverting Co
-        auto Co_inv_opt = Co.inverse();
-        if (!Co_inv_opt) {
-            return wet::nullopt;
-        }
-        auto Co_inv = *Co_inv_opt;
-
         // Compute desired characteristic polynomial coefficients (assuming real poles)
         wet::array<T, NX + 1> coeffs{};
         coeffs[0] = 1.0;
@@ -336,11 +329,15 @@ constexpr wet::optional<Matrix<NU, NX, T>> acker(
             A_power = A_power * A;
         }
 
-        // Compute K = e_N^T * Co^{-1} * phi_d(A)
-        // e_N is [0, 0, ..., 1]^T
+        // Compute K = e_N^T * Co^{-1} * phi_d(A). Solve Co·X = phi_A instead of
+        // forming Co^{-1}; a singular Co (uncontrollable) makes solve() fail.
         Matrix<1, NX, T> e_N{};
         e_N(0, NX - 1) = 1.0;
-        auto temp = e_N * Co_inv * phi_A;
+        const auto CoInv_phi = mat::solve(Co, phi_A);
+        if (!CoInv_phi) {
+            return wet::nullopt;
+        }
+        auto temp = e_N * (*CoInv_phi);
 
         return temp;
     }

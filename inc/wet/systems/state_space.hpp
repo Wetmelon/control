@@ -91,11 +91,12 @@ template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
     using C = wet::complex<T>;
     auto I = Matrix<NX, NX, C>::identity();
     auto sI_minus_A = s * I - sys.A.template as<C>();
-    auto inv_opt = sI_minus_A.inverse();
-    if (!inv_opt) {
+    // (sI − A)⁻¹·B by solving (sI − A)·X = B (more accurate than forming the inverse).
+    auto X_opt = mat::solve(sI_minus_A, sys.B.template as<C>());
+    if (!X_opt) {
         return Matrix<NY, NU, C>::zeros();
     }
-    auto temp = sys.C.template as<C>() * (*inv_opt) * sys.B.template as<C>();
+    auto temp = sys.C.template as<C>() * (*X_opt);
     return temp + sys.D.template as<C>();
 }
 

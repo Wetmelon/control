@@ -149,12 +149,6 @@ template<size_t NX, size_t NY, typename T = double>
             }
         }
 
-        const auto O_inv_opt = O.inverse();
-        if (!O_inv_opt) {
-            return result; // not observable: success stays false
-        }
-        const Matrix<NX, NX, T> O_inv = *O_inv_opt;
-
         // Desired characteristic polynomial: φ(s) = Π (s − pᵢ).
         // Build with complex arithmetic so conjugate pairs cancel to real coeffs.
         wet::array<wet::complex<T>, NX + 1> cc{};
@@ -182,10 +176,14 @@ template<size_t NX, size_t NY, typename T = double>
             A_power = A_power * A;
         }
 
-        // L = φ(A) · O⁻¹ · [0 … 0 1]ᵀ
+        // L = φ(A) · O⁻¹ · [0 … 0 1]ᵀ. Solve O·w = e_N instead of forming O⁻¹.
         ColVec<NX, T> e_N{};
         e_N(NX - 1, 0) = T{1};
-        result.L = Matrix<NX, NY, T>(phi_A * O_inv * e_N);
+        const auto Oinv_eN = mat::solve(O, e_N);
+        if (!Oinv_eN) {
+            return result; // not observable: success stays false
+        }
+        result.L = Matrix<NX, NY, T>(phi_A * (*Oinv_eN));
         result.success = true;
         return result;
     }

@@ -55,6 +55,12 @@ struct ColVec : public Matrix<N, 1, T> {
         }
     }
 
+    // Same-precision wrap of an N×1 matrix is a no-op (identical shape and
+    // storage), so it is implicit — matrix expressions like A*x + B*u flow back
+    // into a ColVec naturally. Cross-precision conversions stay explicit below,
+    // matching the library's "no silent float↔double" rule (use .as<U>()).
+    constexpr ColVec(const Matrix<N, 1, T>& other) : Matrix<N, 1, T>(other) {}
+
     template<typename U>
     explicit constexpr ColVec(const ColVec<N, U>& other) : Matrix<N, 1, T>(other) {}
 

@@ -47,6 +47,11 @@ struct RowVec : public Matrix<1, N, T> {
         }
     }
 
+    // Same-precision wrap of a 1×N matrix is a no-op (identical shape and
+    // storage), so it is implicit. Cross-precision conversions stay explicit
+    // below, matching the library's "no silent float↔double" rule (use .as<U>()).
+    constexpr RowVec(const Matrix<1, N, T>& other) : Matrix<1, N, T>(other) {}
+
     template<typename U>
     explicit constexpr RowVec(const RowVec<N, U>& other) : Matrix<1, N, T>(other) {}
 
