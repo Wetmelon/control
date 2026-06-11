@@ -610,9 +610,8 @@ public:
                 }
                 v(i, 0) = -h[N + 1 + i];
             }
-            auto M_inv = M.inverse();
-            // Assume invertible for valid systems
-            auto a_vec = *M_inv * v;
+            // Solve M·a = v directly (assume invertible for valid systems).
+            auto a_vec = *mat::solve(M, v);
             for (size_t j = 0; j < N; ++j) {
                 a[j] = a_vec(j, 0);
             }
