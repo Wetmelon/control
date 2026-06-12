@@ -231,9 +231,13 @@ Deterministic state observers via pole placement; the counterpart to the Kalman 
 - References: D. G. Luenberger, "An Introduction to Observers," IEEE TAC, 1971, https://doi.org/10.1109/TAC.1971.1099826; B. Gopinath, "On the Synthesis of Minimal-Order Observers," BSTJ, 1971.
 - Acceptance: error dynamics match placed poles ✓; constexpr design ✓; reduced-order reconstructs unmeasured states ✓.
 
-### 4. Disturbance observer + DOB control law ◐ (partially built)
+### 4. Disturbance observer + DOB control law ☑
 
-**Re-baseline (2026-06):** a lightweight **scalar innovation-based** `DisturbanceObserver` runtime + `synthesize_disturbance_observer` is built & tested (`estimation/disturbance_observer.hpp`, `test_disturbance_observer`): `d̂[k+1] = (1−leak)·d̂ + gain·(y_meas − y_pred)`, `compensate(u) = u − d̂`. Not built: the **classic `Pn⁻¹·Q` structure** (nominal-inverse + Q-filter) and the **base-controller wiring** from the interface below. **Overlap note:** ESO-based disturbance rejection is *already* delivered by `controllers/adrc.hpp` (ADRC, tested) — so #4's distinct, additive value is the *classic* DOB as a **bolt-on for an existing controller** (not another full controller). Scope #4 to that.
+**Built (2026-06):** two complementary disturbance observers in `estimation/disturbance_observer.hpp` (`test_disturbance_observer`, in the umbrella, embeddable + freestanding-clean):
+- **Scalar innovation-based** `DisturbanceObserver` + `synthesize_disturbance_observer`: `d̂[k+1] = (1−leak)·d̂ + gain·(y_meas − y_pred)`, `compensate(u) = u − d̂`. Lightweight, model-free.
+- **Classical Pn⁻¹·Q (Ohnishi) DOB** `synthesize_classical_dob(Bn, An, Qn, Qd)` → `ClassicalDobResult` + `ClassicalDisturbanceObserver<…>` runtime. Forms the two realized digital filters Fy = Q·Pn⁻¹ = (Qn·An)/(Qd·Bn) and Fu = Q, estimates `d̂ = Fy(y) − Fu(u)`, and `compensate(u_cmd, y) = u_cmd − d̂` (one-sample u-delay breaks the algebraic loop; exact at DC). A **bolt-on around any existing controller**, not a full controller — its distinct value vs ADRC's ESO. Arbitrary plant/Q order (z⁻¹ polynomials), validates causal realizability (leading Bn/An/Qd nonzero), constexpr, `.as<U>()`. Verified: step-load rejection to ~0, DC rejection under 20% model mismatch, open-loop disturbance recovery, constexpr.
+
+**Overlap note:** ESO-based disturbance rejection is *already* delivered by `controllers/adrc.hpp` (ADRC, tested); the classical DOB above is the additive *bolt-on* form.
 
 Observer-based disturbance estimation integrated with a base controller. Targets: PMSM/BLDC servo drives with load-torque disturbances, robot joints with friction/backlash, precision stages with external force. Depends on #1.
 

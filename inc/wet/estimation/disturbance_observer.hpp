@@ -5,8 +5,10 @@
  * @brief Disturbance-observer estimation primitives and lightweight runtime.
  */
 
+#include <cstddef>
 #include <type_traits>
 
+#include "wet/backend.hpp" // wet::array
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix_traits.hpp"
 
@@ -208,6 +210,215 @@ private:
     DisturbanceObserverConfig<value_type> config_{};
     DisturbanceObserverState<value_type>  state_{};
     bool                                  valid_{true};
+};
+
+// ===========================================================================
+// Classical Pn^-1 * Q disturbance observer (Ohnishi DOB) — bolt-on for an
+// existing controller. Estimates the input-referred lumped disturbance from a
+// nominal plant model and a low-pass Q-filter, and subtracts it from the
+// command. Complements the scalar innovation-based observer above (richer plant
+// model) and ADRC's ESO (this is a feed-around bolt-on, not a full controller).
+//
+//   plant:        y = P·(u + d)          (d = input-referred disturbance)
+//   estimate:     d_hat = Q·(Pn^-1·y − u) ≈ Q·d   (exact at DC when P = Pn)
+//   compensate:   u = u_command − d_hat
+//
+// All polynomials are discrete z^-1 digital filters (c0 + c1·z^-1 + …), the
+// natural form for an embedded loop. Realizability needs the leading numerator
+// of Pn and the leading denominators nonzero (Pn must be causally invertible —
+// no pure input delay in the nominal model).
+//
+// @see "Disturbance Observer-Based Control" (S. Li et al., CRC Press, 2016)
+// @see "Robust Motion Control by Disturbance Observer" (Ohnishi et al., 1996)
+// ===========================================================================
+
+namespace detail {
+
+/// Polynomial (z^-1) convolution = digital-filter series multiplication.
+template<size_t Na, size_t Nb, typename T>
+[[nodiscard]] constexpr wet::array<T, Na + Nb - 1> poly_conv(const wet::array<T, Na>& a, const wet::array<T, Nb>& b) {
+    wet::array<T, Na + Nb - 1> r{};
+    for (size_t i = 0; i < Na; ++i) {
+        for (size_t j = 0; j < Nb; ++j) {
+            r[i + j] += a[i] * b[j];
+        }
+    }
+    return r;
+}
+
+/// Direct-Form-II IIR for a digital filter H(z^-1) = num / den (den[0] ≠ 0).
+template<size_t Nnum, size_t Nden, typename T>
+struct IirDF2 {
+    static constexpr size_t Nstate = ((Nnum > Nden) ? Nnum : Nden) - 1;
+
+    wet::array<T, Nnum>   num{};
+    wet::array<T, Nden>   den{};
+    wet::array<T, Nstate> w{}; // w[0] = most recent state
+
+    constexpr T step(T x) {
+        T w0 = x;
+        for (size_t i = 1; i < Nden; ++i) {
+            w0 -= den[i] * w[i - 1];
+        }
+        w0 /= den[0];
+        T y = num[0] * w0;
+        for (size_t i = 1; i < Nnum; ++i) {
+            y += num[i] * w[i - 1];
+        }
+        for (size_t i = Nstate; i-- > 1;) {
+            w[i] = w[i - 1];
+        }
+        if constexpr (Nstate > 0) {
+            w[0] = w0;
+        }
+        return y;
+    }
+
+    constexpr void reset() { w = wet::array<T, Nstate>{}; }
+};
+
+} // namespace detail
+
+/**
+ * @brief Design result for the classical Pn^-1·Q disturbance observer.
+ *
+ * Holds the two realized digital filters: Fy = Q·Pn^-1 (applied to the
+ * measurement y) and Fu = Q (applied to the applied input u). The disturbance
+ * estimate is d_hat = Fy(y) − Fu(u).
+ *
+ * @tparam NBn,NAn Nominal plant Pn = Bn/An sizes (z^-1)
+ * @tparam NQn,NQd Q-filter = Qn/Qd sizes (z^-1)
+ */
+template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = double>
+struct ClassicalDobResult {
+    using value_type = std::remove_const_t<T>;
+    static constexpr size_t NFyNum = NQn + NAn - 1; // Qn · An
+    static constexpr size_t NFyDen = NQd + NBn - 1; // Qd · Bn
+
+    wet::array<value_type, NFyNum> fy_num{};
+    wet::array<value_type, NFyDen> fy_den{};
+    wet::array<value_type, NQn>    fu_num{}; // = Qn
+    wet::array<value_type, NQd>    fu_den{}; // = Qd
+    bool                           success{false};
+
+    template<typename U>
+    [[nodiscard]] constexpr ClassicalDobResult<NBn, NAn, NQn, NQd, std::remove_const_t<U>> as() const {
+        ClassicalDobResult<NBn, NAn, NQn, NQd, std::remove_const_t<U>> out{};
+        using O = std::remove_const_t<U>;
+        for (size_t i = 0; i < NFyNum; ++i) {
+            out.fy_num[i] = static_cast<O>(fy_num[i]);
+        }
+        for (size_t i = 0; i < NFyDen; ++i) {
+            out.fy_den[i] = static_cast<O>(fy_den[i]);
+        }
+        for (size_t i = 0; i < NQn; ++i) {
+            out.fu_num[i] = static_cast<O>(fu_num[i]);
+        }
+        for (size_t i = 0; i < NQd; ++i) {
+            out.fu_den[i] = static_cast<O>(fu_den[i]);
+        }
+        out.success = success;
+        return out;
+    }
+};
+
+/**
+ * @brief Synthesize a classical disturbance observer from a nominal plant and Q-filter.
+ *
+ * Forms Fy = Q·Pn^-1 = (Qn·An)/(Qd·Bn) and Fu = Q = Qn/Qd. Validates causal
+ * realizability: the leading coefficients Bn[0], An[0], Qd[0] must be nonzero
+ * (the nominal plant must be causally invertible — no pure input delay).
+ *
+ * @param Bn,An Nominal plant Pn = Bn/An as z^-1 polynomials
+ * @param Qn,Qd Low-pass Q-filter = Qn/Qd as z^-1 polynomials (DC gain ~1)
+ */
+template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = double>
+[[nodiscard]] constexpr ClassicalDobResult<NBn, NAn, NQn, NQd, T> synthesize_classical_dob(
+    const wet::array<T, NBn>& Bn,
+    const wet::array<T, NAn>& An,
+    const wet::array<T, NQn>& Qn,
+    const wet::array<T, NQd>& Qd
+) {
+    ClassicalDobResult<NBn, NAn, NQn, NQd, T> result{};
+    const T                                   tol = default_tol<T>();
+    if (wet::abs(Bn[0]) <= tol || wet::abs(An[0]) <= tol || wet::abs(Qd[0]) <= tol) {
+        return result; // not causally realizable
+    }
+    result.fy_num = detail::poly_conv(Qn, An); // Q·Pn^-1 numerator
+    result.fy_den = detail::poly_conv(Qd, Bn); // Q·Pn^-1 denominator
+    result.fu_num = Qn;
+    result.fu_den = Qd;
+    result.success = true;
+    return result;
+}
+
+/**
+ * @ingroup estimators
+ * @brief Classical Pn^-1·Q disturbance observer runtime (bolt-on compensator).
+ *
+ * Drop it around an existing controller: feed it the measurement and your
+ * controller's command each tick, and it returns the disturbance-compensated
+ * command. The one-sample delay on the applied input breaks the algebraic loop
+ * (standard discrete-DOB practice) and is exact at DC.
+ *
+ * @tparam NBn,NAn,NQn,NQd Plant/Q sizes (must match the design result)
+ * @tparam T Scalar type (float or double)
+ */
+template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = float>
+class ClassicalDisturbanceObserver {
+public:
+    using value_type = std::remove_const_t<T>;
+    using result_type = ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>;
+
+    constexpr ClassicalDisturbanceObserver() = default;
+
+    constexpr explicit ClassicalDisturbanceObserver(const result_type& design)
+        : valid_(design.success) {
+        fy_.num = design.fy_num;
+        fy_.den = design.fy_den;
+        fu_.num = design.fu_num;
+        fu_.den = design.fu_den;
+    }
+
+    /// Estimate the input-referred disturbance from measurement @p y and the
+    /// applied input @p u (advances the internal filters one step).
+    constexpr value_type estimate(value_type y, value_type u) {
+        if (!valid_) {
+            return value_type{0};
+        }
+        d_hat_ = fy_.step(y) - fu_.step(u);
+        return d_hat_;
+    }
+
+    /// Bolt-on: return the disturbance-compensated command u = u_command − d_hat,
+    /// using the previously applied command in the Q·u path (breaks the loop).
+    constexpr value_type compensate(value_type u_command, value_type y) {
+        if (!valid_) {
+            return u_command;
+        }
+        d_hat_ = fy_.step(y) - fu_.step(u_prev_);
+        const value_type u = u_command - d_hat_;
+        u_prev_ = u;
+        return u;
+    }
+
+    [[nodiscard]] constexpr value_type disturbance() const { return d_hat_; }
+    [[nodiscard]] constexpr bool       valid() const { return valid_; }
+
+    constexpr void reset() {
+        fy_.reset();
+        fu_.reset();
+        d_hat_ = value_type{0};
+        u_prev_ = value_type{0};
+    }
+
+private:
+    detail::IirDF2<ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>::NFyNum, ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>::NFyDen, value_type>
+                                         fy_{};
+    detail::IirDF2<NQn, NQd, value_type> fu_{};
+    value_type                           d_hat_{value_type{0}};
+    value_type                           u_prev_{value_type{0}};
+    bool                                 valid_{false};
 };
 
 } // namespace wet::estimation

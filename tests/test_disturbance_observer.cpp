@@ -127,3 +127,131 @@ TEST_SUITE("Disturbance Observer") {
         CHECK(rf.config.clamp_enabled);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Classical Pn^-1 * Q disturbance observer
+// ---------------------------------------------------------------------------
+
+using estimation::ClassicalDisturbanceObserver;
+using estimation::synthesize_classical_dob;
+
+namespace {
+// First-order discrete plant y[k] = alpha*y[k-1] + beta*(u[k] + d[k]).
+// As a z^-1 transfer function from (u+d) to y:  Pn = beta / (1 - alpha z^-1).
+constexpr double alpha = 0.9;
+constexpr double beta = 0.1;
+// 1st-order low-pass Q = (1 - rho) / (1 - rho z^-1)  (unity DC gain).
+constexpr double rho = 0.85;
+
+constexpr auto make_dob() {
+    const wet::array<double, 1> Bn{beta};
+    const wet::array<double, 2> An{1.0, -alpha};
+    const wet::array<double, 1> Qn{1.0 - rho};
+    const wet::array<double, 2> Qd{1.0, -rho};
+    return synthesize_classical_dob(Bn, An, Qn, Qd);
+}
+} // namespace
+
+TEST_SUITE("Classical DOB") {
+    TEST_CASE("synthesize forms Q*Pn^-1 and validates realizability") {
+        const auto d = make_dob();
+        REQUIRE(d.success);
+        // Fy = Q*Pn^-1 = (Qn * An)/(Qd * Bn). Numerator = (1-rho)*[1,-alpha].
+        CHECK(d.fy_num[0] == doctest::Approx((1.0 - rho)));
+        CHECK(d.fy_num[1] == doctest::Approx(-(1.0 - rho) * alpha));
+        CHECK(d.fy_den[0] == doctest::Approx(beta));        // Qd[0]*Bn[0] = 1*beta
+        CHECK(d.fy_den[1] == doctest::Approx(-rho * beta)); // Qd[1]*Bn[0]
+        CHECK(d.fu_num[0] == doctest::Approx(1.0 - rho));   // Fu = Q
+
+        // Non-invertible nominal plant (Bn[0] == 0) is rejected.
+        const wet::array<double, 2> Bn_delay{0.0, beta};
+        const wet::array<double, 2> An{1.0, -alpha};
+        const wet::array<double, 1> Qn{1.0 - rho};
+        const wet::array<double, 2> Qd{1.0, -rho};
+        CHECK_FALSE(synthesize_classical_dob(Bn_delay, An, Qn, Qd).success);
+    }
+
+    TEST_CASE("rejects a step load disturbance (nominal model matches plant)") {
+        ClassicalDisturbanceObserver<1, 2, 1, 2, double> dob(make_dob());
+        REQUIRE(dob.valid());
+
+        // Closed loop: base command 0, constant input-referred disturbance d = 1.
+        // The DOB should drive y back to 0 and estimate d_hat -> 1.
+        double       y = 0.0;
+        const double d = 1.0;
+        double       u = 0.0;
+        for (int k = 0; k < 400; ++k) {
+            u = dob.compensate(0.0, y);     // u = -d_hat
+            y = alpha * y + beta * (u + d); // plant
+        }
+        CHECK(std::abs(y) < 1e-3);                                      // disturbance rejected
+        CHECK(dob.disturbance() == doctest::Approx(1.0).epsilon(1e-2)); // d_hat -> d
+    }
+
+    TEST_CASE("still rejects a DC disturbance under model mismatch") {
+        // Actual plant gain 20% higher than the nominal model used to design.
+        ClassicalDisturbanceObserver<1, 2, 1, 2, double> dob(make_dob());
+        const double                                     alpha_act = 0.88;
+        const double                                     beta_act = 0.12;
+        double                                           y = 0.0;
+        const double                                     d = 1.0;
+        for (int k = 0; k < 1500; ++k) {
+            const double u = dob.compensate(0.0, y);
+            y = alpha_act * y + beta_act * (u + d);
+        }
+        CHECK(std::abs(y) < 5e-2); // DC rejection survives the mismatch
+    }
+
+    TEST_CASE("estimate() recovers a known disturbance open-loop") {
+        ClassicalDisturbanceObserver<1, 2, 1, 2, double> dob(make_dob());
+        const double                                     d = 0.5;
+        double                                           y = 0.0;
+        double                                           last = 0.0;
+        for (int k = 0; k < 400; ++k) {
+            const double u = 0.2;           // fixed input
+            y = alpha * y + beta * (u + d); // plant with disturbance
+            last = dob.estimate(y, u);
+        }
+        CHECK(last == doctest::Approx(0.5).epsilon(1e-2));
+    }
+
+    TEST_CASE("invalid design is inert; reset clears filter state") {
+        const wet::array<double, 1>                      Bad{0.0}; // Bn[0] == 0 -> invalid
+        const wet::array<double, 2>                      An{1.0, -alpha};
+        const wet::array<double, 1>                      Qn{1.0 - rho};
+        const wet::array<double, 2>                      Qd{1.0, -rho};
+        ClassicalDisturbanceObserver<1, 2, 1, 2, double> bad(synthesize_classical_dob(Bad, An, Qn, Qd));
+        CHECK_FALSE(bad.valid());
+        CHECK(bad.compensate(3.0, 1.0) == doctest::Approx(3.0)); // pass-through
+
+        ClassicalDisturbanceObserver<1, 2, 1, 2, double> dob(make_dob());
+        (void)dob.compensate(0.0, 1.0);
+        dob.reset();
+        CHECK(dob.disturbance() == doctest::Approx(0.0));
+    }
+
+    TEST_CASE("float deployment via as<float>()") {
+        ClassicalDisturbanceObserver<1, 2, 1, 2, float> dob(make_dob().as<float>());
+        REQUIRE(dob.valid());
+        float y = 0.0f;
+        for (int k = 0; k < 400; ++k) {
+            const float u = dob.compensate(0.0f, y);
+            y = 0.9f * y + 0.1f * (u + 1.0f);
+        }
+        CHECK(std::abs(y) < 1e-2f);
+    }
+
+    TEST_CASE("classical DOB is constexpr-evaluable") {
+        constexpr double y_final = []() consteval {
+            ClassicalDisturbanceObserver<1, 2, 1, 2, double> dob(make_dob());
+            double                                           y = 0.0;
+            for (int k = 0; k < 400; ++k) {
+                const double u = dob.compensate(0.0, y);
+                y = 0.9 * y + 0.1 * (u + 1.0);
+            }
+            return y;
+        }();
+        static_assert(y_final < 1e-3 && y_final > -1e-3, "DOB must reject the DC load at compile time");
+        CHECK(y_final == doctest::Approx(0.0).epsilon(1e-3));
+    }
+}
