@@ -44,6 +44,7 @@
 #include "wet/controllers/cascade.hpp"              // IWYU pragma: keep
 #include "wet/controllers/excitation.hpp"           // IWYU pragma: keep
 #include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: keep
+#include "wet/controllers/input_shaper.hpp"         // IWYU pragma: keep
 #include "wet/controllers/lead_lag.hpp"             // IWYU pragma: keep
 #include "wet/controllers/lqg.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/lqgi.hpp"                 // IWYU pragma: keep

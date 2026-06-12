@@ -361,14 +361,11 @@ Internal-model compensation for periodic disturbances over selected harmonics. T
 - Reference: S. Hara et al., "Repetitive Control System," IEEE TAC, 1988. https://doi.org/10.1109/9.1274
 - Acceptance: harmonic-rejection benchmarks; stability margins with robustness filter; integration with LQI/LQGI.
 
-### 6. Input shaping (command prefilter) ⊘
+### 6. Input shaping (command prefilter) ☑
 
-Feedforward command shaping for resonance suppression (ZV/ZVD/EI shapers) on reference trajectories. Targets: 3D-printer gantries, pick-and-place/CNC moves, flexible stages. Pure feedforward (no estimator).
-
-- Interface: `design::synthesize_input_shaper(natural_frequency, damping_ratio, shaper_type)`, `..._from_modes(mode_list, shaper_type)` → `InputShaperResult` / `InputShaperRuntime` + multi-axis bank helper.
+**Built (2026-06):** `controllers/input_shaper.hpp` (`test_input_shaper`, in the umbrella, embeddable + freestanding-clean). `design::synthesize_input_shaper(fn_hz, zeta, Ts, ShaperType, ei_tol)` → `InputShaperResult` (normalized impulse amplitudes + integer sample delays) for `ShaperType::{ZV, ZVD, ZVDD, EI}` — ZV `[1,K]`, ZVD `[1,2K,K²]`, ZVDD `[1,3K,3K²,K³]` (exact for any ζ), EI tolerable-vibration form. Runtime `InputShaper<MaxDelay,T>` (ring-buffer impulse convolver, pass-through if the buffer is too small for the mode) and `InputShaperBank<NAxes,MaxDelay,T>` for multi-axis. Unity DC gain (amplitudes sum to 1 → steady command unchanged), constexpr, `.as<U>()`. Verified: coefficient normalization/delays, residual-vibration attenuation >50× on a 2nd-order mode, ZVD beating ZV under 15% detuning, undersized-buffer pass-through, multi-axis bank. Pure feedforward (no estimator); pairs with motion #20.
+- Remaining (follow-up): `synthesize_input_shaper_from_modes(mode_list, …)` (convolve per-mode shapers for multi-mode plants) — single-mode shaping covers the headline use.
 - References: Singer & Seering, "Preshaping Command Inputs to Reduce System Vibration," ASME JDSMC, 1990, https://doi.org/10.1115/1.2894142; Singhose et al., ASME JMD, 1994, https://doi.org/10.1115/1.2919428
-- Acceptance: coefficient normalization / delay ordering; residual-vibration attenuation under nominal/detuned resonance.
-- Placement: `controllers/` (resolved — it generates/shapes commands; pairs with motion #20).
 
 ### 7. Online PID tuning (relay + IFT) ⊘
 
