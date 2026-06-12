@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <type_traits>
+
 #include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
@@ -326,6 +328,134 @@ private:
     ColVec<2, T> y = {};
 
     T togi_state = {};
+};
+
+/**
+ * @ingroup filters
+ * @brief SOGI with a Frequency-Locked Loop — self-tuning single-tone tracker.
+ *
+ * A SOGI quadrature generator whose center frequency ω *adapts* to lock onto the
+ * dominant frequency of the input, with no sweep and no prior knowledge beyond an
+ * initial guess. Outputs the locked frequency, the in-phase (band-pass) and
+ * quadrature signals, and the amplitude. Unlike the fixed-ω `SOGI`, you don't tell
+ * it the frequency — it finds it.
+ *
+ * Uses:
+ *  - **Grid synchronization** (its native home): lock to the line frequency for a
+ *    single-phase PLL, robust to frequency drift.
+ *  - **Online resonance tracking**: lock onto a structure's vibratory mode and
+ *    follow it as it drifts (temperature, payload), e.g. to re-tune an input
+ *    shaper or a notch *live* — the streaming counterpart to an offline
+ *    Goertzel/DFT sweep (filters/spectral.hpp), which needs the frequency known.
+ *
+ * SOGI band-pass D(s)=v′/v and quadrature Q(s)=qv′/v at center ω:
+ *
+ *     D(s) = k·ω·s / (s² + k·ω·s + ω²),   Q(s) = k·ω² / (s² + k·ω·s + ω²)
+ *
+ * The FLL drives ω from the frequency-error signal ε_f = ε·qv′ (ε = v − v′), whose
+ * DC component vanishes at lock. The update is amplitude-normalized so the lock
+ * dynamics are independent of input level:
+ *
+ *     ω̇ = −Γ·ω·(ε·qv′) / (v′² + qv′²)
+ *
+ * @note The SOGI step uses the exact discrete resonator at the current ω each tick
+ *       (stable for any ω·Ts < π); the FLL integrates ω by forward Euler. All
+ *       constexpr, allocation-free.
+ *
+ * @see "Multiresonant Frequency-Locked Loops" (P. Rodriguez et al., IEEE TIE),
+ *      https://doi.org/10.1109/TIE.2010.2042420
+ *
+ * @tparam T Scalar type (float for embedded deployment)
+ */
+template<typename T = float>
+class SogiFll {
+public:
+    using value_type = std::remove_const_t<T>;
+
+    constexpr SogiFll() = default;
+
+    /**
+     * @param initial_freq_hz Starting frequency guess [Hz]
+     * @param Ts              Sample time [s]
+     * @param sogi_gain       SOGI gain k (√2 ≈ 0.707 damping; default)
+     * @param fll_gain        Normalized FLL gain Γ (larger = faster lock, less smooth)
+     * @param freq_min_hz     Lower clamp on the tracked frequency [Hz] (0 → 0.5 Hz)
+     * @param freq_max_hz     Upper clamp [Hz] (0 → Nyquist)
+     */
+    constexpr SogiFll(
+        value_type initial_freq_hz,
+        value_type Ts,
+        value_type sogi_gain = wet::numbers::sqrt2_v<value_type>,
+        value_type fll_gain = value_type{2},
+        value_type freq_min_hz = value_type{0},
+        value_type freq_max_hz = value_type{0}
+    ) : Ts_(Ts),
+        k_(sogi_gain),
+        gamma_(fll_gain),
+        omega_(two_pi() * initial_freq_hz),
+        omega_min_(two_pi() * (freq_min_hz > value_type{0} ? freq_min_hz : value_type{0.5})),
+        omega_max_(two_pi() * (freq_max_hz > value_type{0} ? freq_max_hz : value_type{1} / (value_type{2} * Ts))),
+        valid_(Ts > value_type{0} && initial_freq_hz > value_type{0}) {}
+
+    /// Advance one step with a new input sample.
+    constexpr void update(value_type in) {
+        if (!valid_) {
+            return;
+        }
+        const value_type wt = omega_ * Ts_;
+        const auto [sin_wt, cos_wt] = wet::sincos(wt);
+
+        const value_type bandpass = x1_; // in-phase v′
+        const value_type quad = x0_;     // quadrature qv′
+        const value_type eps = in - bandpass;
+        const value_type u = eps * k_;
+
+        // Exact discrete SOGI resonator step (same A,B as the fixed-ω SOGI).
+        const value_type x0n = (cos_wt * x0_) + (sin_wt * x1_) + ((value_type{1} - cos_wt) * u);
+        const value_type x1n = (-sin_wt * x0_) + (cos_wt * x1_) + (sin_wt * u);
+        x0_ = x0n;
+        x1_ = x1n;
+
+        // Amplitude-normalized FLL: ω̇ = −Γ·ω·(ε·qv′)/(v′²+qv′²).
+        const value_type amp_sq = (bandpass * bandpass) + (quad * quad);
+        const value_type eps_f = eps * quad;
+        omega_ -= Ts_ * gamma_ * omega_ * eps_f / (amp_sq + tiny());
+        omega_ = wet::clamp(omega_, omega_min_, omega_max_);
+    }
+
+    /// Locked frequency [Hz].
+    [[nodiscard]] constexpr value_type frequency_hz() const { return omega_ / two_pi(); }
+    /// Locked frequency [rad/s].
+    [[nodiscard]] constexpr value_type frequency_rad() const { return omega_; }
+    /// In-phase (band-pass) output — the input filtered to the locked frequency.
+    [[nodiscard]] constexpr value_type in_phase() const { return x1_; }
+    /// Quadrature output (90° lag).
+    [[nodiscard]] constexpr value_type quadrature() const { return x0_; }
+    /// Estimated amplitude of the tracked tone.
+    [[nodiscard]] constexpr value_type amplitude() const { return wet::sqrt((x0_ * x0_) + (x1_ * x1_)); }
+    /// Estimated phase of the tracked tone [rad].
+    [[nodiscard]] constexpr value_type phase() const { return wet::atan2(x0_, x1_); }
+    [[nodiscard]] constexpr bool       valid() const { return valid_; }
+
+    constexpr void reset(value_type initial_freq_hz) {
+        x0_ = value_type{0};
+        x1_ = value_type{0};
+        omega_ = two_pi() * initial_freq_hz;
+    }
+
+private:
+    static constexpr value_type two_pi() { return value_type{2} * wet::numbers::pi_v<value_type>; }
+    static constexpr value_type tiny() { return value_type{1e-12}; }
+
+    value_type Ts_{value_type{1}};
+    value_type k_{wet::numbers::sqrt2_v<value_type>};
+    value_type gamma_{value_type{2}};
+    value_type omega_{value_type{0}};
+    value_type omega_min_{value_type{0}};
+    value_type omega_max_{value_type{0}};
+    value_type x0_{value_type{0}}; // quadrature state
+    value_type x1_{value_type{0}}; // in-phase state
+    bool       valid_{false};
 };
 
 } // namespace wet
