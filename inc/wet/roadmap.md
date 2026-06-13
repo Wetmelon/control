@@ -6,14 +6,41 @@ Status: draft
 
 ## Table of Contents
 
-- [Purpose](#purpose)
-- [Design Constraints](#design-constraints)
-- [Architecture layers & build priority](#architecture-layers--build-priority)
-- [Dependencies](#dependencies)
-- [Standard Synthesis Workflow](#standard-synthesis-workflow)
-- [Roadmap](#roadmap)
-- [Testing and Documentation](#testing-and-documentation)
-- [Decision Items](#decision-items)
+- [wet Library Roadmap](#wet-library-roadmap)
+  - [Table of Contents](#table-of-contents)
+  - [Purpose](#purpose)
+  - [Design Constraints](#design-constraints)
+  - [Architecture layers \& build priority](#architecture-layers--build-priority)
+  - [Dependencies](#dependencies)
+  - [Standard Synthesis Workflow](#standard-synthesis-workflow)
+  - [Roadmap](#roadmap)
+    - [☑  DSP biquad/notch family + utility blocks](#--dsp-biquadnotch-family--utility-blocks)
+    - [☑ Embedded firmware primitives](#-embedded-firmware-primitives)
+    - [☑ Robust MIMO pole placement (true `place`)](#-robust-mimo-pole-placement-true-place)
+    - [☑ Fast-math-robust filter coefficient designs](#-fast-math-robust-filter-coefficient-designs)
+    - [☑ Backend-agnostic core: stdlib or ETL (freestanding-capable)](#-backend-agnostic-core-stdlib-or-etl-freestanding-capable)
+    - [☑ Luenberger / reduced-order observer](#-luenberger--reduced-order-observer)
+    - [☑ Disturbance observer + DOB control law](#-disturbance-observer--dob-control-law)
+    - [☑ UKF (sigma-point filter)](#-ukf-sigma-point-filter)
+    - [◐ Identification and excitation infrastructure](#-identification-and-excitation-infrastructure)
+    - [☑ Repetitive controller](#-repetitive-controller)
+    - [☑ Input shaping (command prefilter)](#-input-shaping-command-prefilter)
+    - [⊘ Online PID tuning (relay + IFT)](#-online-pid-tuning-relay--ift)
+    - [☑ Extremum-seeking control (ESC)](#-extremum-seeking-control-esc)
+    - [◐ Harmonic detection \& suppression (anti-chatter)](#-harmonic-detection--suppression-anti-chatter)
+    - [⊘ LPV gain-scheduled LQG/LQI](#-lpv-gain-scheduled-lqglqi)
+    - [☑ Super-twisting SMC](#-super-twisting-smc)
+    - [⊘ H-infinity output feedback](#-h-infinity-output-feedback)
+    - [⊘ Constrained MPC](#-constrained-mpc)
+    - [☐ Moving horizon estimation (MHE)](#-moving-horizon-estimation-mhe)
+    - [◐ Motion planning / trajectory generation](#-motion-planning--trajectory-generation)
+    - [☐ Stewart platform kinematics (6-DOF parallel manipulator)](#-stewart-platform-kinematics-6-dof-parallel-manipulator)
+    - [☐ Serial N-DOF manipulator kinematics (rotary-joint arm, N ≤ 6)](#-serial-n-dof-manipulator-kinematics-rotary-joint-arm-n--6)
+    - [☐ Motion-system kinematic mappings (Cartesian / CoreXY / polar / delta)](#-motion-system-kinematic-mappings-cartesian--corexy--polar--delta)
+    - [☐ Multi-rate simulation harness](#-multi-rate-simulation-harness)
+  - [Testing and Documentation](#testing-and-documentation)
+  - [Decision Items](#decision-items)
+
 
 ## Purpose
 
@@ -89,7 +116,7 @@ Items are listed in **build-priority order**, grouped by the layers from [Archit
 
 **Layer 1 — foundation: the linear / first-order primitives every controls algorithm uses (build first).**
 
-### 2. DSP biquad/notch family + utility blocks ☑
+### ☑  DSP biquad/notch family + utility blocks
 
 Complete the biquad family beyond low-pass and add everyday runtime blocks. Constexpr coefficient designers; allocation-free runtimes. Unblocks harmonic suppression (#9) and is broadly useful.
 
@@ -99,7 +126,7 @@ Complete the biquad family beyond low-pass and add everyday runtime blocks. Cons
 - References: Oppenheim & Schafer, "Discrete-Time Signal Processing," 3rd ed., 2009; R. Bristow-Johnson, "Cookbook formulae for audio EQ biquad filter coefficients."
 - Acceptance: per-type frequency-response checks ✓; SOS cascade ✓; float/double parity ✓; utility blocks (`tests/test_blocks.cpp`: defining-behaviour + fill/reset edges + constexpr construction) ✓.
 
-### 19. Embedded firmware primitives ☑
+### ☑ Embedded firmware primitives
 
 The bread-and-butter building blocks an embedded engineer reaches for *before* any synthesis: sensor linearization, scaling/calibration, the workhorse smoother, non-blocking timing, and encoder/speed I/O. The synthesis-heavy items above assume these already exist; today they mostly don't (`utility.hpp` has only unit conversions + `wrap`).
 
@@ -146,7 +173,7 @@ These are **leaf utilities**, so most deliberately deviate from the three-tier s
 
 **Decision items (this section):** LUT out-of-range default (clamp vs extrapolate) and index-search strategy (binary vs cached hint); encoder count-type width and wrap convention; software-timer time source abstraction (integer ticks vs `T`-seconds with `dt`).
 
-### 16. Robust MIMO pole placement (true `place`) ☑
+### ☑ Robust MIMO pole placement (true `place`)
 
 Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-input** systems, spending the extra gain freedom to maximize numerical robustness (minimize eigenvector conditioning). Equivalent to MATLAB's `place`.
 
@@ -156,7 +183,7 @@ Foundational numerical routine: place the eigenvalues of (A − BK) for **multi-
 - Acceptance ☑: places assignable MIMO real & complex spectra to ~1e-12 (`test_pole_placement.cpp`); rejects multiplicity > NU, rank-deficient B, and dangling complex poles; single-input matches `acker`; constexpr-evaluable.
 - Remaining refinement (optional): the conditioning sweep is applied on the all-real path; complex pairs assign from the orthonormal admissible basis without the extra sweep (placement still exact, conditioning good but not sweep-optimized).
 
-### 17. Fast-math-robust filter coefficient designs ☑
+### ☑ Fast-math-robust filter coefficient designs
 
 Restructure bilinear filter designers so that the unit-DC-gain identity (and other intended algebraic relations) holds *constructively* rather than emerging from exact cancellation, so the property survives `-fassociative-math` reassociation in downstream user builds.
 
@@ -165,7 +192,7 @@ Restructure bilinear filter designers so that the unit-DC-gain identity (and oth
 - Reference: Higham, "Accuracy and Stability of Numerical Algorithms" (2nd ed., 2002), §3 on conditioned summation; Oppenheim & Schafer, "Discrete-Time Signal Processing" (3rd ed., 2009), bilinear-transform chapter.
 - Acceptance ☑: DC-gain regression tests hold under the runner's `-ffast-math` — `lowpass_2nd` (`test_filters.cpp`: DC-gain at 1e-3, settling at 0.01, plus a cross-zeta unity-gain case), and the six RBJ designers (`test_biquad.cpp`: band-edge gain identities from stored coefficients, 1e-9–1e-12). `to_coeffs` reviewed — no enforced identity to guard.
 
-### 21. Backend-agnostic core: stdlib or ETL (freestanding-capable) ☑
+### ☑ Backend-agnostic core: stdlib or ETL (freestanding-capable)
 
 Drop the assumption that a hosted C++ standard library exists, so the embeddable core (`wet/control.hpp`) can compile for **freestanding** targets (no `libstdc++`/`libc++`). Achieved with a *backend profile*, not a hard swap: a thin alias layer maps `wet::array`/`wet::optional`/… to **one of two** backends, selected through the unified `wet/config.hpp` profile macros (shared with the math backend):
 
@@ -222,7 +249,7 @@ ETL constexpr-equivalence confirmed for `array`/`optional` (spike above). Out of
 
 **Layer 2 — core controls & estimation building blocks.**
 
-### 1. Luenberger / reduced-order observer ☑
+### ☑ Luenberger / reduced-order observer
 
 Deterministic state observers via pole placement; the counterpart to the Kalman family. Prerequisite for output-feedback laws without a stochastic model, and for the disturbance observer (#4).
 
@@ -231,7 +258,7 @@ Deterministic state observers via pole placement; the counterpart to the Kalman 
 - References: D. G. Luenberger, "An Introduction to Observers," IEEE TAC, 1971, https://doi.org/10.1109/TAC.1971.1099826; B. Gopinath, "On the Synthesis of Minimal-Order Observers," BSTJ, 1971.
 - Acceptance: error dynamics match placed poles ✓; constexpr design ✓; reduced-order reconstructs unmeasured states ✓.
 
-### 4. Disturbance observer + DOB control law ☑
+### ☑ Disturbance observer + DOB control law
 
 **Built (2026-06):** two complementary disturbance observers in `estimation/disturbance_observer.hpp` (`test_disturbance_observer`, in the umbrella, embeddable + freestanding-clean):
 - **Scalar innovation-based** `DisturbanceObserver` + `synthesize_disturbance_observer`: `d̂[k+1] = (1−leak)·d̂ + gain·(y_meas − y_pred)`, `compensate(u) = u − d̂`. Lightweight, model-free.
@@ -245,17 +272,17 @@ Observer-based disturbance estimation integrated with a base controller. Targets
 - References: S. Li et al., "Disturbance Observer-Based Control," CRC Press, 2016, https://doi.org/10.1201/b16570; W.-H. Chen et al., "Disturbance-Observer-Based Control... An Overview," IEEE TIE, 2016, https://doi.org/10.1109/TIE.2015.2478397
 - Acceptance: step-load rejection; frequency-domain attenuation; model-mismatch regression.
 
-### 12. UKF (sigma-point filter) ☐
+### ☑ UKF (sigma-point filter)
 
 Unscented filter for nonlinear estimation where EKF linearization is poor (map item `sigma-point`).
 
-- Interface: `UKF<NX,NU,NY>` runtime mirroring the EKF API; constexpr sigma-point weights.
-- Reference: Julier & Uhlmann, "Unscented Filtering and Nonlinear Estimation," Proc. IEEE, 2004. https://doi.org/10.1109/JPROC.2003.823141
-- Acceptance: matches EKF on near-linear systems; outperforms on strongly nonlinear references.
+- **Done (`estimation/ukf.hpp`, `test_ukf.cpp`, 2026-06; in the umbrella, embeddable + freestanding-clean).** `UnscentedKalmanFilter<NX,NU,NY,T>` (short alias `UKF`) mirroring the EKF predict/update API, but the user supplies **plain nonlinear maps** `f(x,u)→ColVec<NX>` / `h(x,u)→ColVec<NY>` (concepts `UKFStateFn`/`UKFMeasFn`) — **no Jacobian**. Scaled unscented transform with `UnscentedParams{alpha,beta,kappa}` (defaults 1e-3 / 2 / 0); constexpr mean/covariance weights computed in the constructor. Each step draws the `2·NX+1` sigma points as `x ± col_j(√((NX+λ)P))` via the lower Cholesky factor (`mat::cholesky`), transforms them through the exact nonlinearity, and rebuilds the posterior by the weighted transform; the gain comes from `K = Pxy·Pyy⁻¹` (Cholesky solve). `predict`/`update` both return `bool` (false on non-PD covariance / singular `Pyy`). `.as<U>()`-style type-conversion ctor; `set_state`/`set_covariance` mutators for inter-step intervention (sequential scalar updates with clamping), as in the EKF.
+- Reference: Julier & Uhlmann, "Unscented Filtering and Nonlinear Estimation," Proc. IEEE, 2004. https://doi.org/10.1109/JPROC.2003.823141; Wan & van der Merwe, "The Unscented Kalman Filter for Nonlinear Estimation," IEEE AS-SPCC, 2000; Simon, "Optimal State Estimation," 2006, §14.3.
+- Acceptance ☑: reduces exactly to a linear KF on linear f/h (recovers unmeasured velocity to 1e-2); tracks a strongly nonlinear range-only measurement onto the correct manifold; predict grows / update shrinks covariance; graceful `false` on singular innovation covariance; float instantiation; `UKF` alias. Full suite green (807 cases / 18611 assertions), `make embedded-check` + `freestanding-check` green.
 
-### 3. Identification and excitation infrastructure ◐ (partially built)
+### ◐ Identification and excitation infrastructure
 
-**Re-baseline (2026-06):** built & tested — **excitation generators** (`controllers/excitation.hpp`, ~1150 lines, Chirp/PRBS/StepTrain/Ramp/MultiSine + `synthesize_*`, `test_excitation`) and the **generic `Cascade`** (`controllers/cascade.hpp`, `test_cascade`). Not built — `models.hpp` (Tier-2 builders), `utility/ring_log.hpp`, and all host-side identification (`analysis/identification.hpp` `tfest`/`ssest`, `analysis/frf.hpp`). So the on-target *excitation* half is largely done; the model-builders, ring-log, and the whole host-side ID/FRF half remain.
+**Re-baseline (2026-06):** built & tested — **excitation generators** (`controllers/excitation.hpp`, ~1150 lines, Chirp/PRBS/StepTrain/Ramp/MultiSine + `synthesize_*`, `test_excitation`) and the **generic `Cascade`** (`controllers/cascade.hpp`, `test_cascade`). Not built — `models.hpp` (Tier-2 builders) and all host-side identification (`analysis/identification.hpp` `tfest`/`ssest`, `analysis/frf.hpp`). So the on-target *excitation* half is largely done; the model-builders and the whole host-side ID/FRF half remain. (A `utility/ring_log.hpp` data-logger was dropped from scope — fixed-size logging/ring buffers are ETL's domain per the design constraints; users wire excitation→log with `etl::circular_buffer` or their own transport.)
 
 **Decision (2026-06): keep `Cascade` + the `SISOController` concept; redesign holistically when ready (not removed).** Verified the coupling is tiny — the `SISOController`/`SISOControllerWithBackCalculation` concepts (`controllers/controller_concept.hpp`) are used *only* by `cascade.hpp`, its `test_controller_concept.cpp`, and a `static_assert` in `test_cascade.cpp`; the other controllers merely `#include`/`@ref` it (inert). Both are *narrow but working/tested*, so rather than delete-and-rewrite (churn, lost tests, a gap), the concept header is marked **provisional** and will be folded into a **unified controller + observer concept** — one box every controller and observer fits, easy for users to extend (SISO + MIMO/`StateSpace`). Natural companion to #3's cascade-from-model synthesis. The north star: controllers and observers each satisfy a single, documented, user-extensible protocol.
 
@@ -271,7 +298,6 @@ The commissioning workflow: drive the plant with a known excitation signal, log 
   - `MultiSine<NTones, T>` — sum of `NTones` sinusoids, `wet::array<Tone, NTones>` where `Tone = {amplitude, freq_hz, phase_rad}`; useful for crest-factor-controlled FRF excitation.
   - Each gets a corresponding `design::synthesize_*` validating the config (positive amplitudes, finite durations, etc.).
 - **Generic cascade controller** (`controllers/cascade.hpp`, new). `template<typename Outer, typename Inner> class Cascade` composing any two controllers that satisfy a small `Controller` concept (`T control(T r, T y)`, `void reset()`). Outer-loop output becomes inner-loop reference; inner-loop output goes to the plant. Anti-windup is the inner controller's responsibility (existing `PIDController` already handles it). Tier 2 alias: `template<typename T> using CascadePPI = Cascade<PController<T>, PIDController<T>>;` (a tiny `PController<T>` may need to be extracted from `pid.hpp` — `PIDController` with `Ki=Kd=0` works but a dedicated struct is cleaner). Test against a hand-written cascade composition on a synthetic plant.
-- **Data-logger ring buffer** (`utility/ring_log.hpp`, new). `template<std::size_t N, typename... Channels> class RingLog` — fixed-size SOA, `push(t, ch1, ch2, ...)`, overwrite-oldest semantics. Flush via `for_each([](auto t, auto... ch){ ... })` callback that hands ordered tuples to user-supplied transport (UART/SPI/JSON). No allocation, no opinions on wire format. Channel storage is `wet::tuple<wet::array<Channels, N>...>` so flush can stream one channel at a time if needed.
 - **Tier 2 model builders** (`models.hpp`, new top-level header, embeddable — these only construct `StateSpace` / `TransferFunction`):
   - `models::single_mass(T M, T c)` → `StateSpace<2,1,1,T>` representing `M·ẍ + c·ẋ = u`, states `[x, ẋ]`, output `x`.
   - `models::second_order(T omega_n, T zeta)` → `StateSpace<2,1,1,T>` for standard underdamped/overdamped second-order in normalized form.
@@ -300,15 +326,13 @@ The commissioning workflow: drive the plant with a known excitation signal, log 
 // 1. On target: excite + log
 constexpr auto chirp_cfg = design::synthesize_chirp<float>({.amplitude = 1.0f,
     .f_start_hz = 0.1f, .f_end_hz = 50.0f, .duration_s = 30.0f, .mode = ChirpMode::Log});
-Chirp<float>                                     exciter{chirp_cfg};
-RingLog<60000, float, float, float, float>       log;
+Chirp<float> exciter{chirp_cfg};
 while (!exciter.done()) {
     float u = exciter.step(t);
     plant.apply(u);
-    log.push(t, u, theta_m_encoder, x_l_encoder);
+    uart_csv(t, u, theta_m_encoder, x_l_encoder);   // user-supplied transport (or etl::circular_buffer)
     t += Ts;
 }
-log.flush([](auto t, auto u, auto th, auto x){ uart_csv(t, u, th, x); });
 
 // 2. On host (toolbox build):
 auto data        = load_csv("log.csv");
@@ -324,10 +348,9 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 
 1. `controllers/excitation.hpp` + `tests/test_excitation.cpp`. Validate waveforms against closed-form sample values; check `done()` semantics; check `.as<U>()` on configs. Add to `wet/control.hpp` umbrella.
 2. `controllers/cascade.hpp` + `tests/test_cascade.cpp`. If a `PController<T>` is needed, extract it from `pid.hpp` (or define alongside). Validate against a hand-written cascade on a 2-state plant. Add `CascadePPI<T>` alias. Add to umbrella.
-3. `utility/ring_log.hpp` + `tests/test_ring_log.cpp`. Validate push/overwrite/flush ordering on multi-channel logs. Add to umbrella.
-4. `wet/models.hpp` + `tests/test_models.cpp`. Validate each builder against analytical transfer functions (e.g. `models::two_mass` should give a 4-state `StateSpace` whose transfer function matches the textbook two-mass formula). Add to `wet/control.hpp` umbrella (embeddable).
-5. `analysis/frf.hpp` + `tests/test_frf.cpp`. Host-only. Validate against synthetic data with known frequency response. Add to `wet/toolbox.hpp`.
-6. `analysis/identification.hpp` overhaul (Tier 1 first: `tfest`, `ssest`, `validate`; Tier 2 next: `identify_fopdt_from_step`, `identify_two_mass`, etc.) + `tests/test_identification.cpp`. Host-only. Validate on synthetic data with known plants; check `make embedded-check` stays green. The Tier 2 wrappers must produce the same fit as direct Tier 1 calls plus an extra similarity transform / parameter unpacking step.
+3. `wet/models.hpp` + `tests/test_models.cpp`. Validate each builder against analytical transfer functions (e.g. `models::two_mass` should give a 4-state `StateSpace` whose transfer function matches the textbook two-mass formula). Add to `wet/control.hpp` umbrella (embeddable).
+4. `analysis/frf.hpp` + `tests/test_frf.cpp`. Host-only. Validate against synthetic data with known frequency response. Add to `wet/toolbox.hpp`.
+5. `analysis/identification.hpp` overhaul (Tier 1 first: `tfest`, `ssest`, `validate`; Tier 2 next: `identify_fopdt_from_step`, `identify_two_mass`, etc.) + `tests/test_identification.cpp`. Host-only. Validate on synthetic data with known plants; check `make embedded-check` stays green. The Tier 2 wrappers must produce the same fit as direct Tier 1 calls plus an extra similarity transform / parameter unpacking step.
 
 **References:** L. Ljung, "System Identification: Theory for the User," 2nd ed., 1999; P. Van Overschee & B. De Moor, "Subspace Identification for Linear Systems," 1996; R. Pintelon & J. Schoukens, "System Identification: A Frequency Domain Approach," 2nd ed., 2012.
 
@@ -335,11 +358,10 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 
 - Each excitation generator produces analytically-correct waveforms at sample points; `done()` fires when expected; configs validate.
 - `Cascade<Outer, Inner>` output matches a hand-written cascade composition on the same plant exactly.
-- `RingLog` push/overwrite/flush ordering is correct on multi-channel logs; no heap allocation; constexpr-friendly construction.
 - `models::*` builders produce `StateSpace` / `TransferFunction` matching analytical forms.
 - `tfest` / `ssest` recover known plants on noiseless synthetic data within 5% on coefficients (or eigenvalues for state-space).
 - Tier 2 ID wrappers (`identify_two_mass`, `identify_fopdt_from_step`, …) recover physical parameters within 10% from chirp- or step-excited synthetic data with realistic encoder noise; return the same `StateSpace` / `TransferFunction` as the equivalent Tier 1 call (up to similarity).
-- `make embedded-check` stays green: only excitation, cascade, ring-log, and `models.hpp` reach `wet/control.hpp`; `tfest`/`ssest`/`frfest`/`identify_*` are reachable only via `wet/toolbox.hpp`.
+- `make embedded-check` stays green: only excitation, cascade, and `models.hpp` reach `wet/control.hpp`; `tfest`/`ssest`/`frfest`/`identify_*` are reachable only via `wet/toolbox.hpp`.
 
 **Notes for implementers:**
 
@@ -351,7 +373,7 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 
 **Layer 3 — advanced controls & estimation.**
 
-### 5. Repetitive controller ☑
+### ☑ Repetitive controller
 
 **Built (2026-06):** plug-in `RepetitiveController<MaxPeriod, T, MaxQHalf>` + `design::synthesize_repetitive(fs, f0, gain, Q, lead)` and `design::synthesize_repetitive_binomial<M>(fs, f0, gain, lead)` (`controllers/repetitive.hpp`, `test_repetitive.cpp`). Internal-model period-delay loop (`w[k]=Q(z)·w[k-N]+e`, `u_rc=k_rc·w[k-N+m]`): one delay rejects the fundamental *and all harmonics*; integer phase-lead m; fixed-size buffer (allocation-free), constexpr.
 - **Robustness filter Q:** scalar Q ∈ (0,1] *or* a **zero-phase low-pass FIR** Q(z)=Σ q_i z^{−i} (symmetric taps, `MaxQHalf` half-width). The FIR keeps near-unity gain on the low harmonics (full rejection) but rolls off near Nyquist (robust stability) without adding phase — realizable because Q multiplies the N-delayed signal so the "future" taps read already-buffered samples. Default family is the unity-DC binomial (`synthesize_repetitive_binomial<M>`: M=1→[1,2,1]/4, M=2→[1,4,6,4,1]/16). The scalar Q is the `MaxQHalf=0` special case (existing API unchanged).
@@ -364,13 +386,13 @@ Internal-model compensation for periodic disturbances over selected harmonics. T
 - Reference: S. Hara et al., "Repetitive Control System," IEEE TAC, 1988. https://doi.org/10.1109/9.1274
 - Acceptance: harmonic-rejection benchmarks; stability margins with robustness filter; integration with LQI/LQGI.
 
-### 6. Input shaping (command prefilter) ☑
+### ☑ Input shaping (command prefilter)
 
 **Built (2026-06):** `controllers/input_shaper.hpp` (`test_input_shaper`, in the umbrella, embeddable + freestanding-clean). `design::synthesize_input_shaper(fn_hz, zeta, Ts, ShaperType, ei_tol)` → `InputShaperResult` (normalized impulse amplitudes + integer sample delays) for `ShaperType::{ZV, ZVD, ZVDD, EI}` — ZV `[1,K]`, ZVD `[1,2K,K²]`, ZVDD `[1,3K,3K²,K³]` (exact for any ζ), EI tolerable-vibration form. Runtime `InputShaper<MaxDelay,T>` (ring-buffer impulse convolver, pass-through if the buffer is too small for the mode) and `InputShaperBank<NAxes,MaxDelay,T>` for multi-axis. Unity DC gain (amplitudes sum to 1 → steady command unchanged), constexpr, `.as<U>()`. Verified: coefficient normalization/delays, residual-vibration attenuation >50× on a 2nd-order mode, ZVD beating ZV under 15% detuning, undersized-buffer pass-through, multi-axis bank. Pure feedforward (no estimator); pairs with motion #20.
 - Remaining (follow-up): `synthesize_input_shaper_from_modes(mode_list, …)` (convolve per-mode shapers for multi-mode plants) — single-mode shaping covers the headline use.
 - References: Singer & Seering, "Preshaping Command Inputs to Reduce System Vibration," ASME JDSMC, 1990, https://doi.org/10.1115/1.2894142; Singhose et al., ASME JMD, 1994, https://doi.org/10.1115/1.2919428
 
-### 7. Online PID tuning (relay + IFT) ⊘
+### ⊘ Online PID tuning (relay + IFT)
 
 Online-first PID/PI tuning that runs in the closed loop without requiring time-series export. The relay autotuner is the lightweight commissioning fallback for any SISO loop (model-free, deterministic, ISR-safe); IFT is the longer-running model-free improvement path. Pairs with the full identification pipeline in #3 — relay is the "no toolchain, no laptop" path, while #3 is the rich workflow when data export is available.
 
@@ -381,7 +403,7 @@ Online-first PID/PI tuning that runs in the closed loop without requiring time-s
 - References: K. J. Åström & T. Hägglund, "Automatic tuning of simple regulators with specifications on phase and amplitude margins," Automatica 20(5), 1984, https://doi.org/10.1016/0005-1098(84)90014-1; H. Hjalmarsson, M. Gevers, S. Gunnarsson, O. Lequin, "Iterative feedback tuning: theory and applications," IEEE Control Systems Magazine 18(4), 1998, https://doi.org/10.1109/37.710876
 - Acceptance (remaining): IFT convergence with bounded excitation; safety-policy tests (clamps, rate limits, bumpless transfer, rollback) for both runtimes.
 
-### 8. Extremum-seeking control (ESC) ☑
+### ☑ Extremum-seeking control (ESC)
 
 **Built (2026-06):** `controllers/esc.hpp` (`test_esc`, in the umbrella, embeddable + freestanding-clean). Classic perturbation-based ESC: `design::synthesize_esc(a, dither_freq, gain, Ts, Maximize|Minimize, hp_cutoff, lp_cutoff, u_init, u_min, u_max)` → `ESCConfig`/`ESCResult` + `ExtremumSeekingController<T>` runtime, plus `synthesize_esc_mppt(...)` convenience. Dither → high-pass (DC removal) → demodulate (∝ ∂J/∂u·a/2) → integrate (`û̇ = ±k·LPF(ξ)`), model-free, allocation-free, constexpr, `.as<U>()`. Safety: `step(J, measurement_valid)` **freezes the integrator** on a flagged-bad measurement (the "rollback/freeze on degraded measurement" behavior), and an optional û clamp band. Verified: climbs an unknown quadratic max / descends a min, **tracks a drifting optimum** (online, not one-shot), freeze-holds û under garbage input, MPPT clamp pins û at the band edge, float, constexpr.
 - Reference: Y. Tan et al., "Extremum seeking control for discrete-time systems," IEEE TAC, 2002, https://doi.org/10.1109/9.983370; Ariyur & Krstić, "Real-Time Optimization by Extremum-Seeking Control," Wiley 2003.
@@ -390,7 +412,7 @@ Online-first PID/PI tuning that runs in the closed loop without requiring time-s
 - Reference: Y. Tan et al., "Extremum seeking control for discrete-time systems," IEEE TAC, 2002. https://doi.org/10.1109/9.983370
 - Acceptance: MPPT over irradiance/temperature profiles; objective convergence with bounded perturbation; rollback/freeze on degraded measurements.
 
-### 9. Harmonic detection & suppression (anti-chatter) ◐
+### ◐ Harmonic detection & suppression (anti-chatter)
 
 Online dominant-harmonic detection and suppression via notch/PR/repetitive elements. Targets: lathe-turning chatter, spindle-tool resonance in CNC, gearbox tonal vibration. Depends on #2 (notch) and harmonic estimation. Includes the spectral primitives (windowed RFFT / Goertzel) and a harmonic tracker (`estimation/harmonic_estimation.hpp` is currently a placeholder).
 
@@ -400,7 +422,7 @@ Online dominant-harmonic detection and suppression via notch/PR/repetitive eleme
 - References: Altintas & Budak, "Analytical Prediction of Stability Lobes in Milling," CIRP Annals, 1995, https://doi.org/10.1016/S0007-8506(07)62342-7; Mojiri & Bakhshai, "An Adaptive Notch Filter for Frequency Estimation," IEEE TAC, 2004, https://doi.org/10.1109/TAC.2003.822862; Goertzel, Amer. Math. Monthly, 1958, https://doi.org/10.2307/2308968
 - Acceptance: detection latency / false-positive benchmarks; measured harmonic-amplitude reduction; closed-loop stability + actuator effort with adaptive updates.
 
-### 10. LPV gain-scheduled LQG/LQI ⊘
+### ⊘ LPV gain-scheduled LQG/LQI
 
 Gain scheduling over an operating-point grid. Targets: UAV dynamics vs airspeed/altitude, vehicle lateral dynamics vs speed, manipulators with configuration-dependent models.
 
@@ -408,7 +430,7 @@ Gain scheduling over an operating-point grid. Targets: UAV dynamics vs airspeed/
 - References: Rugh & Shamma, "Research on Gain Scheduling," Automatica, 2000, https://doi.org/10.1016/S0005-1098(00)00058-3; Apkarian & Gahinet, IEEE TAC, 1995, https://doi.org/10.1109/9.384219
 - Acceptance: continuity across transitions; stability over the certified envelope.
 
-### 11. Super-twisting SMC ☑
+### ☑ Super-twisting SMC
 
 **Built (2026-06):** second-order **super-twisting** algorithm — `design::synthesize_stsmc(L, Ts, λ, k_lin, ε, gain_margin)` (Levant/Moreno gains `k₁=1.5√L`, `k₂=1.1L`) + `design::stsmc(...)` direct-gain factory → `STSMCResult` + `SuperTwistingController` runtime (`controllers/smc.hpp`, `test_stsmc`). Continuous control `u = −k₁(|s|^½sign s + k_lin·s) + v`, `v̇ = −k₂(sign s + 3k_lin|s|^½sign s + 2k_lin²s)`: classic STA at `k_lin=0`, **generalized STA** (linear damping for noisy/under-modelled actuators) at `k_lin>0`, optional boundary layer `ε`. Canonical `control(s)` plus an `(r,y)` surface-builder convenience. Verified: finite-time rejection of a Lipschitz disturbance into an O(Ts) band, continuity vs first-order sign() chattering (the headline test), GSTA convergence, constexpr. Explicit-Euler integral; documented that noisy `s` is the real-world chattering source (filter it / supply `s`).
 
@@ -420,7 +442,7 @@ Second-order sliding-mode runtime with design-time gain synthesis. Targets: elec
 - References: Moreno & Osorio, "Strict Lyapunov Functions for the Super-Twisting Algorithm," IEEE TAC, 2012, https://doi.org/10.1109/TAC.2012.2186179; Levant, Int. J. Control, 2003, https://doi.org/10.1080/0020717031000099029
 - Acceptance: chattering metrics vs existing SMC; disturbance rejection with bounded effort.
 
-### 13. H-infinity output feedback ⊘
+### ⊘ H-infinity output feedback
 
 Output-feedback synthesis for weighted generalized plants. Targets: flexible structures with modal uncertainty, flight control with structured uncertainty, active suspension/vibration isolation.
 
@@ -429,7 +451,7 @@ Output-feedback synthesis for weighted generalized plants. Targets: flexible str
 - Acceptance: weighted robust-stability/performance; regression vs known references.
 - Placement: `toolbox.hpp` (resolved — gamma search allocates / iterates).
 
-### 14. Constrained MPC ⊘
+### ⊘ Constrained MPC
 
 Finite-horizon constrained control with a deterministic runtime iteration budget. Targets: multivariable process control with limits, AV trajectory tracking with actuator limits, power electronics with current/voltage bounds.
 
@@ -438,43 +460,46 @@ Finite-horizon constrained control with a deterministic runtime iteration budget
 - Acceptance: deterministic per-tick runtime bound; constraint-satisfaction regression; tracking/regulation tests.
 - Placement: `toolbox.hpp` (resolved — QP solver allocates / iterates).
 
-### 15. Moving horizon estimation (MHE) ☐
+### ☐ Moving horizon estimation (MHE)
 
 Optimization-based constrained estimator; toolbox-only (allocates/solver). The estimation counterpart to MPC.
 
 - Reference: Rao, Rawlings & Mayne, "Constrained State Estimation for Nonlinear Discrete-Time Systems," IEEE TAC, 2003. https://doi.org/10.1109/TAC.2003.812777
 - Acceptance: matches Kalman on linear/unconstrained problems; respects state constraints on nonlinear references.
 
-### 20. Motion planning / trajectory generation ☐
+### ◐ Motion planning / trajectory generation
 
-Point-to-point and multi-segment trajectory generation for actuators and robot axes — the feedforward reference the controllers above track. Two complementary families, because (in the user's words) sometimes you want **time-optimal**, and sometimes you want **derivative-optimal over a fixed time**. Fits the three-tier pattern cleanly: a constexpr `design::` stage solves the boundary-value problem or segment times (with a feasibility/`success` flag), and an allocation-free runtime evaluates `step(t) → {position, velocity, acceleration, jerk}`. Embeddable. Generalizes the pure-feedforward input shaper (#6), which shapes an existing command; this *generates* the command.
+**Re-baseline (2026-06):** built & tested — all three single-segment generators **plus the multi-axis coordination bank** in `controllers/trajectory.hpp` (`test_trajectory.cpp`, 31 cases incl. a 500-case trapezoidal + 400-case S-curve fuzz; `examples/example_trajectory_gallery.cpp` shows the per-generator grid, `examples/example_coordinated_joints.cpp` the synchronized excavator move). Not built — **multi-waypoint splines** (below) and **Cartesian/task-space moves** (need the kinematics solvers — IK + Jacobian — then optionally TOPP for joint-limit-optimal path timing). The single-segment scope went *beyond* the original plan: trapezoidal and S-curve both take **arbitrary boundary velocities `(Xi, Vi, Xf, Vf)`** and **asymmetric accel/decel limits** (`max_acceleration` bounds the approach-to-cruise ramp, `max_deceleration` the approach-to-target ramp), not just `(distance, v_max, a_max)`. The originally-listed **online bang-bang generator was dropped** — it is sliding-mode control (chattery acceleration), the wrong tool for a smooth feedforward *reference*; everything is precomputed.
 
-**Family 1 — fixed-time, derivative-optimal (arbitrary boundary conditions).** Solve a polynomial boundary-value problem over a *fixed* duration `T` matching boundary conditions on position and its derivatives at both ends:
+Point-to-point trajectory generation for actuators and robot axes — the feedforward reference the controllers above track. Two complementary families, because (in the user's words) sometimes you want **time-optimal**, and sometimes you want **derivative-optimal over a fixed time**. Fits the three-tier pattern cleanly: a constexpr `design::` stage solves the boundary-value problem or segment times (with a `success` flag), and an allocation-free runtime evaluates `step(dt)` / `eval(t) → {position, velocity, acceleration, jerk}`. Embeddable. Generalizes the pure-feedforward input shaper (#6), which shapes an existing command; this *generates* the command. Shared types: `TrajectoryLimits{max_velocity, max_acceleration, max_deceleration, max_jerk}` (with `valid()` / `valid_jerk_limited()`), `TrajectoryState{position, velocity, acceleration, jerk}`, `TrajectoryBoundary`.
 
-- `design::synthesize_poly_trajectory<Order>(bc_start, bc_end, T)` → coefficients + `success`. Cubic (match p, v), quintic (match p, v, a), septic/7th (match p, v, a, j). Solved as a small linear system via the existing `mat::solve` (the Vandermonde-style BVP), mirroring how `design::steinhart_hart` now solves its fit.
+**Family 1 — fixed-time, derivative-optimal (arbitrary boundary conditions). ☑ built.** Solve a polynomial boundary-value problem over a *fixed* duration `T` matching boundary conditions on position and its derivatives at both ends:
+
+- `design::synthesize_poly_trajectory<Order>(bc_start, bc_end, T)` → `PolyTrajectory<Order>` (coefficients + `success`). Cubic (match p, v), quintic (match p, v, a), septic/7th (match p, v, a, j). Solved as a small linear system via the existing `mat::solve` (the Vandermonde-style BVP), mirroring how `design::steinhart_hart` solves its fit. Runtime `PolynomialTrajectory<Order, T>` evaluates with a Horner-with-derivatives (synthetic-division) recurrence.
 - Derivative-optimality falls out of the boundary conditions: a quintic with zero velocity/acceleration BCs is exactly the **minimum-jerk** profile over `T` (Flash–Hogan); cubic with zero-velocity BCs is **minimum-acceleration**; septic with zero jerk BCs is **minimum-snap** (Mellinger–Kumar, quadrotors). Tier-2 aliases `design::min_jerk(p0, pT, T)`, `min_accel(...)`, `min_snap(...)` wrap the general BVP with the appropriate zeroed BCs.
-- Multi-waypoint splines (C²/C³-continuous piecewise polynomials through a waypoint list) as a later extension once the single-segment BVP is solid.
 
-**Family 2 — constraint-limited, time-optimal.** Minimize duration subject to kinematic limits:
+**Family 2 — constraint-limited, time-optimal. ☑ built.** Minimize duration subject to (asymmetric) kinematic limits, arbitrary `Vi`/`Vf`:
 
-- `design::synthesize_trapezoidal(distance, v_max, a_max)` → segment times + `success` (accel/cruise/decel; degrades to triangular when cruise vanishes). Bang-bang acceleration.
-- `design::synthesize_scurve(distance, v_max, a_max, j_max)` → the 7-segment double-S (jerk-limited) profile times. Bounded jerk → no actuator/torque step, the standard for smooth machine motion.
-- Each runtime evaluates the piecewise profile and exposes the achieved peak v/a/j and total time.
+- `design::synthesize_trapezoidal(Xi, Vi, Xf, Vf, limits)` (+ rest-to-rest `(Xi, Xf, limits)` overload) → `TrapezoidalProfile` with segment times + `success` (accel/cruise/decel; degrades to triangular when cruise vanishes). Piecewise-constant acceleration. Accepts over-speed/wrong-direction `Vi` ("handbrake"). ODrive's symmetric rest-to-rest `planTrapezoidal` is the special case. Runtime `TrapezoidalTrajectory<T>`.
+- `design::synthesize_scurve(Xi, Vi, Xf, Vf, limits)` (+ rest-to-rest overload) → `ScurveProfile` (≤7 constant-jerk segments). Bounded jerk ⇒ continuous acceleration (C²), the standard for smooth machine motion. The junction (peak) velocity is found by bisection on region displacement (a sign-change bracket — robust without closed-form sign logic); converges to the trapezoidal as `j_max → ∞`. Runtime `ScurveTrajectory<T>`.
+- Region displacement uses the exact identity `Tr·(v_start + v_end)/2` (the per-region velocity profile is point-symmetric), so distance bookkeeping is identical across both Family-2 generators.
 
-**Multi-axis coordination.** A bank helper that time-scales each axis's profile to the slowest so a multi-DOF move starts and finishes synchronized (coordinated/“linear” moves), reusing the per-axis runtimes.
+**Multi-axis coordination. ☑ built.** `TrajectoryBank<NAxes, Trajectory>` (homogeneous per-axis runtime — `TrapezoidalTrajectory` / `ScurveTrajectory` / `PolynomialTrajectory`). Plans each axis at its own min-time, takes `T_sync = max_i duration_i`, and **time-scales** every axis to it: axis `i` is evaluated at `t·kᵢ` (`kᵢ = duration_i / T_sync`) with derivatives scaled `·kᵢ`/`·kᵢ²`/`·kᵢ³`. Path shapes preserved, per-axis limits stay satisfied (time-scaling only shrinks v/a/j), all axes land together (the joint-space PTP / "MoveJ" move). `eval(t)` / `step(dt)` return a `wet::array<TrajectoryState, NAxes>`. **Note:** this is *joint-space* coordination — it does **not** control the Cartesian tool path; that is the task-space/LIN move (plan a path `s(t)`, map through IK + Jacobian to joints, then re-time against joint limits), which depends on the kinematics solvers and is tracked there, not here.
 
-**References:** L. Biagiotti & C. Melchiorri, "Trajectory Planning for Automatic Machines and Robots," Springer, 2008 (polynomial, trapezoidal, double-S — the canonical treatment); T. Flash & N. Hogan, "The coordination of arm movements: an experimentally confirmed mathematical model," J. Neurosci. 5(7), 1985, https://doi.org/10.1523/JNEUROSCI.05-07-01688.1985 (minimum jerk); D. Mellinger & V. Kumar, "Minimum snap trajectory generation and control for quadrotors," ICRA 2011, https://doi.org/10.1109/ICRA.2011.5980409; S. Macfarlane & E. A. Croft, "Jerk-bounded manipulator trajectory planning," IEEE T-RA 19(1), 2003, https://doi.org/10.1109/TRA.2002.807548.
+**Multi-waypoint splines. ☐ not built.** C²/C³-continuous piecewise polynomials through a waypoint list — a later extension of the single-segment BVP (Family 1).
+
+**References:** L. Biagiotti & C. Melchiorri, "Trajectory Planning for Automatic Machines and Robots," Springer, 2008 (polynomial, trapezoidal, double-S — the canonical treatment); T. Flash & N. Hogan, "The coordination of arm movements: an experimentally confirmed mathematical model," J. Neurosci. 5(7), 1985, https://doi.org/10.1523/JNEUROSCI.05-07-01688.1985 (minimum jerk); D. Mellinger & V. Kumar, "Minimum snap trajectory generation and control for quadrotors," ICRA 2011, https://doi.org/10.1109/ICRA.2011.5980409; R. Béarée, "FIR filter-based online jerk-constrained trajectory generation" (the asymmetric trapezoidal / double-S structure; also the basis for ODrive's `planTrapezoidal`); S. Macfarlane & E. A. Croft, "Jerk-bounded manipulator trajectory planning," IEEE T-RA 19(1), 2003, https://doi.org/10.1109/TRA.2002.807548.
 
 **Acceptance:**
 
-- Polynomial trajectories satisfy all boundary conditions exactly at both endpoints; the synthesized quintic with zeroed v/a BCs matches the closed-form minimum-jerk profile to numerical tolerance; the BVP solve reports `success=false` on degenerate `T`.
-- Trapezoidal and S-curve profiles respect `v_max`/`a_max`/`j_max`, are continuous in the claimed derivatives (S-curve: jerk-bounded ⇒ continuous acceleration), and report the correct minimum time; triangular/short-move degeneracies handled.
-- Multi-axis bank arrives synchronized (all axes reach their endpoints at the same instant).
-- All runtimes constexpr-constructible and allocation-free; `make embedded-check` green.
+- ☑ Polynomial trajectories satisfy all boundary conditions exactly at both endpoints; the synthesized quintic with zeroed v/a BCs matches the closed-form minimum-jerk profile to numerical tolerance; the BVP solve reports `success=false` on degenerate `T`.
+- ☑ Trapezoidal and S-curve profiles respect `v_max`/`a_max`/`d_max`/`j_max`, are continuous in the claimed derivatives (S-curve: jerk-bounded ⇒ continuous acceleration), and report the correct minimum time; triangular/short-move/handbrake degeneracies handled (verified by fuzz).
+- ☑ Multi-axis bank arrives synchronized (all axes reach their endpoints at the same instant; time-scaled axes stay within their own limits — verified).
+- ☑ All runtimes constexpr-constructible and allocation-free; `make embedded-check` green.
 
-**Decision items (this section):** header layout (`motion/` directory vs single `trajectory.hpp`); whether the BVP coefficient solve is done at `design::` time only (constexpr `mat::solve`) so the runtime stores just coefficients; representation of multi-segment/waypoint trajectories (fixed-`N` segment array vs caller-supplied storage to stay allocation-free).
+**Decision items (resolved):** single `trajectory.hpp` (not a `motion/` directory); the BVP coefficient solve and all segment-time solves run at `design::` time so the runtime stores only coefficients / segment tables; multi-segment profiles use a fixed-`N` segment array (`ScurveProfile` holds `array<…, 7>`) to stay allocation-free.
 
-### 22. Stewart platform kinematics (6-DOF parallel manipulator) ☐
+### ☐ Stewart platform kinematics (6-DOF parallel manipulator)
 
 Closed-form **inverse** and iterative **forward** kinematics for the Gough–Stewart platform — the 6-leg parallel manipulator behind motion-cueing rigs (flight/driving simulators), hexapod fixtures, and precision pointing/isolation stages. Given a desired platform pose, the inverse map yields the six actuator commands the controllers above drive; it is the geometric layer that turns a 6-DOF motion-cueing trajectory (#20, #6) into per-leg setpoints. Fits the three-tier pattern: a constexpr `design::` stage validates the geometry and precomputes the fixed base/platform anchor tables, and an allocation-free runtime evaluates the per-tick kinematics. Embeddable.
 
@@ -495,7 +520,7 @@ Closed-form **inverse** and iterative **forward** kinematics for the Gough–Ste
 
 **Decision items (this section):** orientation: accept RPY Euler / quaternion / rotation matrix at the boundary for convenience, but **store and compose as quaternion** internally (see the shared geometry-foundation note); forward-kinematics iteration budget and convergence-tolerance defaults; whether the symmetric-layout builder lives as a Tier-2 `design::stewart_symmetric` or a separate `models::`-style geometry helper.
 
-### 23. Serial N-DOF manipulator kinematics (rotary-joint arm, N ≤ 6) ☐
+### ☐ Serial N-DOF manipulator kinematics (rotary-joint arm, N ≤ 6)
 
 The series counterpart to the Stewart platform (#22): forward/inverse kinematics for an articulated revolute-joint arm — the canonical industrial robot. Where the Stewart platform is a *parallel* mechanism (easy closed-form inverse, iterative forward), the serial arm is the mirror image: **trivial closed-form forward, multi-solution inverse**. Same three-tier shape, embeddable, allocation-free; the kinematics produce joint setpoints that the per-joint trajectory generators (#20) then time-profile under velocity/acceleration limits.
 
@@ -517,7 +542,7 @@ The series counterpart to the Stewart platform (#22): forward/inverse kinematics
 
 **Decision items (this section):** how aggressively to scope IK (spherical-wrist closed-form only, vs always-available numerical fallback — likely both, with the closed-form path auto-selected when `N == 6` and Pieper's criterion holds); task-mask representation for under-actuated `N < 6` arms (fixed 6-bit DOF mask vs caller-supplied weight vector); orientation representation at the boundary (shared with #22 — RPY/quaternion/matrix); whether the DH convention is standard or modified (Craig) DH, and whether to expose both; how branch identity (shoulder/elbow/wrist configuration tags) is reported alongside the raw solution sets.
 
-### 24. Motion-system kinematic mappings (Cartesian / CoreXY / polar / delta) ☐
+### ☐ Motion-system kinematic mappings (Cartesian / CoreXY / polar / delta)
 
 The "everything that isn't a 6-DOF manipulator" item: the small, closed-form coordinate transforms that map machine actuators to task space for the common motion architectures — 3D printers, plotters, pick-&-place gantries, polar/R-θ machines, and delta robots. Most are trivial (the point is to give them a documented, tested home so users stop reinventing `atan2`), but two — **CoreXY** and **delta** — carry real coupling worth a proper synthesis stage. Three-tier shape, embeddable, allocation-free; like #22/#23 these emit per-actuator setpoints that the trajectory generators (#20) time-profile.
 
@@ -537,7 +562,7 @@ The "everything that isn't a 6-DOF manipulator" item: the small, closed-form coo
 
 **Layer 4 — tooling (host-only).**
 
-### 18. Multi-rate simulation harness ☐
+### ☐ Multi-rate simulation harness
 
 The current simulation harness (`simulation/simulate.hpp`) advances every block at a single fixed `Ts`. Real deployments are multi-rate: an ISR-level loop (current/inner-loop control, PWM, observers) runs at 8 kHz–128+ kHz, while RTOS tasks run the outer loops and supervisory logic at 1 / 10 / 100 / 1000 Hz. A faithful closed-loop simulation has to reproduce this rate hierarchy — including the inter-rate effects that single-rate sim hides: sample-and-hold across the rate boundary, the one-sample transport delay an outer task sees on inner-loop state, and aliasing of fast dynamics into slow samplers.
 

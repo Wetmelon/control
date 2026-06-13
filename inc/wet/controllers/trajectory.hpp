@@ -906,4 +906,109 @@ private:
     T                                t_{T{0}};
 };
 
+/**
+ * @ingroup controllers
+ * @brief Multi-axis coordination: time-scale each axis's profile to the slowest
+ *        so a multi-DOF move starts and finishes synchronized ("linear" /
+ *        coordinated joint moves — the feedforward reference for a manipulator).
+ *
+ * Each axis is planned independently (its own minimum-time profile). The bank
+ * takes the synchronized duration `T_sync = max_i duration_i` and **time-scales**
+ * every axis to it: axis `i` is evaluated at internal time `t·kᵢ` with
+ * `kᵢ = duration_i / T_sync ≤ 1`, and its derivatives are scaled accordingly
+ * (velocity ·kᵢ, acceleration ·kᵢ², jerk ·kᵢ³). Time-scaling preserves each path's
+ * shape and can only *shrink* velocity/acceleration/jerk, so per-axis limits stay
+ * satisfied; the slowest axis runs at its native min-time (kᵢ = 1) and the rest are
+ * slowed to land together at `t = T_sync`.
+ *
+ * Works with any per-axis runtime that exposes `eval(t)`, `duration()` and
+ * `valid()` — @ref TrapezoidalTrajectory, @ref ScurveTrajectory or
+ * @ref PolynomialTrajectory (homogeneous across the bank).
+ *
+ * @note Time-scaling scales the *boundary* velocities too, so an axis's nonzero
+ *       final velocity becomes `Vf·kᵢ`. Coordinated moves are normally
+ *       rest-to-rest (Vi = Vf = 0), where this is exact; only the slowest axis
+ *       retains a nonzero Vf unchanged.
+ *
+ * @tparam NAxes      Number of axes
+ * @tparam Trajectory Per-axis runtime trajectory type
+ */
+template<size_t NAxes, typename Trajectory>
+class TrajectoryBank {
+public:
+    using value_type = decltype(Trajectory{}.duration());
+    using State = TrajectoryState<value_type>;
+    using StateArray = wet::array<State, NAxes>;
+
+    constexpr TrajectoryBank() = default;
+
+    /// Construct from the per-axis trajectories (each already planned, min-time).
+    constexpr explicit TrajectoryBank(const wet::array<Trajectory, NAxes>& axes) : axes_(axes) { sync(); }
+
+    /// Replace all axes and rewind the clock.
+    constexpr void set_axes(const wet::array<Trajectory, NAxes>& axes) {
+        axes_ = axes;
+        t_ = value_type{0};
+        sync();
+    }
+
+    /// Replace one axis and rewind the clock (re-synchronizes the bank).
+    constexpr void set_axis(size_t i, const Trajectory& traj) {
+        axes_[i] = traj;
+        t_ = value_type{0};
+        sync();
+    }
+
+    /// Evaluate all axes at the common (synchronized) time @p t ∈ [0, T_sync].
+    [[nodiscard]] constexpr StateArray eval(value_type t) const {
+        StateArray out{};
+        for (size_t i = 0; i < NAxes; ++i) {
+            const value_type k = scale_[i];
+            State            s = axes_[i].eval(t * k);
+            s.velocity *= k;
+            s.acceleration *= k * k;
+            s.jerk *= k * k * k;
+            out[i] = s;
+        }
+        return out;
+    }
+
+    /// Advance the common clock by @p dt and return the per-axis states.
+    constexpr StateArray step(value_type dt) {
+        t_ += dt;
+        return eval(t_);
+    }
+
+    constexpr void reset() { t_ = value_type{0}; }
+
+    [[nodiscard]] constexpr value_type        time() const { return t_; }
+    [[nodiscard]] constexpr value_type        duration() const { return T_sync_; } //!< synchronized total time
+    [[nodiscard]] constexpr bool              done() const { return t_ >= T_sync_; }
+    [[nodiscard]] constexpr bool              valid() const { return valid_; }
+    [[nodiscard]] constexpr value_type        scale(size_t i) const { return scale_[i]; }
+    [[nodiscard]] constexpr const Trajectory& axis(size_t i) const { return axes_[i]; }
+
+private:
+    constexpr void sync() {
+        valid_ = (NAxes > 0);
+        T_sync_ = value_type{0};
+        for (size_t i = 0; i < NAxes; ++i) {
+            valid_ = valid_ && axes_[i].valid();
+            const value_type d = axes_[i].duration();
+            if (d > T_sync_) {
+                T_sync_ = d;
+            }
+        }
+        for (size_t i = 0; i < NAxes; ++i) {
+            scale_[i] = (T_sync_ > value_type{0}) ? (axes_[i].duration() / T_sync_) : value_type{1};
+        }
+    }
+
+    wet::array<Trajectory, NAxes> axes_{};
+    wet::array<value_type, NAxes> scale_{};
+    value_type                    T_sync_{value_type{0}};
+    value_type                    t_{value_type{0}};
+    bool                          valid_{false};
+};
+
 } // namespace wet

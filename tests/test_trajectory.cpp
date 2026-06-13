@@ -214,7 +214,7 @@ TEST_SUITE("trajectory") {
             CHECK_MESSAGE(r.pos_err_end < pos_tol, "i=" << i);
             CHECK_MESSAGE(r.vel_err_end < vel_tol, "i=" << i);
             // continuity: per-step jumps stay small relative to the profile scale
-            CHECK_MESSAGE(r.max_vel_jump < (Amax + Dmax) * (p.Tf / 4000.0) + 1e-6, "i=" << i);
+            CHECK_MESSAGE(r.max_vel_jump < ((Amax + Dmax) * (p.Tf / 4000.0)) + 1e-6, "i=" << i);
             CHECK_MESSAGE(r.max_speed <= Vmax + 1e-4, "i=" << i);
             CHECK_MESSAGE(r.max_accel_phase <= Amax + 1e-4, "i=" << i);
             CHECK_MESSAGE(r.max_decel_phase <= Dmax + 1e-4, "i=" << i);
@@ -368,7 +368,7 @@ TEST_SUITE("trajectory") {
         CHECK(r.max_speed <= 2.0 + 1e-4);
         CHECK(r.max_accel <= 5.0 + 1e-4);
         CHECK(r.max_jerk <= 30.0 + 1e-4);
-        CHECK(r.max_accel_jump < 30.0 * (p.duration / 6000.0) + 1e-6);
+        CHECK(r.max_accel_jump < (30.0 * (p.duration / 6000.0)) + 1e-6);
     }
 
     TEST_CASE("S-curve converges to the trapezoidal as Jmax grows") {
@@ -440,9 +440,9 @@ TEST_SUITE("trajectory") {
     TEST_CASE("S-curve fuzz: arbitrary Vi/Vf, asymmetric limits, C² and bounded") {
         uint64_t seed = 0xC0FFEEull;
         auto     rnd = [&seed](double lo, double hi) {
-            seed = seed * 6364136223846793005ull + 1442695040888963407ull;
+            seed = (seed * 6364136223846793005ull) + 1442695040888963407ull;
             const double u = static_cast<double>(seed >> 11) / static_cast<double>(1ull << 53);
-            return lo + (hi - lo) * u;
+            return lo + ((hi - lo) * u);
         };
         for (int i = 0; i < 400; ++i) {
             const double                   Vmax = rnd(0.5, 10.0);
@@ -465,7 +465,127 @@ TEST_SUITE("trajectory") {
             CHECK_MESSAGE(r.max_speed <= Vmax + 1e-3, "i=" << i);
             CHECK_MESSAGE(r.max_accel <= std::max(Amax, Dmax) + 1e-3, "i=" << i);
             CHECK_MESSAGE(r.max_jerk <= Jmax + 1e-3, "i=" << i);
-            CHECK_MESSAGE(r.max_accel_jump < Jmax * (p.duration / 6000.0) + 1e-4, "i=" << i);
+            CHECK_MESSAGE(r.max_accel_jump < (Jmax * (p.duration / 6000.0)) + 1e-4, "i=" << i);
         }
+    }
+
+    // ---- Multi-axis coordination bank ----------------------------------------
+
+    TEST_CASE("bank: axes with different move lengths arrive synchronized") {
+        const Limits lim{2.0, 5.0, 5.0};
+        // Three rest-to-rest moves of increasing distance -> increasing min-time.
+        wet::array<TrapezoidalTrajectory<double>, 3> axes{
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 2.0, lim)),
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 6.0, lim)),
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 12.0, lim)),
+        };
+        TrajectoryBank<3, TrapezoidalTrajectory<double>> bank(axes);
+        REQUIRE(bank.valid());
+
+        // T_sync is the slowest axis's native duration; that axis runs unscaled.
+        const double slowest = axes[2].duration();
+        CHECK(bank.duration() == doctest::Approx(slowest));
+        CHECK(bank.scale(2) == doctest::Approx(1.0));
+        CHECK(bank.scale(0) < bank.scale(1));
+        CHECK(bank.scale(1) < bank.scale(2));
+
+        // All axes reach their endpoints exactly at T_sync, and none before.
+        const auto   mid = bank.eval(bank.duration() * 0.5);
+        const auto   end = bank.eval(bank.duration());
+        const double targets[3] = {2.0, 6.0, 12.0};
+        for (size_t i = 0; i < 3; ++i) {
+            CHECK(end[i].position == doctest::Approx(targets[i]));
+            CHECK(end[i].velocity == doctest::Approx(0.0));
+            CHECK(std::abs(mid[i].position - targets[i]) > 1e-3); // still moving at the midpoint
+        }
+    }
+
+    TEST_CASE("bank: time-scaling keeps every axis within its own limits") {
+        const Limits                                 lim{2.0, 5.0, 5.0};
+        wet::array<TrapezoidalTrajectory<double>, 2> axes{
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 1.0, lim)),  // fast (short)
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 20.0, lim)), // slow (long)
+        };
+        TrajectoryBank<2, TrapezoidalTrajectory<double>> bank(axes);
+        REQUIRE(bank.valid());
+
+        double    max_v0 = 0.0, max_a0 = 0.0;
+        const int N = 2000;
+        for (int k = 0; k <= N; ++k) {
+            const auto st = bank.eval(bank.duration() * k / N);
+            max_v0 = std::max(max_v0, std::abs(st[0].velocity));
+            max_a0 = std::max(max_a0, std::abs(st[0].acceleration));
+        }
+        // The short axis is heavily slowed -> peak v/a well under the limits.
+        CHECK(max_v0 <= 2.0 + 1e-9);
+        CHECK(max_a0 <= 5.0 + 1e-9);
+        CHECK(max_v0 < 2.0); // genuinely throttled, not just at the cap
+    }
+
+    TEST_CASE("bank: scaled velocity is the analytic derivative of scaled position") {
+        const Limits                                 lim{3.0, 4.0, 4.0};
+        wet::array<TrapezoidalTrajectory<double>, 2> axes{
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 5.0, lim)),
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 15.0, lim)),
+        };
+        TrajectoryBank<2, TrapezoidalTrajectory<double>> bank(axes);
+        const double                                     h = 1e-6;
+        for (int k = 1; k < 40; ++k) {
+            const double t = bank.duration() * k / 40.0;
+            const auto   sp = bank.eval(t + h);
+            const auto   sm = bank.eval(t - h);
+            const auto   s = bank.eval(t);
+            for (size_t i = 0; i < 2; ++i) {
+                const double fd = (sp[i].position - sm[i].position) / (2 * h);
+                CHECK(s[i].velocity == doctest::Approx(fd).epsilon(1e-4));
+            }
+        }
+    }
+
+    TEST_CASE("bank: a stationary axis holds while the others move") {
+        const Limits                                 lim{2.0, 5.0, 5.0};
+        wet::array<TrapezoidalTrajectory<double>, 2> axes{
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(3.0, 3.0, lim)), // no move
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 8.0, lim)), // moves
+        };
+        TrajectoryBank<2, TrapezoidalTrajectory<double>> bank(axes);
+        REQUIRE(bank.valid());
+        CHECK(bank.scale(0) == doctest::Approx(0.0)); // zero-duration axis
+        for (int k = 0; k <= 10; ++k) {
+            const auto st = bank.eval(bank.duration() * k / 10.0);
+            CHECK(st[0].position == doctest::Approx(3.0)); // held
+            CHECK(st[0].velocity == doctest::Approx(0.0));
+        }
+        CHECK(bank.eval(bank.duration())[1].position == doctest::Approx(8.0));
+    }
+
+    TEST_CASE("bank: S-curve axes synchronize and step() walks to done") {
+        const TrajectoryLimits<double>          lim{2.0, 5.0, 5.0, 30.0};
+        wet::array<ScurveTrajectory<double>, 2> axes{
+            ScurveTrajectory<double>(design::synthesize_scurve(0.0, 4.0, lim)),
+            ScurveTrajectory<double>(design::synthesize_scurve(0.0, 13.0, lim)),
+        };
+        TrajectoryBank<2, ScurveTrajectory<double>> bank(axes);
+        REQUIRE(bank.valid());
+        CHECK(bank.duration() == doctest::Approx(axes[1].duration())); // slowest
+
+        int guard = 0;
+        while (!bank.done() && guard++ < 100000) {
+            bank.step(1.0e-3);
+        }
+        CHECK(bank.done());
+        const auto end = bank.eval(bank.duration());
+        CHECK(end[0].position == doctest::Approx(4.0).epsilon(1e-4));
+        CHECK(end[1].position == doctest::Approx(13.0).epsilon(1e-4));
+    }
+
+    TEST_CASE("bank: invalid if any axis failed to plan") {
+        const Limits                                 lim{2.0, 5.0, 5.0};
+        wet::array<TrapezoidalTrajectory<double>, 2> axes{
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 5.0, lim)),
+            TrapezoidalTrajectory<double>(design::synthesize_trapezoidal(0.0, 5.0, Limits{0.0, 5.0, 5.0})), // bad Vmax
+        };
+        TrajectoryBank<2, TrapezoidalTrajectory<double>> bank(axes);
+        CHECK_FALSE(bank.valid());
     }
 }
