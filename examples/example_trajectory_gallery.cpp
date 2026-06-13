@@ -79,18 +79,21 @@ struct Scenario {
 int main() {
     fmt::print("===== Motion-Profile Gallery =====\n\n");
 
-    const std::array<Scenario, kCols> scenarios{{
-        {"rest → rest (long)", 0.0, 0.0, 10.0, 0.0, {2.0, 3.0, 3.0, 12.0}},
-        {"rest → rest (short)", 0.0, 0.0, 0.6, 0.0, {2.0, 3.0, 3.0, 12.0}},
-        {"nonzero Vf", 0.0, 0.0, 8.0, 1.5, {2.0, 3.0, 3.0, 12.0}},
-        {"moving → moving (asym a/d)", 0.0, 1.0, 9.0, -0.8, {2.5, 2.0, 6.0, 12.0}},
-        {"handbrake (Vi > Vmax)", 0.0, 4.0, 10.0, 0.0, {2.0, 3.0, 3.0, 12.0}},
-    }};
+    const auto scenarios = std::to_array<Scenario, kCols>({
+        {.name = "rest → rest (long)", .Xi = 0.0, .Vi = 0.0, .Xf = 10.0, .Vf = 0.0, .lim = {2.0, 3.0, 3.0, 12.0}},
+        {.name = "rest → rest (short)", .Xi = 0.0, .Vi = 0.0, .Xf = 0.6, .Vf = 0.0, .lim = {2.0, 3.0, 3.0, 12.0}},
+        {.name = "nonzero Vf", .Xi = 0.0, .Vi = 0.0, .Xf = 8.0, .Vf = 1.5, .lim = {2.0, 3.0, 3.0, 12.0}},
+        {.name = "moving → moving (asym a/d)", .Xi = 0.0, .Vi = 1.0, .Xf = 9.0, .Vf = -0.8, .lim = {2.5, 2.0, 6.0, 12.0}},
+        {.name = "handbrake (Vi > Vmax)", .Xi = 0.0, .Vi = 4.0, .Xf = 10.0, .Vf = 0.0, .lim = {2.0, 3.0, 3.0, 12.0}},
+    });
 
-    const std::array<std::string, kRows> gen_names{{"Trapezoidal", "S-curve (jerk-limited)", "Min-jerk quintic"}};
+    const std::array<std::string, kRows> gen_names{
+        {"Trapezoidal", "S-curve (jerk-limited)", "Min-jerk quintic"}
+    };
 
     // Build a kRows x kCols grid of curves: [generator][scenario].
     std::array<std::array<Curve, kCols>, kRows> grid{};
+    std::array<double, kCols>                   column_tf{};
     for (int c = 0; c < kCols; ++c) {
         const Scenario& s = scenarios[c];
 
@@ -103,6 +106,8 @@ int main() {
         );
 
         fmt::print("{:<26}  trap Tf={:5.2f}s   scurve Tf={:5.2f}s   quintic T={:5.2f}s\n", s.name, trap.Tf, scrv.duration, poly.duration);
+
+        column_tf[c] = std::max({trap.Tf, scrv.duration, poly.duration});
 
         grid[0][c] = sample([&](double t) { return trap.eval(t); }, trap.Tf);
         grid[1][c] = sample([&](double t) { return scrv.eval(t); }, scrv.duration);
@@ -124,11 +129,12 @@ int main() {
         std::vector<double> Curve::* field;
         const char*                  color;
     };
-    const std::array<Signal, 3> signals{{
+
+    const auto signals = std::to_array<Signal>({
         {"position", &Curve::p, "#1f77b4"},
         {"velocity", &Curve::v, "#ff7f0e"},
         {"acceleration", &Curve::a, "#2ca02c"},
-    }};
+    });
 
     auto axis_id = [](int n, char ax) { return std::string(1, ax) + (n == 1 ? "" : std::to_string(n)); };
 
@@ -138,7 +144,18 @@ int main() {
             const Curve& cur = grid[r][c];
             const bool   first = (n == 1); // only this cell contributes legend entries
             for (const auto& sig : signals) {
-                fig.addTrace(Scatter().x(cur.t).y(cur.*(sig.field)).mode({Scatter::Mode::Lines}).name(sig.name).legendgroup(sig.name).showlegend(first).line(Scatter::Line().color(sig.color).width(2.0)).xaxis(axis_id(n, 'x')).yaxis(axis_id(n, 'y')));
+                fig.addTrace(
+                    Scatter()
+                        .x(cur.t)
+                        .y(cur.*(sig.field))
+                        .mode({Scatter::Mode::Lines})
+                        .name(sig.name)
+                        .legendgroup(sig.name)
+                        .showlegend(first)
+                        .line(Scatter::Line().color(sig.color).width(2.0))
+                        .xaxis(axis_id(n, 'x'))
+                        .yaxis(axis_id(n, 'y'))
+                );
             }
         }
     }
@@ -150,7 +167,8 @@ int main() {
     constexpr double colw = ((right - left) - ((kCols - 1) * hgap)) / kCols;
     constexpr double rowh = ((top - bottom) - ((kRows - 1) * vgap)) / kRows;
 
-    auto                            layout = Layout();
+    auto layout = Layout();
+
     std::vector<Layout::Annotation> notes;
     for (int r = 0; r < kRows; ++r) {
         for (int c = 0; c < kCols; ++c) {
@@ -162,7 +180,7 @@ int main() {
             const bool   bottom_row = (r == kRows - 1);
             const bool   left_col = (c == 0);
 
-            layout.xaxis(n, Layout::Xaxis().domain({x0, x1}).anchor(axis_id(n, 'y')).showticklabels(bottom_row).title([&](auto& t) { t.text(bottom_row ? "t [s]" : ""); }));
+            layout.xaxis(n, Layout::Xaxis().domain({x0, x1}).anchor(axis_id(n, 'y')).range({0.0, column_tf[c] * 1.1}).showticklabels(bottom_row).title([&](auto& t) { t.text(bottom_row ? "t [s]" : ""); }));
             layout.yaxis(n, Layout::Yaxis().domain({y0, y1}).anchor(axis_id(n, 'x')).range({-1.18, 1.18}).showticklabels(left_col).zeroline(true));
 
             if (r == 0) { // column header = scenario

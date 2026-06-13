@@ -6,12 +6,29 @@
 include tup.config
 GXX := $(CONFIG_COMPILER_PATH)/$(CONFIG_COMPILER_PREFIX)g++
 
-all:
-	@clang-format -i $$(find inc -name '*.hpp') $$(find tests examples -name '*.cpp' -o -name '*.hpp')
-	@tup --quiet compiledb
-	@tup
+all: format build
 	@$(MAKE) --no-print-directory embedded-check
 	@$(MAKE) --no-print-directory freestanding-check
+
+format: 
+	@clang-format -i $$(find inc -name '*.hpp') $$(find tests examples -name '*.cpp' -o -name '*.hpp')
+
+compiledb:
+	@tup --quiet compiledb
+
+build: format compiledb
+	@tup
+
+examples: format compiledb
+	@tup examples
+
+tests: format compiledb
+	@tup tests
+	@./tests/build/test_runner.exe
+
+docs:
+	@mkdir -p docs/html
+	@doxygen Doxyfile
 
 # Guard the embedded contract: nothing reachable from the wet/control.hpp
 # umbrella may pull <vector> (or any heap allocation). Fails if it leaks in.
@@ -49,13 +66,8 @@ freestanding-check:
 	if [ $$bad -ne 0 ]; then echo "freestanding-check FAILED: hosted headers reachable from wet/control.hpp"; exit 1; fi; \
 	echo "freestanding-check OK: wet/control.hpp is freestanding-clean (ETL backend, series math)"
 
-docs:
-	@mkdir -p docs/html
-	@doxygen Doxyfile
 
-tests:
-	@tup --quiet tests
-	@./tests/build/test_runner.exe
+
 
 # Run clang-tidy with --fix over all .cpp files (and inc/ headers they pull in).
 # Lives here, not in tup: clang-tidy --fix rewrites sources in place, which tup's

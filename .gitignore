@@ -18,3 +18,5 @@ examples/js/plotly.min.js
 COPILOT_LOG.md
 
 __pycache__
+js/plotly.min.js
+*.html

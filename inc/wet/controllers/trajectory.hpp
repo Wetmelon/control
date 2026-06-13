@@ -127,17 +127,21 @@ namespace design {
 template<typename T = double>
 struct TrapezoidalProfile {
 
-    T Xi{T{0}};     //!< Start position
-    T Vi{T{0}};     //!< Start velocity
-    T Xf{T{0}};     //!< Target position
-    T Vf{T{0}};     //!< Target velocity
-    T Ar{T{0}};     //!< Reached acceleration (signed) of accel phase
-    T Vr{T{0}};     //!< Reached (cruise / peak) velocity (signed)
-    T Dr{T{0}};     //!< Reached acceleration (signed) of decel phase
-    T Ta{T{0}};     //!< Accel-phase duration [s]
-    T Tv{T{0}};     //!< Cruise-phase duration [s]
-    T Td{T{0}};     //!< Decel-phase duration [s]
-    T Tf{T{0}};     //!< Total duration Ta + Tv + Td [s]
+    T Xi{T{0}}; //!< Start position
+    T Vi{T{0}}; //!< Start velocity
+
+    T Xf{T{0}}; //!< Target position
+    T Vf{T{0}}; //!< Target velocity
+
+    T Ar{T{0}}; //!< Reached acceleration (signed) of accel phase
+    T Vr{T{0}}; //!< Reached (cruise / peak) velocity (signed)
+    T Dr{T{0}}; //!< Reached acceleration (signed) of decel phase
+
+    T Ta{T{0}}; //!< Accel-phase duration [s]
+    T Tv{T{0}}; //!< Cruise-phase duration [s]
+    T Td{T{0}}; //!< Decel-phase duration [s]
+    T Tf{T{0}}; //!< Total duration Ta + Tv + Td [s]
+
     T yAccel{T{0}}; //!< Position at the end of the accel phase
 
     bool success{false}; //!< False on invalid limits / infeasible request
@@ -172,9 +176,22 @@ struct TrapezoidalProfile {
 
     /// Rebind the profile to another scalar type (e.g. plan in double, run in float).
     template<typename U>
-    [[nodiscard]] constexpr TrapezoidalProfile<std::remove_const_t<U>> as() const {
-        using O = std::remove_const_t<U>;
-        return TrapezoidalProfile<O>{static_cast<O>(Xi), static_cast<O>(Vi), static_cast<O>(Xf), static_cast<O>(Vf), static_cast<O>(Ar), static_cast<O>(Vr), static_cast<O>(Dr), static_cast<O>(Ta), static_cast<O>(Tv), static_cast<O>(Td), static_cast<O>(Tf), static_cast<O>(yAccel), success};
+    [[nodiscard]] constexpr TrapezoidalProfile<U> as() const {
+        return TrapezoidalProfile<U>{
+            static_cast<U>(Xi),
+            static_cast<U>(Vi),
+            static_cast<U>(Xf),
+            static_cast<U>(Vf),
+            static_cast<U>(Ar),
+            static_cast<U>(Vr),
+            static_cast<U>(Dr),
+            static_cast<U>(Ta),
+            static_cast<U>(Tv),
+            static_cast<U>(Td),
+            static_cast<U>(Tf),
+            static_cast<U>(yAccel),
+            success,
+        };
     }
 };
 
@@ -259,10 +276,11 @@ constexpr TrapCandidate<T> plan_for_sign(int s, T dX, T Vi, T Vf, T Vmax, T Amax
  */
 template<typename T = double>
 [[nodiscard]] constexpr TrapezoidalProfile<T> synthesize_trapezoidal(
-    T                          Xi,
-    T                          Vi,
-    T                          Xf,
-    T                          Vf,
+    T Xi,
+    T Vi,
+    T Xf,
+    T Vf,
+
     const TrajectoryLimits<T>& limits
 ) {
     TrapezoidalProfile<T> p{};
@@ -366,239 +384,17 @@ public:
     /// Rewind the internal clock to t = 0.
     constexpr void reset() { t_ = T{0}; }
 
-    [[nodiscard]] constexpr T                                    time() const { return t_; }
-    [[nodiscard]] constexpr T                                    duration() const { return profile_.Tf; }
-    [[nodiscard]] constexpr bool                                 done() const { return t_ >= profile_.Tf; }
-    [[nodiscard]] constexpr bool                                 valid() const { return profile_.success; }
-    [[nodiscard]] constexpr T                                    peak_velocity() const { return profile_.Vr; }
-    [[nodiscard]] constexpr const design::TrapezoidalProfile<T>& profile() const { return profile_; }
+    [[nodiscard]] constexpr auto time() const -> T { return t_; }
+    [[nodiscard]] constexpr auto duration() const -> T { return profile_.Tf; }
+    [[nodiscard]] constexpr auto done() const -> bool { return t_ >= profile_.Tf; }
+    [[nodiscard]] constexpr auto valid() const -> bool { return profile_.success; }
+    [[nodiscard]] constexpr auto peak_velocity() const -> T { return profile_.Vr; }
+
+    [[nodiscard]] constexpr auto profile() const -> const design::TrapezoidalProfile<T>& { return profile_; }
 
 private:
     design::TrapezoidalProfile<T> profile_{};
     T                             t_{T{0}};
-};
-
-namespace design {
-
-/**
- * @brief A synthesized polynomial trajectory: the coefficients of
- *        p(t) = Σ cᵢ·tⁱ over t ∈ [0, T], plus the duration.
- *
- * @tparam Order Polynomial order (3 cubic, 5 quintic, 7 septic).
- * @tparam T     Scalar type
- */
-template<size_t Order, typename T = double>
-struct PolyTrajectory {
-
-    static constexpr size_t NumCoeffs = Order + 1;
-
-    wet::array<T, NumCoeffs> coeffs{}; //!< c₀ … c_Order (ascending power)
-    T                        duration{T{0}};
-    bool                     success{false};
-
-    /// Evaluate position/velocity/acceleration/jerk at time @p t (clamped to [0, T]).
-    [[nodiscard]] constexpr TrajectoryState<T> eval(T t) const {
-        T tc = t; // clamp to [0, T]; the polynomial extrapolates wildly outside
-        if (tc < T{0}) {
-            tc = T{0};
-        } else if (tc > duration) {
-            tc = duration;
-        }
-        // Horner-with-derivatives (synthetic division): b → p, b1 → p′,
-        // b2 → p″/2!, b3 → p‴/3!, accumulated from the highest power down.
-        T b = coeffs[NumCoeffs - 1];
-        T b1{0};
-        T b2{0};
-        T b3{0};
-        for (size_t i = NumCoeffs - 1; i-- > 0;) {
-            b3 = (b3 * tc) + b2;
-            b2 = (b2 * tc) + b1;
-            b1 = (b1 * tc) + b;
-            b = (b * tc) + coeffs[i];
-        }
-        TrajectoryState<T> s{};
-        s.position = b;
-        s.velocity = b1;
-        s.acceleration = T{2} * b2;
-        s.jerk = T{6} * b3;
-        return s;
-    }
-
-    /// Rebind the profile to another scalar type (e.g. plan in double, run in float).
-    template<typename U>
-    [[nodiscard]] constexpr PolyTrajectory<Order, std::remove_const_t<U>> as() const {
-        using O = std::remove_const_t<U>;
-        PolyTrajectory<Order, O> out{};
-        for (size_t i = 0; i < NumCoeffs; ++i) {
-            out.coeffs[i] = static_cast<O>(coeffs[i]);
-        }
-        out.duration = static_cast<O>(duration);
-        out.success = success;
-        return out;
-    }
-};
-
-namespace detail {
-
-/// k! (k ≤ 7 here, fits any scalar exactly).
-template<typename T>
-constexpr T factorial(size_t k) {
-    T f{1};
-    for (size_t i = 2; i <= k; ++i) {
-        f *= static_cast<T>(i);
-    }
-    return f;
-}
-
-/// Falling factorial i·(i−1)···(i−k+1) = i! / (i−k)! — the k-th derivative
-/// coefficient of tⁱ. Zero when i < k.
-template<typename T>
-constexpr T falling_factorial(size_t i, size_t k) {
-    if (i < k) {
-        return T{0};
-    }
-    T f{1};
-    for (size_t m = 0; m < k; ++m) {
-        f *= static_cast<T>(i - m);
-    }
-    return f;
-}
-
-} // namespace detail
-
-/**
- * @brief Synthesize a fixed-duration polynomial trajectory matching boundary
- *        conditions on position and its derivatives at both endpoints.
- *
- * Solves the Vandermonde-style boundary-value problem for the coefficients of
- * p(t) = Σ cᵢ·tⁱ on t ∈ [0, T]. The number of conditions per endpoint is
- * (Order+1)/2: cubic matches {p, v}, quintic {p, v, a}, septic {p, v, a, j}.
- * The (Order+1)×(Order+1) linear system is solved with @ref mat::solve.
- *
- * Derivative-optimality is implied by the boundary conditions: a quintic with
- * zero velocity/acceleration at both ends is the minimum-jerk profile
- * (Flash–Hogan); a cubic with zero end velocities is minimum-acceleration; a
- * septic with zero end jerk is minimum-snap (Mellinger–Kumar). See the
- * @ref min_jerk / @ref min_accel / @ref min_snap convenience wrappers.
- *
- * @tparam Order   Odd polynomial order: 3 (cubic), 5 (quintic) or 7 (septic).
- * @tparam T       Scalar type
- * @param bc_start Boundary conditions at t = 0
- * @param bc_end   Boundary conditions at t = T
- * @param duration Move duration T [s] (> 0)
- * @return Coefficients with `success`; `success == false` on T ≤ 0 or a
- *         singular system.
- */
-template<size_t Order, typename T = double>
-[[nodiscard]] constexpr PolyTrajectory<Order, T> synthesize_poly_trajectory(
-    const TrajectoryBoundary<T>& bc_start,
-    const TrajectoryBoundary<T>& bc_end,
-    T                            duration
-) {
-    static_assert(Order % 2 == 1, "Order must be odd (3 cubic, 5 quintic, 7 septic)");
-    static_assert(Order <= 7, "Boundary conditions go up to jerk, so Order ≤ 7 (septic)");
-    constexpr size_t N = Order + 1;
-    constexpr size_t D = N / 2; // conditions per endpoint (p plus D−1 derivatives)
-
-    PolyTrajectory<Order, T> p{};
-    p.duration = duration;
-    if (duration <= T{0}) {
-        return p; // success == false
-    }
-
-    const T s[4] = {bc_start.position, bc_start.velocity, bc_start.acceleration, bc_start.jerk};
-    const T e[4] = {bc_end.position, bc_end.velocity, bc_end.acceleration, bc_end.jerk};
-
-    // Row r is the r-th boundary condition; column i the coefficient cᵢ.
-    // M(r, i) = dᵏ/dtᵏ (tⁱ) |_(t = endpoint). At t = 0 only i == k survives.
-    Matrix<N, N, T> M{};
-    Matrix<N, 1, T> rhs{};
-    for (size_t k = 0; k < D; ++k) {
-        M(k, k) = detail::factorial<T>(k); // start endpoint (t = 0)
-        rhs(k, 0) = s[k];
-        for (size_t i = k; i < N; ++i) { // end endpoint (t = T)
-            M(D + k, i) = detail::falling_factorial<T>(i, k) * wet::pow(duration, static_cast<int>(i - k));
-        }
-        rhs(D + k, 0) = e[k];
-    }
-
-    const auto x = mat::solve(M, rhs);
-    if (!x) {
-        return p; // singular -> success == false
-    }
-    for (size_t i = 0; i < N; ++i) {
-        p.coeffs[i] = x.value()(i, 0);
-    }
-    p.success = true;
-    return p;
-}
-
-/// Minimum-jerk (quintic) rest-to-rest move p0 → pT over duration T (Flash–Hogan).
-template<typename T = double>
-[[nodiscard]] constexpr PolyTrajectory<5, T> min_jerk(T p0, T pT, T duration) {
-    return synthesize_poly_trajectory<5, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
-}
-
-/// Minimum-acceleration (cubic) rest-to-rest move p0 → pT over duration T.
-template<typename T = double>
-[[nodiscard]] constexpr PolyTrajectory<3, T> min_accel(T p0, T pT, T duration) {
-    return synthesize_poly_trajectory<3, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
-}
-
-/// Minimum-snap (septic) rest-to-rest move p0 → pT over duration T (Mellinger–Kumar).
-template<typename T = double>
-[[nodiscard]] constexpr PolyTrajectory<7, T> min_snap(T p0, T pT, T duration) {
-    return synthesize_poly_trajectory<7, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
-}
-
-} // namespace design
-
-/**
- * @ingroup controllers
- * @brief Runtime evaluator for a precomputed polynomial trajectory.
- *
- * Holds a @ref design::PolyTrajectory and an internal clock. Call `step(dt)`
- * each control period to advance and read the next {position, velocity,
- * acceleration, jerk}, or `eval(t)` for a stateless lookup. Allocation-free and
- * constexpr-constructible.
- *
- * @tparam Order Polynomial order (3, 5 or 7).
- * @tparam T     Scalar type (float or double)
- */
-template<size_t Order, typename T = float>
-class PolynomialTrajectory {
-public:
-    constexpr PolynomialTrajectory() = default;
-
-    constexpr explicit PolynomialTrajectory(const design::PolyTrajectory<Order, T>& profile)
-        : profile_(profile) {}
-
-    /// Replace the profile and rewind the clock.
-    constexpr void set_profile(const design::PolyTrajectory<Order, T>& profile) {
-        profile_ = profile;
-        t_ = T{0};
-    }
-
-    /// Advance the clock by @p dt and return the commanded state.
-    constexpr TrajectoryState<T> step(T dt) {
-        t_ += dt;
-        return profile_.eval(t_);
-    }
-
-    /// Stateless evaluation at absolute time @p t (does not move the clock).
-    [[nodiscard]] constexpr TrajectoryState<T> eval(T t) const { return profile_.eval(t); }
-
-    constexpr void reset() { t_ = T{0}; }
-
-    [[nodiscard]] constexpr T                                       time() const { return t_; }
-    [[nodiscard]] constexpr T                                       duration() const { return profile_.duration; }
-    [[nodiscard]] constexpr bool                                    done() const { return t_ >= profile_.duration; }
-    [[nodiscard]] constexpr bool                                    valid() const { return profile_.success; }
-    [[nodiscard]] constexpr const design::PolyTrajectory<Order, T>& profile() const { return profile_; }
-
-private:
-    design::PolyTrajectory<Order, T> profile_{};
-    T                                t_{T{0}};
 };
 
 namespace design {
@@ -628,13 +424,14 @@ template<typename T = double>
 struct ScurveProfile {
 
     wet::array<ScurveSegment<T>, kScurveMaxSegments> segments{};
-    size_t                                           count{0};
-    T                                                duration{T{0}};
-    T                                                Xi{T{0}};
-    T                                                Vi{T{0}};
-    T                                                Xf{T{0}};
-    T                                                Vf{T{0}};
-    bool                                             success{false};
+
+    size_t count{0};
+    T      duration{T{0}};
+    T      Xi{T{0}};
+    T      Vi{T{0}};
+    T      Xf{T{0}};
+    T      Vf{T{0}};
+    bool   success{false};
 
     /// Evaluate position/velocity/acceleration/jerk at time @p t (clamped to [0, T]).
     [[nodiscard]] constexpr TrajectoryState<T> eval(T t) const {
@@ -884,6 +681,229 @@ public:
 private:
     design::ScurveProfile<T> profile_{};
     T                        t_{T{0}};
+};
+
+namespace design {
+
+/**
+ * @brief A synthesized polynomial trajectory: the coefficients of
+ *        p(t) = Σ cᵢ·tⁱ over t ∈ [0, T], plus the duration.
+ *
+ * @tparam Order Polynomial order (3 cubic, 5 quintic, 7 septic).
+ * @tparam T     Scalar type
+ */
+template<size_t Order, typename T = double>
+struct PolyTrajectory {
+
+    static constexpr size_t NumCoeffs = Order + 1;
+
+    wet::array<T, NumCoeffs> coeffs{}; //!< c₀ … c_Order (ascending power)
+    T                        duration{T{0}};
+    bool                     success{false};
+
+    /// Evaluate position/velocity/acceleration/jerk at time @p t (clamped to [0, T]).
+    [[nodiscard]] constexpr TrajectoryState<T> eval(T t) const {
+        T tc = t; // clamp to [0, T]; the polynomial extrapolates wildly outside
+        if (tc < T{0}) {
+            tc = T{0};
+        } else if (tc > duration) {
+            tc = duration;
+        }
+        // Horner-with-derivatives (synthetic division): b → p, b1 → p′,
+        // b2 → p″/2!, b3 → p‴/3!, accumulated from the highest power down.
+        T b = coeffs[NumCoeffs - 1];
+        T b1{0};
+        T b2{0};
+        T b3{0};
+        for (size_t i = NumCoeffs - 1; i-- > 0;) {
+            b3 = (b3 * tc) + b2;
+            b2 = (b2 * tc) + b1;
+            b1 = (b1 * tc) + b;
+            b = (b * tc) + coeffs[i];
+        }
+        TrajectoryState<T> s{};
+        s.position = b;
+        s.velocity = b1;
+        s.acceleration = T{2} * b2;
+        s.jerk = T{6} * b3;
+        return s;
+    }
+
+    /// Rebind the profile to another scalar type (e.g. plan in double, run in float).
+    template<typename U>
+    [[nodiscard]] constexpr PolyTrajectory<Order, std::remove_const_t<U>> as() const {
+        using O = std::remove_const_t<U>;
+        PolyTrajectory<Order, O> out{};
+        for (size_t i = 0; i < NumCoeffs; ++i) {
+            out.coeffs[i] = static_cast<O>(coeffs[i]);
+        }
+        out.duration = static_cast<O>(duration);
+        out.success = success;
+        return out;
+    }
+};
+
+namespace detail {
+
+/// k! (k ≤ 7 here, fits any scalar exactly).
+template<typename T>
+constexpr T factorial(size_t k) {
+    T f{1};
+    for (size_t i = 2; i <= k; ++i) {
+        f *= static_cast<T>(i);
+    }
+    return f;
+}
+
+/// Falling factorial i·(i−1)···(i−k+1) = i! / (i−k)! — the k-th derivative
+/// coefficient of tⁱ. Zero when i < k.
+template<typename T>
+constexpr T falling_factorial(size_t i, size_t k) {
+    if (i < k) {
+        return T{0};
+    }
+    T f{1};
+    for (size_t m = 0; m < k; ++m) {
+        f *= static_cast<T>(i - m);
+    }
+    return f;
+}
+
+} // namespace detail
+
+/**
+ * @brief Synthesize a fixed-duration polynomial trajectory matching boundary
+ *        conditions on position and its derivatives at both endpoints.
+ *
+ * Solves the Vandermonde-style boundary-value problem for the coefficients of
+ * p(t) = Σ cᵢ·tⁱ on t ∈ [0, T]. The number of conditions per endpoint is
+ * (Order+1)/2: cubic matches {p, v}, quintic {p, v, a}, septic {p, v, a, j}.
+ * The (Order+1)×(Order+1) linear system is solved with @ref mat::solve.
+ *
+ * Derivative-optimality is implied by the boundary conditions: a quintic with
+ * zero velocity/acceleration at both ends is the minimum-jerk profile
+ * (Flash–Hogan); a cubic with zero end velocities is minimum-acceleration; a
+ * septic with zero end jerk is minimum-snap (Mellinger–Kumar). See the
+ * @ref min_jerk / @ref min_accel / @ref min_snap convenience wrappers.
+ *
+ * @tparam Order   Odd polynomial order: 3 (cubic), 5 (quintic) or 7 (septic).
+ * @tparam T       Scalar type
+ * @param bc_start Boundary conditions at t = 0
+ * @param bc_end   Boundary conditions at t = T
+ * @param duration Move duration T [s] (> 0)
+ * @return Coefficients with `success`; `success == false` on T ≤ 0 or a
+ *         singular system.
+ */
+template<size_t Order, typename T = double>
+[[nodiscard]] constexpr PolyTrajectory<Order, T> synthesize_poly_trajectory(
+    const TrajectoryBoundary<T>& bc_start,
+    const TrajectoryBoundary<T>& bc_end,
+    T                            duration
+) {
+    static_assert(Order % 2 == 1, "Order must be odd (3 cubic, 5 quintic, 7 septic)");
+    static_assert(Order <= 7, "Boundary conditions go up to jerk, so Order ≤ 7 (septic)");
+    constexpr size_t N = Order + 1;
+    constexpr size_t D = N / 2; // conditions per endpoint (p plus D−1 derivatives)
+
+    PolyTrajectory<Order, T> p{};
+    p.duration = duration;
+    if (duration <= T{0}) {
+        return p; // success == false
+    }
+
+    const T s[4] = {bc_start.position, bc_start.velocity, bc_start.acceleration, bc_start.jerk};
+    const T e[4] = {bc_end.position, bc_end.velocity, bc_end.acceleration, bc_end.jerk};
+
+    // Row r is the r-th boundary condition; column i the coefficient cᵢ.
+    // M(r, i) = dᵏ/dtᵏ (tⁱ) |_(t = endpoint). At t = 0 only i == k survives.
+    Matrix<N, N, T> M{};
+    Matrix<N, 1, T> rhs{};
+    for (size_t k = 0; k < D; ++k) {
+        M(k, k) = detail::factorial<T>(k); // start endpoint (t = 0)
+        rhs(k, 0) = s[k];
+        for (size_t i = k; i < N; ++i) { // end endpoint (t = T)
+            M(D + k, i) = detail::falling_factorial<T>(i, k) * wet::pow(duration, static_cast<int>(i - k));
+        }
+        rhs(D + k, 0) = e[k];
+    }
+
+    const auto x = mat::solve(M, rhs);
+    if (!x) {
+        return p; // singular -> success == false
+    }
+    for (size_t i = 0; i < N; ++i) {
+        p.coeffs[i] = x.value()(i, 0);
+    }
+    p.success = true;
+    return p;
+}
+
+/// Minimum-jerk (quintic) rest-to-rest move p0 → pT over duration T (Flash–Hogan).
+template<typename T = double>
+[[nodiscard]] constexpr PolyTrajectory<5, T> min_jerk(T p0, T pT, T duration) {
+    return synthesize_poly_trajectory<5, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
+}
+
+/// Minimum-acceleration (cubic) rest-to-rest move p0 → pT over duration T.
+template<typename T = double>
+[[nodiscard]] constexpr PolyTrajectory<3, T> min_accel(T p0, T pT, T duration) {
+    return synthesize_poly_trajectory<3, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
+}
+
+/// Minimum-snap (septic) rest-to-rest move p0 → pT over duration T (Mellinger–Kumar).
+template<typename T = double>
+[[nodiscard]] constexpr PolyTrajectory<7, T> min_snap(T p0, T pT, T duration) {
+    return synthesize_poly_trajectory<7, T>(TrajectoryBoundary<T>{p0}, TrajectoryBoundary<T>{pT}, duration);
+}
+
+} // namespace design
+
+/**
+ * @ingroup controllers
+ * @brief Runtime evaluator for a precomputed polynomial trajectory.
+ *
+ * Holds a @ref design::PolyTrajectory and an internal clock. Call `step(dt)`
+ * each control period to advance and read the next {position, velocity,
+ * acceleration, jerk}, or `eval(t)` for a stateless lookup. Allocation-free and
+ * constexpr-constructible.
+ *
+ * @tparam Order Polynomial order (3, 5 or 7).
+ * @tparam T     Scalar type (float or double)
+ */
+template<size_t Order, typename T = float>
+class PolynomialTrajectory {
+public:
+    constexpr PolynomialTrajectory() = default;
+
+    constexpr explicit PolynomialTrajectory(const design::PolyTrajectory<Order, T>& profile)
+        : profile_(profile) {}
+
+    /// Replace the profile and rewind the clock.
+    constexpr void set_profile(const design::PolyTrajectory<Order, T>& profile) {
+        profile_ = profile;
+        t_ = T{0};
+    }
+
+    /// Advance the clock by @p dt and return the commanded state.
+    constexpr TrajectoryState<T> step(T dt) {
+        t_ += dt;
+        return profile_.eval(t_);
+    }
+
+    /// Stateless evaluation at absolute time @p t (does not move the clock).
+    [[nodiscard]] constexpr TrajectoryState<T> eval(T t) const { return profile_.eval(t); }
+
+    constexpr void reset() { t_ = T{0}; }
+
+    [[nodiscard]] constexpr T                                       time() const { return t_; }
+    [[nodiscard]] constexpr T                                       duration() const { return profile_.duration; }
+    [[nodiscard]] constexpr bool                                    done() const { return t_ >= profile_.duration; }
+    [[nodiscard]] constexpr bool                                    valid() const { return profile_.success; }
+    [[nodiscard]] constexpr const design::PolyTrajectory<Order, T>& profile() const { return profile_; }
+
+private:
+    design::PolyTrajectory<Order, T> profile_{};
+    T                                t_{T{0}};
 };
 
 } // namespace wet
