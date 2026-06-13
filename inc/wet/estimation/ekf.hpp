@@ -129,7 +129,7 @@ struct ExtendedKalmanFilter {
      */
     template<typename StateFn>
         requires EKFStateFn<StateFn, T, NX, NU>
-    constexpr void predict(StateFn&& state_fn, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
+    constexpr void predict(const StateFn& state_fn, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
         StateJacobian<T, NX> sj = state_fn(x, u);
         x = sj.x_pred;
         P = sj.F * P * sj.F.t() + sj.G * Q * sj.G.t();
@@ -151,7 +151,7 @@ struct ExtendedKalmanFilter {
      */
     template<typename MeasFn>
         requires EKFMeasFn<MeasFn, T, NX, NU, NY>
-    constexpr bool update(MeasFn&& meas_fn, const ColVec<NY, T>& y, const Matrix<NY, NY, T>& R, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
+    constexpr bool update(const MeasFn& meas_fn, const ColVec<NY, T>& y, const Matrix<NY, NY, T>& R, const ColVec<NU, T>& u = ColVec<NU, T>{}) {
         MeasJacobian<T, NY, NX> mj = meas_fn(x, u);
         const auto              Ht = mj.H.transpose();
         innov = y - mj.y_pred;

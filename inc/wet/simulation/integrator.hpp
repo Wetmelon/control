@@ -101,7 +101,7 @@ struct ForwardEuler {
      *
      * @return Next state and estimated error (always 0 for Forward Euler)
      */
-    constexpr IntegrationResult<NX, T> evolve(auto&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const auto& f, const ColVec<NX, T>& x, T t, T h) const {
         k1 = f(t, x);
         return {x + h * k1, 0.0};
     }
@@ -158,7 +158,7 @@ struct BackwardEuler {
      *
      * @return      Next state and estimated error (always 0 for Backward Euler)
      */
-    constexpr IntegrationResult<NX, T> evolve(auto&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const auto& f, const ColVec<NX, T>& x, T t, T h) const {
         const size_t max_iter = 10;
         const double tol = 1e-10;
 
@@ -227,7 +227,7 @@ struct BDF2 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         constexpr size_t max_iter = 20;
         constexpr double tol = 1e-10;
 
@@ -291,7 +291,7 @@ struct Trapezoidal {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         k1 = f(t, x);
         xp = x + h * k1;
         k2 = f(t + h, xp);
@@ -312,7 +312,7 @@ struct RK4 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         k1 = f(t, x);
         k2 = f(t + 0.5 * h, x + 0.5 * h * k1);
         k3 = f(t + 0.5 * h, x + 0.5 * h * k2);
@@ -336,7 +336,7 @@ struct RK45 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         // RK45 coefficients (precomputed to avoid divisions in hot loop)
         constexpr T c2 = 1.0 / 4.0, c3 = 3.0 / 8.0, c4 = 12.0 / 13.0, c6 = 1.0 / 2.0;
         constexpr T a21 = 1.0 / 4.0;
@@ -374,7 +374,7 @@ struct Heun {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         // Heun's method (Improved Euler, RK2)
         // Predictor-corrector: first estimate then correct
         constexpr double c2 = 1.0;
@@ -398,7 +398,7 @@ struct RK23 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         // Bogacki-Shampine (2,3) pair
         constexpr double c2 = 0.5, c3 = 0.75;
         constexpr double a21 = 0.5;
@@ -433,7 +433,7 @@ struct RK3 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         // Classical 3rd order Runge-Kutta
         constexpr double c2 = 0.5;
         constexpr double a21 = 0.5;
@@ -459,7 +459,7 @@ struct DP5 {
     }
 
     template<typename F>
-    constexpr IntegrationResult<NX, T> evolve(F&& f, const ColVec<NX, T>& x, T t, T h) const {
+    constexpr IntegrationResult<NX, T> evolve(const F& f, const ColVec<NX, T>& x, T t, T h) const {
         // Dormand-Prince 5th order (fixed-step)
         // Using the same coefficients as RK45 but only returning the 5th order solution
         constexpr double c2 = 1.0 / 5.0, c3 = 3.0 / 10.0, c4 = 4.0 / 5.0, c5 = 8.0 / 9.0;

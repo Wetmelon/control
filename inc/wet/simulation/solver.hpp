@@ -106,7 +106,7 @@ public:
      * @return SolveResult with full time/state history
      */
     template<typename F>
-    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
+    SolveResult<NX, T> solve(const F& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
         // Reset multi-step integrators if they have a reset() method
         if constexpr (requires { integrator_.reset(); }) {
             integrator_.reset();
@@ -232,7 +232,7 @@ public:
      * @return SolveResult with full time/state history
      */
     template<typename F>
-    SolveResult<NX, T> solve(F&& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
+    SolveResult<NX, T> solve(const F& f, const ColVec<NX, T>& x0, const wet::pair<T, T>& t_span) const {
         if constexpr (requires { integrator_.reset(); }) {
             integrator_.reset();
         }
@@ -392,7 +392,7 @@ private:
     };
 
     template<typename F>
-    CrossingResult detect_zero_crossing(F&& /*f*/, const ColVec<NX, T>& x_start, T t_start, const ColVec<NX, T>& x_end, T t_end) const {
+    CrossingResult detect_zero_crossing(const F& /*f*/, const ColVec<NX, T>& x_start, T t_start, const ColVec<NX, T>& x_end, T t_end) const {
         for (const auto& zcf : zero_crossings_) {
             T z_start = zcf(t_start, x_start);
             T z_end = zcf(t_end, x_end);

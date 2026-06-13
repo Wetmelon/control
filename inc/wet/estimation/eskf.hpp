@@ -205,7 +205,7 @@ struct ErrorStateKalmanFilter {
     // P[k+1|k] = F * P[k|k] * F' + G * Q * G'
     template<typename PredictFn>
         requires ESKFPredictFn<PredictFn, T, NDX>
-    constexpr void predict(PredictFn&& propagate_nominal, const T dt) {
+    constexpr void predict(const PredictFn& propagate_nominal, const T dt) {
         ErrorStateJacobian<T, NDX> ej = propagate_nominal(dt);
         P = ej.F * P * ej.F.t() + ej.G * Q * ej.G.t();
 
@@ -221,7 +221,7 @@ struct ErrorStateKalmanFilter {
     // P update: P = (I - K*H) * P * (I - K*H)' + K*M*R*M'*K'  (Joseph form)
     template<typename MeasFn>
         requires ESKFMeasFn<MeasFn, T, NDX, NY>
-    constexpr bool update(MeasFn&& meas_fn, const ColVec<NY, T>& y) {
+    constexpr bool update(const MeasFn& meas_fn, const ColVec<NY, T>& y) {
         MeasJacobian<T, NY, NDX> mj = meas_fn();
 
         innov = y - mj.y_pred; // Innovation

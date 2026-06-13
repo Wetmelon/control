@@ -69,6 +69,7 @@
 #include "wet/estimation/observer.hpp"                // IWYU pragma: keep
 #include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: keep
 #include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
+#include "wet/estimation/ukf.hpp"                     // IWYU pragma: keep
 
 // NOTE: estimation/harmonic_estimation.hpp and estimation/identification.hpp are
 // intentionally NOT included here. They are placeholders for planned features (harmonic
