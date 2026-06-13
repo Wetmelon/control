@@ -849,7 +849,6 @@ template<typename T>
 template<size_t MaxN, typename T = float>
 class MovingAverage {
 public:
-    using value_type = std::remove_const_t<T>;
     static_assert(MaxN >= 1, "MovingAverage needs MaxN >= 1");
 
     constexpr MovingAverage() = default;
@@ -864,27 +863,27 @@ public:
     }
 
     /// Push one sample, return the current N-sample average.
-    constexpr value_type operator()(value_type x) {
-        const value_type old = buffer_[idx_];
+    constexpr T operator()(T x) {
+        const T old = buffer_[idx_];
         buffer_[idx_] = x;
         idx_ = (idx_ + 1) % n_;
         sum_ += x - old;
-        return sum_ / static_cast<value_type>(n_);
+        return sum_ / static_cast<T>(n_);
     }
 
     constexpr void reset() {
         buffer_ = {};
-        sum_ = value_type{0};
+        sum_ = T{0};
         idx_ = 0;
     }
 
     [[nodiscard]] constexpr size_t window() const { return n_; }
 
 private:
-    wet::array<value_type, MaxN> buffer_{};
-    value_type                   sum_{value_type{0}};
-    size_t                       n_{1};
-    size_t                       idx_{0};
+    wet::array<T, MaxN> buffer_{};
+    T                   sum_{T{0}};
+    size_t              n_{1};
+    size_t              idx_{0};
 };
 
 } // namespace wet

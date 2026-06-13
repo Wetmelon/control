@@ -37,10 +37,9 @@ namespace design {
  */
 template<size_t N, typename T = double>
 struct HarmonicSuppressorResult {
-    using value_type = std::remove_const_t<T>;
 
-    wet::array<PRResult<value_type>, N> gains{}; //!< one PR resonator per harmonic
-    bool                                success{false};
+    wet::array<PRResult<T>, N> gains{}; //!< one PR resonator per harmonic
+    bool                       success{false};
 
     template<typename U>
     [[nodiscard]] constexpr HarmonicSuppressorResult<N, std::remove_const_t<U>> as() const {
@@ -112,27 +111,26 @@ template<size_t N, typename T = double>
 template<size_t N, typename T = float>
 class HarmonicSuppressor {
 public:
-    using value_type = std::remove_const_t<T>;
     static_assert(N >= 1, "HarmonicSuppressor needs at least one harmonic");
 
     constexpr HarmonicSuppressor() = default;
 
-    constexpr explicit HarmonicSuppressor(const wet::array<design::PRResult<value_type>, N>& gains) {
+    constexpr explicit HarmonicSuppressor(const wet::array<design::PRResult<T>, N>& gains) {
         for (size_t i = 0; i < N; ++i) {
-            resonators_[i] = PRController<value_type>(gains[i]);
+            resonators_[i] = PRController<T>(gains[i]);
         }
     }
 
-    constexpr explicit HarmonicSuppressor(const design::HarmonicSuppressorResult<N, value_type>& design)
+    constexpr explicit HarmonicSuppressor(const design::HarmonicSuppressorResult<N, T>& design)
         : valid_(design.success) {
         for (size_t i = 0; i < N; ++i) {
-            resonators_[i] = PRController<value_type>(design.gains[i]);
+            resonators_[i] = PRController<T>(design.gains[i]);
         }
     }
 
     /// Suppression command from the loop error (sum of the resonator outputs).
-    [[nodiscard]] constexpr value_type control(value_type error) {
-        value_type u = value_type{0};
+    [[nodiscard]] constexpr T control(T error) {
+        T u = T{0};
         for (size_t i = 0; i < N; ++i) {
             u += resonators_[i].control(error);
         }
@@ -140,7 +138,7 @@ public:
     }
 
     /// Reference-tracking overload (computes the error internally).
-    [[nodiscard]] constexpr value_type control(value_type r, value_type y) { return control(r - y); }
+    [[nodiscard]] constexpr T control(T r, T y) { return control(r - y); }
 
     constexpr void reset() {
         for (size_t i = 0; i < N; ++i) {
@@ -150,11 +148,11 @@ public:
 
     /// Re-tune the bank to a new fundamental (grid-frequency adaptation); the
     /// harmonic ratios are preserved (resonator i tracks its original order).
-    constexpr void set_fundamental(value_type w_fund) {
+    constexpr void set_fundamental(T w_fund) {
         // resonator i was tuned to w0_i = order_i · w_fund_old; rescale by the
         // ratio so the per-resonator order is preserved.
         for (size_t i = 0; i < N; ++i) {
-            const value_type order = resonators_[i].w0 / w_fund_;
+            const T order = resonators_[i].w0 / w_fund_;
             resonators_[i].set_frequency(order * w_fund);
         }
         w_fund_ = w_fund;
@@ -164,9 +162,9 @@ public:
     [[nodiscard]] constexpr bool        valid() const { return valid_; }
 
 private:
-    wet::array<PRController<value_type>, N> resonators_{};
-    value_type                              w_fund_{value_type{1}};
-    bool                                    valid_{true};
+    wet::array<PRController<T>, N> resonators_{};
+    T                              w_fund_{T{1}};
+    bool                           valid_{true};
 };
 
 } // namespace wet

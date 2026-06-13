@@ -40,8 +40,6 @@ namespace wet {
 template<typename T = float>
 class Goertzel {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr Goertzel() = default;
 
     /**
@@ -50,27 +48,27 @@ public:
      * @param fs_hz      Sample rate [Hz]
      * @param block_size Samples per block, N (≥ 1)
      */
-    constexpr Goertzel(value_type freq_hz, value_type fs_hz, size_t block_size)
+    constexpr Goertzel(T freq_hz, T fs_hz, size_t block_size)
         : n_(block_size) {
-        const value_type omega = (value_type{2} * wet::numbers::pi_v<value_type> * freq_hz) / fs_hz;
+        const T omega = (T{2} * wet::numbers::pi_v<T> * freq_hz) / fs_hz;
         cos_ = wet::cos(omega);
         sin_ = wet::sin(omega);
-        coeff_ = value_type{2} * cos_;
+        coeff_ = T{2} * cos_;
     }
 
     /**
      * @brief Feed one sample.
      * @return true when the block just completed (results valid until next push).
      */
-    constexpr bool push(value_type x) {
+    constexpr bool push(T x) {
         if (complete_) {
             // Auto-restart for the next block.
-            s1_ = value_type{0};
-            s2_ = value_type{0};
+            s1_ = T{0};
+            s2_ = T{0};
             count_ = 0;
             complete_ = false;
         }
-        const value_type s = x + (coeff_ * s1_) - s2_;
+        const T s = x + (coeff_ * s1_) - s2_;
         s2_ = s1_;
         s1_ = s;
         if (++count_ >= n_) {
@@ -86,44 +84,44 @@ public:
     [[nodiscard]] constexpr bool complete() const { return complete_; }
 
     /// Magnitude of the DFT bin, |X_k|.
-    [[nodiscard]] constexpr value_type magnitude() const { return wet::sqrt((real_ * real_) + (imag_ * imag_)); }
+    [[nodiscard]] constexpr T magnitude() const { return wet::sqrt((real_ * real_) + (imag_ * imag_)); }
 
     /// Power, |X_k|².
-    [[nodiscard]] constexpr value_type power() const { return (real_ * real_) + (imag_ * imag_); }
+    [[nodiscard]] constexpr T power() const { return (real_ * real_) + (imag_ * imag_); }
 
     /// Peak amplitude of a sinusoid at the bin frequency (2·|X_k| / N).
-    [[nodiscard]] constexpr value_type amplitude() const {
-        return (value_type{2} * magnitude()) / static_cast<value_type>(n_);
+    [[nodiscard]] constexpr T amplitude() const {
+        return (T{2} * magnitude()) / static_cast<T>(n_);
     }
 
     /// Phase of the bin [rad] (Goertzel convention; consistent across harmonics).
-    [[nodiscard]] constexpr value_type phase() const { return wet::atan2(imag_, real_); }
+    [[nodiscard]] constexpr T phase() const { return wet::atan2(imag_, real_); }
 
     /// Discard the in-progress block and start over.
     constexpr void reset() {
-        s1_ = value_type{0};
-        s2_ = value_type{0};
+        s1_ = T{0};
+        s2_ = T{0};
         count_ = 0;
         complete_ = false;
-        real_ = value_type{0};
-        imag_ = value_type{0};
+        real_ = T{0};
+        imag_ = T{0};
     }
 
     [[nodiscard]] constexpr size_t block_size() const { return n_; }
 
 private:
-    value_type coeff_{value_type{0}};
-    value_type cos_{value_type{1}};
-    value_type sin_{value_type{0}};
-    size_t     n_{1};
+    T      coeff_{T{0}};
+    T      cos_{T{1}};
+    T      sin_{T{0}};
+    size_t n_{1};
 
-    value_type s1_{value_type{0}};
-    value_type s2_{value_type{0}};
-    size_t     count_{0};
+    T      s1_{T{0}};
+    T      s2_{T{0}};
+    size_t count_{0};
 
-    value_type real_{value_type{0}};
-    value_type imag_{value_type{0}};
-    bool       complete_{false};
+    T    real_{T{0}};
+    T    imag_{T{0}};
+    bool complete_{false};
 };
 
 /**
@@ -142,7 +140,6 @@ private:
 template<size_t K, typename T = float>
 class HarmonicAnalyzer {
 public:
-    using value_type = std::remove_const_t<T>;
     static_assert(K >= 1, "HarmonicAnalyzer needs at least the fundamental (K >= 1)");
 
     constexpr HarmonicAnalyzer() = default;
@@ -150,9 +147,9 @@ public:
     /**
      * @brief Configure for fundamental @p f0_hz at sample rate @p fs_hz over @p block_size samples.
      */
-    constexpr HarmonicAnalyzer(value_type f0_hz, value_type fs_hz, size_t block_size) {
+    constexpr HarmonicAnalyzer(T f0_hz, T fs_hz, size_t block_size) {
         for (size_t h = 0; h < K; ++h) {
-            bins_[h] = Goertzel<value_type>(f0_hz * static_cast<value_type>(h + 1), fs_hz, block_size);
+            bins_[h] = Goertzel<T>(f0_hz * static_cast<T>(h + 1), fs_hz, block_size);
         }
     }
 
@@ -160,7 +157,7 @@ public:
      * @brief Feed one sample to every harmonic bin.
      * @return true when the block just completed (results valid until next push).
      */
-    constexpr bool push(value_type x) {
+    constexpr bool push(T x) {
         bool done = false;
         for (size_t h = 0; h < K; ++h) {
             done = bins_[h].push(x);
@@ -169,37 +166,37 @@ public:
     }
 
     /// Peak amplitude of harmonic @p harmonic (1 = fundamental, … K).
-    [[nodiscard]] constexpr value_type amplitude(size_t harmonic) const {
+    [[nodiscard]] constexpr T amplitude(size_t harmonic) const {
         return bins_[harmonic - 1].amplitude();
     }
 
     /// Phase of harmonic @p harmonic [rad] (1 = fundamental, … K).
-    [[nodiscard]] constexpr value_type phase(size_t harmonic) const { return bins_[harmonic - 1].phase(); }
+    [[nodiscard]] constexpr T phase(size_t harmonic) const { return bins_[harmonic - 1].phase(); }
 
     /// RMS of the fundamental (A₁ / √2).
-    [[nodiscard]] constexpr value_type rms() const {
-        return bins_[0].amplitude() / wet::numbers::sqrt2_v<value_type>;
+    [[nodiscard]] constexpr T rms() const {
+        return bins_[0].amplitude() / wet::numbers::sqrt2_v<T>;
     }
 
     /// RMS of the harmonics above the fundamental, √(Σ_{h≥2} (Aₕ/√2)²).
-    [[nodiscard]] constexpr value_type total_harmonic_rms() const {
-        value_type sum_sq = value_type{0};
+    [[nodiscard]] constexpr T total_harmonic_rms() const {
+        T sum_sq = T{0};
         for (size_t h = 1; h < K; ++h) {
-            const value_type a = bins_[h].amplitude();
+            const T a = bins_[h].amplitude();
             sum_sq += a * a;
         }
-        return wet::sqrt(sum_sq) / wet::numbers::sqrt2_v<value_type>;
+        return wet::sqrt(sum_sq) / wet::numbers::sqrt2_v<T>;
     }
 
     /// Total harmonic distortion, √(Σ_{h≥2} Aₕ²) / A₁ (0 if the fundamental is ~0).
-    [[nodiscard]] constexpr value_type thd() const {
-        const value_type fundamental = bins_[0].amplitude();
-        if (fundamental <= default_tol<value_type>()) {
-            return value_type{0};
+    [[nodiscard]] constexpr T thd() const {
+        const T fundamental = bins_[0].amplitude();
+        if (fundamental <= default_tol<T>()) {
+            return T{0};
         }
-        value_type sum_sq = value_type{0};
+        T sum_sq = T{0};
         for (size_t h = 1; h < K; ++h) {
-            const value_type a = bins_[h].amplitude();
+            const T a = bins_[h].amplitude();
             sum_sq += a * a;
         }
         return wet::sqrt(sum_sq) / fundamental;
@@ -214,7 +211,7 @@ public:
     }
 
 private:
-    wet::array<Goertzel<value_type>, K> bins_{};
+    wet::array<Goertzel<T>, K> bins_{};
 };
 
 } // namespace wet

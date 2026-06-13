@@ -29,7 +29,6 @@ struct complex {
     T real_, imag_;
 
     // Value type
-    using value_type = T;
 
     /**
      * @brief Default constructor, constructs complex number (r + i*i)

@@ -19,14 +19,14 @@ namespace wet::estimation {
  */
 template<typename T = double>
 struct RecursiveLeastSquaresConfig {
-    using value_type = std::remove_const_t<T>;
-    using scalar_type = scalar_type_t<value_type>;
+
+    using scalar_type = scalar_type_t<T>;
 
     scalar_type lambda{scalar_type{1}};
     scalar_type p0{scalar_type{1}};
     bool        projection_enabled{false};
-    value_type  theta_min{};
-    value_type  theta_max{};
+    T           theta_min{};
+    T           theta_max{};
 
     [[nodiscard]] constexpr bool valid() const {
         if (lambda <= scalar_type{0}) {
@@ -47,14 +47,13 @@ struct RecursiveLeastSquaresConfig {
  */
 template<typename T = float>
 struct RecursiveLeastSquaresState {
-    using value_type = std::remove_const_t<T>;
 
-    value_type theta{};
-    value_type covariance{value_type{1}};
-    value_type predicted_output{};
-    value_type residual{};
-    value_type gain{};
-    bool       initialized{false};
+    T    theta{};
+    T    covariance{T{1}};
+    T    predicted_output{};
+    T    residual{};
+    T    gain{};
+    bool initialized{false};
 };
 
 /**
@@ -62,11 +61,10 @@ struct RecursiveLeastSquaresState {
  */
 template<typename T = double>
 struct RecursiveLeastSquaresResult {
-    using value_type = std::remove_const_t<T>;
 
     RecursiveLeastSquaresConfig<T> config{};
-    value_type                     theta0{};
-    value_type                     covariance0{value_type{1}};
+    T                              theta0{};
+    T                              covariance0{T{1}};
     bool                           success{false};
 
     template<typename U>
@@ -92,14 +90,13 @@ struct RecursiveLeastSquaresResult {
  */
 template<size_t NP, typename T = float>
 struct RecursiveLeastSquaresVectorState {
-    using value_type = std::remove_const_t<T>;
 
-    ColVec<NP, value_type>     theta{};
-    Matrix<NP, NP, value_type> covariance{Matrix<NP, NP, value_type>::identity()};
-    value_type                 predicted_output{};
-    value_type                 residual{};
-    ColVec<NP, value_type>     gain{};
-    bool                       initialized{false};
+    ColVec<NP, T>     theta{};
+    Matrix<NP, NP, T> covariance{Matrix<NP, NP, T>::identity()};
+    T                 predicted_output{};
+    T                 residual{};
+    ColVec<NP, T>     gain{};
+    bool              initialized{false};
 };
 
 /**
@@ -107,11 +104,10 @@ struct RecursiveLeastSquaresVectorState {
  */
 template<size_t NP, typename T = double>
 struct RecursiveLeastSquaresVectorResult {
-    using value_type = std::remove_const_t<T>;
 
     RecursiveLeastSquaresConfig<T> config{};
-    ColVec<NP, value_type>         theta0{};
-    Matrix<NP, NP, value_type>     covariance0{Matrix<NP, NP, value_type>::identity()};
+    ColVec<NP, T>                  theta0{};
+    Matrix<NP, NP, T>              covariance0{Matrix<NP, NP, T>::identity()};
     bool                           success{false};
 
     template<typename U>
@@ -174,17 +170,16 @@ template<size_t NP, typename T = double>
 template<typename T = float>
 class RecursiveLeastSquaresEstimator {
 public:
-    using value_type = std::remove_const_t<T>;
-    using scalar_type = scalar_type_t<value_type>;
+    using scalar_type = scalar_type_t<T>;
 
     constexpr RecursiveLeastSquaresEstimator() = default;
 
-    constexpr explicit RecursiveLeastSquaresEstimator(const RecursiveLeastSquaresConfig<value_type>& config)
+    constexpr explicit RecursiveLeastSquaresEstimator(const RecursiveLeastSquaresConfig<T>& config)
         : config_(config) {
-        state_.covariance = static_cast<value_type>(config_.p0);
+        state_.covariance = static_cast<T>(config_.p0);
     }
 
-    constexpr explicit RecursiveLeastSquaresEstimator(const RecursiveLeastSquaresResult<value_type>& design)
+    constexpr explicit RecursiveLeastSquaresEstimator(const RecursiveLeastSquaresResult<T>& design)
         : config_(design.config), valid_(design.success) {
         state_.theta = design.theta0;
         state_.covariance = design.covariance0;
@@ -193,14 +188,14 @@ public:
     /**
      * @brief Update estimate using one regression sample y = phi * theta + noise.
      */
-    [[nodiscard]] constexpr bool update(value_type phi, value_type y) {
+    [[nodiscard]] constexpr bool update(T phi, T y) {
         if (!config_.valid()) {
             valid_ = false;
             return false;
         }
 
-        const value_type denom = static_cast<value_type>(config_.lambda) + phi * state_.covariance * phi;
-        if (wet::abs(denom) <= default_tol<value_type>()) {
+        const T denom = static_cast<T>(config_.lambda) + phi * state_.covariance * phi;
+        if (wet::abs(denom) <= default_tol<T>()) {
             valid_ = false;
             return false;
         }
@@ -210,10 +205,10 @@ public:
         state_.residual = y - state_.predicted_output;
         state_.theta = state_.theta + state_.gain * state_.residual;
 
-        const value_type one_over_lambda = value_type{1} / static_cast<value_type>(config_.lambda);
+        const T one_over_lambda = T{1} / static_cast<T>(config_.lambda);
         state_.covariance = (state_.covariance - state_.gain * phi * state_.covariance) * one_over_lambda;
 
-        if constexpr (!is_complex_v<value_type>) {
+        if constexpr (!is_complex_v<T>) {
             if (config_.projection_enabled) {
                 if (state_.theta < config_.theta_min) {
                     state_.theta = config_.theta_min;
@@ -223,8 +218,8 @@ public:
                 }
             }
 
-            if (state_.covariance < value_type{0}) {
-                state_.covariance = value_type{0};
+            if (state_.covariance < T{0}) {
+                state_.covariance = T{0};
             }
         }
 
@@ -233,14 +228,14 @@ public:
         return true;
     }
 
-    [[nodiscard]] constexpr value_type predict(value_type phi) const {
+    [[nodiscard]] constexpr T predict(T phi) const {
         return phi * state_.theta;
     }
 
-    constexpr void reset(value_type theta0 = value_type{}) {
-        state_ = RecursiveLeastSquaresState<value_type>{};
+    constexpr void reset(T theta0 = T{}) {
+        state_ = RecursiveLeastSquaresState<T>{};
         state_.theta = theta0;
-        state_.covariance = static_cast<value_type>(config_.p0);
+        state_.covariance = static_cast<T>(config_.p0);
         valid_ = true;
     }
 
@@ -249,9 +244,9 @@ public:
     [[nodiscard]] constexpr bool        valid() const { return valid_; }
 
 private:
-    RecursiveLeastSquaresConfig<value_type> config_{};
-    RecursiveLeastSquaresState<value_type>  state_{};
-    bool                                    valid_{true};
+    RecursiveLeastSquaresConfig<T> config_{};
+    RecursiveLeastSquaresState<T>  state_{};
+    bool                           valid_{true};
 };
 
 /**
@@ -260,16 +255,14 @@ private:
 template<size_t NP, typename T = float>
 class RecursiveLeastSquaresVectorEstimator {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr RecursiveLeastSquaresVectorEstimator() = default;
 
-    constexpr explicit RecursiveLeastSquaresVectorEstimator(const RecursiveLeastSquaresConfig<value_type>& config)
+    constexpr explicit RecursiveLeastSquaresVectorEstimator(const RecursiveLeastSquaresConfig<T>& config)
         : config_(config) {
-        state_.covariance = Matrix<NP, NP, value_type>::identity() * static_cast<value_type>(config_.p0);
+        state_.covariance = Matrix<NP, NP, T>::identity() * static_cast<T>(config_.p0);
     }
 
-    constexpr explicit RecursiveLeastSquaresVectorEstimator(const RecursiveLeastSquaresVectorResult<NP, value_type>& design)
+    constexpr explicit RecursiveLeastSquaresVectorEstimator(const RecursiveLeastSquaresVectorResult<NP, T>& design)
         : config_(design.config), valid_(design.success) {
         state_.theta = design.theta0;
         state_.covariance = design.covariance0;
@@ -278,15 +271,15 @@ public:
     /**
      * @brief Update estimate using one sample y = phi^H * theta + noise.
      */
-    [[nodiscard]] constexpr bool update(const ColVec<NP, value_type>& phi, value_type y) {
+    [[nodiscard]] constexpr bool update(const ColVec<NP, T>& phi, T y) {
         if (!config_.valid()) {
             valid_ = false;
             return false;
         }
 
-        const ColVec<NP, value_type> p_phi = state_.covariance * phi;
-        const value_type             denom = static_cast<value_type>(config_.lambda) + dot(phi, p_phi);
-        if (wet::abs(denom) <= default_tol<value_type>()) {
+        const ColVec<NP, T> p_phi = state_.covariance * phi;
+        const T             denom = static_cast<T>(config_.lambda) + dot(phi, p_phi);
+        if (wet::abs(denom) <= default_tol<T>()) {
             valid_ = false;
             return false;
         }
@@ -297,10 +290,10 @@ public:
         state_.theta += state_.gain * state_.residual;
 
         const auto phi_h = phi.conjugate_transpose();
-        const auto one_over_lambda = value_type{1} / static_cast<value_type>(config_.lambda);
+        const auto one_over_lambda = T{1} / static_cast<T>(config_.lambda);
         state_.covariance = (state_.covariance - (state_.gain * phi_h * state_.covariance)) * one_over_lambda;
 
-        if constexpr (!is_complex_v<value_type>) {
+        if constexpr (!is_complex_v<T>) {
             if (config_.projection_enabled) {
                 for (size_t i = 0; i < NP; ++i) {
                     if (state_.theta[i] < config_.theta_min) {
@@ -314,20 +307,20 @@ public:
         }
 
         // Keep covariance numerically symmetric/Hermitian after finite precision updates.
-        state_.covariance = (state_.covariance + state_.covariance.conjugate_transpose()) * value_type{0.5};
+        state_.covariance = (state_.covariance + state_.covariance.conjugate_transpose()) * T{0.5};
         state_.initialized = true;
         valid_ = true;
         return true;
     }
 
-    [[nodiscard]] constexpr value_type predict(const ColVec<NP, value_type>& phi) const {
+    [[nodiscard]] constexpr T predict(const ColVec<NP, T>& phi) const {
         return dot(phi, state_.theta);
     }
 
-    constexpr void reset(const ColVec<NP, value_type>& theta0 = ColVec<NP, value_type>{}) {
-        state_ = RecursiveLeastSquaresVectorState<NP, value_type>{};
+    constexpr void reset(const ColVec<NP, T>& theta0 = ColVec<NP, T>{}) {
+        state_ = RecursiveLeastSquaresVectorState<NP, T>{};
         state_.theta = theta0;
-        state_.covariance = Matrix<NP, NP, value_type>::identity() * static_cast<value_type>(config_.p0);
+        state_.covariance = Matrix<NP, NP, T>::identity() * static_cast<T>(config_.p0);
         valid_ = true;
     }
 
@@ -336,9 +329,9 @@ public:
     [[nodiscard]] constexpr bool        valid() const { return valid_; }
 
 private:
-    RecursiveLeastSquaresConfig<value_type>          config_{};
-    RecursiveLeastSquaresVectorState<NP, value_type> state_{};
-    bool                                             valid_{true};
+    RecursiveLeastSquaresConfig<T>          config_{};
+    RecursiveLeastSquaresVectorState<NP, T> state_{};
+    bool                                    valid_{true};
 };
 
 } // namespace wet::estimation

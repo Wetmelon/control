@@ -63,8 +63,8 @@ namespace design {
  */
 template<typename T = double, size_t MaxQHalf = 0>
 struct RepetitiveConfig {
-    using value_type = std::remove_const_t<T>;
-    using scalar = scalar_type_t<value_type>;
+
+    using scalar = scalar_type_t<T>;
 
     size_t                       period{0};           //!< N = round(fs / f0), samples per fundamental period
     scalar                       gain{scalar{1}};     //!< k_rc, repetitive (learning) gain — 0 < k_rc ≲ 2 (plant-dependent)
@@ -111,10 +111,9 @@ struct RepetitiveConfig {
  */
 template<typename T = double, size_t MaxQHalf = 0>
 struct RepetitiveResult {
-    using value_type = std::remove_const_t<T>;
 
-    RepetitiveConfig<value_type, MaxQHalf> config{};
-    bool                                   success{false};
+    RepetitiveConfig<T, MaxQHalf> config{};
+    bool                          success{false};
 
     template<typename U>
     [[nodiscard]] constexpr RepetitiveResult<std::remove_const_t<U>, MaxQHalf> as() const {
@@ -245,40 +244,39 @@ template<size_t M, typename T = double>
 template<size_t MaxPeriod, typename T = float, size_t MaxQHalf = 0>
 class RepetitiveController {
 public:
-    using value_type = std::remove_const_t<T>;
-    using scalar = scalar_type_t<value_type>;
+    using scalar = scalar_type_t<T>;
     static_assert(MaxPeriod >= 2, "RepetitiveController needs MaxPeriod >= 2");
 
     constexpr RepetitiveController() = default;
 
-    constexpr explicit RepetitiveController(const design::RepetitiveConfig<value_type, MaxQHalf>& config)
+    constexpr explicit RepetitiveController(const design::RepetitiveConfig<T, MaxQHalf>& config)
         : config_(config), valid_(config.valid() && config.period + config.q_half <= MaxPeriod) {}
 
-    constexpr explicit RepetitiveController(const design::RepetitiveResult<value_type, MaxQHalf>& design)
+    constexpr explicit RepetitiveController(const design::RepetitiveResult<T, MaxQHalf>& design)
         : config_(design.config), valid_(design.success && design.config.period + design.config.q_half <= MaxPeriod) {}
 
     /**
      * @brief Advance one tick with the current tracking error; returns the
      *        repetitive correction u_rc to add to the base command.
      */
-    [[nodiscard]] constexpr value_type step(value_type error) {
+    [[nodiscard]] constexpr T step(T error) {
         if (!valid_) {
-            return value_type{0};
+            return T{0};
         }
         const size_t n = config_.period;
         const size_t m = config_.q_half;
 
         // Phase-advanced output tap w[k-N+lead].
-        const size_t     read_out = (write_idx_ + MaxPeriod - n + config_.lead) % MaxPeriod;
-        const value_type u_rc = static_cast<value_type>(config_.gain) * mem_[read_out];
+        const size_t read_out = (write_idx_ + MaxPeriod - n + config_.lead) % MaxPeriod;
+        const T      u_rc = static_cast<T>(config_.gain) * mem_[read_out];
 
         // Zero-phase FIR Q applied to the N-delayed signal:
         //   Q·w[k-N] = q_0·w[k-N] + Σ_{i=1}^{M} q_i·(w[k-N-i] + w[k-N+i]).
-        value_type qw = static_cast<value_type>(config_.q_filter) * mem_[(write_idx_ + MaxPeriod - n) % MaxPeriod];
+        T qw = static_cast<T>(config_.q_filter) * mem_[(write_idx_ + MaxPeriod - n) % MaxPeriod];
         for (size_t i = 1; i <= m; ++i) {
-            const value_type older = mem_[(write_idx_ + MaxPeriod - n - i) % MaxPeriod]; // w[k-N-i]
-            const value_type newer = mem_[(write_idx_ + MaxPeriod - n + i) % MaxPeriod]; // w[k-N+i]
-            qw += static_cast<value_type>(config_.q_side[i - 1]) * (older + newer);
+            const T older = mem_[(write_idx_ + MaxPeriod - n - i) % MaxPeriod]; // w[k-N-i]
+            const T newer = mem_[(write_idx_ + MaxPeriod - n + i) % MaxPeriod]; // w[k-N+i]
+            qw += static_cast<T>(config_.q_side[i - 1]) * (older + newer);
         }
 
         mem_[write_idx_] = qw + error; // w[k] = Q·w[k-N] + e[k]
@@ -296,10 +294,10 @@ public:
     [[nodiscard]] constexpr bool        valid() const { return valid_; }
 
 private:
-    design::RepetitiveConfig<value_type, MaxQHalf> config_{};
-    wet::array<value_type, MaxPeriod>              mem_{};
-    size_t                                         write_idx_{0};
-    bool                                           valid_{false};
+    design::RepetitiveConfig<T, MaxQHalf> config_{};
+    wet::array<T, MaxPeriod>              mem_{};
+    size_t                                write_idx_{0};
+    bool                                  valid_{false};
 };
 
 } // namespace wet

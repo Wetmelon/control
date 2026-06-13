@@ -63,15 +63,15 @@ namespace design {
  */
 template<typename T = double>
 struct InputShaperResult {
-    using value_type = std::remove_const_t<T>;
+
     static constexpr size_t MaxImpulses = 4;
 
-    wet::array<value_type, MaxImpulses> amplitudes{}; ///< Impulse amplitudes (sum to 1)
-    wet::array<value_type, MaxImpulses> times{};      ///< Impulse times [s]
-    wet::array<size_t, MaxImpulses>     delays{};     ///< Sample delays = round(times/Ts)
-    size_t                              count{0};     ///< Number of active impulses
-    value_type                          Ts{value_type{0}};
-    bool                                success{false};
+    wet::array<T, MaxImpulses>      amplitudes{}; ///< Impulse amplitudes (sum to 1)
+    wet::array<T, MaxImpulses>      times{};      ///< Impulse times [s]
+    wet::array<size_t, MaxImpulses> delays{};     ///< Sample delays = round(times/Ts)
+    size_t                          count{0};     ///< Number of active impulses
+    T                               Ts{T{0}};
+    bool                            success{false};
 
     /// Last impulse delay in samples (the command latency the shaper adds).
     [[nodiscard]] constexpr size_t max_delay() const { return (count == 0) ? 0 : delays[count - 1]; }
@@ -188,12 +188,11 @@ template<typename T = double>
 template<size_t MaxDelay, typename T = float>
 class InputShaper {
 public:
-    using value_type = std::remove_const_t<T>;
     static constexpr size_t BufLen = MaxDelay + 1;
 
     constexpr InputShaper() = default;
 
-    constexpr explicit InputShaper(const design::InputShaperResult<value_type>& design) {
+    constexpr explicit InputShaper(const design::InputShaperResult<T>& design) {
         if (!design.success || design.max_delay() > MaxDelay) {
             return; // valid_ stays false -> pass-through
         }
@@ -206,12 +205,12 @@ public:
     }
 
     /// Shape one command sample.
-    constexpr value_type step(value_type command) {
+    constexpr T step(T command) {
         if (!valid_) {
             return command;
         }
         buffer_[head_] = command;
-        value_type out = value_type{0};
+        T out = T{0};
         for (size_t i = 0; i < count_; ++i) {
             const size_t idx = (head_ + BufLen - delays_[i]) % BufLen;
             out += amplitudes_[i] * buffer_[idx];
@@ -223,17 +222,17 @@ public:
     [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     constexpr void reset() {
-        buffer_ = wet::array<value_type, BufLen>{};
+        buffer_ = wet::array<T, BufLen>{};
         head_ = 0;
     }
 
 private:
-    wet::array<value_type, BufLen> buffer_{};
-    wet::array<value_type, 4>      amplitudes_{};
-    wet::array<size_t, 4>          delays_{};
-    size_t                         count_{0};
-    size_t                         head_{0};
-    bool                           valid_{false};
+    wet::array<T, BufLen> buffer_{};
+    wet::array<T, 4>      amplitudes_{};
+    wet::array<size_t, 4> delays_{};
+    size_t                count_{0};
+    size_t                head_{0};
+    bool                  valid_{false};
 };
 
 /**
@@ -250,25 +249,23 @@ private:
 template<size_t NAxes, size_t MaxDelay, typename T = float>
 class InputShaperBank {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr InputShaperBank() = default;
 
     /// Set the shaper for one axis.
-    constexpr void set_axis(size_t axis, const design::InputShaperResult<value_type>& design) {
-        shapers_[axis] = InputShaper<MaxDelay, value_type>(design);
+    constexpr void set_axis(size_t axis, const design::InputShaperResult<T>& design) {
+        shapers_[axis] = InputShaper<MaxDelay, T>(design);
     }
 
     /// Shape one command per axis.
-    constexpr wet::array<value_type, NAxes> step(const wet::array<value_type, NAxes>& command) {
-        wet::array<value_type, NAxes> out{};
+    constexpr wet::array<T, NAxes> step(const wet::array<T, NAxes>& command) {
+        wet::array<T, NAxes> out{};
         for (size_t a = 0; a < NAxes; ++a) {
             out[a] = shapers_[a].step(command[a]);
         }
         return out;
     }
 
-    [[nodiscard]] constexpr InputShaper<MaxDelay, value_type>& axis(size_t a) { return shapers_[a]; }
+    [[nodiscard]] constexpr InputShaper<MaxDelay, T>& axis(size_t a) { return shapers_[a]; }
 
     constexpr void reset() {
         for (size_t a = 0; a < NAxes; ++a) {
@@ -277,7 +274,7 @@ public:
     }
 
 private:
-    wet::array<InputShaper<MaxDelay, value_type>, NAxes> shapers_{};
+    wet::array<InputShaper<MaxDelay, T>, NAxes> shapers_{};
 };
 
 } // namespace wet

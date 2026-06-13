@@ -370,8 +370,6 @@ private:
 template<typename T = float>
 class SogiFll {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr SogiFll() = default;
 
     /**
@@ -383,79 +381,79 @@ public:
      * @param freq_max_hz     Upper clamp [Hz] (0 → Nyquist)
      */
     constexpr SogiFll(
-        value_type initial_freq_hz,
-        value_type Ts,
-        value_type sogi_gain = wet::numbers::sqrt2_v<value_type>,
-        value_type fll_gain = value_type{2},
-        value_type freq_min_hz = value_type{0},
-        value_type freq_max_hz = value_type{0}
+        T initial_freq_hz,
+        T Ts,
+        T sogi_gain = wet::numbers::sqrt2_v<T>,
+        T fll_gain = T{2},
+        T freq_min_hz = T{0},
+        T freq_max_hz = T{0}
     ) : Ts_(Ts),
         k_(sogi_gain),
         gamma_(fll_gain),
         omega_(two_pi() * initial_freq_hz),
-        omega_min_(two_pi() * (freq_min_hz > value_type{0} ? freq_min_hz : value_type{0.5})),
-        omega_max_(two_pi() * (freq_max_hz > value_type{0} ? freq_max_hz : value_type{1} / (value_type{2} * Ts))),
-        valid_(Ts > value_type{0} && initial_freq_hz > value_type{0}) {}
+        omega_min_(two_pi() * (freq_min_hz > T{0} ? freq_min_hz : T{0.5})),
+        omega_max_(two_pi() * (freq_max_hz > T{0} ? freq_max_hz : T{1} / (T{2} * Ts))),
+        valid_(Ts > T{0} && initial_freq_hz > T{0}) {}
 
     /// Advance one step with a new input sample.
-    constexpr void update(value_type in) {
+    constexpr void update(T in) {
         if (!valid_) {
             return;
         }
-        const value_type wt = omega_ * Ts_;
+        const T wt = omega_ * Ts_;
         const auto [sin_wt, cos_wt] = wet::sincos(wt);
 
-        const value_type bandpass = x1_; // in-phase v′
-        const value_type quad = x0_;     // quadrature qv′
-        const value_type eps = in - bandpass;
-        const value_type u = eps * k_;
+        const T bandpass = x1_; // in-phase v′
+        const T quad = x0_;     // quadrature qv′
+        const T eps = in - bandpass;
+        const T u = eps * k_;
 
         // Exact discrete SOGI resonator step (same A,B as the fixed-ω SOGI).
-        const value_type x0n = (cos_wt * x0_) + (sin_wt * x1_) + ((value_type{1} - cos_wt) * u);
-        const value_type x1n = (-sin_wt * x0_) + (cos_wt * x1_) + (sin_wt * u);
+        const T x0n = (cos_wt * x0_) + (sin_wt * x1_) + ((T{1} - cos_wt) * u);
+        const T x1n = (-sin_wt * x0_) + (cos_wt * x1_) + (sin_wt * u);
         x0_ = x0n;
         x1_ = x1n;
 
         // Amplitude-normalized FLL: ω̇ = −Γ·ω·(ε·qv′)/(v′²+qv′²).
-        const value_type amp_sq = (bandpass * bandpass) + (quad * quad);
-        const value_type eps_f = eps * quad;
+        const T amp_sq = (bandpass * bandpass) + (quad * quad);
+        const T eps_f = eps * quad;
         omega_ -= Ts_ * gamma_ * omega_ * eps_f / (amp_sq + tiny());
         omega_ = wet::clamp(omega_, omega_min_, omega_max_);
     }
 
     /// Locked frequency [Hz].
-    [[nodiscard]] constexpr value_type frequency_hz() const { return omega_ / two_pi(); }
+    [[nodiscard]] constexpr T frequency_hz() const { return omega_ / two_pi(); }
     /// Locked frequency [rad/s].
-    [[nodiscard]] constexpr value_type frequency_rad() const { return omega_; }
+    [[nodiscard]] constexpr T frequency_rad() const { return omega_; }
     /// In-phase (band-pass) output — the input filtered to the locked frequency.
-    [[nodiscard]] constexpr value_type in_phase() const { return x1_; }
+    [[nodiscard]] constexpr T in_phase() const { return x1_; }
     /// Quadrature output (90° lag).
-    [[nodiscard]] constexpr value_type quadrature() const { return x0_; }
+    [[nodiscard]] constexpr T quadrature() const { return x0_; }
     /// Estimated amplitude of the tracked tone.
-    [[nodiscard]] constexpr value_type amplitude() const { return wet::sqrt((x0_ * x0_) + (x1_ * x1_)); }
+    [[nodiscard]] constexpr T amplitude() const { return wet::sqrt((x0_ * x0_) + (x1_ * x1_)); }
     /// Estimated phase of the tracked tone [rad].
-    [[nodiscard]] constexpr value_type phase() const { return wet::atan2(x0_, x1_); }
-    [[nodiscard]] constexpr bool       valid() const { return valid_; }
+    [[nodiscard]] constexpr T    phase() const { return wet::atan2(x0_, x1_); }
+    [[nodiscard]] constexpr bool valid() const { return valid_; }
 
-    constexpr void reset(value_type initial_freq_hz) {
-        x0_ = value_type{0};
-        x1_ = value_type{0};
+    constexpr void reset(T initial_freq_hz) {
+        x0_ = T{0};
+        x1_ = T{0};
         omega_ = two_pi() * initial_freq_hz;
     }
 
 private:
-    static constexpr value_type two_pi() { return value_type{2} * wet::numbers::pi_v<value_type>; }
-    static constexpr value_type tiny() { return value_type{1e-12}; }
+    static constexpr T two_pi() { return T{2} * wet::numbers::pi_v<T>; }
+    static constexpr T tiny() { return T{1e-12}; }
 
-    value_type Ts_{value_type{1}};
-    value_type k_{wet::numbers::sqrt2_v<value_type>};
-    value_type gamma_{value_type{2}};
-    value_type omega_{value_type{0}};
-    value_type omega_min_{value_type{0}};
-    value_type omega_max_{value_type{0}};
-    value_type x0_{value_type{0}}; // quadrature state
-    value_type x1_{value_type{0}}; // in-phase state
-    bool       valid_{false};
+    T    Ts_{T{1}};
+    T    k_{wet::numbers::sqrt2_v<T>};
+    T    gamma_{T{2}};
+    T    omega_{T{0}};
+    T    omega_min_{T{0}};
+    T    omega_max_{T{0}};
+    T    x0_{T{0}}; // quadrature state
+    T    x1_{T{0}}; // in-phase state
+    bool valid_{false};
 };
 
 } // namespace wet

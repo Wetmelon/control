@@ -58,8 +58,6 @@ namespace wet {
 template<typename T = float>
 class RobustExactDifferentiator {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr RobustExactDifferentiator() = default;
 
     /**
@@ -69,50 +67,50 @@ public:
      * @param lambda0 First gain (default 1.5).
      * @param lambda1 Second gain (default 1.1).
      */
-    constexpr RobustExactDifferentiator(value_type L, value_type dt, value_type lambda0 = value_type{1.5}, value_type lambda1 = value_type{1.1})
-        : L_(L), sqrt_L_(wet::sqrt(L)), dt_(dt), lambda0_(lambda0), lambda1_(lambda1), valid_(L > value_type{0} && dt > value_type{0}) {}
+    constexpr RobustExactDifferentiator(T L, T dt, T lambda0 = T{1.5}, T lambda1 = T{1.1})
+        : L_(L), sqrt_L_(wet::sqrt(L)), dt_(dt), lambda0_(lambda0), lambda1_(lambda1), valid_(L > T{0} && dt > T{0}) {}
 
     /**
      * @brief Feed one sample; advance the differentiator one step.
      * @param f Latest measurement of the signal.
      * @return Updated derivative estimate ḟ.
      */
-    constexpr value_type update(value_type f) {
+    constexpr T update(T f) {
         if (!valid_) {
-            return value_type{0};
+            return T{0};
         }
-        const value_type e = z0_ - f;
-        const value_type sign_e = static_cast<value_type>(wet::sgn(e));
-        const value_type z0_dot = (-lambda0_ * sqrt_L_ * wet::sqrt(wet::abs(e)) * sign_e) + z1_;
-        const value_type z1_dot = -lambda1_ * L_ * sign_e;
+        const T e = z0_ - f;
+        const T sign_e = static_cast<T>(wet::sgn(e));
+        const T z0_dot = (-lambda0_ * sqrt_L_ * wet::sqrt(wet::abs(e)) * sign_e) + z1_;
+        const T z1_dot = -lambda1_ * L_ * sign_e;
         z0_ += dt_ * z0_dot;
         z1_ += dt_ * z1_dot;
         return z1_;
     }
 
     /// Denoised estimate of the signal itself (z0 → f).
-    [[nodiscard]] constexpr value_type value() const { return z0_; }
+    [[nodiscard]] constexpr T value() const { return z0_; }
 
     /// Latest derivative estimate (z1 → ḟ).
-    [[nodiscard]] constexpr value_type derivative() const { return z1_; }
+    [[nodiscard]] constexpr T derivative() const { return z1_; }
 
     [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     /// Re-seed the internal states (e.g. to the first measurement and a known rate).
-    constexpr void reset(value_type value0 = value_type{0}, value_type derivative0 = value_type{0}) {
+    constexpr void reset(T value0 = T{0}, T derivative0 = T{0}) {
         z0_ = value0;
         z1_ = derivative0;
     }
 
 private:
-    value_type L_{value_type{1}};
-    value_type sqrt_L_{value_type{1}};
-    value_type dt_{value_type{1}};
-    value_type lambda0_{value_type{1.5}};
-    value_type lambda1_{value_type{1.1}};
-    value_type z0_{value_type{0}};
-    value_type z1_{value_type{0}};
-    bool       valid_{false};
+    T    L_{T{1}};
+    T    sqrt_L_{T{1}};
+    T    dt_{T{1}};
+    T    lambda0_{T{1.5}};
+    T    lambda1_{T{1.1}};
+    T    z0_{T{0}};
+    T    z1_{T{0}};
+    bool valid_{false};
 };
 
 /// Searchable alias: the first-order robust exact differentiator is "the Levant

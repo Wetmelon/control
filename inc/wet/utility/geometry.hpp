@@ -43,7 +43,6 @@ struct Euler;
 /** @brief Direction Cosine Matrix (3x3 rotation matrix wrapper) */
 template<typename T>
 struct DCM : public Mat3<T> {
-    using value_type = T;
 
     static_assert(std::is_floating_point_v<T>, "DCM element type must be floating point");
 
@@ -185,7 +184,7 @@ struct DCM : public Mat3<T> {
 /** @brief Euler angles templated on rotation order */
 template<typename T, EulerOrder Order = EulerOrder::ZYX>
 struct Euler {
-    using value_type = T;
+
     static constexpr EulerOrder order = Order;
 
     T angle1{}; // First rotation
@@ -391,7 +390,6 @@ using EulerXYZ = Euler<T, EulerOrder::XYZ>;
 /** @brief Quaternion (moved/refactored from quaternion.hpp) */
 template<typename T>
 struct Quaternion : public Matrix<4, 1, T> {
-    using value_type = T;
 
     static_assert(std::is_floating_point_v<T>, "Quaternion element type must be floating point");
 
@@ -730,7 +728,6 @@ constexpr Euler<T, Order> Euler<T, Order>::from_quaternion(const Quaternion<T>& 
 /** @brief Transform4: 4x4 homogeneous transformation matrix for robotics */
 template<typename T>
 struct Transform4 : public Mat4<T> {
-    using value_type = T;
 
     static_assert(std::is_floating_point_v<T>, "Transform4 element type must be floating point");
 

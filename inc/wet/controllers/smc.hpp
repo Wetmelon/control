@@ -272,34 +272,32 @@ stsmc(T k1, T k2, T Ts, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
 template<typename T = float>
 class SuperTwistingController {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr SuperTwistingController() = default;
 
-    constexpr SuperTwistingController(const design::STSMCResult<value_type>& result)
+    constexpr SuperTwistingController(const design::STSMCResult<T>& result)
         : k1_(result.k1), k2_(result.k2), lambda_(result.lambda), k_lin_(result.k_lin), epsilon_(result.epsilon), Ts_(result.Ts), valid_(result.success) {}
 
     template<typename U>
     constexpr SuperTwistingController(const SuperTwistingController<U>& other)
-        : k1_(static_cast<value_type>(other.k1_)), k2_(static_cast<value_type>(other.k2_)), lambda_(static_cast<value_type>(other.lambda_)), k_lin_(static_cast<value_type>(other.k_lin_)), epsilon_(static_cast<value_type>(other.epsilon_)), Ts_(static_cast<value_type>(other.Ts_)), v_(static_cast<value_type>(other.v_)), e_prev_(static_cast<value_type>(other.e_prev_)), valid_(other.valid_) {}
+        : k1_(static_cast<T>(other.k1_)), k2_(static_cast<T>(other.k2_)), lambda_(static_cast<T>(other.lambda_)), k_lin_(static_cast<T>(other.k_lin_)), epsilon_(static_cast<T>(other.epsilon_)), Ts_(static_cast<T>(other.Ts_)), v_(static_cast<T>(other.v_)), e_prev_(static_cast<T>(other.e_prev_)), valid_(other.valid_) {}
 
     /// Super-twisting control from the sliding variable @p s (canonical form).
-    [[nodiscard]] constexpr value_type control(value_type s) {
+    [[nodiscard]] constexpr T control(T s) {
         if (!valid_) {
-            return value_type{0};
+            return T{0};
         }
-        const value_type abs_s = wet::abs(s);
+        const T abs_s = wet::abs(s);
         // sign(s), optionally softened by a boundary layer to trade a little
         // accuracy for less numerical chatter near s = 0.
-        const value_type sign_s = (epsilon_ > value_type{0}) ? (s / (abs_s + epsilon_)) : static_cast<value_type>(wet::sgn(s));
-        const value_type sqrt_s = wet::sqrt(abs_s);
+        const T sign_s = (epsilon_ > T{0}) ? (s / (abs_s + epsilon_)) : static_cast<T>(wet::sgn(s));
+        const T sqrt_s = wet::sqrt(abs_s);
 
-        const value_type phi1 = (sqrt_s * sign_s) + (k_lin_ * s);
-        const value_type u = (-k1_ * phi1) + v_;
+        const T phi1 = (sqrt_s * sign_s) + (k_lin_ * s);
+        const T u = (-k1_ * phi1) + v_;
 
         // φ₂ = sign(s) + 3·k_lin·|s|^½·sign(s) + 2·k_lin²·s  (= classic sign(s) when k_lin = 0,
         // keeping the k₁ = 1.5√L / k₂ = 1.1L formulas valid). Explicit-Euler integral.
-        const value_type phi2 = sign_s + (value_type{3} * k_lin_ * sqrt_s * sign_s) + (value_type{2} * k_lin_ * k_lin_ * s);
+        const T phi2 = sign_s + (T{3} * k_lin_ * sqrt_s * sign_s) + (T{2} * k_lin_ * k_lin_ * s);
         v_ += -k2_ * phi2 * Ts_;
 
         return u;
@@ -310,33 +308,33 @@ public:
     ///       sign (ṡ = u + d). If your plant gives ṡ = −u + d, negate the output
     ///       (or your λ/s), or use the `control(s)` form with a surface you sign
     ///       yourself.
-    [[nodiscard]] constexpr value_type control(value_type r, value_type y) {
-        const value_type e = r - y;
-        const value_type de = (e - e_prev_) / Ts_;
+    [[nodiscard]] constexpr T control(T r, T y) {
+        const T e = r - y;
+        const T de = (e - e_prev_) / Ts_;
         e_prev_ = e;
         return control((lambda_ * e) + de);
     }
 
     /// Current value of the integral state v (the disturbance estimate, −d̂).
-    [[nodiscard]] constexpr value_type integral_state() const { return v_; }
+    [[nodiscard]] constexpr T integral_state() const { return v_; }
 
     [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     constexpr void reset() {
-        v_ = value_type{0};
-        e_prev_ = value_type{0};
+        v_ = T{0};
+        e_prev_ = T{0};
     }
 
     // Public for the cross-precision converting constructor.
-    value_type k1_{value_type{0}};
-    value_type k2_{value_type{0}};
-    value_type lambda_{value_type{0}};
-    value_type k_lin_{value_type{0}};
-    value_type epsilon_{value_type{0}};
-    value_type Ts_{value_type{1}};
-    value_type v_{value_type{0}};
-    value_type e_prev_{value_type{0}};
-    bool       valid_{false};
+    T    k1_{T{0}};
+    T    k2_{T{0}};
+    T    lambda_{T{0}};
+    T    k_lin_{T{0}};
+    T    epsilon_{T{0}};
+    T    Ts_{T{1}};
+    T    v_{T{0}};
+    T    e_prev_{T{0}};
+    bool valid_{false};
 };
 
 } // namespace wet

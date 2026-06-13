@@ -52,8 +52,8 @@ namespace design {
  */
 template<typename T = double>
 struct ESCConfig {
-    using value_type = std::remove_const_t<T>;
-    using scalar = scalar_type_t<value_type>;
+
+    using scalar = scalar_type_t<T>;
 
     scalar dither_amplitude{scalar{0.01}}; //!< a, perturbation amplitude (input units)
     scalar dither_omega{scalar{0}};        //!< ω, perturbation frequency [rad/s]
@@ -93,10 +93,9 @@ struct ESCConfig {
  */
 template<typename T = double>
 struct ESCResult {
-    using value_type = std::remove_const_t<T>;
 
-    ESCConfig<value_type> config{};
-    bool                  success{false};
+    ESCConfig<T> config{};
+    bool         success{false};
 
     template<typename U>
     [[nodiscard]] constexpr ESCResult<std::remove_const_t<U>> as() const {
@@ -227,18 +226,16 @@ template<typename T = double>
 template<typename T = float>
 class ExtremumSeekingController {
 public:
-    using value_type = std::remove_const_t<T>;
-
     constexpr ExtremumSeekingController() = default;
 
-    constexpr explicit ExtremumSeekingController(const design::ESCConfig<value_type>& config)
+    constexpr explicit ExtremumSeekingController(const design::ESCConfig<T>& config)
         : config_(config), uhat_(config.u_init), valid_(config.valid()) {}
 
-    constexpr explicit ExtremumSeekingController(const design::ESCResult<value_type>& design)
+    constexpr explicit ExtremumSeekingController(const design::ESCResult<T>& design)
         : config_(design.config), uhat_(design.config.u_init), valid_(design.success) {}
 
     /// Current perturbed input to apply, û + a·sin(phase).
-    [[nodiscard]] constexpr value_type input() const {
+    [[nodiscard]] constexpr T input() const {
         return uhat_ + (config_.dither_amplitude * wet::sin(phase_));
     }
 
@@ -247,17 +244,17 @@ public:
      * @param objective         Measured J at the previously applied input.
      * @param measurement_valid If false, freeze the integrator (hold û) this tick.
      */
-    [[nodiscard]] constexpr value_type step(value_type objective, bool measurement_valid = true) {
+    [[nodiscard]] constexpr T step(T objective, bool measurement_valid = true) {
         if (!valid_) {
             return uhat_;
         }
         // High-pass the objective: hp = J − LPF(J), removing the operating-point DC.
-        const value_type hp = objective - hp_state_;
+        const T hp = objective - hp_state_;
         hp_state_ += config_.hp_alpha * (objective - hp_state_);
 
         // Demodulate with the dither that produced this objective (phase_).
-        const value_type demod = wet::sin(phase_ - config_.demod_phase);
-        const value_type raw_grad = hp * demod;
+        const T demod = wet::sin(phase_ - config_.demod_phase);
+        const T raw_grad = hp * demod;
         grad_state_ += config_.lp_alpha * (raw_grad - grad_state_);
         gradient_ = grad_state_;
 
@@ -275,29 +272,29 @@ public:
     }
 
     /// Converged operating point estimate û (the optimizer's answer).
-    [[nodiscard]] constexpr value_type estimate() const { return uhat_; }
+    [[nodiscard]] constexpr T estimate() const { return uhat_; }
     /// Most recent (filtered) gradient estimate.
-    [[nodiscard]] constexpr value_type gradient() const { return gradient_; }
-    [[nodiscard]] constexpr bool       valid() const { return valid_; }
+    [[nodiscard]] constexpr T    gradient() const { return gradient_; }
+    [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     constexpr void reset() {
         uhat_ = config_.u_init;
-        phase_ = value_type{0};
-        hp_state_ = value_type{0};
-        grad_state_ = value_type{0};
-        gradient_ = value_type{0};
+        phase_ = T{0};
+        hp_state_ = T{0};
+        grad_state_ = T{0};
+        gradient_ = T{0};
     }
 
 private:
-    static constexpr value_type two_pi() { return value_type{2} * wet::numbers::pi_v<value_type>; }
+    static constexpr T two_pi() { return T{2} * wet::numbers::pi_v<T>; }
 
-    design::ESCConfig<value_type> config_{};
-    value_type                    uhat_{value_type{0}};
-    value_type                    phase_{value_type{0}};
-    value_type                    hp_state_{value_type{0}};
-    value_type                    grad_state_{value_type{0}};
-    value_type                    gradient_{value_type{0}};
-    bool                          valid_{false};
+    design::ESCConfig<T> config_{};
+    T                    uhat_{T{0}};
+    T                    phase_{T{0}};
+    T                    hp_state_{T{0}};
+    T                    grad_state_{T{0}};
+    T                    gradient_{T{0}};
+    bool                 valid_{false};
 };
 
 } // namespace wet

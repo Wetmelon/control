@@ -24,8 +24,8 @@ namespace wet::estimation {
  */
 template<typename T = double>
 struct DisturbanceObserverConfig {
-    using value_type = std::remove_const_t<T>;
-    using scalar_type = scalar_type_t<value_type>;
+
+    using scalar_type = scalar_type_t<T>;
 
     scalar_type gain{scalar_type{0.1}};
     scalar_type leak{scalar_type{0}};
@@ -58,12 +58,12 @@ struct DisturbanceObserverConfig {
 
 template<typename T = double>
 struct DisturbanceObserverResult {
-    using value_type = std::remove_const_t<T>;
-    using scalar_type = scalar_type_t<value_type>;
 
-    DisturbanceObserverConfig<value_type> config{};
-    value_type                            steady_state_gain{};
-    bool                                  success{false};
+    using scalar_type = scalar_type_t<T>;
+
+    DisturbanceObserverConfig<T> config{};
+    T                            steady_state_gain{};
+    bool                         success{false};
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
@@ -84,11 +84,10 @@ struct DisturbanceObserverResult {
 
 template<typename T = float>
 struct DisturbanceObserverState {
-    using value_type = std::remove_const_t<T>;
 
-    value_type disturbance_hat{};
-    value_type innovation{};
-    bool       initialized{false};
+    T    disturbance_hat{};
+    T    innovation{};
+    bool initialized{false};
 };
 
 namespace detail {
@@ -149,36 +148,35 @@ template<typename T = double>
 template<typename T = float>
 class DisturbanceObserver {
 public:
-    using value_type = std::remove_const_t<T>;
-    using scalar_type = scalar_type_t<value_type>;
+    using scalar_type = scalar_type_t<T>;
 
     constexpr DisturbanceObserver() = default;
 
-    constexpr explicit DisturbanceObserver(const DisturbanceObserverConfig<value_type>& config)
+    constexpr explicit DisturbanceObserver(const DisturbanceObserverConfig<T>& config)
         : config_(config) {}
 
-    constexpr explicit DisturbanceObserver(const DisturbanceObserverResult<value_type>& design)
+    constexpr explicit DisturbanceObserver(const DisturbanceObserverResult<T>& design)
         : config_(design.config), valid_(design.success) {}
 
     /**
      * @brief Update disturbance estimate from predicted and measured outputs.
      * @return true when update succeeded.
      */
-    [[nodiscard]] constexpr bool update(value_type y_predicted, value_type y_measured) {
+    [[nodiscard]] constexpr bool update(T y_predicted, T y_measured) {
         if (!config_.valid()) {
             valid_ = false;
             return false;
         }
 
         const scalar_type innovation_mag_deadband = config_.innovation_deadband;
-        value_type        innovation = y_measured - y_predicted;
+        T                 innovation = y_measured - y_predicted;
 
         if (innovation_mag_deadband > scalar_type{0} && wet::abs(innovation) < innovation_mag_deadband) {
-            innovation = value_type{};
+            innovation = T{};
         }
 
         const scalar_type alpha = scalar_type{1} - config_.leak;
-        state_.disturbance_hat = (static_cast<value_type>(alpha) * state_.disturbance_hat) + (static_cast<value_type>(config_.gain) * innovation);
+        state_.disturbance_hat = (static_cast<T>(alpha) * state_.disturbance_hat) + (static_cast<T>(config_.gain) * innovation);
 
         if (config_.clamp_enabled && config_.max_disturbance_magnitude > scalar_type{0}) {
             state_.disturbance_hat = detail::limit_magnitude(state_.disturbance_hat, config_.max_disturbance_magnitude);
@@ -193,12 +191,12 @@ public:
     /**
      * @brief Disturbance-compensated command (u = u_nominal - d_hat).
      */
-    [[nodiscard]] constexpr value_type compensate(const value_type& u_nominal) const {
+    [[nodiscard]] constexpr T compensate(const T& u_nominal) const {
         return u_nominal - state_.disturbance_hat;
     }
 
     constexpr void reset() {
-        state_ = DisturbanceObserverState<value_type>{};
+        state_ = DisturbanceObserverState<T>{};
         valid_ = true;
     }
 
@@ -207,9 +205,9 @@ public:
     [[nodiscard]] constexpr bool        valid() const { return valid_; }
 
 private:
-    DisturbanceObserverConfig<value_type> config_{};
-    DisturbanceObserverState<value_type>  state_{};
-    bool                                  valid_{true};
+    DisturbanceObserverConfig<T> config_{};
+    DisturbanceObserverState<T>  state_{};
+    bool                         valid_{true};
 };
 
 // ===========================================================================
@@ -291,15 +289,15 @@ struct IirDF2 {
  */
 template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = double>
 struct ClassicalDobResult {
-    using value_type = std::remove_const_t<T>;
+
     static constexpr size_t NFyNum = NQn + NAn - 1; // Qn · An
     static constexpr size_t NFyDen = NQd + NBn - 1; // Qd · Bn
 
-    wet::array<value_type, NFyNum> fy_num{};
-    wet::array<value_type, NFyDen> fy_den{};
-    wet::array<value_type, NQn>    fu_num{}; // = Qn
-    wet::array<value_type, NQd>    fu_den{}; // = Qd
-    bool                           success{false};
+    wet::array<T, NFyNum> fy_num{};
+    wet::array<T, NFyDen> fy_den{};
+    wet::array<T, NQn>    fu_num{}; // = Qn
+    wet::array<T, NQd>    fu_den{}; // = Qd
+    bool                  success{false};
 
     template<typename U>
     [[nodiscard]] constexpr ClassicalDobResult<NBn, NAn, NQn, NQd, std::remove_const_t<U>> as() const {
@@ -367,8 +365,7 @@ template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = double>
 template<size_t NBn, size_t NAn, size_t NQn, size_t NQd, typename T = float>
 class ClassicalDisturbanceObserver {
 public:
-    using value_type = std::remove_const_t<T>;
-    using result_type = ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>;
+    using result_type = ClassicalDobResult<NBn, NAn, NQn, NQd, T>;
 
     constexpr ClassicalDisturbanceObserver() = default;
 
@@ -382,9 +379,9 @@ public:
 
     /// Estimate the input-referred disturbance from measurement @p y and the
     /// applied input @p u (advances the internal filters one step).
-    constexpr value_type estimate(value_type y, value_type u) {
+    constexpr T estimate(T y, T u) {
         if (!valid_) {
-            return value_type{0};
+            return T{0};
         }
         d_hat_ = fy_.step(y) - fu_.step(u);
         return d_hat_;
@@ -392,33 +389,33 @@ public:
 
     /// Bolt-on: return the disturbance-compensated command u = u_command − d_hat,
     /// using the previously applied command in the Q·u path (breaks the loop).
-    constexpr value_type compensate(value_type u_command, value_type y) {
+    constexpr T compensate(T u_command, T y) {
         if (!valid_) {
             return u_command;
         }
         d_hat_ = fy_.step(y) - fu_.step(u_prev_);
-        const value_type u = u_command - d_hat_;
+        const T u = u_command - d_hat_;
         u_prev_ = u;
         return u;
     }
 
-    [[nodiscard]] constexpr value_type disturbance() const { return d_hat_; }
-    [[nodiscard]] constexpr bool       valid() const { return valid_; }
+    [[nodiscard]] constexpr T    disturbance() const { return d_hat_; }
+    [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     constexpr void reset() {
         fy_.reset();
         fu_.reset();
-        d_hat_ = value_type{0};
-        u_prev_ = value_type{0};
+        d_hat_ = T{0};
+        u_prev_ = T{0};
     }
 
 private:
-    detail::IirDF2<ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>::NFyNum, ClassicalDobResult<NBn, NAn, NQn, NQd, value_type>::NFyDen, value_type>
-                                         fy_{};
-    detail::IirDF2<NQn, NQd, value_type> fu_{};
-    value_type                           d_hat_{value_type{0}};
-    value_type                           u_prev_{value_type{0}};
-    bool                                 valid_{false};
+    detail::IirDF2<ClassicalDobResult<NBn, NAn, NQn, NQd, T>::NFyNum, ClassicalDobResult<NBn, NAn, NQn, NQd, T>::NFyDen, T>
+                                fy_{};
+    detail::IirDF2<NQn, NQd, T> fu_{};
+    T                           d_hat_{T{0}};
+    T                           u_prev_{T{0}};
+    bool                        valid_{false};
 };
 
 } // namespace wet::estimation
