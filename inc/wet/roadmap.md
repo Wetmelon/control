@@ -351,9 +351,12 @@ constinit CascadePPI<float> controller{cascade.as<float>()};
 
 **Layer 3 — advanced controls & estimation.**
 
-### 5. Repetitive controller ◐ (core built)
+### 5. Repetitive controller ☑
 
-**Built (2026-06):** plug-in `RepetitiveController<MaxPeriod,T>` + `design::synthesize_repetitive(fs, f0, gain, Q, lead)` (`controllers/repetitive.hpp`, `test_repetitive.cpp`). Internal-model period-delay loop (`w[k]=Q·w[k-N]+e`, `u_rc=k_rc·w[k-N+m]`): one delay rejects the fundamental *and all harmonics*; scalar robustness Q and integer phase-lead m; fixed-size buffer (allocation-free), constexpr. Verified: periodic tracking error → 0, multi-harmonic (fundamental+3rd) disturbance rejection, Q<1 boundedness. Remaining (refinements): a low-pass (FIR) Q-filter option, plant-aware phase-lead/stability-margin design (vs a hand-tuned m), and the LQI/LQGI integration bundle.
+**Built (2026-06):** plug-in `RepetitiveController<MaxPeriod, T, MaxQHalf>` + `design::synthesize_repetitive(fs, f0, gain, Q, lead)` and `design::synthesize_repetitive_binomial<M>(fs, f0, gain, lead)` (`controllers/repetitive.hpp`, `test_repetitive.cpp`). Internal-model period-delay loop (`w[k]=Q(z)·w[k-N]+e`, `u_rc=k_rc·w[k-N+m]`): one delay rejects the fundamental *and all harmonics*; integer phase-lead m; fixed-size buffer (allocation-free), constexpr.
+- **Robustness filter Q:** scalar Q ∈ (0,1] *or* a **zero-phase low-pass FIR** Q(z)=Σ q_i z^{−i} (symmetric taps, `MaxQHalf` half-width). The FIR keeps near-unity gain on the low harmonics (full rejection) but rolls off near Nyquist (robust stability) without adding phase — realizable because Q multiplies the N-delayed signal so the "future" taps read already-buffered samples. Default family is the unity-DC binomial (`synthesize_repetitive_binomial<M>`: M=1→[1,2,1]/4, M=2→[1,4,6,4,1]/16). The scalar Q is the `MaxQHalf=0` special case (existing API unchanged).
+- Verified: periodic tracking error → 0, multi-harmonic disturbance rejection (scalar Q=1 perfect; binomial Q strong-but-rolled-off as designed), binomial tap/DC-gain correctness, and the headline robustness case — **a binomial FIR Q stays bounded in an uncompensated-delay loop where the scalar Q=1 diverges to 1e32** (`|Q − k_rc z^{−d}| < 1`).
+- Optional follow-ups (not blocking): plant-aware phase-lead/stability-margin auto-design (vs a hand-tuned m), and a packaged LQI/LQGI-plus-repetitive bundle.
 
 Internal-model compensation for periodic disturbances over selected harmonics. Targets: grid-tied inverters, precision motion with periodic trajectories, rotating-machinery ripple. Depends on #2 (delay line + robustness filter).
 

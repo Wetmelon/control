@@ -130,8 +130,9 @@ constexpr DirectEigenResult<2, T> eigenvalues_2x2(const Matrix<2, 2, T>& A) {
 template<typename T>
 constexpr DirectEigenResult<3, T> eigenvalues_3x3(const Matrix<3, 3, T>& A) {
     using Complex = wet::complex<T>;
+    constexpr T pi = wet::numbers::pi_v<T>;
+
     DirectEigenResult<3, T> result;
-    constexpr T             pi = T{3.14159265358979323846};
 
     // Check if matrix is diagonal (optimization and accuracy)
     T off_diag_sum = T{0};

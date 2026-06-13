@@ -1,4 +1,5 @@
 #include <cmath>
+#include <numbers>
 
 #include "wet/controllers/repetitive.hpp"
 
@@ -8,7 +9,7 @@
 using namespace wet;
 
 namespace {
-constexpr double pi = 3.14159265358979323846;
+constexpr double pi = std::numbers::pi;
 } // namespace
 
 TEST_SUITE("repetitive") {
@@ -132,6 +133,134 @@ TEST_SUITE("repetitive") {
             return d.success && d.config.period == 10 && wet::abs(last - 1.0) < 1e-9;
         }();
         static_assert(ok, "repetitive controller must work at compile time");
+        CHECK(ok);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Zero-phase FIR Q-filter (binomial robustness filter)
+// ---------------------------------------------------------------------------
+
+namespace {
+// Closed loop with a repetitive plug-in around a plant with a pure transport
+// delay of `delay` samples and gain `g`: y[k] = g·u[k-delay] + d[k]. Reference 0,
+// so e = -y. The repetitive lead is 0, so the delay is *uncompensated* — the high
+// harmonics see a wrong phase. Returns the worst |y| over the run; a marginal
+// (scalar Q=1) loop blows up there, a rolled-off (FIR Q) loop stays bounded.
+template<typename Rc>
+double closed_loop_peak(Rc& rc, int delay, double g, int steps) {
+    double                y = 0.0;
+    double                worst = 0.0;
+    wet::array<double, 8> ud{}; // delay line of applied inputs
+    size_t                head = 0;
+    for (int k = 0; k < steps; ++k) {
+        const double d = (k == 0) ? 1.0 : 0.0; // impulse kick to excite the loop
+        const double e = -y;
+        const double u = rc.step(e);
+        ud[head] = u;
+        const double u_delayed = ud[(head + ud.size() - static_cast<size_t>(delay)) % ud.size()];
+        head = (head + 1) % ud.size();
+        y = g * u_delayed + d;
+        worst = std::max(worst, std::abs(y));
+    }
+    return worst;
+}
+} // namespace
+
+TEST_SUITE("repetitive FIR Q") {
+    TEST_CASE("binomial Q taps are correct and unity-DC-gain") {
+        SUBCASE("M=1 -> [1,2,1]/4") {
+            const auto r = design::synthesize_repetitive_binomial<1>(1000.0, 50.0);
+            REQUIRE(r.success);
+            CHECK(r.config.q_half == 1);
+            CHECK(r.config.q_filter == doctest::Approx(0.5));    // 2/4
+            CHECK(r.config.q_side[0] == doctest::Approx(0.25));  // 1/4
+            CHECK(r.config.q_dc_gain() == doctest::Approx(1.0)); // 0.5 + 2*0.25
+        }
+        SUBCASE("M=2 -> [1,4,6,4,1]/16") {
+            const auto r = design::synthesize_repetitive_binomial<2>(1000.0, 50.0);
+            REQUIRE(r.success);
+            CHECK(r.config.q_filter == doctest::Approx(6.0 / 16.0));
+            CHECK(r.config.q_side[0] == doctest::Approx(4.0 / 16.0));
+            CHECK(r.config.q_side[1] == doctest::Approx(1.0 / 16.0));
+            CHECK(r.config.q_dc_gain() == doctest::Approx(1.0));
+        }
+    }
+
+    TEST_CASE("FIR-Q repetitive still rejects a multi-harmonic disturbance") {
+        // Same delay-1 plant as the scalar tests, with a lead of 1 to match it.
+        // The binomial Q has near-unity gain on the low harmonics (strong
+        // rejection) but deliberately rolls off the higher ones (robustness), so
+        // rejection is strong but not perfect — unlike the scalar Q=1 case.
+        constexpr size_t N = 24;
+        const auto       art = design::synthesize_repetitive_binomial<1>(1200.0, 50.0, 1.0, 1);
+        REQUIRE(art.success);
+        REQUIRE(art.config.period == N);
+        RepetitiveController<64, double, 1> rc(art);
+        REQUIRE(rc.valid());
+
+        auto disturbance = [&](size_t k) {
+            return 0.5 * std::sin(2.0 * pi * static_cast<double>(k) / N)
+                 + 0.2 * std::sin(2.0 * pi * 3.0 * static_cast<double>(k) / N);
+        };
+        double       u_prev = 0.0;
+        double       worst_last = 0.0;
+        const size_t periods = 40;
+        for (size_t k = 0; k < periods * N; ++k) {
+            const double y = u_prev + disturbance(k);
+            const double u = rc.step(0.0 - y);
+            u_prev = u;
+            if (k >= (periods - 1) * N) {
+                worst_last = std::max(worst_last, std::abs(y));
+            }
+        }
+        CHECK(worst_last < 0.05); // both harmonics strongly attenuated (0.7 -> ~0.036, ~19x)
+    }
+
+    TEST_CASE("FIR Q stabilizes a loop where scalar Q=1 diverges") {
+        // Uncompensated 1-sample plant delay (lead m=0): scalar Q=1 has loop gain
+        // |1 − k_rc·z^-1| → up to 1.5 near Nyquist, so the marginal model amplifies
+        // the high harmonics without bound; the binomial M=2 roll-off pulls the
+        // stability term |Q − k_rc·z^-1| under 1 everywhere (peak ≈ 0.56).
+        const int    delay = 1;
+        const double g = 1.0;
+        const int    steps = 4000;
+
+        RepetitiveController<64, double, 0> scalar_q(design::synthesize_repetitive(1000.0, 50.0, 0.5, 1.0, 0));
+        RepetitiveController<64, double, 2> fir_q(design::synthesize_repetitive_binomial<2>(1000.0, 50.0, 0.5, 0));
+        REQUIRE(scalar_q.valid());
+        REQUIRE(fir_q.valid());
+
+        const double scalar_peak = closed_loop_peak(scalar_q, delay, g, steps);
+        const double fir_peak = closed_loop_peak(fir_q, delay, g, steps);
+
+        CHECK(scalar_peak > 10.0); // Q=1 blows up on the high harmonics
+        CHECK(fir_peak < 5.0);     // the FIR roll-off keeps it bounded
+        CHECK(fir_peak < scalar_peak);
+    }
+
+    TEST_CASE("as<float>() carries the FIR taps") {
+        const auto art = design::synthesize_repetitive_binomial<2>(1000.0, 50.0);
+        const auto af = art.template as<float>();
+        CHECK(af.success);
+        CHECK(af.config.q_half == 2);
+        CHECK(af.config.q_filter == doctest::Approx(6.0f / 16.0f));
+        CHECK(af.config.q_side[1] == doctest::Approx(1.0f / 16.0f));
+        RepetitiveController<64, float, 2> rc(af);
+        CHECK(rc.valid());
+    }
+
+    TEST_CASE("FIR-Q repetitive is constexpr-evaluable") {
+        constexpr bool ok = []() consteval {
+            auto                                art = design::synthesize_repetitive_binomial<1>(1000.0, 100.0, 1.0, 0);
+            RepetitiveController<32, double, 1> rc(art);
+            double                              last = 0.0;
+            for (int k = 0; k < 40; ++k) {
+                last = rc.step(1.0);
+            }
+            return art.success && rc.valid() && wet::abs(last) < 1e6; // bounded
+        }();
+        static_assert(ok, "FIR-Q repetitive must work at compile time");
         CHECK(ok);
     }
 }

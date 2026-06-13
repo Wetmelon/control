@@ -1,11 +1,11 @@
 #ifndef BUILD_DLL
 #define BUILD_DLL
+#include <numbers>
 #endif
-#include "servo_sim.h"
-
 #include <cmath>
 #include <cstring>
 
+#include "servo_sim.h"
 #include "wet/controllers/pid.hpp"
 
 using namespace wet;
@@ -233,7 +233,7 @@ struct ServoSim {
     }
 
     void rebuild_controllers(double dt) {
-        constexpr double pi2 = 2.0 * 3.14159265358979323846;
+        constexpr double pi2 = 2.0 * std::numbers::pi;
         double           v_lim = mp.Vdc / 2.0;
         double           i_lim = cp.i_max;
 
