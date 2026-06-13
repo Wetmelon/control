@@ -59,6 +59,7 @@
 #include "wet/controllers/repetitive.hpp"           // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/synthesis.hpp"            // IWYU pragma: keep
+#include "wet/controllers/trajectory.hpp"           // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
 #include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep
