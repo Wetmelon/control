@@ -381,9 +381,10 @@ Online-first PID/PI tuning that runs in the closed loop without requiring time-s
 - References: K. J. Åström & T. Hägglund, "Automatic tuning of simple regulators with specifications on phase and amplitude margins," Automatica 20(5), 1984, https://doi.org/10.1016/0005-1098(84)90014-1; H. Hjalmarsson, M. Gevers, S. Gunnarsson, O. Lequin, "Iterative feedback tuning: theory and applications," IEEE Control Systems Magazine 18(4), 1998, https://doi.org/10.1109/37.710876
 - Acceptance (remaining): IFT convergence with bounded excitation; safety-policy tests (clamps, rate limits, bumpless transfer, rollback) for both runtimes.
 
-### 8. Extremum-seeking control (ESC) ☐
+### 8. Extremum-seeking control (ESC) ☑
 
-Online optimization of a measured objective without an explicit model. Targets: PV MPPT under irradiance/temperature swings, thermal-efficiency optimization, drivetrain efficiency tracking. Header `controllers/esc.hpp` not yet created.
+**Built (2026-06):** `controllers/esc.hpp` (`test_esc`, in the umbrella, embeddable + freestanding-clean). Classic perturbation-based ESC: `design::synthesize_esc(a, dither_freq, gain, Ts, Maximize|Minimize, hp_cutoff, lp_cutoff, u_init, u_min, u_max)` → `ESCConfig`/`ESCResult` + `ExtremumSeekingController<T>` runtime, plus `synthesize_esc_mppt(...)` convenience. Dither → high-pass (DC removal) → demodulate (∝ ∂J/∂u·a/2) → integrate (`û̇ = ±k·LPF(ξ)`), model-free, allocation-free, constexpr, `.as<U>()`. Safety: `step(J, measurement_valid)` **freezes the integrator** on a flagged-bad measurement (the "rollback/freeze on degraded measurement" behavior), and an optional û clamp band. Verified: climbs an unknown quadratic max / descends a min, **tracks a drifting optimum** (online, not one-shot), freeze-holds û under garbage input, MPPT clamp pins û at the band edge, float, constexpr.
+- Reference: Y. Tan et al., "Extremum seeking control for discrete-time systems," IEEE TAC, 2002, https://doi.org/10.1109/9.983370; Ariyur & Krstić, "Real-Time Optimization by Extremum-Seeking Control," Wiley 2003.
 
 - Interface: `design::synthesize_esc(objective_signal, perturbation_policy, safety_limits)`, `..._mppt(...)` → `ESCResult` / `ESCRuntime` / `ESCSafetyStatus`.
 - Reference: Y. Tan et al., "Extremum seeking control for discrete-time systems," IEEE TAC, 2002. https://doi.org/10.1109/9.983370

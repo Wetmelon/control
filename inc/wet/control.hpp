@@ -42,6 +42,7 @@
 #include "wet/analysis/riccati.hpp"                 // IWYU pragma: keep
 #include "wet/controllers/adrc.hpp"                 // IWYU pragma: keep
 #include "wet/controllers/cascade.hpp"              // IWYU pragma: keep
+#include "wet/controllers/esc.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/excitation.hpp"           // IWYU pragma: keep
 #include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: keep
 #include "wet/controllers/input_shaper.hpp"         // IWYU pragma: keep
