@@ -177,16 +177,16 @@ struct ChirpConfig {
      * @return true if all parameters are finite and physically valid.
      */
     [[nodiscard]] constexpr bool valid() const {
-        if (!detail::finite_positive(amplitude)) {
+        if (!wet::detail::finite_positive(amplitude)) {
             return false;
         }
-        if (!detail::finite_positive(duration_s)) {
+        if (!wet::detail::finite_positive(duration_s)) {
             return false;
         }
-        if (!detail::finite_non_negative(f_start_hz)) {
+        if (!wet::detail::finite_non_negative(f_start_hz)) {
             return false;
         }
-        if (!detail::finite_non_negative(f_end_hz)) {
+        if (!wet::detail::finite_non_negative(f_end_hz)) {
             return false;
         }
         if (mode == ChirpMode::Log) {
@@ -268,20 +268,20 @@ struct PRBSConfig {
      * @return true if order/seed/clock/amplitude are valid.
      */
     [[nodiscard]] constexpr bool valid() const {
-        if (!detail::finite_positive(amplitude)) {
+        if (!wet::detail::finite_positive(amplitude)) {
             return false;
         }
-        if (!detail::finite_positive(clock_period_s)) {
+        if (!wet::detail::finite_positive(clock_period_s)) {
             return false;
         }
         if (lfsr_order < kMinOrder || lfsr_order > kMaxOrder) {
             return false;
         }
-        const std::uint32_t mask = detail::prbs_bit_mask(lfsr_order);
+        const std::uint32_t mask = wet::detail::prbs_bit_mask(lfsr_order);
         if ((seed & mask) == 0u) {
             return false;
         }
-        if (detail::prbs_feedback_mask(lfsr_order) == 0u) {
+        if (wet::detail::prbs_feedback_mask(lfsr_order) == 0u) {
             return false;
         }
         return true;
@@ -359,10 +359,10 @@ struct StepTrainConfig {
      * @return true if amplitude, hold, and cycle count are valid.
      */
     [[nodiscard]] constexpr bool valid() const {
-        if (!detail::finite_positive(amplitude)) {
+        if (!wet::detail::finite_positive(amplitude)) {
             return false;
         }
-        if (!detail::finite_positive(hold_s)) {
+        if (!wet::detail::finite_positive(hold_s)) {
             return false;
         }
         if (cycles == 0) {
@@ -438,10 +438,10 @@ struct RampConfig {
         if (!wet::isfinite(target)) {
             return false;
         }
-        if (!detail::finite_positive(rate)) {
+        if (!wet::detail::finite_positive(rate)) {
             return false;
         }
-        if (!detail::finite_non_negative(hold_at_end_s)) {
+        if (!wet::detail::finite_non_negative(hold_at_end_s)) {
             return false;
         }
         return true;
@@ -546,10 +546,10 @@ struct MultiSineConfig {
         bool has_energy = false;
         for (std::size_t i = 0; i < NTones; ++i) {
             const auto& tone = tones[i];
-            if (!detail::finite_non_negative(tone.amplitude)) {
+            if (!wet::detail::finite_non_negative(tone.amplitude)) {
                 return false;
             }
-            if (!detail::finite_non_negative(tone.freq_hz)) {
+            if (!wet::detail::finite_non_negative(tone.freq_hz)) {
                 return false;
             }
             if (!wet::isfinite(tone.phase_rad)) {
@@ -854,7 +854,7 @@ public:
 
 private:
     [[nodiscard]] constexpr std::uint32_t seeded_state() const {
-        const std::uint32_t mask = detail::prbs_bit_mask(config_.lfsr_order);
+        const std::uint32_t mask = wet::detail::prbs_bit_mask(config_.lfsr_order);
         const std::uint32_t seeded = config_.seed & mask;
         if (seeded == 0u) {
             return 1u;

@@ -29,10 +29,12 @@ template<typename T>
 struct scalar_type {
     using type = T;
 };
+
 template<typename T>
 struct scalar_type<wet::complex<T>> {
     using type = T;
 };
+
 template<typename T>
 using scalar_type_t = typename scalar_type<T>::type;
 

@@ -78,6 +78,30 @@ TEST_SUITE("DCM") {
         CHECK(v_rot[0] == doctest::Approx(0.0f).epsilon(1e-5));
         CHECK(v_rot[1] == doctest::Approx(1.0f).epsilon(1e-5));
     }
+
+    // Regression: eps is a *linear* axis-length tolerance, so a short (but
+    // nonzero) axis — e.g. the small rotation vectors iterative solvers feed in —
+    // must still be accepted, not rejected by a squared-norm-vs-eps mismatch.
+    TEST_CASE("DCM/Quaternion from a short axis is accepted (eps is linear)") {
+        const Vec3<double> tiny{1e-5, 0.0, 0.0}; // |axis|² = 1e-10 < default eps 1e-9
+        const double       angle = 0.02;
+
+        auto R_opt = DCM<double>::from_axis_angle(tiny, angle);
+        REQUIRE(R_opt.has_value());
+        // Direction (axis normalized internally) governs the rotation, not |axis|.
+        auto R = R_opt.value();
+        auto ref = DCM<double>::rotate_x(angle);
+        CHECK(R(1, 1) == doctest::Approx(ref(1, 1)).epsilon(1e-9));
+        CHECK(R(2, 1) == doctest::Approx(ref(2, 1)).epsilon(1e-9));
+
+        auto q_opt = Quaternion<double>::from_axis_angle(tiny, angle);
+        REQUIRE(q_opt.has_value());
+        CHECK(q_opt.value().w() == doctest::Approx(std::cos(angle / 2.0)));
+
+        // A genuinely (near-)zero axis is still rejected.
+        CHECK_FALSE(DCM<double>::from_axis_angle(Vec3<double>{0.0, 0.0, 0.0}, angle).has_value());
+        CHECK_FALSE(Quaternion<double>::from_axis_angle(Vec3<double>{0.0, 0.0, 0.0}, angle).has_value());
+    }
 }
 
 TEST_SUITE("Euler") {

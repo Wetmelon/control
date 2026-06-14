@@ -150,10 +150,14 @@ struct DCM : public Mat3<T> {
     // Construct from quaternion
     [[nodiscard]] static constexpr DCM from_quaternion(const Quaternion<T>& q);
 
-    // Construct from axis-angle
+    // Construct from axis-angle. @p eps is a *linear* tolerance on the axis
+    // length: the axis is normalized internally, so any nonzero axis is valid and
+    // the guard only rejects a (near-)zero axis. Comparing the *squared* norm to a
+    // linear eps would reject axes shorter than √eps — silently dropping the small
+    // rotation vectors that iterative solvers feed in (see kinematics/stewart.hpp).
     [[nodiscard]] static constexpr wet::optional<DCM> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
         T axis_norm2 = axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2];
-        if (axis_norm2 <= eps) {
+        if (axis_norm2 <= eps * eps) {
             return wet::nullopt;
         }
         T inv_norm = T{1} / wet::sqrt(axis_norm2);
@@ -624,10 +628,14 @@ struct Quaternion : public Matrix<4, 1, T> {
         return q_opt.value_or(identity());
     }
 
-    // Construct from axis-angle
+    // Construct from axis-angle. @p eps is a *linear* tolerance on the axis
+    // length: the axis is normalized internally, so any nonzero axis is valid and
+    // the guard only rejects a (near-)zero axis. Comparing the *squared* norm to a
+    // linear eps would reject axes shorter than √eps — silently dropping the small
+    // rotation vectors that iterative solvers feed in (see kinematics/stewart.hpp).
     [[nodiscard]] static constexpr wet::optional<Quaternion> from_axis_angle(const Vec3<T>& axis, T angle, T eps = T{1e-9}) {
         T axis_norm2 = axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2];
-        if (axis_norm2 <= eps) {
+        if (axis_norm2 <= eps * eps) {
             return wet::nullopt;
         }
         T inv_axis_norm = T{1} / wet::sqrt(axis_norm2);
@@ -836,8 +844,8 @@ struct Transform4 : public Mat4<T> {
     // Convert to quaternion + translation
     [[nodiscard]] constexpr wet::pair<Quaternion<T>, Vec3<T>> to_quaternion_translation() const {
         DCM<T>  R = rotation();
-        auto    q_opt = R.to_quaternion();
         Vec3<T> t = translation();
+        auto    q_opt = R.to_quaternion();
         return {q_opt.value_or(Quaternion<T>::identity()), t};
     }
 

@@ -7,10 +7,11 @@ include tup.config
 GXX := $(CONFIG_COMPILER_PATH)/$(CONFIG_COMPILER_PREFIX)g++
 
 all: format build
+	@./tests/build/test_runner.exe
 	@$(MAKE) --no-print-directory embedded-check
 	@$(MAKE) --no-print-directory freestanding-check
 
-format: 
+format:
 	@clang-format -i $$(find inc -name '*.hpp') $$(find tests examples -name '*.cpp' -o -name '*.hpp')
 
 compiledb:

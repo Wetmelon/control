@@ -41,6 +41,7 @@
 // --- Controllers + design synthesis -----------------------------------------
 #include "wet/analysis/riccati.hpp"                 // IWYU pragma: keep
 #include "wet/controllers/adrc.hpp"                 // IWYU pragma: keep
+#include "wet/controllers/cartesian_move.hpp"       // IWYU pragma: keep
 #include "wet/controllers/cascade.hpp"              // IWYU pragma: keep
 #include "wet/controllers/esc.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/excitation.hpp"           // IWYU pragma: keep
@@ -59,6 +60,7 @@
 #include "wet/controllers/repetitive.hpp"           // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/synthesis.hpp"            // IWYU pragma: keep
+#include "wet/controllers/topp.hpp"                 // IWYU pragma: keep
 #include "wet/controllers/trajectory.hpp"           // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
@@ -77,6 +79,13 @@
 // not working APIs. Keeping them out of the umbrella avoids advertising unshipped
 // surface as part of the embeddable contract; include them directly if you are
 // developing those features.
+
+// --- Kinematics (allocation-free) -------------------------------------------
+#include "wet/kinematics/motion_maps.hpp" // IWYU pragma: keep
+#include "wet/kinematics/pose.hpp"        // IWYU pragma: keep
+#include "wet/kinematics/scara.hpp"       // IWYU pragma: keep
+#include "wet/kinematics/serial_arm.hpp"  // IWYU pragma: keep
+#include "wet/kinematics/stewart.hpp"     // IWYU pragma: keep
 
 // --- Signal filters ---------------------------------------------------------
 #include "wet/filters/differentiator.hpp" // IWYU pragma: keep
