@@ -175,8 +175,9 @@ template<size_t N, typename T = double>
 [[nodiscard]] constexpr bool is_stable_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
-    if (!eigen.converged)
+    if (!eigen.converged) {
         return false;
+    }
 
     for (size_t i = 0; i < N; ++i) {
         T magnitude = wet::abs(eigen.values[i]);
@@ -228,8 +229,9 @@ template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_continuous(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
-    if (!eigen.converged)
+    if (!eigen.converged) {
         return T{1}; // Return unstable indicator
+    }
 
     T max_real = eigen.values[0].real();
     for (size_t i = 1; i < N; ++i) {
@@ -257,8 +259,9 @@ template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_discrete(const Matrix<N, N, T>& A) {
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
-    if (!eigen.converged)
+    if (!eigen.converged) {
         return T{-1}; // Return unstable indicator
+    }
 
     T max_mag = T{0};
     for (size_t i = 0; i < N; ++i) {

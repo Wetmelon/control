@@ -56,10 +56,13 @@
 #include "wet/design/riccati.hpp"                   // IWYU pragma: keep
 
 // --- Trajectory + motion planning -------------------------------------------
-#include "wet/trajectory/cartesian_move.hpp" // IWYU pragma: keep
-#include "wet/trajectory/input_shaper.hpp"   // IWYU pragma: keep
-#include "wet/trajectory/topp.hpp"           // IWYU pragma: keep
-#include "wet/trajectory/trajectory.hpp"     // IWYU pragma: keep
+#include "wet/trajectory/cartesian_move.hpp" // IWYU pragma: export
+#include "wet/trajectory/input_shaper.hpp"   // IWYU pragma: export
+#include "wet/trajectory/polynomial.hpp"     // IWYU pragma: export
+#include "wet/trajectory/scurve.hpp"         // IWYU pragma: export
+#include "wet/trajectory/spline.hpp"         // IWYU pragma: export
+#include "wet/trajectory/topp.hpp"           // IWYU pragma: export
+#include "wet/trajectory/trapezoidal.hpp"    // IWYU pragma: export
 
 // --- Controller design tools ------------------------------------------------
 #include "wet/design/pid_autotune.hpp"   // IWYU pragma: keep
@@ -72,18 +75,12 @@
 #include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep
 #include "wet/estimation/ekf.hpp"                     // IWYU pragma: keep
 #include "wet/estimation/eskf.hpp"                    // IWYU pragma: keep
+#include "wet/estimation/excitation.hpp"              // IWYU pragma: keep
 #include "wet/estimation/kalman.hpp"                  // IWYU pragma: keep
 #include "wet/estimation/observer.hpp"                // IWYU pragma: keep
 #include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: keep
 #include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
 #include "wet/estimation/ukf.hpp"                     // IWYU pragma: keep
-
-// NOTE: estimation/harmonic_estimation.hpp and estimation/identification.hpp are
-// intentionally NOT included here. They are placeholders for planned features (harmonic
-// detection, system identification) that expose only result-struct skeletons,
-// not working APIs. Keeping them out of the umbrella avoids advertising unshipped
-// surface as part of the embeddable contract; include them directly if you are
-// developing those features.
 
 // --- Kinematics (allocation-free) -------------------------------------------
 #include "wet/kinematics/motion_maps.hpp" // IWYU pragma: keep
@@ -102,6 +99,7 @@
 #include "wet/simulation/integrator.hpp" // IWYU pragma: keep
 
 // --- Domain helpers ---------------------------------------------------------
+#include "wet/utility/actuator.hpp"      // IWYU pragma: keep
 #include "wet/utility/geometry.hpp"      // IWYU pragma: keep
 #include "wet/utility/iec61131.hpp"      // IWYU pragma: keep
 #include "wet/utility/motor_control.hpp" // IWYU pragma: keep

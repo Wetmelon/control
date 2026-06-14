@@ -41,9 +41,9 @@
  *      lineage this specializes (box velocity/acceleration constraints).
  */
 
-#include "wet/math/math.hpp"                 // wet::abs, sqrt, min, max
-#include "wet/trajectory/cartesian_move.hpp" // JointLimits
-#include "wet/trajectory/trajectory.hpp"     // TrajectoryState
+#include "wet/math/math.hpp"                   // wet::abs, sqrt, min, max
+#include "wet/trajectory/cartesian_move.hpp"   // JointLimits
+#include "wet/trajectory/trajectory_types.hpp" // TrajectoryState
 
 namespace wet {
 

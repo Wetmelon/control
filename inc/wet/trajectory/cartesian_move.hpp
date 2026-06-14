@@ -38,8 +38,9 @@
  *      pointwise re-timing this global-K version approximates.
  */
 
-#include "wet/math/math.hpp"             // wet::abs, wet::sqrt
-#include "wet/trajectory/trajectory.hpp" // TrajectoryLimits, TrajectoryState, design::synthesize_scurve
+#include "scurve.hpp"
+#include "trajectory_types.hpp"
+#include "wet/math/math.hpp"
 
 namespace wet {
 

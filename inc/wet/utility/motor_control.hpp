@@ -129,7 +129,7 @@ template<typename T = float>
 /**
  * @brief Space Vector Modulation (SVM) duty cycles
  *
- * Calculates PWM duty cycles for three-phase inverter using SVM.
+ * Calculates "two-level" PWM duty cycles for three-phase inverter using SVM.
  * Returns duty cycles for phases A, B, C in range [0, 1].
  *
  * @param v_alpha α voltage component

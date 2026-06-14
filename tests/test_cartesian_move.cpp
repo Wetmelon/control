@@ -98,7 +98,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {1e4, 1e4};
         jl.max_acceleration = {1e6, 1e6};
-        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{50.0, 400.0, 400.0, 4000.0}, jl);
+        const auto mv = make_cartesian_move(path, corexy_ik, path.length, TrajectoryLimits<double>{50.0, 400.0, 400.0, 4000.0}, jl);
         REQUIRE(mv.valid());
         CHECK(mv.scale() == doctest::Approx(1.0)); // joints never bind -> path feed governs
     }

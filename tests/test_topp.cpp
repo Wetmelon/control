@@ -1,5 +1,6 @@
 #include <cmath>
 
+#include "wet/matrix/colvec.hpp" // Vec3
 #include "wet/trajectory/cartesian_move.hpp"
 #include "wet/trajectory/topp.hpp"
 
