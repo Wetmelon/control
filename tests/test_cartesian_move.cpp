@@ -58,7 +58,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {120.0, 120.0};
         jl.max_acceleration = {2000.0, 2000.0};
-        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
+        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length(), TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
         REQUIRE(mv.valid());
         REQUIRE(mv.reachable());
 
@@ -98,7 +98,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {1e4, 1e4};
         jl.max_acceleration = {1e6, 1e6};
-        const auto mv = make_cartesian_move(path, corexy_ik, path.length, TrajectoryLimits<double>{50.0, 400.0, 400.0, 4000.0}, jl);
+        const auto mv = make_cartesian_move(path, corexy_ik, path.length(), TrajectoryLimits<double>{50.0, 400.0, 400.0, 4000.0}, jl);
         REQUIRE(mv.valid());
         CHECK(mv.scale() == doctest::Approx(1.0)); // joints never bind -> path feed governs
     }
@@ -114,7 +114,7 @@ TEST_SUITE("cartesian_move") {
         jl.max_acceleration = {5000.0, 80.0};
         // Oversample the K-sweep: the θ̇ peak near the skim is narrow, so a coarse
         // sweep underestimates it and under-derates (a real global-K limitation).
-        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length, TrajectoryLimits<double>{300.0, 2000.0, 2000.0, 20000.0}, jl, 4000);
+        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length(), TrajectoryLimits<double>{300.0, 2000.0, 2000.0, 20000.0}, jl, 4000);
         REQUIRE(mv.valid());
 
         // Path preserved despite the polar nonlinearity.
@@ -141,7 +141,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {80.0, 3.0};
         jl.max_acceleration = {1500.0, 60.0};
-        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length, TrajectoryLimits<double>{250.0, 1500.0, 1500.0, 15000.0}, jl);
+        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length(), TrajectoryLimits<double>{250.0, 1500.0, 1500.0, 15000.0}, jl);
         REQUIRE(mv.valid());
         const double h = 1e-6;
         for (int k = 1; k < 40; ++k) {
@@ -159,7 +159,7 @@ TEST_SUITE("cartesian_move") {
     TEST_CASE("invalid inputs report failure") {
         const LinearPath<double> path({0.0, 0.0, 0.0}, {10.0, 0.0, 0.0});
         JointLimits<2, double>   bad; // zero limits
-        const auto               mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{100.0, 400.0, 400.0, 4000.0}, bad);
+        const auto               mv = make_cartesian_move<2>(path, corexy_ik, path.length(), TrajectoryLimits<double>{100.0, 400.0, 400.0, 4000.0}, bad);
         CHECK_FALSE(mv.valid());
     }
 
@@ -173,7 +173,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {1e5, 1e5}; // velocity never binds
         jl.max_acceleration = {500.0, 500.0};
-        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
+        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length(), TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
         REQUIRE(mv.valid());
         REQUIRE(mv.reachable());
         CHECK(mv.scale() > 1.0); // genuinely derated, by acceleration
@@ -205,13 +205,13 @@ TEST_SUITE("cartesian_move") {
         // A path that leaves the r <= 100 workspace: the move is well-formed
         // (valid) but flagged unreachable because some swept points fail IK.
         const LinearPath<double> outside({0.0, 0.0, 0.0}, {200.0, 0.0, 0.0});
-        const auto               mv_out = make_cartesian_move<2>(outside, polar_ik_bounded, outside.length, pl, jl);
+        const auto               mv_out = make_cartesian_move<2>(outside, polar_ik_bounded, outside.length(), pl, jl);
         CHECK(mv_out.valid());
         CHECK_FALSE(mv_out.reachable());
 
         // A path that stays inside the workspace is reachable.
         const LinearPath<double> inside({10.0, 0.0, 0.0}, {80.0, 0.0, 0.0});
-        const auto               mv_in = make_cartesian_move<2>(inside, polar_ik_bounded, inside.length, pl, jl);
+        const auto               mv_in = make_cartesian_move<2>(inside, polar_ik_bounded, inside.length(), pl, jl);
         CHECK(mv_in.valid());
         CHECK(mv_in.reachable());
     }
@@ -223,7 +223,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {120.0, 120.0};
         jl.max_acceleration = {2000.0, 2000.0};
-        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
+        const auto mv = make_cartesian_move<2>(path, corexy_ik, path.length(), TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
         REQUIRE(mv.valid());
 
         const auto s0 = mv.eval(0.0);
@@ -245,7 +245,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {120.0, 5.0};
         jl.max_acceleration = {2000.0, 80.0};
-        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length, TrajectoryLimits<double>{200.0, 1200.0, 1200.0, 15000.0}, jl);
+        const auto mv = make_cartesian_move<2>(path, polar_ik, path.length(), TrajectoryLimits<double>{200.0, 1200.0, 1200.0, 15000.0}, jl);
         REQUIRE(mv.valid());
         const double h = 1e-6;
         for (int k = 1; k < 40; ++k) {
@@ -269,7 +269,7 @@ TEST_SUITE("cartesian_move") {
         JointLimits<2, double>   jl;
         jl.max_velocity = {120.0, 120.0};
         jl.max_acceleration = {2000.0, 2000.0};
-        auto mv = make_cartesian_move<2>(path, corexy_ik, path.length, TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
+        auto mv = make_cartesian_move<2>(path, corexy_ik, path.length(), TrajectoryLimits<double>{200.0, 800.0, 800.0, 8000.0}, jl);
         REQUIRE(mv.valid());
         const double D = mv.duration();
 

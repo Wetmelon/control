@@ -64,9 +64,10 @@ struct ToppProfile {
     wet::array<T, NGrid> s{};    //!< path coordinate grid (uniform, s₀=0 … s_{N-1}=length)
     wet::array<T, NGrid> sdot{}; //!< path speed ṡ at each grid point
     wet::array<T, NGrid> time{}; //!< arrival time at each grid point
-    T                    length{T{0}};
-    T                    duration{T{0}};
-    bool                 success{false};
+
+    T    length{T{0}};
+    T    duration{T{0}};
+    bool success{false};
 
     /// Path coordinate, speed, and acceleration at time @p t (clamped to [0, T]).
     [[nodiscard]] constexpr TrajectoryState<T> at(T t) const {
@@ -197,8 +198,8 @@ private:
             if (wet::abs(d.dq[i]) > kTiny) {
                 const T r1 = (-amax[i] - c) / d.dq[i];
                 const T r2 = (amax[i] - c) / d.dq[i];
-                lo = max_of(lo, min_of(r1, r2));
-                hi = min_of(hi, max_of(r1, r2));
+                lo = wet::max(lo, wet::min(r1, r2));
+                hi = wet::min(hi, wet::max(r1, r2));
             } else if (wet::abs(c) > amax[i]) {
                 return b; // joint can't be held within accel limit at this x — infeasible
             }
@@ -226,7 +227,7 @@ private:
             for (size_t j = 0; j < NJoints; ++j) {
                 if (wet::abs(deriv[i].dq[j]) > kTiny) {
                     const T xj = (lim.max_velocity[j] * lim.max_velocity[j]) / (deriv[i].dq[j] * deriv[i].dq[j]);
-                    xv = min_of(xv, xj);
+                    xv = wet::min(xv, xj);
                 }
             }
             mvc[i] = accel_mvc(deriv[i], xv, lim.max_acceleration);
@@ -237,22 +238,23 @@ private:
         for (size_t i = 0; i < NGrid; ++i) {
             x[i] = mvc[i];
         }
-        x[0] = min_of(x[0], sdot_start * sdot_start);
-        x[NGrid - 1] = min_of(x[NGrid - 1], sdot_end * sdot_end);
+        x[0] = wet::min(x[0], sdot_start * sdot_start);
+        x[NGrid - 1] = wet::min(x[NGrid - 1], sdot_end * sdot_end);
 
         // Forward pass: accelerate maximally, never above the MVC ceiling.
         for (size_t i = 0; i + 1 < NGrid; ++i) {
             const UBounds b = accel_bounds(deriv[i], x[i], lim.max_acceleration);
             const T       cand = b.feasible ? (x[i] + (T{2} * b.hi * ds)) : x[i];
-            x[i + 1] = clamp_nonneg(min_of(x[i + 1], cand));
+            x[i + 1] = clamp_nonneg(wet::min(x[i + 1], cand));
         }
+
         // Backward pass: ensure each point can decelerate into its successor.
-        x[NGrid - 1] = min_of(x[NGrid - 1], mvc[NGrid - 1]);
-        x[NGrid - 1] = min_of(x[NGrid - 1], sdot_end * sdot_end);
+        x[NGrid - 1] = wet::min(x[NGrid - 1], mvc[NGrid - 1]);
+        x[NGrid - 1] = wet::min(x[NGrid - 1], sdot_end * sdot_end);
         for (size_t i = NGrid - 1; i > 0; --i) {
             const UBounds b = accel_bounds(deriv[i], x[i], lim.max_acceleration);
             const T       cand = b.feasible ? (x[i] - (T{2} * b.lo * ds)) : kBig; // b.lo ≤ 0 ⇒ raises the bound
-            x[i - 1] = clamp_nonneg(min_of(x[i - 1], cand));
+            x[i - 1] = clamp_nonneg(wet::min(x[i - 1], cand));
         }
 
         // Speeds and segment times (exact under constant-s̈ / linear-ṡ).
@@ -333,21 +335,20 @@ private:
         return s;
     }
 
-    [[nodiscard]] static constexpr T min_of(T a, T b) { return (a < b) ? a : b; }
-    [[nodiscard]] static constexpr T max_of(T a, T b) { return (a > b) ? a : b; }
     [[nodiscard]] static constexpr T clamp_nonneg(T a) { return (a < T{0}) ? T{0} : a; }
 
     static constexpr T kBig = T{1e18};
     static constexpr T kTiny = T{1e-12};
 
-    PathFn                path_;
-    IkFn                  ik_;
     ToppProfile<NGrid, T> profile_{};
-    T                     length_{T{0}};
-    T                     step_s_{T{1e-6}};
-    T                     t_{T{0}};
-    bool                  valid_{false};
-    bool                  reachable_{true};
+
+    PathFn path_;
+    IkFn   ik_;
+    T      length_{T{0}};
+    T      step_s_{T{1e-6}};
+    T      t_{T{0}};
+    bool   valid_{false};
+    bool   reachable_{true};
 };
 
 /// Deduction-friendly factory (deduces NJoints from @p joint_limits; pick NGrid).

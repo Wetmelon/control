@@ -48,33 +48,6 @@ struct Translation3 : Vec3<T> {
 };
 
 /**
- * @brief A straight-line path `p(s) = start + s·dir`, `s ∈ [0, length]`.
- *
- * A callable path geometry for @ref CartesianMove (and the simplest case of a
- * task-space path). `dir` is the unit direction; `length` the segment length.
- *
- * @tparam T Scalar type (floating point)
- */
-template<typename T = double>
-struct LinearPath {
-    Vec3<T> start{};
-    Vec3<T> dir{};
-    T       length{T{0}};
-
-    constexpr LinearPath() = default;
-    constexpr LinearPath(const Vec3<T>& a, const Vec3<T>& b) : start(a) {
-        const Vec3<T> d = b - a;
-        length = d.norm();
-        if (length > T{0}) {
-            dir = d / length;
-        }
-    }
-
-    /// Point on the path at arc length @p s.
-    [[nodiscard]] constexpr Vec3<T> operator()(T s) const { return start + (dir * s); }
-};
-
-/**
  * @brief Rigid-body pose: a translation and an orientation (unit quaternion).
  * @tparam T Scalar type (floating point)
  */

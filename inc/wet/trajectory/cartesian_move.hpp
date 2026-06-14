@@ -41,8 +41,38 @@
 #include "scurve.hpp"
 #include "trajectory_types.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
 
 namespace wet {
+
+/**
+ * @brief A straight-line path `p(s) = start + s·dir`, `s ∈ [0, length]`.
+ *
+ * A callable path geometry for @ref CartesianMove (and the simplest case of a
+ * task-space path). `dir` is the unit direction; `length` the segment length.
+ *
+ * @tparam T Scalar type (floating point)
+ */
+template<typename T = double>
+struct LinearPath {
+    constexpr LinearPath() = default;
+    constexpr LinearPath(const Vec3<T>& start, const Vec3<T>& end) : start_(start) {
+        const Vec3<T> d = end - start;
+        length_ = d.norm();
+        if (length_ > T{0}) {
+            dir_ = d / length_;
+        }
+    }
+
+    /// Point on the path at arc length @p s.
+    [[nodiscard]] constexpr Vec3<T> operator()(T s) const { return start_ + (dir_ * s); }
+    [[nodiscard]] constexpr T       length() const { return length_; }
+
+private:
+    Vec3<T> start_{};      // Starting point
+    Vec3<T> dir_{};        // Unit direction
+    T       length_{T{0}}; // Length of the normalized vector
+};
 
 /**
  * @brief Per-joint velocity and acceleration limits for a task-space move.
