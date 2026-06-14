@@ -3,11 +3,11 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "wet/analysis/linearization.hpp"
 #include "wet/backend.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/controllers/pid.hpp"
-#include "wet/controllers/pole_placement.hpp"
+#include "wet/design/linearization.hpp"
+#include "wet/design/pole_placement.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"

@@ -2,8 +2,8 @@
 
 #include <cstddef>
 
-#include "wet/analysis/riccati.hpp"
-#include "wet/analysis/stability.hpp"
+#include "wet/design/riccati.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 

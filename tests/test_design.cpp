@@ -1,10 +1,10 @@
 ﻿#include <cmath>
 
-#include "wet/analysis/riccati.hpp"
 #include "wet/controllers/lqg.hpp"
 #include "wet/controllers/lqgi.hpp"
 #include "wet/controllers/lqi.hpp"
 #include "wet/controllers/lqr.hpp"
+#include "wet/design/riccati.hpp"
 #include "wet/estimation/eskf.hpp"
 #include "wet/estimation/kalman.hpp"
 #include "wet/matrix/matrix.hpp"

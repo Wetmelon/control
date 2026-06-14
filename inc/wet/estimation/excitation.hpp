@@ -41,7 +41,7 @@
  *
  * Example: chirp excitation in a discrete control loop.
  * @code
- * #include "wet/controllers/excitation.hpp"
+ * #include "wet/estimation/excitation.hpp"
  *
  * using namespace wet;
  *

@@ -1,6 +1,6 @@
 #include <array>
 
-#include "wet/controllers/excitation.hpp"
+#include "wet/estimation/excitation.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

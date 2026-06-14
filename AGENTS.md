@@ -78,7 +78,7 @@ inc/wet/
 Two entry points:
 
 - **`wet/control.hpp`** — the embeddable subset. Nothing reachable from it allocates (`std::vector`) or pulls a third-party dependency. This is the contract; `make embedded-check` enforces it by failing if `<vector>` becomes reachable.
-- **`wet/toolbox.hpp`** — `control.hpp` plus the host-only design/analysis tooling: `analysis/analysis.hpp` (Bode/Nyquist/margins/`linspace`/`logspace`), `simulation/{solver,simulate}.hpp`, `plotting/plot.hpp`, and `matlab.hpp`. These allocate, so they stay off the target.
+- **`wet/toolbox.hpp`** — `control.hpp` plus the host-only design/analysis tooling: `analysis.hpp` (Bode/Nyquist/margins/`linspace`/`logspace`), `simulation/{solver,simulate}.hpp`, `plotting/plot.hpp`, and `matlab.hpp`. These allocate, so they stay off the target.
 
 **Host vs embedded.** A header is *host-only* if it (transitively) pulls `<vector>` or a third-party lib. Today that's `analysis.hpp`, `solver.hpp`, `simulate.hpp`, `plot.hpp`, `plot_plotly.hpp`, `matlab.hpp`. Everything else is embeddable and belongs in `control.hpp`. If you add a header that allocates, put it behind `toolbox.hpp`, not `control.hpp` — `make embedded-check` will catch a regression.
 

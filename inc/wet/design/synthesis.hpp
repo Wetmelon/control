@@ -11,10 +11,10 @@
  * - optional SISO PR internal model composition
  */
 
-#include "lqg.hpp"
-#include "lqgi.hpp"
-#include "lqi.hpp"
-#include "pr.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/controllers/pr.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet {

@@ -1,8 +1,8 @@
 #include <algorithm>
 #include <cmath>
 
-#include "wet/controllers/cartesian_move.hpp"
 #include "wet/kinematics/motion_maps.hpp"
+#include "wet/trajectory/cartesian_move.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

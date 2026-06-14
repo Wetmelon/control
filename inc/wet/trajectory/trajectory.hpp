@@ -106,7 +106,6 @@ struct TrajectoryState {
  */
 template<typename T = double>
 struct TrajectoryBoundary {
-
     T position{T{0}};
     T velocity{T{0}};
     T acceleration{T{0}};

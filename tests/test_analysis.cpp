@@ -1,7 +1,7 @@
 #include <cmath>
 
-#include "wet/analysis/analysis.hpp"
-#include "wet/analysis/stability.hpp"
+#include "wet/analysis.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

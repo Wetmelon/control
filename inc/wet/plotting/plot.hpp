@@ -23,7 +23,7 @@
 #include <string>
 #include <vector>
 
-#include "wet/analysis/analysis.hpp"
+#include "wet/analysis.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet {

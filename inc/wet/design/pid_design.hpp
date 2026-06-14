@@ -20,7 +20,7 @@
 
 #include <limits>
 
-#include "pid.hpp"
+#include "wet/controllers/pid.hpp"
 #include "wet/math/math.hpp"
 
 namespace wet {

@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "wet/analysis/analysis.hpp"
+#include "wet/analysis.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 

@@ -2,7 +2,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "wet/controllers/trajectory.hpp"
+#include "wet/trajectory/trajectory.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

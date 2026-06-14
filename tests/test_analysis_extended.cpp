@@ -1,8 +1,8 @@
 
 #include <cmath>
 
-#include "wet/analysis/analysis.hpp"
-#include "wet/analysis/stability.hpp"
+#include "wet/analysis.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 

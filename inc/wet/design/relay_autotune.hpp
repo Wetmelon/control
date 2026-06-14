@@ -26,8 +26,8 @@
  *
  * Example: relay autotune for a discrete plant, then apply Ziegler-Nichols.
  * @code
- * #include "wet/controllers/relay_autotune.hpp"
- * #include "wet/controllers/pid_design.hpp"
+ * #include "wet/design/relay_autotune.hpp"
+ * #include "wet/design/pid_design.hpp"
  *
  * using namespace wet;
  *

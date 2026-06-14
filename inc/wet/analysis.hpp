@@ -11,7 +11,6 @@
 
 #include <cstddef>
 #include <limits>
-#include <optional>
 #include <vector>
 
 #include "wet/math/complex.hpp"

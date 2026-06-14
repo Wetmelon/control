@@ -1,11 +1,11 @@
 #include <numbers>
 
 #include "fmt/core.h"
-#include "wet/analysis/analysis.hpp"
-#include "wet/analysis/linearization.hpp"
-#include "wet/controllers/pid_design.hpp"
+#include "wet/analysis.hpp"
 #include "wet/controllers/pr.hpp"
-#include "wet/controllers/synthesis.hpp"
+#include "wet/design/linearization.hpp"
+#include "wet/design/pid_design.hpp"
+#include "wet/design/synthesis.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 #include "wet/systems/discretization.hpp"

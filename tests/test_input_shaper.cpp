@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "wet/controllers/input_shaper.hpp"
+#include "wet/trajectory/input_shaper.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

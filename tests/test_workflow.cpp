@@ -1,6 +1,6 @@
 #include <numbers>
 
-#include "wet/controllers/synthesis.hpp"
+#include "wet/design/synthesis.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

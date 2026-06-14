@@ -35,33 +35,38 @@
 #include "wet/systems/transfer_function.hpp" // IWYU pragma: keep
 
 // --- Structural analysis (allocation-free) ----------------------------------
-#include "wet/analysis/linearization.hpp" // IWYU pragma: keep
-#include "wet/analysis/stability.hpp"     // IWYU pragma: keep
+#include "wet/design/linearization.hpp" // IWYU pragma: keep
+#include "wet/design/stability.hpp"     // IWYU pragma: keep
 
-// --- Controllers + design synthesis -----------------------------------------
-#include "wet/analysis/riccati.hpp"                 // IWYU pragma: keep
+// --- Controllers ------------------------------------------------------------
 #include "wet/controllers/adrc.hpp"                 // IWYU pragma: keep
-#include "wet/controllers/cartesian_move.hpp"       // IWYU pragma: keep
 #include "wet/controllers/cascade.hpp"              // IWYU pragma: keep
 #include "wet/controllers/esc.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/excitation.hpp"           // IWYU pragma: keep
 #include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: keep
-#include "wet/controllers/input_shaper.hpp"         // IWYU pragma: keep
 #include "wet/controllers/lead_lag.hpp"             // IWYU pragma: keep
 #include "wet/controllers/lqg.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/lqgi.hpp"                 // IWYU pragma: keep
 #include "wet/controllers/lqi.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/lqr.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/pid.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/pid_design.hpp"           // IWYU pragma: keep
 #include "wet/controllers/pll.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/pr.hpp"                   // IWYU pragma: keep
-#include "wet/controllers/relay_autotune.hpp"       // IWYU pragma: keep
 #include "wet/controllers/repetitive.hpp"           // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/synthesis.hpp"            // IWYU pragma: keep
-#include "wet/controllers/topp.hpp"                 // IWYU pragma: keep
-#include "wet/controllers/trajectory.hpp"           // IWYU pragma: keep
+#include "wet/design/riccati.hpp"                   // IWYU pragma: keep
+
+// --- Trajectory + motion planning -------------------------------------------
+#include "wet/trajectory/cartesian_move.hpp" // IWYU pragma: keep
+#include "wet/trajectory/input_shaper.hpp"   // IWYU pragma: keep
+#include "wet/trajectory/topp.hpp"           // IWYU pragma: keep
+#include "wet/trajectory/trajectory.hpp"     // IWYU pragma: keep
+
+// --- Controller design tools ------------------------------------------------
+#include "wet/design/pid_autotune.hpp"   // IWYU pragma: keep
+#include "wet/design/pid_design.hpp"     // IWYU pragma: keep
+#include "wet/design/pole_placement.hpp" // IWYU pragma: keep
+#include "wet/design/relay_autotune.hpp" // IWYU pragma: keep
+#include "wet/design/synthesis.hpp"      // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
 #include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep

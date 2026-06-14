@@ -1,7 +1,7 @@
 #include <cmath>
 
-#include "wet/controllers/cartesian_move.hpp"
-#include "wet/controllers/topp.hpp"
+#include "wet/trajectory/cartesian_move.hpp"
+#include "wet/trajectory/topp.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

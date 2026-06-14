@@ -1,7 +1,7 @@
 #include <algorithm>
 #include <array>
 
-#include "wet/controllers/pole_placement.hpp"
+#include "wet/design/pole_placement.hpp"
 #include "wet/matlab.hpp"
 #include "wet/matrix/eigen.hpp"
 

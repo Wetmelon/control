@@ -1,4 +1,4 @@
-.PHONY: all clean tests tidy docs gui embedded-check freestanding-check
+.PHONY: all clean tests tidy docs gui embedded-check freestanding-check profile-compile
 
 # Build compiler, derived from tup.config (mirrors Tuprules.lua: path + prefix + g++).
 # tup.config lines are KEY=value, i.e. valid make assignments -- include them
@@ -83,6 +83,13 @@ tidy:
 		| grep '^ ' | sed 's,^ ,-extra-arg=-isystem,'); \
 	run-clang-tidy -p . -fix -header-filter='inc[/\\].*' \
 		-extra-arg=--target=$$TGT $$ISYS '\.cpp$$'
+
+# Compile-time profiling. Builds the examples with clang's -ftime-trace (GCC 14.2
+# predates -ftime-trace, so we borrow the clang already on PATH for tidy/format),
+# emits a per-TU Chrome-trace flame graph under analysis/compile_profile/traces/,
+# and prints a frontend-vs-backend / per-header breakdown. Pass FILES=... to scope.
+profile-compile:
+	@python analysis/compile_profile/profile.py $(FILES)
 
 gui:
 ifeq ($(OS),Windows_NT)

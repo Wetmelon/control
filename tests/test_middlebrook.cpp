@@ -2,7 +2,7 @@
  * @file test_middlebrook.cpp
  * @brief Tests for Middlebrook impedance stability analysis
  */
-#include "wet/analysis/analysis.hpp"
+#include "wet/analysis.hpp"
 #include "wet/math/math.hpp"
 #include "wet/systems/state_space.hpp"
 
