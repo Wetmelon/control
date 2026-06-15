@@ -7,6 +7,7 @@
 #include "wet/plotting/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
+#include "wet/utility/foc.hpp"
 
 using namespace wet;
 using namespace wet::sim;
@@ -59,10 +60,8 @@ constexpr double Vdc = 48.0;               // DC bus voltage [V]
 // Current loop: PI with pole-zero cancellation, bandwidth-based design
 //   Plant: G(s) = 1/(sLs + Rs)
 //   PI: Kp = wc*Ls, Ki = wc*Rs
-constexpr double bw_current = 1000.0; // Current loop bandwidth [Hz]
-constexpr double wc_current = 2.0 * std::numbers::pi * bw_current;
-constexpr double Kp_i = wc_current * Ls;
-constexpr double Ki_i = wc_current * Rs;
+constexpr double wc_current = 1000.0;
+constexpr double bw_current = wc_current / (2.0 * std::numbers::pi); // Current loop bandwidth [Hz]
 
 // Speed loop: explicit PI gains
 constexpr double Kp_speed = 0.3;
@@ -81,20 +80,25 @@ constexpr int speed_ratio = 1;
 constexpr int position_ratio = 1;
 
 int main() {
+    FOController<double> foc({Ls, Ls}, Rs, lambda_pm, 0.0, wc_current);
+
     fmt::print("===== PMSM Servo Drive Simulation (P-PI-PI) =====\n\n");
     fmt::print("Motor:   Rs={:.2f} Ohm, Ls={:.1f} mH, lambda_pm={:.2f} Wb, P={}\n", Rs, Ls * 1e3, lambda_pm, P);
     fmt::print("         Jm={:.1e} kg*m^2, KT={:.3f} Nm/A\n", Jm, KT);
     fmt::print("Coupling: Ks={:.0f} Nm/rad, Bs={:.3f} Nm*s/rad\n", Ks, Bs);
     fmt::print("Load:    JL={:.1e} kg*m^2, BL={:.1e}, Tc={:.3f} Nm\n", JL, BL, Tc);
-    fmt::print("Control: Current PI  Kp={:.2f}, Ki={:.1f}  (BW={:.0f} Hz)\n", Kp_i, Ki_i, bw_current);
+    fmt::print("Control: Current PI  Kp={:.2f}, Ki={:.1f}  (BW={:.0f} Hz)\n", foc.qctrl.Kp, foc.qctrl.Ki, bw_current);
     fmt::print("         Speed PI    Kp={:.4f}, Ki={:.2f}\n", Kp_speed, Ki_speed);
     fmt::print("         Position P  Kp={:.1f}, speed_max={:.0f} rad/s\n", Kp_position, speed_max);
     fmt::print("         Vdc={:.0f} V, dt={:.0f} us\n\n", Vdc, dt * 1e6);
 
-    // Create PI controllers
-    const double          v_lim = Vdc / 2.0;
-    PIDController<double> pi_d{design::pid(Kp_i, Ki_i, 0.0, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
-    PIDController<double> pi_q{design::pid(Kp_i, Ki_i, 0.0, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
+    // Inner current loop: FOController handles both dq PI regulators plus the
+    // always-on cross-coupling decoupling and back-EMF feedforward. Surface-mount
+    // PMSM so Ld = Lq = Ls. tune() places the current-loop poles at wc_current
+    // (overriding the constructor's default_bandwidth seed).
+    const double v_circle = Vdc / std::numbers::sqrt3; // SVPWM voltage-circle radius [V]
+
+    // Speed loop PI (current command)
     PIDController<double> pi_spd{design::pid(Kp_speed, Ki_speed, 0.0, 1 - i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
 
     // Controller state
@@ -167,16 +171,12 @@ int main() {
             iq_ref = pi_spd.control(omega_ref_cmd, omega_m, dt * speed_ratio);
         }
 
-        // Current loops
-        double vd = pi_d.control(0.0, id, dt);
-        double vq = pi_q.control(iq_ref, iq, dt);
+        // Current loop: FOController applies the dq PI feedback plus cross-coupling
+        // decoupling and back-EMF feedforward. Electrical speed feeds those FF terms.
+        foc.omega = P * omega_m;
+        const auto cmd = foc.current_controller({.d = 0.0, .q = iq_ref}, {.d = id, .q = iq}, dt, v_circle);
 
-        // Cross-coupling decoupling and back-EMF feedforward
-        const double omega_e = P * omega_m;
-        vd -= omega_e * Ls * iq;
-        vq += (omega_e * Ls * id) + (omega_e * lambda_pm);
-
-        return ColVec<2>{vd, vq};
+        return ColVec<2>{cmd.Vdq.d, cmd.Vdq.q};
     };
 
     // RK45 adaptive solver

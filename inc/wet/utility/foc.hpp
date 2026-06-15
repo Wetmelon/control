@@ -67,16 +67,10 @@ struct FOController {
     PIController<T> dctrl = {};
     PIController<T> qctrl = {};
 
-    /// Default current-loop bandwidth [rad/s] applied by the parameterized
-    /// constructor. ~1 kHz is a conventional starting point; re-tune() for other
-    /// loop rates or damping.
-    static constexpr T default_bandwidth = T{1000};
-
     constexpr FOController() = default;
-    constexpr FOController(DQ Ldq, T R, T lambda, T omega) : Ldq(Ldq), R(R), lambda(lambda), omega(omega) {
-        // Seed working PI gains so the regulator is usable out of the box; the
-        // plant params needed by tune() (Ldq, R) are set by the time we get here.
-        tune(default_bandwidth);
+    constexpr FOController(DQ Ldq, T R, T lambda, T omega, T omega_bw = T{1000})
+        : Ldq(Ldq), R(R), lambda(lambda), omega(omega) {
+        tune(omega_bw); // Seed the Kp, Ki gains
     }
 
     /**
