@@ -20,3 +20,4 @@ COPILOT_LOG.md
 __pycache__
 js/plotly.min.js
 *.html
+docs/html/
