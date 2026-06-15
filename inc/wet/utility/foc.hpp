@@ -10,6 +10,39 @@
 
 namespace wet {
 
+/**
+ * @brief Result of one FOController::step(), carrying the actuator command plus
+ *        the saturation/measurement signals an outer (velocity/position) loop
+ *        needs to propagate anti-windup back up a cascade.
+ *
+ * @tparam T Scalar type
+ */
+template<typename T = float>
+struct FocResult {
+    ColVec<3, T>        duties = {};         ///< [pu] half-bridge duties {a,b,c}, each in [0,1]
+    DirectQuadrature<T> Idq = {};            ///< [A] measured current = realized value (outer-loop u_sat)
+    bool                v_saturated = false; ///< |Vdq| hit the SVPWM voltage circle (use to gate outer back-calc)
+    bool                svm_clipped = false; ///< duties hit [0,1] (over-modulation safety net)
+    T                   v_excess = T{0};     ///< |Vdq|/Vmax before limiting (>1 ⇒ saturated); 0 when unlimited
+};
+
+/**
+ * @brief Result of FOController::current_controller(): the dq voltage command
+ *        plus its saturation signals.
+ *
+ * Vdq is always a usable command (clamped to the voltage circle); is_saturated /
+ * v_excess are advisory flags for the caller's anti-windup, hence a flag-carrying
+ * struct rather than a wet::optional / wet::expected wrapper.
+ *
+ * @tparam T Scalar type
+ */
+template<typename T = float>
+struct DqCommand {
+    DirectQuadrature<T> Vdq = {};             ///< [V] dq voltage target (clamped to |Vdq| ≤ Vmax)
+    bool                is_saturated = false; ///< |Vdq| hit the voltage circle
+    T                   v_excess = T{0};      ///< |Vdq|/Vmax before limiting (>1 ⇒ saturated); 0 when unlimited
+};
+
 template<typename T = float>
 struct FOController {
     using DQ = DirectQuadrature<T>;
@@ -34,8 +67,17 @@ struct FOController {
     PIController<T> dctrl = {};
     PIController<T> qctrl = {};
 
+    /// Default current-loop bandwidth [rad/s] applied by the parameterized
+    /// constructor. ~1 kHz is a conventional starting point; re-tune() for other
+    /// loop rates or damping.
+    static constexpr T default_bandwidth = T{1000};
+
     constexpr FOController() = default;
-    constexpr FOController(DQ Ldq, T R, T lambda, T omega) : Ldq(Ldq), R(R), lambda(lambda), omega(omega) {}
+    constexpr FOController(DQ Ldq, T R, T lambda, T omega) : Ldq(Ldq), R(R), lambda(lambda), omega(omega) {
+        // Seed working PI gains so the regulator is usable out of the box; the
+        // plant params needed by tune() (Ldq, R) are set by the time we get here.
+        tune(default_bandwidth);
+    }
 
     /**
      * @brief PI current-loop gains by closed-loop pole placement
@@ -120,16 +162,26 @@ struct FOController {
      * @param[in] Vdc       [V] DC Bus Voltage
      * @param[in] Ts        [s] Control step execution period
      *
-     * @return [pu] Half-bridge duties {a, b, c} constrained to [0 .. 1]
+     * @return FocResult: duties plus measured current and saturation signals for
+     *         cascade anti-windup propagation.
      */
-    [[nodiscard]] ColVec<3, T> step(const DQ& Idq_ref, const ColVec<3, T>& Iabc, const T theta, const T Vdc, const T Ts) {
+    [[nodiscard]] FocResult<T> step(const DQ& Idq_ref, const ColVec<3, T>& Iabc, const T theta, const T Vdc, const T Ts) {
         // Largest dq voltage magnitude the inverter can synthesize in the SVPWM
         // linear range (peak phase voltage = Vdc/√3), scaled by max_modulation.
-        const T    Vmax = max_modulation * Vdc * wet::numbers::inv_sqrt3_v<T>;
-        const auto Idq = clarke_park_transform(Iabc, theta);
-        const auto Vdq = current_controller(Idq_ref, Idq, Ts, Vmax);
-        const auto Vab = inverse_park_transform(Vdq, theta);
-        return svm_duty_cycles(Vab, Vdc);
+        const T Vmax = max_modulation * Vdc * wet::numbers::inv_sqrt3_v<T>;
+
+        FocResult<T> result;
+        result.Idq = clarke_park_transform(Iabc, theta);
+
+        const auto cmd = current_controller(Idq_ref, result.Idq, Ts, Vmax);
+        result.v_saturated = cmd.is_saturated;
+        result.v_excess = cmd.v_excess;
+
+        const auto Vab = inverse_park_transform(cmd.Vdq, theta);
+        const auto svm = svm_duty_cycles(Vab, Vdc);
+        result.duties = svm.duties;
+        result.svm_clipped = svm.is_clipped;
+        return result;
     }
 
     /**
@@ -150,21 +202,19 @@ struct FOController {
      *                         the command is held to |Vdq| ≤ Vmax with integrator
      *                         anti-windup. Defaults to ∞ (no limiting).
      *
-     * @return [V] Voltage target in DQ frame
+     * @return DqCommand: the dq voltage target plus is_saturated / v_excess flags
+     *         for the caller's anti-windup. Vdq is always valid (clamped).
      */
-    [[nodiscard]] DQ current_controller(const DQ& Idq_ref, const DQ& Idq, const T Ts, const T Vmax = std::numeric_limits<T>::infinity()) {
-        // Disturbance feedforward (always on): cross-axis decoupling (∓ωL) and
-        // back-EMF (ωλ). Cancelling the coupling and EMF the per-axis PI would
-        // otherwise fight is what lets tune() treat each axis as a SISO R-L plant.
+    [[nodiscard]] DqCommand<T> current_controller(const DQ& Idq_ref, const DQ& Idq, const T Ts, const T Vmax = std::numeric_limits<T>::infinity()) {
+
+        // "Always-On" feedforward terms cancel controller dependence on omega
         DQ Vdq = {
             .d = -(omega * Ldq.q * Idq.q),
             .q = (omega * Ldq.d * Idq.d) + (omega * lambda),
         };
 
-        // Optional plant-model (inverse) feedforward: resistive drop R·I and the
-        // deadbeat inductor voltage L·dI/dt. This cancels the plant's R and
-        // reshapes the loop, so it is inconsistent with tune()'s pole placement;
-        // off by default. @see plant_inversion_ff.
+        // Default-off plant inversion
+        // Enabling this cancels the plant R/L poles and invalidates the PI controller tuning
         if (plant_inversion_ff) {
             const DQ Idq_dot = {
                 .d = (Idq_ref.d - Idq.d) / Ts,
@@ -183,15 +233,25 @@ struct FOController {
         // would distort the voltage-vector angle, so the magnitude is scaled and
         // the clipped amount is back-calculated out of each PI integrator.
         const T Vmag = wet::sqrt((Vdq.d * Vdq.d) + (Vdq.q * Vdq.q));
-        if (Vmag > Vmax) {
+
+        DqCommand<T> cmd;
+        cmd.is_saturated = Vmag > Vmax;
+        cmd.v_excess = Vmag / Vmax; // Vmax == ∞ ⇒ 0
+        if (cmd.is_saturated) {
             const T  scale = Vmax / Vmag;
-            const DQ Vsat = {.d = Vdq.d * scale, .q = Vdq.q * scale};
+            const DQ Vsat = {
+                .d = Vdq.d * scale,
+                .q = Vdq.q * scale,
+            };
+
             dctrl.back_calculate(Vdq.d, Vsat.d, Ts);
             qctrl.back_calculate(Vdq.q, Vsat.q, Ts);
+
             Vdq = Vsat;
         }
 
-        return Vdq;
+        cmd.Vdq = Vdq;
+        return cmd;
     }
 };
 }; // namespace wet

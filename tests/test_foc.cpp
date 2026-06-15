@@ -63,9 +63,10 @@ TEST_SUITE("FOC Controller") {
 
         // Output magnitude must stay on/inside the voltage circle throughout.
         for (int k = 0; k < 200; ++k) {
-            const auto  Vdq = foc.current_controller(Idq_ref, Idq, Ts, Vmax);
-            const float Vmag = std::sqrt((Vdq.d * Vdq.d) + (Vdq.q * Vdq.q));
+            const auto  cmd = foc.current_controller(Idq_ref, Idq, Ts, Vmax);
+            const float Vmag = std::sqrt((cmd.Vdq.d * cmd.Vdq.d) + (cmd.Vdq.q * cmd.Vdq.q));
             CHECK(Vmag <= doctest::Approx(Vmax).epsilon(1e-4f));
+            CHECK(cmd.is_saturated); // unreachable ref -> always saturated here
         }
 
         // Anti-windup: the integrator must stop growing once saturated. Without
@@ -78,6 +79,33 @@ TEST_SUITE("FOC Controller") {
         CHECK(std::abs(foc.qctrl.integral - i_settled) * foc.qctrl.Ki < 1.0f);
     }
 
+    TEST_CASE("step() reports saturation status for cascade anti-windup") {
+        wet::FOController<float> foc({.d = 200e-6f, .q = 200e-6f}, 0.5f, 0.05f, 0.0f);
+        foc.tune(2.0f * std::numbers::pi_v<float> * 800.0f);
+
+        // Modest reference, ample bus -> no saturation, valid duties.
+        const auto ok = foc.step({.d = 0.0f, .q = 1.0f}, {0.1f, -0.05f, -0.05f}, 0.0f, 48.0f, Ts);
+        CHECK_FALSE(ok.v_saturated);
+        CHECK_FALSE(ok.svm_clipped);
+        CHECK(ok.v_excess < 1.0f);
+        for (int i = 0; i < 3; ++i) {
+            CHECK(ok.duties[i] >= 0.0f);
+            CHECK(ok.duties[i] <= 1.0f);
+        }
+
+        // Huge reference on a tiny bus -> voltage circle saturates; status flags it
+        // and exposes the realized current the outer loop uses as u_sat.
+        foc.reset();
+        wet::DirectQuadrature<float> big_ref = {.d = 0.0f, .q = 80.0f};
+        wet::FocResult<float>        st;
+        for (int k = 0; k < 50; ++k) {
+            st = foc.step(big_ref, {0.0f, 0.0f, 0.0f}, 0.0f, 2.0f, Ts);
+        }
+        CHECK(st.v_saturated);
+        CHECK(st.v_excess > 1.0f);
+        CHECK(st.Idq.q == doctest::Approx(0.0f)); // realized current exposed (fixed plant -> 0)
+    }
+
     TEST_CASE("Cross-axis decoupling feedforward is always applied") {
         // omega != 0, Id != 0 -> the q-axis sees an omega*Ld*Id decoupling term
         // even with PI gains and plant-inversion FF off.
@@ -85,25 +113,30 @@ TEST_SUITE("FOC Controller") {
         wet::FOController<float> foc({.d = 200e-6f, .q = 350e-6f}, 0.5f, 0.1f, omega);
 
         wet::DirectQuadrature<float> Idq = {.d = 5.0f, .q = 0.0f};
-        const auto                   Vdq = foc.current_controller(Idq, Idq, Ts); // zero error -> PI contributes 0
+        const auto                   cmd = foc.current_controller(Idq, Idq, Ts); // zero error -> PI contributes 0
 
         // Vq = omega*Ld*Id + omega*lambda ; Vd = -omega*Lq*Iq = 0
-        CHECK(Vdq.q == doctest::Approx((omega * 200e-6f * 5.0f) + (omega * 0.1f)));
-        CHECK(Vdq.d == doctest::Approx(-(omega * 350e-6f * 0.0f)));
+        CHECK(cmd.Vdq.q == doctest::Approx((omega * 200e-6f * 5.0f) + (omega * 0.1f)));
+        CHECK(cmd.Vdq.d == doctest::Approx(-(omega * 350e-6f * 0.0f)));
     }
 
     TEST_CASE("plant_inversion_ff toggles the R*I + L*dI/dt term") {
         wet::FOController<float> foc({.d = 200e-6f, .q = 200e-6f}, 0.5f, 0.0f, 0.0f);
 
+        // Isolate the feedforward term: zero the auto-tuned PI gains so only the
+        // model-inversion FF contributes to the command.
+        foc.dctrl = {};
+        foc.qctrl = {};
+
         wet::DirectQuadrature<float> Idq_ref = {.d = 0.0f, .q = 2.0f};
         wet::DirectQuadrature<float> Idq = {.d = 0.0f, .q = 0.0f};
 
-        // Off (default): no FF and PI is untuned (Kp=Ki=0) -> zero command.
-        CHECK(foc.current_controller(Idq_ref, Idq, Ts).q == doctest::Approx(0.0f));
+        // Off (default): no FF and PI gains zeroed above -> zero command.
+        CHECK(foc.current_controller(Idq_ref, Idq, Ts).Vdq.q == doctest::Approx(0.0f));
 
         // On: deadbeat L*dI/dt + R*I appears (R*Iq = 0 since Iq = 0).
         foc.plant_inversion_ff = true;
         const float expected_q = 200e-6f * ((2.0f - 0.0f) / Ts); // L * dIq/dt
-        CHECK(foc.current_controller(Idq_ref, Idq, Ts).q == doctest::Approx(expected_q));
+        CHECK(foc.current_controller(Idq_ref, Idq, Ts).Vdq.q == doctest::Approx(expected_q));
     }
 }

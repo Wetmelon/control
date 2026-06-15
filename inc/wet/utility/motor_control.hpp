@@ -230,6 +230,12 @@ template<typename T = float>
  * @return Zero-sequence offset to add to every phase [V]
  *
  * @see https://en.wikipedia.org/wiki/Space_vector_modulation
+ * @see A. M. Hava, R. J. Kerkman, T. A. Lipo, "Simple analytical and graphical
+ *      methods for carrier-based PWM-VSI drives," IEEE Trans. Power Electron.,
+ *      vol. 14, no. 1, pp. 49-61, 1999. doi:10.1109/63.737592
+ *      (establishes the carrier-based min-max injection ⇔ SVPWM equivalence).
+ * @see D. G. Holmes, T. A. Lipo, "Pulse Width Modulation for Power Converters:
+ *      Principles and Practice," IEEE Press, 2003, ch. 3.
  */
 template<typename T = float>
 [[nodiscard]] constexpr T svpwm_zero_sequence(const ColVec<3, T>& v_abc) {
@@ -237,6 +243,24 @@ template<typename T = float>
     const T v_min = wet::min({v_abc[0], v_abc[1], v_abc[2]});
     return -(v_max + v_min) / T{2};
 }
+
+/**
+ * @brief Result of svm_duty_cycles(): the half-bridge duties plus an
+ *        over-modulation flag.
+ * @ingroup motor_control
+ *
+ * The duties are always a usable command (clamped to [0, 1]); is_clipped reports
+ * whether that clamping engaged, i.e. the requested voltage exceeded the
+ * realizable hexagon. It is advisory, not a failure — hence a flag rather than a
+ * wet::optional / wet::expected wrapper.
+ *
+ * @tparam T Scalar type
+ */
+template<typename T = float>
+struct SvmDuties {
+    ColVec<3, T> duties = {};        ///< [pu] half-bridge duties {a, b, c}, each in [0, 1]
+    bool         is_clipped = false; ///< true if any duty was clamped (over-modulation)
+};
 
 /**
  * @brief Space-vector PWM duty cycles from an αβ voltage command
@@ -256,18 +280,28 @@ template<typename T = float>
  *
  * @param v_ab αβ voltage command [V]
  * @param v_dc DC bus voltage [V]
- * @return Half-bridge duty cycles {a, b, c}, each in [0, 1]
+ * @return SvmDuties: the {a, b, c} duties (each in [0, 1]) and an is_clipped flag.
+ *         The duties are always valid (clamped); is_clipped just reports whether
+ *         the command fell outside the realizable hexagon (over-modulation).
+ *
+ * @see https://en.wikipedia.org/wiki/Space_vector_modulation
+ * @see A. M. Hava, R. J. Kerkman, T. A. Lipo, "Simple analytical and graphical
+ *      methods for carrier-based PWM-VSI drives," IEEE Trans. Power Electron.,
+ *      vol. 14, no. 1, pp. 49-61, 1999. doi:10.1109/63.737592
  */
 template<typename T = float>
-[[nodiscard]] constexpr ColVec<3, T> svm_duty_cycles(const AlphaBeta<T>& v_ab, T v_dc) {
+[[nodiscard]] constexpr SvmDuties<T> svm_duty_cycles(const AlphaBeta<T>& v_ab, T v_dc) {
     const ColVec<3, T> v_phase = inverse_clarke_transform(v_ab);
     const T            v_0 = svpwm_zero_sequence(v_phase);
 
-    ColVec<3, T> duty;
+    SvmDuties<T> result;
     for (size_t i = 0; i < 3; ++i) {
-        duty[i] = wet::clamp(T{0.5} + ((v_phase[i] + v_0) / v_dc), T{0}, T{1});
+        const T raw = T{0.5} + ((v_phase[i] + v_0) / v_dc);
+        const T sat = wet::clamp(raw, T{0}, T{1});
+        result.is_clipped = result.is_clipped || (sat != raw);
+        result.duties[i] = sat;
     }
-    return duty;
+    return result;
 }
 
 } // namespace wet

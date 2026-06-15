@@ -102,22 +102,24 @@ TEST_SUITE("Motor Control Transforms") {
 
     TEST_CASE("SVM duty cycles") {
         // Test zero voltage
-        const auto duty = svm_duty_cycles<float>({.alpha = 0.0f, .beta = 0.0f}, 100.0f);
+        const auto svm = svm_duty_cycles<float>({.alpha = 0.0f, .beta = 0.0f}, 100.0f);
 
-        CHECK(duty[0] == doctest::Approx(0.5f));
-        CHECK(duty[1] == doctest::Approx(0.5f));
-        CHECK(duty[2] == doctest::Approx(0.5f));
+        CHECK(svm.duties[0] == doctest::Approx(0.5f));
+        CHECK(svm.duties[1] == doctest::Approx(0.5f));
+        CHECK(svm.duties[2] == doctest::Approx(0.5f));
+        CHECK_FALSE(svm.is_clipped);
 
         // Test maximum linear voltage (peak phase = Vdc/√3 with SVPWM injection)
         const float v_max = 100.0f / std::numbers::sqrt3_v<float>;
-        const auto  duty_max = svm_duty_cycles<float>({.alpha = v_max, .beta = 0.0f}, 100.0f);
+        const auto  svm_max = svm_duty_cycles<float>({.alpha = v_max, .beta = 0.0f}, 100.0f);
 
-        CHECK(duty_max[0] >= 0.0f);
-        CHECK(duty_max[0] <= 1.0f);
-        CHECK(duty_max[1] >= 0.0f);
-        CHECK(duty_max[1] <= 1.0f);
-        CHECK(duty_max[2] >= 0.0f);
-        CHECK(duty_max[2] <= 1.0f);
+        CHECK(svm_max.duties[0] >= 0.0f);
+        CHECK(svm_max.duties[0] <= 1.0f);
+        CHECK(svm_max.duties[1] >= 0.0f);
+        CHECK(svm_max.duties[1] <= 1.0f);
+        CHECK(svm_max.duties[2] >= 0.0f);
+        CHECK(svm_max.duties[2] <= 1.0f);
+        CHECK_FALSE(svm_max.is_clipped); // exactly on the inscribed circle, not clipped
     }
 
 } // TEST_SUITE
