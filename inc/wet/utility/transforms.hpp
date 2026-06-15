@@ -368,10 +368,10 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 [[nodiscard]] constexpr DirectQuadrature<T, C> park_transform(const AlphaBeta<T, C>& ab, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
-    const T d = (ab.alpha * cos_theta) + (ab.beta * sin_theta);
-    const T q = (-ab.alpha * sin_theta) + (ab.beta * cos_theta);
-
-    return {d, q};
+    return {
+        .d = (ab.alpha * cos_theta) + (ab.beta * sin_theta),
+        .q = (-ab.alpha * sin_theta) + (ab.beta * cos_theta),
+    };
 }
 
 /**
@@ -393,10 +393,10 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 [[nodiscard]] constexpr AlphaBeta<T, C> inverse_park_transform(const DirectQuadrature<T, C>& dq, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
-    const T alpha = (dq.d * cos_theta) - (dq.q * sin_theta);
-    const T beta = (dq.d * sin_theta) + (dq.q * cos_theta);
-
-    return {alpha, beta};
+    return {
+        .alpha = (dq.d * cos_theta) - (dq.q * sin_theta),
+        .beta = (dq.d * sin_theta) + (dq.q * cos_theta),
+    };
 }
 
 /**
@@ -449,10 +449,12 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 [[nodiscard]] constexpr ColVec<3, T> inverse_park_clarke_transform(const DirectQuadrature<T, C>& dq, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
-    const T alpha = (dq.d * cos_theta) - (dq.q * sin_theta);
-    const T beta = (dq.d * sin_theta) + (dq.q * cos_theta);
+    AlphaBeta<T, C> ab = {
+        .alpha = (dq.d * cos_theta) - (dq.q * sin_theta),
+        .beta = (dq.d * sin_theta) + (dq.q * cos_theta),
+    };
 
-    return inverse_clarke_transform<T, C>(AlphaBeta<T, C>{alpha, beta});
+    return inverse_clarke_transform<T, C>(ab);
 }
 
 /**
