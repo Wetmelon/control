@@ -17,32 +17,35 @@ using namespace wet;
 
 TEST_SUITE("PID Mode Control") {
     TEST_CASE("PI: disable returns clamped u_track from control()") {
+        constexpr float Ts = 0.01f;
+
         PIDController<float, PIDMode::PI> pi{design::pid(
-            1.0f, 1.0f, 0.0f, 0.01f,
+            1.0f, 1.0f, 0.0f,
             -5.0f, 5.0f // u clamps
         )};
+
         REQUIRE(pi.is_enabled());
 
         pi.disable(2.5f);
         CHECK(!pi.is_enabled());
-        CHECK(pi.control(1.0f, 0.0f) == doctest::Approx(2.5f));
+        CHECK(pi.control(1.0f, 0.0f, Ts) == doctest::Approx(2.5f));
 
         // Clamping still applies in tracking mode.
         pi.disable(100.0f);
-        CHECK(pi.control(1.0f, 0.0f) == doctest::Approx(5.0f));
+        CHECK(pi.control(1.0f, 0.0f, Ts) == doctest::Approx(5.0f));
 
         pi.disable(-100.0f);
-        CHECK(pi.control(1.0f, 0.0f) == doctest::Approx(-5.0f));
+        CHECK(pi.control(1.0f, 0.0f, Ts) == doctest::Approx(-5.0f));
     }
 
     TEST_CASE("PI: enable after disable produces bumpless re-engagement") {
         constexpr float                   Ts = 0.01f;
-        PIDController<float, PIDMode::PI> pi{design::pid(2.0f, 5.0f, 0.0f, Ts)};
+        PIDController<float, PIDMode::PI> pi{design::pid(2.0f, 5.0f, 0.0f)};
 
         // Step 1: run in Auto with a non-trivial trajectory so the integrator
         // accumulates an arbitrary value.
         for (int i = 0; i < 20; ++i) {
-            (void)pi.control(1.0f, 0.5f);
+            (void)pi.control(1.0f, 0.5f, Ts);
         }
         REQUIRE(pi.integral != doctest::Approx(0.0f));
 
@@ -51,25 +54,25 @@ TEST_SUITE("PID Mode Control") {
         const float u_track = 3.7f;
         pi.disable(u_track);
         for (int i = 0; i < 10; ++i) {
-            const float u = pi.control(1.0f, 0.5f);
+            const float u = pi.control(1.0f, 0.5f, Ts);
             CHECK(u == doctest::Approx(u_track));
         }
 
         // Step 3: re-enable and check the next Auto command matches u_track
         // to within numerical noise -- that's the bumpless transfer property.
         pi.enable();
-        const float u_after = pi.control(1.0f, 0.5f);
+        const float u_after = pi.control(1.0f, 0.5f, Ts);
         CHECK(u_after == doctest::Approx(u_track).epsilon(1e-5f));
     }
 
     TEST_CASE("PID: bumpless transfer with active derivative term") {
         constexpr float                    Ts = 0.01f;
-        PIDController<float, PIDMode::PID> pid{design::pid(1.5f, 3.0f, 0.05f, Ts)};
+        PIDController<float, PIDMode::PID> pid{design::pid(1.5f, 3.0f, 0.05f)};
 
         // Warm up with a varying y so the derivative state isn't trivial.
         for (int i = 0; i < 20; ++i) {
             const float y = 0.5f + (0.01f * static_cast<float>(i));
-            (void)pid.control(1.0f, y);
+            (void)pid.control(1.0f, y, Ts);
         }
 
         // Sideline at u_track = -1.2. We hold (r, y) constant across the
@@ -82,21 +85,21 @@ TEST_SUITE("PID Mode Control") {
         const float y_hold = 0.7f;
         pid.disable(u_track);
         for (int i = 0; i < 20; ++i) {
-            const float u = pid.control(r_hold, y_hold);
+            const float u = pid.control(r_hold, y_hold, Ts);
             CHECK(u == doctest::Approx(u_track));
         }
 
         // Re-engage at the same (r, y) -- the next Auto command should
         // reproduce u_track to within numerical noise.
         pid.enable();
-        const float u_after = pid.control(r_hold, y_hold);
+        const float u_after = pid.control(r_hold, y_hold, Ts);
         CHECK(u_after == doctest::Approx(u_track).epsilon(1e-5f));
     }
 
     TEST_CASE("PID: tracking-mode integrator preload respects i_min/i_max") {
         constexpr float                    Ts = 0.01f;
         PIDController<float, PIDMode::PID> pid{design::pid(
-            1.0f, 1.0f, 0.0f, Ts,
+            1.0f, 1.0f, 0.0f,
             -std::numeric_limits<float>::infinity(),
             std::numeric_limits<float>::infinity(),
             -2.0f, 2.0f // tight integrator limits
@@ -104,17 +107,17 @@ TEST_SUITE("PID Mode Control") {
 
         // u_track that would require integral = (100 - 0) / 1 = 100, exceeding i_max.
         pid.disable(100.0f);
-        (void)pid.control(0.0f, 0.0f);
+        (void)pid.control(0.0f, 0.0f, Ts);
         CHECK(pid.integral == doctest::Approx(2.0f)); // saturated at i_max
 
         pid.disable(-100.0f);
-        (void)pid.control(0.0f, 0.0f);
+        (void)pid.control(0.0f, 0.0f, Ts);
         CHECK(pid.integral == doctest::Approx(-2.0f)); // saturated at i_min
     }
 
     TEST_CASE("P: tracking mode is degenerate but API works for generic code") {
         PIDController<float, PIDMode::P> p{design::pid(
-            2.0f, 0.0f, 0.0f, 0.01f,
+            2.0f, 0.0f, 0.0f,
             -10.0f, 10.0f
         )};
 
@@ -148,7 +151,7 @@ TEST_SUITE("PID Mode Control") {
     TEST_CASE("back_calculate and mode control compose: disable, then re-engage, then saturate") {
         constexpr float                   Ts = 0.01f;
         PIDController<float, PIDMode::PI> pi{design::pid(
-            1.0f, 1.0f, 0.0f, Ts,
+            1.0f, 1.0f, 0.0f,
             -1.0f, 1.0f, // u clamps for back_calculate to bite
             -std::numeric_limits<float>::infinity(),
             std::numeric_limits<float>::infinity(),
@@ -157,18 +160,18 @@ TEST_SUITE("PID Mode Control") {
 
         // Sideline, then re-engage at u_track = 0.5.
         pi.disable(0.5f);
-        (void)pi.control(2.0f, 0.0f);
+        (void)pi.control(2.0f, 0.0f, Ts);
         pi.enable();
-        const float u_first = pi.control(2.0f, 0.0f);
+        const float u_first = pi.control(2.0f, 0.0f, Ts);
         CHECK(u_first == doctest::Approx(0.5f).epsilon(1e-5f));
 
         // Now drive the loop further and see the integrator grow until back_calc
         // bites at the u_max = 1.0 rail. The point: mode control and back-calc
         // are independent and both work.
         for (int i = 0; i < 50; ++i) {
-            (void)pi.control(5.0f, 0.0f);
+            (void)pi.control(5.0f, 0.0f, Ts);
         }
-        const float u_saturated = pi.control(5.0f, 0.0f);
+        const float u_saturated = pi.control(5.0f, 0.0f, Ts);
         CHECK(u_saturated == doctest::Approx(1.0f)); // clamped at u_max
     }
 } // TEST_SUITE

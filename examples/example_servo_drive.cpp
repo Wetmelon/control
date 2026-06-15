@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <cmath>
 #include <numbers>
 
@@ -92,9 +93,9 @@ int main() {
 
     // Create PI controllers
     const double          v_lim = Vdc / 2.0;
-    PIDController<double> pi_d{design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
-    PIDController<double> pi_q{design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
-    PIDController<double> pi_spd{design::pid(Kp_speed, Ki_speed, 0.0, dt * speed_ratio, -i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
+    PIDController<double> pi_d{design::pid(Kp_i, Ki_i, 0.0, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
+    PIDController<double> pi_q{design::pid(Kp_i, Ki_i, 0.0, -v_lim, v_lim, -v_lim / Ki_i, v_lim / Ki_i, Ki_i)};
+    PIDController<double> pi_spd{design::pid(Kp_speed, Ki_speed, 0.0, 1 - i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
 
     // Controller state
     double theta_ref = 0.0; // Position reference [rad]
@@ -118,18 +119,18 @@ int main() {
         const double omega_e = P * omega_m;
 
         // dq current dynamics (average voltage model)
-        const double did_dt = (vd - Rs * id + omega_e * Ls * iq) / Ls;
-        const double diq_dt = (vq - Rs * iq - omega_e * Ls * id - omega_e * lambda_pm) / Ls;
+        const double did_dt = (vd - (Rs * id) + (omega_e * Ls * iq)) / Ls;
+        const double diq_dt = (vq - (Rs * iq) - (omega_e * Ls * id) - (omega_e * lambda_pm)) / Ls;
 
         // Electromagnetic torque (non-salient)
         const double Te = 1.5 * P * lambda_pm * iq;
 
         // Shaft coupling torque
         const double twist = theta_m - theta_L;
-        const double T_shaft = Ks * twist + Bs * (omega_m - omega_L);
+        const double T_shaft = (Ks * twist) + (Bs * (omega_m - omega_L));
 
         // Motor rotor dynamics
-        const double domega_m = (Te - Bm * omega_m - T_shaft) / Jm;
+        const double domega_m = (Te - (Bm * omega_m) - T_shaft) / Jm;
 
         // Load dynamics with Coulomb friction (smooth tanh approximation)
         const double T_coulomb = Tc * std::tanh(omega_L * 100.0);
@@ -137,7 +138,7 @@ int main() {
         // External load torque disturbance: 0.3 Nm step at t=1.0s
         const double T_ext = (t > 1.0) ? 0.3 : 0.0;
 
-        const double domega_L = (T_shaft - BL * omega_L - T_coulomb - T_ext) / JL;
+        const double domega_L = (T_shaft - (BL * omega_L) - T_coulomb - T_ext) / JL;
 
         return ColVec<6>{did_dt, diq_dt, domega_m, omega_m, domega_L, omega_L};
     };
@@ -156,30 +157,24 @@ int main() {
         if (++pos_decim >= position_ratio) {
             pos_decim = 0;
             double pos_err = theta_ref - theta_L;
-            double cmd = Kp_position * pos_err;
-            if (cmd > speed_max) {
-                cmd = speed_max;
-            }
-            if (cmd < -speed_max) {
-                cmd = -speed_max;
-            }
+            double cmd = std::clamp(Kp_position * pos_err, -speed_max, speed_max);
             omega_ref_cmd = cmd;
         }
 
         // Speed loop (PI, decimated)
         if (++speed_decim >= speed_ratio) {
             speed_decim = 0;
-            iq_ref = pi_spd.control(omega_ref_cmd, omega_m);
+            iq_ref = pi_spd.control(omega_ref_cmd, omega_m, dt * speed_ratio);
         }
 
         // Current loops
-        double vd = pi_d.control(0.0, id);
-        double vq = pi_q.control(iq_ref, iq);
+        double vd = pi_d.control(0.0, id, dt);
+        double vq = pi_q.control(iq_ref, iq, dt);
 
         // Cross-coupling decoupling and back-EMF feedforward
         const double omega_e = P * omega_m;
         vd -= omega_e * Ls * iq;
-        vq += omega_e * Ls * id + omega_e * lambda_pm;
+        vq += (omega_e * Ls * id) + (omega_e * lambda_pm);
 
         return ColVec<2>{vd, vq};
     };

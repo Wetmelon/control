@@ -133,9 +133,8 @@ TEST_SUITE("PID Design - SIMC") {
         constexpr double L = 0.5;
         constexpr double tau = 3.0;
         constexpr double tau_c = 1.0;
-        constexpr double Ts = 0.01;
 
-        constexpr auto result = design::simc(K, L, tau, tau_c, Ts, design::PIDType::PI);
+        constexpr auto result = design::simc(K, L, tau, tau_c, design::PIDType::PI);
         // Kp = tau / (K * (tau_c + L)) = 3.0 / (2.0 * 1.5) = 1.0
         CHECK(result.Kp == doctest::Approx(1.0).epsilon(1e-12));
         CHECK(result.Ki > 0.0);
@@ -257,9 +256,9 @@ TEST_SUITE("PID Design - Type Conversion") {
     }
 
     TEST_CASE("Runtime design feeds into PIDController") {
-        auto          result = design::simc(1.0, 0.5, 2.0, 1.0, 0.01);
+        auto          result = design::simc(1.0, 0.5, 2.0, 1.0);
         PIDController controller(result);
-        double        u = controller.control(1.0, 0.0);
+        double        u = controller.control(1.0, 0.0, 0.01);
         CHECK(u != 0.0); // Non-zero output for non-zero error
     }
 }
@@ -292,7 +291,6 @@ TEST_SUITE("PID Design - Performance Spec Glue") {
         CHECK(result.Kp > 0.0);
         CHECK(result.Ki > 0.0);
         CHECK(result.Kd > 0.0);
-        CHECK(result.Ts == doctest::Approx(0.001));
     }
 
     TEST_CASE("PI from performance spec") {

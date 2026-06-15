@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "wet/controllers/smc.hpp"
+#include "wet/controllers/stsmc.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -59,23 +59,21 @@ int main() {
     float theta = std::numbers::pi_v<float> / 4.0f; // 45° rotor angle
 
     // Simulate three-phase motor currents
-    float ia = 1.0f;
-    float ib = -0.5f;
-    float ic = -0.5f;
+    wet::ColVec<3, float> iabc = {1.0f, -0.5f, -0.5f};
 
     // ABC → αβ (Clarke) → dq (Park)
-    auto [alpha, beta] = clarke_transform(ia, ib, ic);
-    auto [id, iq] = park_transform(alpha, beta, theta);
+    auto [alpha, beta] = clarke_transform(iabc);
+    auto [id, iq] = park_transform({alpha, beta}, theta);
 
     // dq → αβ (inverse Park) → ABC (inverse Clarke)
-    auto [alpha2, beta2] = inverse_park_transform(id, iq, theta);
-    auto [ia2, ib2, ic2] = inverse_clarke_transform(alpha2, beta2);
+    auto [alpha2, beta2] = inverse_park_transform({id, iq}, theta);
+    auto iabc2 = inverse_clarke_transform<float>({alpha2, beta2});
 
     std::printf("\n=== FOC transforms (uses wet::sin, wet::cos → MathBackend) ===\n");
-    std::printf("ABC in:  [%.4f, %.4f, %.4f]\n", double(ia), double(ib), double(ic));
+    std::printf("ABC in:  [%.4f, %.4f, %.4f]\n", double(iabc[0]), double(iabc[1]), double(iabc[2]));
     std::printf("αβ:      [%.4f, %.4f]\n", double(alpha), double(beta));
     std::printf("dq:      [%.4f, %.4f]\n", double(id), double(iq));
-    std::printf("ABC out: [%.4f, %.4f, %.4f]\n", double(ia2), double(ib2), double(ic2));
+    std::printf("ABC out: [%.4f, %.4f, %.4f]\n", double(iabc2[0]), double(iabc2[1]), double(iabc2[2]));
 
     return 0;
 }

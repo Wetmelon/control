@@ -2,7 +2,7 @@
 #include <numbers>
 
 #include "fmt/core.h"
-#include "wet/controllers/smc.hpp"
+#include "wet/controllers/stsmc.hpp"
 
 using namespace wet;
 

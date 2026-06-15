@@ -40,7 +40,6 @@
 
 // --- Controllers ------------------------------------------------------------
 #include "wet/controllers/adrc.hpp"                 // IWYU pragma: keep
-#include "wet/controllers/cascade.hpp"              // IWYU pragma: keep
 #include "wet/controllers/esc.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: keep
 #include "wet/controllers/lead_lag.hpp"             // IWYU pragma: keep

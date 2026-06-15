@@ -28,7 +28,6 @@ struct PIDResult {
     T Kp{};
     T Ki{};
     T Kd{};
-    T Ts{};
     T u_min = -std::numeric_limits<T>::infinity();
     T u_max = std::numeric_limits<T>::infinity();
     T i_min = -std::numeric_limits<T>::infinity();
@@ -39,7 +38,7 @@ struct PIDResult {
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
-        return PIDResult<U>{(U)Kp, (U)Ki, (U)Kd, (U)Ts, (U)u_min, (U)u_max, (U)i_min, (U)i_max, (U)Kbc, (U)b, (U)c};
+        return PIDResult<U>{(U)Kp, (U)Ki, (U)Kd, (U)u_min, (U)u_max, (U)i_min, (U)i_max, (U)Kbc, (U)b, (U)c};
     }
 };
 
@@ -55,7 +54,6 @@ struct PIDResult {
  * @param Kp    Proportional gain
  * @param Ki    Integral gain
  * @param Kd    Derivative gain
- * @param Ts    Sampling time
  * @param u_min Minimum control output
  * @param u_max Maximum control output
  * @param i_min Minimum integrator value
@@ -68,7 +66,7 @@ struct PIDResult {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T> pid(
-    T Kp, T Ki, T Kd, T Ts,
+    T Kp, T Ki, T Kd,
     T u_min = -std::numeric_limits<T>::infinity(),
     T u_max = std::numeric_limits<T>::infinity(),
     T i_min = -std::numeric_limits<T>::infinity(),
@@ -77,7 +75,7 @@ template<typename T = double>
     T b = T{1},
     T c = T{1}
 ) {
-    return PIDResult<T>{Kp, Ki, Kd, Ts, u_min, u_max, i_min, i_max, Kbc, b, c};
+    return PIDResult<T>{Kp, Ki, Kd, u_min, u_max, i_min, i_max, Kbc, b, c};
 }
 
 } // namespace design
@@ -131,7 +129,6 @@ struct PIDController<T, PIDMode::PID> {
     T Kp{};
     T Ki{};
     T Kd{};
-    T Ts{};
     T u_min = -std::numeric_limits<T>::infinity();
     T u_max = std::numeric_limits<T>::infinity();
     T i_min = -std::numeric_limits<T>::infinity();
@@ -149,11 +146,11 @@ struct PIDController<T, PIDMode::PID> {
     constexpr PIDController() = default;
 
     constexpr explicit PIDController(const design::PIDResult<T>& result)
-        : Kp(result.Kp), Ki(result.Ki), Kd(result.Kd), Ts(result.Ts), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b), c(result.c) {}
+        : Kp(result.Kp), Ki(result.Ki), Kd(result.Kd), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b), c(result.c) {}
 
     template<typename U>
     constexpr explicit PIDController(const PIDController<U, PIDMode::PID>& other)
-        : Kp(other.Kp), Ki(other.Ki), Kd(other.Kd), Ts(other.Ts), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), c(other.c), integral(other.integral), prev_cr_minus_y(other.prev_cr_minus_y), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
+        : Kp(other.Kp), Ki(other.Ki), Kd(other.Kd), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), c(other.c), integral(other.integral), prev_cr_minus_y(other.prev_cr_minus_y), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
 
     /**
      * @brief Compute 2-DOF PID control output.
@@ -165,7 +162,7 @@ struct PIDController<T, PIDMode::PID> {
      * update happens in both modes so that a Tracking-to-Auto transition
      * doesn't kick the derivative term with a stale prev value.
      */
-    [[nodiscard]] constexpr T control(T r, T y) {
+    [[nodiscard]] constexpr T control(T r, T y, T Ts) {
         const T cr_minus_y = (c * r) - y;
         const T derivative = (cr_minus_y - prev_cr_minus_y) / Ts;
         prev_cr_minus_y = cr_minus_y; // updated in both modes for bumpless re-engagement
@@ -226,7 +223,7 @@ struct PIDController<T, PIDMode::PID> {
      * does not push further into saturation. When `Kbc == 0` falls back to a
      * straight conditional rollback equal to one sample's worth of unwind.
      */
-    constexpr void back_calculate(T u_unsat, T u_sat) {
+    constexpr void back_calculate(T u_unsat, T u_sat, T Ts) {
         if (u_unsat == u_sat) {
             return;
         }
@@ -247,7 +244,6 @@ template<typename T>
 struct PIDController<T, PIDMode::PI> {
     T Kp{};
     T Ki{};
-    T Ts{};
     T u_min = -std::numeric_limits<T>::infinity();
     T u_max = std::numeric_limits<T>::infinity();
     T i_min = -std::numeric_limits<T>::infinity();
@@ -263,11 +259,11 @@ struct PIDController<T, PIDMode::PI> {
     constexpr PIDController() = default;
 
     constexpr explicit PIDController(const design::PIDResult<T>& result)
-        : Kp(result.Kp), Ki(result.Ki), Ts(result.Ts), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b) {}
+        : Kp(result.Kp), Ki(result.Ki), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b) {}
 
     template<typename U>
     constexpr explicit PIDController(const PIDController<U, PIDMode::PI>& other)
-        : Kp(other.Kp), Ki(other.Ki), Ts(other.Ts), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), integral(other.integral), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
+        : Kp(other.Kp), Ki(other.Ki), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), integral(other.integral), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
 
     /**
      * @brief Compute PI control output.
@@ -276,7 +272,7 @@ struct PIDController<T, PIDMode::PI> {
      * anti-windup. In Tracking mode the output is `clamp(u_track, u_min, u_max)`
      * and the integrator is pre-loaded for bumpless re-engagement.
      */
-    [[nodiscard]] constexpr T control(T r, T y) {
+    [[nodiscard]] constexpr T control(T r, T y, T Ts) {
         if (runtime_mode == PIDRuntimeMode::Tracking) {
             if (Ki != T{0}) {
                 const T target = (u_track - (Kp * ((b * r) - y))) / Ki;
@@ -314,7 +310,7 @@ struct PIDController<T, PIDMode::PI> {
      *
      * @see PIDController<T, PIDMode::PID>::back_calculate for semantics.
      */
-    constexpr void back_calculate(T u_unsat, T u_sat) {
+    constexpr void back_calculate(T u_unsat, T u_sat, T Ts) {
         if (u_unsat == u_sat) {
             return;
         }

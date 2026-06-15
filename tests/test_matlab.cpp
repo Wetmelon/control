@@ -162,7 +162,6 @@ TEST_CASE("PID Tune") {
     CHECK(pid_result.Kp > 0);
     CHECK(pid_result.Ki > 0);
     CHECK(pid_result.Kd > 0);
-    CHECK(pid_result.Ts == 0); // Continuous time
     CHECK(pid_result.Kbc > 0); // Back-calculation gain
 }
 

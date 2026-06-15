@@ -243,7 +243,7 @@ cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-simc(T K, T L, T tau, T tau_c, T Ts, PIDType type = PIDType::PI) {
+simc(T K, T L, T tau, T tau_c, PIDType type = PIDType::PI) {
     T Kp{};
     T Ki{};
     T Kd{};
@@ -268,7 +268,7 @@ simc(T K, T L, T tau, T tau_c, T Ts, PIDType type = PIDType::PI) {
             Kd = Kp * L / T{2};
         } break;
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 // ============================================================================
