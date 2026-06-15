@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/controllers/pll.hpp"
+#include "wet/filters/pll.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

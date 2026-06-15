@@ -39,7 +39,7 @@ using namespace wet::sim;
 constexpr double Rs = 1.2;        // Stator resistance [Ohm]
 constexpr double Ls = 4.7e-3;     // Stator inductance [H] (Ld = Lq for surface-mount)
 constexpr double lambda_pm = 0.1; // PM flux linkage [Wb]
-constexpr int    P = 4;           // Pole pairs
+constexpr int    pole_pairs = 4;  // Pole pairs
 constexpr double Jm = 5e-5;       // Motor rotor inertia [kg*m^2]
 constexpr double Bm = 1e-4;       // Motor viscous friction [Nm*s/rad]
 
@@ -53,8 +53,8 @@ constexpr double BL = 1e-3; // Load viscous friction [Nm*s/rad]
 constexpr double Tc = 0.02; // Coulomb friction [Nm]
 
 // ===== Derived Constants =====
-constexpr double KT = 1.5 * P * lambda_pm; // Torque constant [Nm/A]
-constexpr double Vdc = 48.0;               // DC bus voltage [V]
+constexpr double KT = 1.5 * pole_pairs * lambda_pm; // Torque constant [Nm/A]
+constexpr double Vdc = 48.0;                        // DC bus voltage [V]
 
 // ===== Control Design =====
 // Current loop: PI with pole-zero cancellation, bandwidth-based design
@@ -80,10 +80,10 @@ constexpr int speed_ratio = 1;
 constexpr int position_ratio = 1;
 
 int main() {
-    FOController<double> foc({Ls, Ls}, Rs, lambda_pm, 0.0, wc_current);
+    FOController foc({Ls, Ls}, Rs, lambda_pm, 0.0, wc_current);
 
     fmt::print("===== PMSM Servo Drive Simulation (P-PI-PI) =====\n\n");
-    fmt::print("Motor:   Rs={:.2f} Ohm, Ls={:.1f} mH, lambda_pm={:.2f} Wb, P={}\n", Rs, Ls * 1e3, lambda_pm, P);
+    fmt::print("Motor:   Rs={:.2f} Ohm, Ls={:.1f} mH, lambda_pm={:.2f} Wb, P={}\n", Rs, Ls * 1e3, lambda_pm, pole_pairs);
     fmt::print("         Jm={:.1e} kg*m^2, KT={:.3f} Nm/A\n", Jm, KT);
     fmt::print("Coupling: Ks={:.0f} Nm/rad, Bs={:.3f} Nm*s/rad\n", Ks, Bs);
     fmt::print("Load:    JL={:.1e} kg*m^2, BL={:.1e}, Tc={:.3f} Nm\n", JL, BL, Tc);
@@ -96,7 +96,6 @@ int main() {
     // always-on cross-coupling decoupling and back-EMF feedforward. Surface-mount
     // PMSM so Ld = Lq = Ls. tune() places the current-loop poles at wc_current
     // (overriding the constructor's default_bandwidth seed).
-    const double v_circle = Vdc / std::numbers::sqrt3; // SVPWM voltage-circle radius [V]
 
     // Speed loop PI (current command)
     PIDController<double> pi_spd{design::pid(Kp_speed, Ki_speed, 0.0, 1 - i_max, i_max, -i_max / Ki_speed, i_max / Ki_speed, Ki_speed)};
@@ -120,14 +119,14 @@ int main() {
         const double vq = u(1, 0);
 
         // Electrical speed
-        const double omega_e = P * omega_m;
+        const double omega_e = pole_pairs * omega_m;
 
         // dq current dynamics (average voltage model)
         const double did_dt = (vd - (Rs * id) + (omega_e * Ls * iq)) / Ls;
         const double diq_dt = (vq - (Rs * iq) - (omega_e * Ls * id) - (omega_e * lambda_pm)) / Ls;
 
         // Electromagnetic torque (non-salient)
-        const double Te = 1.5 * P * lambda_pm * iq;
+        const double Te = 1.5 * pole_pairs * lambda_pm * iq;
 
         // Shaft coupling torque
         const double twist = theta_m - theta_L;
@@ -173,8 +172,8 @@ int main() {
 
         // Current loop: FOController applies the dq PI feedback plus cross-coupling
         // decoupling and back-EMF feedforward. Electrical speed feeds those FF terms.
-        foc.omega = P * omega_m;
-        const auto cmd = foc.current_controller({.d = 0.0, .q = iq_ref}, {.d = id, .q = iq}, dt, v_circle);
+        foc.omega = pole_pairs * omega_m;
+        const auto cmd = foc.current_controller({.d = 0.0, .q = iq_ref}, {.d = id, .q = iq}, dt, Vdc * std::numbers::inv_sqrt3);
 
         return ColVec<2>{cmd.Vdq.d, cmd.Vdq.q};
     };

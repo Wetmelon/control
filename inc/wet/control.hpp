@@ -48,7 +48,6 @@
 #include "wet/controllers/lqi.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/lqr.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/pid.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/pll.hpp"                  // IWYU pragma: keep
 #include "wet/controllers/pr.hpp"                   // IWYU pragma: keep
 #include "wet/controllers/repetitive.hpp"           // IWYU pragma: keep
 #include "wet/controllers/smc.hpp"                  // IWYU pragma: keep
@@ -90,7 +89,9 @@
 
 // --- Signal filters ---------------------------------------------------------
 #include "wet/filters/differentiator.hpp" // IWYU pragma: keep
+#include "wet/filters/dsogi_pll.hpp"      // IWYU pragma: keep
 #include "wet/filters/filters.hpp"        // IWYU pragma: keep
+#include "wet/filters/pll.hpp"            // IWYU pragma: keep
 #include "wet/filters/sogi.hpp"           // IWYU pragma: keep
 #include "wet/filters/spectral.hpp"       // IWYU pragma: keep
 
@@ -102,6 +103,7 @@
 #include "wet/utility/geometry.hpp"      // IWYU pragma: keep
 #include "wet/utility/iec61131.hpp"      // IWYU pragma: keep
 #include "wet/utility/motor_control.hpp" // IWYU pragma: keep
+#include "wet/utility/transforms.hpp"    // IWYU pragma: keep
 
 // --- Embedded firmware primitives (allocation-free leaf utilities) ----------
 // Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)

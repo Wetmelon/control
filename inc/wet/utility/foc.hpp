@@ -4,9 +4,9 @@
 
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
-#include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/utility/motor_control.hpp"
+#include "wet/utility/transforms.hpp"
 
 namespace wet {
 
@@ -226,17 +226,14 @@ struct FOController {
         // synthesize |Vdq| ≤ Vmax (the SVPWM voltage circle); a per-axis box clamp
         // would distort the voltage-vector angle, so the magnitude is scaled and
         // the clipped amount is back-calculated out of each PI integrator.
-        const T Vmag = wet::sqrt((Vdq.d * Vdq.d) + (Vdq.q * Vdq.q));
+        const T Vmag = Vdq.abs();
 
         DqCommand<T> cmd;
         cmd.is_saturated = Vmag > Vmax;
         cmd.v_excess = Vmag / Vmax; // Vmax == ∞ ⇒ 0
         if (cmd.is_saturated) {
             const T  scale = Vmax / Vmag;
-            const DQ Vsat = {
-                .d = Vdq.d * scale,
-                .q = Vdq.q * scale,
-            };
+            const DQ Vsat = Vdq * scale;
 
             dctrl.back_calculate(Vdq.d, Vsat.d, Ts);
             qctrl.back_calculate(Vdq.q, Vsat.q, Ts);

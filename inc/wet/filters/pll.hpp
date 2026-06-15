@@ -4,6 +4,7 @@
 #include "wet/math/math.hpp"
 
 namespace wet {
+
 /**
  * @brief Single-Phase PLL
  *
