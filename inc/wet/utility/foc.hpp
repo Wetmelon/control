@@ -203,8 +203,8 @@ struct FOController {
 
         // "Always-On" feedforward terms cancel controller dependence on omega
         DQ Vdq = {
-            .d = -(omega * Ldq.q * Idq.q),
-            .q = (omega * Ldq.d * Idq.d) + (omega * lambda),
+            .d = -(omega * Ldq.q * Idq_ref.q),
+            .q = (omega * Ldq.d * Idq_ref.d) + (omega * lambda),
         };
 
         // Default-off plant inversion
