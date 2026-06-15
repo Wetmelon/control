@@ -120,7 +120,7 @@ struct ESCResult {
 
 /// First-order discrete low-pass coefficient for corner @p wc [rad/s] at @p Ts.
 template<typename T>
-[[nodiscard]] constexpr T esc_lp_alpha(T wc, T Ts) {
+[[nodiscard]] constexpr T esc_lpf_alpha(T wc, T Ts) {
     if (wc <= T{0}) {
         return T{1}; // no filtering (pass-through)
     }
@@ -166,8 +166,8 @@ template<typename T = double>
     result.config.dither_amplitude = static_cast<scalar>(dither_amplitude);
     result.config.dither_omega = static_cast<scalar>(two_pi * dither_freq_hz);
     result.config.gain = static_cast<scalar>(gain);
-    result.config.hp_alpha = static_cast<scalar>(esc_lp_alpha(two_pi * hp_hz, Ts));
-    result.config.lp_alpha = static_cast<scalar>(esc_lp_alpha(two_pi * lp_cutoff_hz, Ts));
+    result.config.hp_alpha = static_cast<scalar>(esc_lpf_alpha(two_pi * hp_hz, Ts));
+    result.config.lp_alpha = static_cast<scalar>(esc_lpf_alpha(two_pi * lp_cutoff_hz, Ts));
     result.config.demod_phase = static_cast<scalar>(demod_phase);
     result.config.direction = static_cast<scalar>((type == ExtremumType::Maximize) ? T{1} : T{-1});
     result.config.Ts = static_cast<scalar>(Ts);
@@ -271,9 +271,7 @@ public:
         return input();
     }
 
-    /// Converged operating point estimate û (the optimizer's answer).
-    [[nodiscard]] constexpr T estimate() const { return uhat_; }
-    /// Most recent (filtered) gradient estimate.
+    [[nodiscard]] constexpr T    estimate() const { return uhat_; }
     [[nodiscard]] constexpr T    gradient() const { return gradient_; }
     [[nodiscard]] constexpr bool valid() const { return valid_; }
 
@@ -289,12 +287,13 @@ private:
     static constexpr T two_pi() { return T{2} * wet::numbers::pi_v<T>; }
 
     design::ESCConfig<T> config_{};
-    T                    uhat_{T{0}};
-    T                    phase_{T{0}};
-    T                    hp_state_{T{0}};
-    T                    grad_state_{T{0}};
-    T                    gradient_{T{0}};
-    bool                 valid_{false};
+
+    T    uhat_{T{0}}; // Converged operating point estimate û (the optimizer's answer).
+    T    phase_{T{0}};
+    T    hp_state_{T{0}};
+    T    grad_state_{T{0}};
+    T    gradient_{T{0}}; // Most recent (filtered) gradient estimate.
+    bool valid_{false};
 };
 
 } // namespace wet

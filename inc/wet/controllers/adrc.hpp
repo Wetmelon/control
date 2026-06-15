@@ -28,11 +28,10 @@ struct ADRCResult {
 
     T Kp{}; //< Proportional gain
     T Kd{}; //< Derivative gain
-    T Ts{}; //< Sampling time
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
-        return ADRCResult<NX, U>{wc, wo, b0, beta, Kp, Kd, Ts};
+        return ADRCResult<NX, U>{wc, wo, b0, beta, Kp, Kd};
     }
 };
 
@@ -55,7 +54,7 @@ struct ADRCResult {
  * @see "From PID to Active Disturbance Rejection Control" (Han, 1998)
  */
 template<size_t NX, typename T = double>
-[[nodiscard]] constexpr ADRCResult<NX, T> adrc(T wc, T wo, T b0, T Ts) {
+[[nodiscard]] constexpr ADRCResult<NX, T> adrc(T wc, T wo, T b0) {
     wet::array<T, NX + 1> beta{};
     size_t                n = NX + 1;
     for (size_t i = 1; i <= n; ++i) {
@@ -81,7 +80,7 @@ template<size_t NX, typename T = double>
         Kd = 2 * wc / b0;
     }
 
-    return ADRCResult<NX, T>{wc, wo, b0, beta, Kp, Kd, Ts};
+    return ADRCResult<NX, T>{wc, wo, b0, beta, Kp, Kd};
 }
 
 } // namespace design
@@ -106,7 +105,6 @@ class ADRCController {
     T b0{1.0f}; //< input gain
     T Kp{1.0f}; //< proportional gain
     T Kd{1.0f}; //< derivative gain
-    T Ts{1.0f}; //< sampling time
 
     wet::array<T, NX + 1> beta{};             //< ESO gains [β1, β2, ..., β_{NX+1}]
     ColVec<NX + 1, T>     z{};                //< ESO state: [z1, z2, ..., z_{NX+1}]
@@ -116,11 +114,11 @@ class ADRCController {
 public:
     constexpr ADRCController() = default;
     constexpr ADRCController(const design::ADRCResult<NX, T>& result)
-        : b0(result.b0), Kp(result.Kp), Kd(result.Kd), Ts(result.Ts), beta(result.beta) {}
+        : b0(result.b0), Kp(result.Kp), Kd(result.Kd), beta(result.beta) {}
 
     template<typename U>
     constexpr ADRCController(const ADRCController<NX, U>& other)
-        : b0(other.b0), Kp(other.Kp), Kd(other.Kd), Ts(other.Ts), beta(other.beta), z(other.z), u_prev_(other.u_prev_), ki_factor_(other.ki_factor_) {}
+        : b0(other.b0), Kp(other.Kp), Kd(other.Kd), beta(other.beta), z(other.z), u_prev_(other.u_prev_), ki_factor_(other.ki_factor_) {}
 
     /**
      * @brief Set the integrator gain-scheduling factor used by the 2-arg
@@ -137,42 +135,9 @@ public:
      * the command, the caller should follow up with `back_calculate(u_unsat,
      * u_sat)` so the ESO's next tick uses what was actually applied.
      */
-    [[nodiscard]] constexpr T control(T r, T y) {
-        const T u = control(r, y, u_prev_, ki_factor_);
+    [[nodiscard]] constexpr T control(T r, T y, T Ts) {
+        const T u = control(r, y, Ts, u_prev_, Ts, ki_factor_);
         u_prev_ = u;
-        return u;
-    }
-
-    /**
-     * @brief Compute ADRC control with explicit u_prev / ki_factor (legacy).
-     *
-     * @param r        Reference
-     * @param y        Measurement
-     * @param u_prev   Previous control command after any external saturation
-     * @param ki_factor Integrator gain-scheduling factor (default: 1.0)
-     * @return Control output u
-     *
-     * Prefer the 2-arg overload + `back_calculate` for new code.
-     */
-    [[nodiscard]] constexpr T control(T r, T y, T u_prev, T ki_factor = T{1.0}) {
-        T e = y - z[0]; // Innovation
-
-        // Error State Observer update
-        z[0] += Ts * (z[1] + beta[0] * e + b0 * u_prev);
-        for (size_t i = 1; i < NX; ++i) {
-            z[i] += Ts * (z[i + 1] + beta[i] * e);
-        }
-        z[NX] += Ts * beta[NX] * ki_factor * e; // Gain-scheduled Disturbance estimate
-
-        // Controller (order-dependent)
-        T u{};
-        if constexpr (NX == 1) {
-            // 1st order: P control + disturbance rejection
-            u = Kp * (r - z[0]) - (z[1] / b0);
-        } else {
-            // 2nd+ order: PD control + disturbance rejection
-            u = Kp * (r - z[0]) - (Kd * z[1]) - (z[NX] / b0);
-        }
         return u;
     }
 

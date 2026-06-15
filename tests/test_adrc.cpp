@@ -12,9 +12,8 @@ TEST_SUITE("Active Disturbance Rejection Control (ADRC)") {
         double wc = 5.0;  // Controller bandwidth
         double wo = 20.0; // Observer bandwidth
         double b0 = 1.0;  // Plant gain
-        double Ts = 0.01; // Sampling time
 
-        auto adrc_result = design::adrc<NX>(wc, wo, b0, Ts);
+        auto adrc_result = design::adrc<NX>(wc, wo, b0);
 
         // Expected ESO gains for 1st-order system with poles at -wo
         std::array<double, NX + 1> expected_beta = {
@@ -41,9 +40,8 @@ TEST_SUITE("Active Disturbance Rejection Control (ADRC)") {
         double wc = 5.0;  // Controller bandwidth
         double wo = 20.0; // Observer bandwidth
         double b0 = 1.0;  // Plant gain
-        double Ts = 0.01; // Sampling time
 
-        auto adrc_result = design::adrc<NX>(wc, wo, b0, Ts);
+        auto adrc_result = design::adrc<NX>(wc, wo, b0);
 
         // Expected ESO gains for 2nd-order system with poles at -wo
         std::array<double, NX + 1> expected_beta = {
