@@ -257,4 +257,36 @@ TEST_SUITE("Motor Control Transforms") {
         CHECK(p_pwr.q == doctest::Approx(p_amp.q).epsilon(1e-5f));
     }
 
+    TEST_CASE("InstantaneousPower: apparent power, angle, power factor") {
+        // v on d-axis, current at 45° (equal active/reactive) → φ = -45°.
+        const auto s = instantaneous_power<float>(DirectQuadrature<float>{1.0f, 0.0f}, DirectQuadrature<float>{1.0f, 1.0f});
+
+        CHECK(s.p == doctest::Approx(1.5f));
+        CHECK(s.q == doctest::Approx(-1.5f));
+        CHECK(s.abs() == doctest::Approx(1.5f * std::numbers::sqrt2_v<float>));
+        CHECK(s.arg() == doctest::Approx(-std::numbers::pi_v<float> / 4.0f));
+        CHECK(s.power_factor() == doctest::Approx(1.0f / std::numbers::sqrt2_v<float>));
+
+        // Degenerate: zero power → zero pf, no division by zero.
+        CHECK(InstantaneousPower<float>{}.power_factor() == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("Complex power via αβ conj/product matches instantaneous_power") {
+        const AlphaBeta<float> v = {0.9f, -0.3f};
+        const AlphaBeta<float> i = {0.4f, 0.7f};
+
+        // S = 3/2 · V · conj(I), expressed directly with the complex operators.
+        const AlphaBeta<float> s = (v * i.conj()) * 1.5f;
+        const auto             p = instantaneous_power<float>(v, i);
+
+        CHECK(s.alpha == doctest::Approx(p.p));
+        CHECK(s.beta == doctest::Approx(p.q));
+
+        // conj() and complex operator* sanity: j · conj(j) = j · (−j) = 1.
+        const AlphaBeta<float> j = {0.0f, 1.0f};
+        const AlphaBeta<float> one = j * j.conj();
+        CHECK(one.alpha == doctest::Approx(1.0f));
+        CHECK(one.beta == doctest::Approx(0.0f));
+    }
+
 } // TEST_SUITE

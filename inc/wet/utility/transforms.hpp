@@ -20,16 +20,21 @@ namespace wet {
  *   - **αβ**   two-phase stationary frame (wet::AlphaBeta)
  *   - **αβ0**  two-phase stationary frame plus zero sequence (wet::AlphaBetaZero)
  *   - **dq**   rotor-synchronous rotating frame (wet::DirectQuadrature)
+ *   - **dq0**  rotor frame plus zero sequence (wet::DirectQuadratureZero)
  *
  * Phase quantities live in a wet::ColVec<3, T> so they compose with the rest of
  * the linear-algebra library; the αβ and dq pairs use named structs so the two
  * orthogonal components never get silently swapped.
  *
+ * The scaling convention is part of the αβ/dq type (a template parameter), so
+ * the compiler refuses to mix amplitude-invariant and power-invariant quantities
+ * — e.g. forming power from a voltage and current of different conventions is a
+ * compile error, and SVM accepts only amplitude-invariant volts. Transforms
+ * starting from raw abc take the convention as a (defaulted) template argument;
+ * everything downstream deduces it from the typed operand.
+ *
  * Also provides the phasor-domain symmetrical-component (Fortescue) transform for
  * unbalanced / fault analysis.
- *
- * All transforms use the amplitude-invariant (2/3) convention, so the αβ and dq
- * magnitudes equal the peak phase amplitude.
  *
  * @see https://en.wikipedia.org/wiki/Alpha%E2%80%93beta_transformation
  * @see https://en.wikipedia.org/wiki/Direct-quadrature-zero_transformation
@@ -58,13 +63,17 @@ enum class Convention : std::uint8_t {
  * @brief Direct-quadrature (rotor-frame) component pair
  * @ingroup transforms
  *
- * Behaves as the complex number @f$ d + jq @f$: abs() / arg() give its polar form
- * and the arithmetic operators act component-wise (vector add/subtract and scalar
- * scaling), so dq references and feedforward terms compose naturally.
+ * Behaves as the complex number @f$ d + jq @f$: abs() / arg() give its polar form,
+ * conj() / the complex operator* treat it as a phasor, and the additive operators
+ * act component-wise. The @p C scaling convention is carried in the type so dq
+ * quantities of different conventions cannot be combined.
  */
-template<typename T = float>
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 struct DirectQuadrature {
     T d, q;
+
+    /// The scaling convention this quantity was produced with.
+    static constexpr Convention convention = C;
 
     /// Phase angle @f$ \operatorname{atan2}(q, d) @f$ [rad].
     [[nodiscard]] constexpr T arg() const { return wet::atan2(q, d); }
@@ -95,11 +104,22 @@ struct DirectQuadrature {
 
     [[nodiscard]] constexpr DirectQuadrature operator-() const { return {-d, -q}; }
 
+    /// Complex conjugate @f$ d - jq @f$.
+    [[nodiscard]] constexpr DirectQuadrature conj() const { return {d, -q}; }
+
     [[nodiscard]] friend constexpr DirectQuadrature operator+(DirectQuadrature a, const DirectQuadrature& b) { return a += b; }
     [[nodiscard]] friend constexpr DirectQuadrature operator-(DirectQuadrature a, const DirectQuadrature& b) { return a -= b; }
     [[nodiscard]] friend constexpr DirectQuadrature operator*(DirectQuadrature v, T s) { return v *= s; }
     [[nodiscard]] friend constexpr DirectQuadrature operator*(T s, DirectQuadrature v) { return v *= s; }
     [[nodiscard]] friend constexpr DirectQuadrature operator/(DirectQuadrature v, T s) { return v /= s; }
+
+    /// Complex product, treating both operands as @f$ d + jq @f$.
+    [[nodiscard]] friend constexpr DirectQuadrature operator*(const DirectQuadrature& x, const DirectQuadrature& y) {
+        return {
+            (x.d * y.d) - (x.q * y.q),
+            (x.d * y.q) + (x.q * y.d),
+        };
+    }
 
     [[nodiscard]] friend constexpr bool operator==(const DirectQuadrature&, const DirectQuadrature&) = default;
 };
@@ -109,12 +129,16 @@ struct DirectQuadrature {
  * @ingroup transforms
  *
  * Behaves as the complex number @f$ \alpha + j\beta @f$: abs() / arg() give its
- * polar form and the arithmetic operators act component-wise (vector add/subtract
- * and scalar scaling).
+ * polar form, conj() / the complex operator* treat it as a phasor, and the
+ * additive operators act component-wise. The @p C scaling convention is carried in
+ * the type so αβ quantities of different conventions cannot be combined.
  */
-template<typename T = float>
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 struct AlphaBeta {
     T alpha, beta;
+
+    /// The scaling convention this quantity was produced with.
+    static constexpr Convention convention = C;
 
     /// Phase angle @f$ \operatorname{atan2}(\beta, \alpha) @f$ [rad].
     [[nodiscard]] constexpr T arg() const { return wet::atan2(beta, alpha); }
@@ -145,11 +169,22 @@ struct AlphaBeta {
 
     [[nodiscard]] constexpr AlphaBeta operator-() const { return {-alpha, -beta}; }
 
+    /// Complex conjugate @f$ \alpha - j\beta @f$.
+    [[nodiscard]] constexpr AlphaBeta conj() const { return {alpha, -beta}; }
+
     [[nodiscard]] friend constexpr AlphaBeta operator+(AlphaBeta a, const AlphaBeta& b) { return a += b; }
     [[nodiscard]] friend constexpr AlphaBeta operator-(AlphaBeta a, const AlphaBeta& b) { return a -= b; }
     [[nodiscard]] friend constexpr AlphaBeta operator*(AlphaBeta v, T s) { return v *= s; }
     [[nodiscard]] friend constexpr AlphaBeta operator*(T s, AlphaBeta v) { return v *= s; }
     [[nodiscard]] friend constexpr AlphaBeta operator/(AlphaBeta v, T s) { return v /= s; }
+
+    /// Complex product, treating both operands as @f$ \alpha + j\beta @f$.
+    [[nodiscard]] friend constexpr AlphaBeta operator*(const AlphaBeta& x, const AlphaBeta& y) {
+        return {
+            (x.alpha * y.alpha) - (x.beta * y.beta),
+            (x.alpha * y.beta) + (x.beta * y.alpha),
+        };
+    }
 
     [[nodiscard]] friend constexpr bool operator==(const AlphaBeta&, const AlphaBeta&) = default;
 };
@@ -164,12 +199,12 @@ struct AlphaBeta {
  * four-wire grids, where common-mode DC/offset and triplen harmonics live in the
  * zero channel rather than leaking into αβ.
  */
-template<typename T = float>
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 struct AlphaBetaZero {
     T alpha, beta, zero;
 
-    /// Drop the zero channel, returning just the αβ pair.
-    [[nodiscard]] constexpr AlphaBeta<T> ab() const { return {alpha, beta}; }
+    /// Drop the zero channel, returning just the αβ pair (same convention).
+    [[nodiscard]] constexpr AlphaBeta<T, C> ab() const { return {alpha, beta}; }
 
     [[nodiscard]] friend constexpr bool operator==(const AlphaBetaZero&, const AlphaBetaZero&) = default;
 };
@@ -184,12 +219,12 @@ struct AlphaBetaZero {
  * three-wire drives; retain it for four-wire grid converters running dq0 current
  * control.
  */
-template<typename T = float>
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
 struct DirectQuadratureZero {
     T d, q, zero;
 
-    /// Drop the zero channel, returning just the dq pair.
-    [[nodiscard]] constexpr DirectQuadrature<T> dq() const { return {d, q}; }
+    /// Drop the zero channel, returning just the dq pair (same convention).
+    [[nodiscard]] constexpr DirectQuadrature<T, C> dq() const { return {d, q}; }
 
     [[nodiscard]] friend constexpr bool operator==(const DirectQuadratureZero&, const DirectQuadratureZero&) = default;
 };
@@ -198,27 +233,29 @@ struct DirectQuadratureZero {
  * @brief Zero-retaining Clarke transform (abc → αβ0)
  * @ingroup transforms
  *
- * The full rank-3 amplitude-invariant Clarke transform, adding the zero-sequence
- * (common-mode) channel to αβ:
+ * The full rank-3 Clarke transform, adding the zero-sequence (common-mode)
+ * channel to αβ. Amplitude-invariant (default):
  * @f[
  *   \alpha = \tfrac{2a - b - c}{3}, \quad
  *   \beta  = \frac{b - c}{\sqrt{3}}, \quad
  *   v_0    = \tfrac{a + b + c}{3}
  * @f]
- * Common-mode content (equal on all three phases — e.g. shared sensor bias,
- * triplen harmonics) maps entirely to @f$ v_0 @f$ and cancels out of αβ;
+ * Power-invariant (Concordia) applies orthonormal √(2/3) scaling on αβ and 1/√3
+ * on the zero row. Common-mode content (equal on all three phases — shared sensor
+ * bias, triplen harmonics) maps entirely to @f$ v_0 @f$ and cancels out of αβ;
  * independent per-phase offsets still appear in αβ and need upstream rejection.
  *
  * This is the rank-3 primitive; clarke_transform() is the αβ-only projection of
  * it (the zero channel is dead-code-eliminated when unused).
  *
- * MATLAB: `clarke()` with the zero row, `(2/3)·[1 -1/2 -1/2; 0 √3/2 -√3/2; 1/2 1/2 1/2]·[a;b;c]`
+ * MATLAB: `clarke()` with the zero row
  *
+ * @tparam C  Scaling convention (default amplitude-invariant)
  * @param abc Phase quantities {a, b, c}
- * @return αβ0 components
+ * @return αβ0 components tagged with convention @p C
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr AlphaBetaZero<T> clarke_zero_transform(const ColVec<3, T>& abc) {
+[[nodiscard]] constexpr AlphaBetaZero<T, C> clarke_zero_transform(const ColVec<3, T>& abc) {
     if constexpr (C == Convention::PowerInvariant) {
         // Orthonormal (Concordia) scaling: √(2/3) on αβ, 1/√3 on the zero row.
         constexpr T sqrt_2_3 = wet::numbers::sqrt2_v<T> * wet::numbers::inv_sqrt3_v<T>;
@@ -241,21 +278,15 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @brief Inverse zero-retaining Clarke transform (αβ0 → abc)
  * @ingroup transforms
  *
- * Exact inverse of clarke_zero_transform(); the zero channel is added back to
- * every phase:
- * @f[
- *   a = \alpha + v_0, \quad
- *   b = -\tfrac{\alpha}{2} + \tfrac{\sqrt{3}}{2}\beta + v_0, \quad
- *   c = -\tfrac{\alpha}{2} - \tfrac{\sqrt{3}}{2}\beta + v_0
- * @f]
- *
- * MATLAB: `invclarke()` with the zero row
+ * Exact inverse of clarke_zero_transform(); the convention is taken from the
+ * input type. Amplitude-invariant adds the zero channel back to every phase;
+ * power-invariant uses the transpose of the orthonormal forward matrix.
  *
  * @param abz αβ0 components
  * @return Phase quantities {a, b, c}
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr ColVec<3, T> inverse_clarke_zero_transform(const AlphaBetaZero<T>& abz) {
+[[nodiscard]] constexpr ColVec<3, T> inverse_clarke_zero_transform(const AlphaBetaZero<T, C>& abz) {
     if constexpr (C == Convention::PowerInvariant) {
         // Inverse of the orthonormal forward transform is its transpose.
         constexpr T sqrt_2_3 = wet::numbers::sqrt2_v<T> * wet::numbers::inv_sqrt3_v<T>;
@@ -281,20 +312,21 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @brief Clarke transform (abc → αβ)
  * @ingroup transforms
  *
- * The three-wire (balanced / zero-sequence-free) projection: the αβ slice of
+ * The three-wire (zero-sequence-free) projection: the αβ slice of
  * clarke_zero_transform(). The zero channel is computed and discarded, which the
- * optimiser eliminates wherever it is unused.
+ * optimiser eliminates wherever it is unused. Amplitude-invariant by default:
  * @f[
  *   \alpha = \tfrac{2a - b - c}{3}, \qquad \beta = \frac{b - c}{\sqrt{3}}
  * @f]
  *
- * MATLAB: `clarke()` / `[alpha; beta] = (2/3) * [1 -1/2 -1/2; 0 √3/2 -√3/2] * [a;b;c]`
+ * MATLAB: `clarke()`
  *
+ * @tparam C  Scaling convention (default amplitude-invariant)
  * @param abc Phase quantities {a, b, c}
- * @return αβ components
+ * @return αβ components tagged with convention @p C
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr AlphaBeta<T> clarke_transform(const ColVec<3, T>& abc) {
+[[nodiscard]] constexpr AlphaBeta<T, C> clarke_transform(const ColVec<3, T>& abc) {
     return clarke_zero_transform<T, C>(abc).ab();
 }
 
@@ -303,12 +335,7 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @ingroup transforms
  *
  * The zero-sequence-free inverse: inverse_clarke_zero_transform() with
- * @f$ v_0 = 0 @f$.
- * @f[
- *   a = \alpha, \quad
- *   b = -\tfrac{\alpha}{2} + \tfrac{\sqrt{3}}{2}\beta, \quad
- *   c = -\tfrac{\alpha}{2} - \tfrac{\sqrt{3}}{2}\beta
- * @f]
+ * @f$ v_0 = 0 @f$. Convention taken from the input type.
  *
  * MATLAB: `invclarke()`
  *
@@ -316,15 +343,16 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @return Phase quantities {a, b, c}
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr ColVec<3, T> inverse_clarke_transform(const AlphaBeta<T>& ab) {
-    return inverse_clarke_zero_transform<T, C>(AlphaBetaZero<T>{ab.alpha, ab.beta, T{0}});
+[[nodiscard]] constexpr ColVec<3, T> inverse_clarke_transform(const AlphaBeta<T, C>& ab) {
+    return inverse_clarke_zero_transform<T, C>(AlphaBetaZero<T, C>{ab.alpha, ab.beta, T{0}});
 }
 
 /**
  * @brief Park transform (αβ → dq)
  * @ingroup transforms
  *
- * Rotates the stationary αβ frame into the rotor-synchronous dq frame:
+ * Rotates the stationary αβ frame into the rotor-synchronous dq frame (the
+ * rotation is convention-independent, so the convention passes through):
  * @f[
  *   d =  \alpha\cos\theta + \beta\sin\theta, \qquad
  *   q = -\alpha\sin\theta + \beta\cos\theta
@@ -334,10 +362,10 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  *
  * @param ab    αβ components
  * @param theta Rotor electrical angle [rad]
- * @return dq components
+ * @return dq components (same convention as @p ab)
  */
-template<typename T = float>
-[[nodiscard]] constexpr DirectQuadrature<T> park_transform(const AlphaBeta<T>& ab, T theta) {
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
+[[nodiscard]] constexpr DirectQuadrature<T, C> park_transform(const AlphaBeta<T, C>& ab, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T d = (ab.alpha * cos_theta) + (ab.beta * sin_theta);
@@ -359,10 +387,10 @@ template<typename T = float>
  *
  * @param dq    dq components
  * @param theta Rotor electrical angle [rad]
- * @return αβ components
+ * @return αβ components (same convention as @p dq)
  */
-template<typename T = float>
-[[nodiscard]] constexpr AlphaBeta<T> inverse_park_transform(const DirectQuadrature<T>& dq, T theta) {
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
+[[nodiscard]] constexpr AlphaBeta<T, C> inverse_park_transform(const DirectQuadrature<T, C>& dq, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T alpha = (dq.d * cos_theta) - (dq.q * sin_theta);
@@ -375,26 +403,21 @@ template<typename T = float>
  * @brief Fused Clarke-Park transform (abc → dq)
  * @ingroup transforms
  *
- * Maps three-phase stationary quantities directly to the rotor frame; the usual
- * measurement-side step of an FOC loop. Algebraically identical to
- * `park_transform(clarke_transform(abc), theta)`, but evaluated in a single pass:
- * one sincos() call and no intermediate αβ result. The fusion is explicit rather
- * than left to the optimiser, so the operation count is deterministic without
- * `-ffast-math` (which the FP-reassociation needed to collapse the two-stage form
- * otherwise depends on).
+ * Maps three-phase stationary quantities directly to the rotor frame in a single
+ * pass (one sincos() call); the usual measurement-side step of an FOC loop.
  * @f[
  *   \alpha = \tfrac{2a - b - c}{3}, \quad \beta = \frac{b - c}{\sqrt{3}}, \qquad
  *   d =  \alpha\cos\theta + \beta\sin\theta, \quad
  *   q = -\alpha\sin\theta + \beta\cos\theta
  * @f]
  *
- * @tparam C     Scaling convention (default amplitude-invariant)
+ * @tparam C  Scaling convention (default amplitude-invariant)
  * @param abc   Phase quantities {a, b, c}
  * @param theta Rotor electrical angle [rad]
- * @return dq components
+ * @return dq components tagged with convention @p C
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr DirectQuadrature<T> clarke_park_transform(const ColVec<3, T>& abc, T theta) {
+[[nodiscard]] constexpr DirectQuadrature<T, C> clarke_park_transform(const ColVec<3, T>& abc, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
     const auto ab = clarke_zero_transform<T, C>(abc).ab();
 
@@ -408,11 +431,9 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @brief Fused inverse Park-Clarke transform (dq → abc)
  * @ingroup transforms
  *
- * Maps rotor-frame quantities directly to three phases; the usual command-side
- * step of an FOC loop. Algebraically identical to
- * `inverse_clarke_transform(inverse_park_transform(dq, theta))`, but evaluated in
- * a single pass: one sincos() call and no intermediate αβ result, so the
- * operation count is deterministic without `-ffast-math`.
+ * Maps rotor-frame quantities directly to three phases in a single pass (one
+ * sincos() call); the usual command-side step of an FOC loop. Convention taken
+ * from the input type.
  * @f[
  *   \alpha = d\cos\theta - q\sin\theta, \quad \beta = d\sin\theta + q\cos\theta, \qquad
  *   a = \alpha, \quad
@@ -420,19 +441,18 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  *   c = -\tfrac{\alpha}{2} - \tfrac{\sqrt{3}}{2}\beta
  * @f]
  *
- * @tparam C     Scaling convention (default amplitude-invariant)
  * @param dq    dq components
  * @param theta Rotor electrical angle [rad]
  * @return Phase quantities {a, b, c}
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr ColVec<3, T> inverse_park_clarke_transform(const DirectQuadrature<T>& dq, T theta) {
+[[nodiscard]] constexpr ColVec<3, T> inverse_park_clarke_transform(const DirectQuadrature<T, C>& dq, T theta) {
     const auto [sin_theta, cos_theta] = wet::sincos(theta);
 
     const T alpha = (dq.d * cos_theta) - (dq.q * sin_theta);
     const T beta = (dq.d * sin_theta) + (dq.q * cos_theta);
 
-    return inverse_clarke_transform<T, C>(AlphaBeta<T>{alpha, beta});
+    return inverse_clarke_transform<T, C>(AlphaBeta<T, C>{alpha, beta});
 }
 
 /**
@@ -440,15 +460,14 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @ingroup transforms
  *
  * Rotates the αβ part into the rotor frame and carries the zero channel through
- * unchanged (the rotation does not couple to the zero axis). The rank-3 partner
- * to park_transform(), for four-wire dq0 control.
+ * unchanged. The rank-3 partner to park_transform(), for four-wire dq0 control.
  *
  * @param abz   αβ0 components
  * @param theta Rotor electrical angle [rad]
- * @return dq0 components
+ * @return dq0 components (same convention as @p abz)
  */
-template<typename T = float>
-[[nodiscard]] constexpr DirectQuadratureZero<T> park_zero_transform(const AlphaBetaZero<T>& abz, T theta) {
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
+[[nodiscard]] constexpr DirectQuadratureZero<T, C> park_zero_transform(const AlphaBetaZero<T, C>& abz, T theta) {
     const auto dq = park_transform(abz.ab(), theta);
     return {dq.d, dq.q, abz.zero};
 }
@@ -459,10 +478,10 @@ template<typename T = float>
  *
  * @param dqz   dq0 components
  * @param theta Rotor electrical angle [rad]
- * @return αβ0 components
+ * @return αβ0 components (same convention as @p dqz)
  */
-template<typename T = float>
-[[nodiscard]] constexpr AlphaBetaZero<T> inverse_park_zero_transform(const DirectQuadratureZero<T>& dqz, T theta) {
+template<typename T = float, Convention C = Convention::AmplitudeInvariant>
+[[nodiscard]] constexpr AlphaBetaZero<T, C> inverse_park_zero_transform(const DirectQuadratureZero<T, C>& dqz, T theta) {
     const auto ab = inverse_park_transform(dqz.dq(), theta);
     return {ab.alpha, ab.beta, dqz.zero};
 }
@@ -475,13 +494,13 @@ template<typename T = float>
  * dq0, one sincos() call. The zero channel is the Clarke zero passed through the
  * rotation unchanged.
  *
- * @tparam C     Scaling convention (default amplitude-invariant)
+ * @tparam C  Scaling convention (default amplitude-invariant)
  * @param abc   Phase quantities {a, b, c}
  * @param theta Rotor electrical angle [rad]
- * @return dq0 components
+ * @return dq0 components tagged with convention @p C
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr DirectQuadratureZero<T> clarke_park_zero_transform(const ColVec<3, T>& abc, T theta) {
+[[nodiscard]] constexpr DirectQuadratureZero<T, C> clarke_park_zero_transform(const ColVec<3, T>& abc, T theta) {
     return park_zero_transform(clarke_zero_transform<T, C>(abc), theta);
 }
 
@@ -489,13 +508,12 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @brief Fused inverse Park-Clarke transform with zero (dq0 → abc)
  * @ingroup transforms
  *
- * @tparam C     Scaling convention (default amplitude-invariant)
  * @param dqz   dq0 components
  * @param theta Rotor electrical angle [rad]
  * @return Phase quantities {a, b, c}
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr ColVec<3, T> inverse_park_clarke_zero_transform(const DirectQuadratureZero<T>& dqz, T theta) {
+[[nodiscard]] constexpr ColVec<3, T> inverse_park_clarke_zero_transform(const DirectQuadratureZero<T, C>& dqz, T theta) {
     return inverse_clarke_zero_transform<T, C>(inverse_park_zero_transform(dqz, theta));
 }
 
@@ -511,10 +529,10 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @f]
  * @f$ p @f$ is the real power transferred; @f$ q @f$ is the (Akagi) imaginary
  * power that circulates between phases without net transfer. The scale factor
- * @f$ k @f$ depends on the αβ convention: @f$ k = 3/2 @f$ for amplitude-invariant
- * (so this returns true three-phase watts/VAr), @f$ k = 1 @f$ for power-invariant.
- *
- * @tparam C Scaling convention of the αβ inputs (default amplitude-invariant)
+ * @f$ k @f$ is fixed by the operands' convention — @f$ 3/2 @f$ for
+ * amplitude-invariant (so the result is true three-phase watts/VAr), @f$ 1 @f$
+ * for power-invariant — and voltage and current must share that convention (the
+ * type system enforces it).
  *
  * @see H. Akagi, Y. Kanazawa, A. Nabae, "Instantaneous reactive power
  *      compensators comprising switching devices without energy storage
@@ -524,16 +542,27 @@ template<typename T = float>
 struct InstantaneousPower {
     T p = {}; ///< [W]   instantaneous active (real) power
     T q = {}; ///< [VAr] instantaneous reactive (Akagi imaginary) power
+
+    /// Apparent power @f$ S = \sqrt{p^2 + q^2} @f$ [VA] — the complex-power magnitude.
+    [[nodiscard]] constexpr T abs() const { return wet::sqrt((p * p) + (q * q)); }
+
+    /// Power-factor angle @f$ \varphi = \operatorname{atan2}(q, p) @f$ [rad].
+    [[nodiscard]] constexpr T arg() const { return wet::atan2(q, p); }
+
+    /// Power factor @f$ \cos\varphi = p / S @f$ in [-1, 1] (0 when S = 0).
+    [[nodiscard]] constexpr T power_factor() const {
+        const T s = abs();
+        return s > T{0} ? p / s : T{0};
+    }
 };
 
 /// @copydoc InstantaneousPower
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr InstantaneousPower<T> instantaneous_power(const AlphaBeta<T>& v, const AlphaBeta<T>& i) {
+[[nodiscard]] constexpr InstantaneousPower<T> instantaneous_power(const AlphaBeta<T, C>& v, const AlphaBeta<T, C>& i) {
     constexpr T k = (C == Convention::PowerInvariant) ? T{1} : T{1.5};
-    return {
-        .p = k * ((v.alpha * i.alpha) + (v.beta * i.beta)),
-        .q = k * ((v.beta * i.alpha) - (v.alpha * i.beta)),
-    };
+    // Complex power S = k · V · conj(I); real part is P, imaginary part is Q.
+    const AlphaBeta<T, C> s = v * i.conj();
+    return {.p = k * s.alpha, .q = k * s.beta};
 }
 
 /**
@@ -545,17 +574,15 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  *   p = k\,(v_d i_d + v_q i_q), \qquad q = k\,(v_q i_d - v_d i_q)
  * @f]
  * Equivalent to the αβ form (both are frame-invariant scalars); use whichever
- * frame the signals are already in.
- *
- * @tparam C Scaling convention of the dq inputs (default amplitude-invariant)
+ * frame the signals are already in. Convention (hence @f$ k @f$) comes from the
+ * operands' type.
  */
 template<typename T = float, Convention C = Convention::AmplitudeInvariant>
-[[nodiscard]] constexpr InstantaneousPower<T> instantaneous_power(const DirectQuadrature<T>& v, const DirectQuadrature<T>& i) {
+[[nodiscard]] constexpr InstantaneousPower<T> instantaneous_power(const DirectQuadrature<T, C>& v, const DirectQuadrature<T, C>& i) {
     constexpr T k = (C == Convention::PowerInvariant) ? T{1} : T{1.5};
-    return {
-        .p = k * ((v.d * i.d) + (v.q * i.q)),
-        .q = k * ((v.q * i.d) - (v.d * i.q)),
-    };
+    // Complex power S = k · V · conj(I); real part is P, imaginary part is Q.
+    const DirectQuadrature<T, C> s = v * i.conj();
+    return {.p = k * s.d, .q = k * s.q};
 }
 
 /**
