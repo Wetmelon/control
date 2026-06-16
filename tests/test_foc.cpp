@@ -3,7 +3,7 @@
 #include <numbers>
 
 #include "wet/utility/foc.hpp"
-#include "wet/utility/motor_control.hpp"
+#include "wet/utility/modulation.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

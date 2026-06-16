@@ -47,7 +47,7 @@
 #include <cstdio>
 #include <numbers>
 
-#include "wet/utility/motor_control.hpp"
+#include "wet/utility/modulation.hpp"
 
 using namespace wet;
 

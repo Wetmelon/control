@@ -38,6 +38,7 @@ Status: draft
     - [◐ Serial N-DOF manipulator kinematics (rotary-joint arm, N ≤ 6)](#-serial-n-dof-manipulator-kinematics-rotary-joint-arm-n--6)
     - [☑ Motion-system kinematic mappings (Cartesian / CoreXY / polar / delta)](#-motion-system-kinematic-mappings-cartesian--corexy--polar--delta)
     - [☐ Multi-rate simulation harness](#-multi-rate-simulation-harness)
+    - [◐ Power-electronics modulation (inverter PWM schemes)](#-power-electronics-modulation-inverter-pwm-schemes)
   - [Testing and Documentation](#testing-and-documentation)
   - [Decision Items](#decision-items)
 
@@ -587,6 +588,35 @@ The current simulation harness (`simulation/simulate.hpp`) advances every block 
 - **Open questions.** Schedule specification (per-block divisor vs. explicit Hz with validation that each divides the base rate); whether to model task jitter / execution-time offset within a tick or assume ideal periodic firing (ideal first, jitter as a later refinement); how to expose the multi-rate trajectories for plotting when channels are sampled at different rates.
 - Reference: Franklin, Powell & Workman, "Digital Control of Dynamic Systems" (3rd ed., 1998), multirate sampling chapter; M. Cimino & P. R. Pagilla, "Conditions for multirate sampled-data control," on inter-sample behavior and rate-boundary effects.
 - Acceptance: a two-rate example (fast inner current loop + slow outer loop) reproduces the inner-loop transport delay and sample-and-hold seen on hardware; single-rate results match the existing `simulate.hpp` harness when all blocks share one rate.
+
+### ◐ Power converter modulation & control (DC-DC, PFC, multilevel)
+
+Modulator and control building blocks for the standard switching-converter topologies, not just three-phase inverters. Layered by where each piece lands: **gating/modulation** leaf utilities in `utility/modulation.hpp` (pure constexpr duty/carrier math, no plant model — they deviate from the three-tier pattern like the other `utility/` blocks); **control laws** (MPPT, PFC loops) in `controllers/` on the existing PI/PR/observer infrastructure; **averaged converter models** as Tier-2 `StateSpace`/`TransferFunction` builders for design + simulation. The common thread is *actuation*: turn a voltage/current command into switch states.
+
+**Cross-cutting modulator primitives** (the shared layer under everything below):
+- PWM carrier comparison — trailing-edge (default), leading-edge (current-mode), and dual-edge / **center-aligned** (symmetric, lower harmonic content + the natural place to sample current).
+- Complementary gating + **dead-time** insertion, and dead-time *compensation* (volt-second error correction from device drop + dead-time, keyed on current sign).
+- **Interleaving** — N-phase carrier offsets (360°/N) for multiphase buck / interleaved boost ripple cancellation and current sharing.
+
+**DC-DC.**
+- Duty feedforward for **buck** (`D = Vo/Vi`), **boost** (`D = 1 − Vi/Vo`), **buck-boost**; closed loop is voltage-mode or (peak/average) current-mode on the existing controllers — the topology-specific part is the modulator + slope-compensation for peak-current mode.
+- **MPPT (boost for PV/solar):** Perturb-&-Observe and Incremental-Conductance trackers. Note overlap with **extremum-seeking (#8)** — ESC *is* a gradient MPPT; P&O/IncCond are the discrete domain-standard alternatives worth having explicitly. Interleaved boost for higher power.
+
+**PFC / AC-DC (chargers, front-ends).**
+- **Boost PFC** with average-current-mode control: inner current loop shapes inductor current to a rectified-sinusoid reference (multiplier = voltage-loop output × |v_in| template), outer DC-bus voltage loop. Pairs with the existing PR/PI controllers and a PLL/template generator for the line.
+- **Totem-pole bridgeless PFC** (the AC→DC charger case): a high-frequency leg (GaN/SiC) runs the boost PWM while a **line-frequency leg (SCR or slow MOSFETs)** unfolds/commutates at the mains zero-crossing — needs zero-cross detection, polarity-dependent gating, and zero-crossing current-distortion handling. The control loops are standard; the topology-specific value is the commutation/gating sequencer.
+
+**Three-phase VSI carrier/space-vector schemes** (the original inverter-PWM scope):
+- **Done:** continuous **SVPWM** via min-max zero-sequence injection (`svpwm_zero_sequence`, `svm_duty_cycles`, `SvmDuties`), with the carrier ⇔ space-vector equivalence (Hava/Kerkman/Lipo).
+- To add: **SPWM** (baseline, no injection), **THIPWM** (closed-form 1/6 injection, cheaper cousin of the shipped offset), the **DPWM family** (DPWMMAX/MIN, DPWM0–3, GDPWM — clamp 60° windows to cut switching loss ~33%, placement keyed to load PF), **overmodulation** (Mode I/II → six-step, pairs with the existing `is_clipped` flag), and **random/spread-spectrum PWM** (EMI flattening, low priority).
+
+**Multilevel (NPC / ANPC).**
+- **3-level NPC** (neutral-point-clamped): phase output ∈ {+Vdc/2, 0, −Vdc/2}; modulation via phase-disposition (PD) level-shifted carriers or 3-level SVM, plus **neutral-point voltage balancing** (redundant small-vector selection or carrier offset).
+- **ANPC** (active NPC): clamp diodes replaced by active switches → freedom to **distribute switching/conduction loss** across devices via switch-state selection (loss balancing), on top of NPC modulation. Larger effort; do NPC first, ANPC as the loss-balancing extension.
+
+References: R. W. Erickson & D. Maksimović, *Fundamentals of Power Electronics*, 3rd ed., 2020 (DC-DC, PFC, current-mode); D. G. Holmes & T. A. Lipo, *Pulse Width Modulation for Power Converters*, IEEE Press, 2003 (inverter PWM, multilevel carriers/SVM); A. M. Hava et al., IEEE T-PEL 14(1), 1999 (CPWM/DPWM/GDPWM); L. Ma et al. and Bruckner/Holmes on ANPC loss distribution.
+
+Acceptance (per piece): duty feedforward matches the converter's CCM conversion ratio; center-aligned/interleaved carriers produce the expected phase relationships and ripple cancellation; MPPT converges to the array's true MPP under irradiance steps (and matches ESC on a smooth P-V curve); boost-PFC current tracks the rectified-sine template with unity displacement factor; totem-pole commutation sequences correctly across the zero-crossing; NPC neutral-point stays balanced under load; ANPC switch-state selection equalizes per-device loss. Modulator primitives constexpr + embeddable with one test TU; control laws follow the three-tier pattern.
 
 ## Testing and Documentation
 

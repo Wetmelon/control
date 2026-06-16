@@ -99,11 +99,11 @@
 #include "wet/simulation/integrator.hpp" // IWYU pragma: keep
 
 // --- Domain helpers ---------------------------------------------------------
-#include "wet/utility/actuator.hpp"      // IWYU pragma: keep
-#include "wet/utility/geometry.hpp"      // IWYU pragma: keep
-#include "wet/utility/iec61131.hpp"      // IWYU pragma: keep
-#include "wet/utility/motor_control.hpp" // IWYU pragma: keep
-#include "wet/utility/transforms.hpp"    // IWYU pragma: keep
+#include "wet/utility/actuator.hpp"   // IWYU pragma: keep
+#include "wet/utility/geometry.hpp"   // IWYU pragma: keep
+#include "wet/utility/iec61131.hpp"   // IWYU pragma: keep
+#include "wet/utility/modulation.hpp" // IWYU pragma: keep
+#include "wet/utility/transforms.hpp" // IWYU pragma: keep
 
 // --- Embedded firmware primitives (allocation-free leaf utilities) ----------
 // Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)

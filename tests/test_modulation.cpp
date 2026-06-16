@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/utility/motor_control.hpp"
+#include "wet/utility/modulation.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -9,10 +9,10 @@
 using namespace wet;
 
 /**
- * @brief Tests for motor control transforms
+ * @brief Tests for reference-frame transforms and power-electronics modulation
  */
 
-TEST_SUITE("Motor Control Transforms") {
+TEST_SUITE("Transforms & Modulation") {
     TEST_CASE("Clarke transform") {
         // Test balanced three-phase
         const ColVec<3, float> abc = {1.0f, -0.5f, -0.5f};

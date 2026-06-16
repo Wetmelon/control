@@ -5,7 +5,7 @@
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/utility/motor_control.hpp"
+#include "wet/utility/modulation.hpp"
 #include "wet/utility/transforms.hpp"
 
 namespace wet {
@@ -75,7 +75,6 @@ struct FOController {
 
     /**
      * @brief PI current-loop gains by closed-loop pole placement
-     * @ingroup motor_control
      *
      * Tunes one dq current axis modeled as a series R-L plant @f$ G(s) = 1/(Ls+R) @f$
      * regulated by a PI controller @f$ K_p + K_i/s @f$. The closed-loop characteristic

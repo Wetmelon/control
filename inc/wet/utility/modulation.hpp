@@ -1,24 +1,31 @@
 #pragma once
 
+#include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/utility/transforms.hpp"
 
 namespace wet {
 
 /**
- * @defgroup motor_control Motor Control Modulation
- * @brief Space-vector modulation for three-phase inverters
+ * @defgroup modulation Power-Electronics Modulation
+ * @brief Pulse-width modulation schemes for power converters
  *
- * Maps an αβ voltage command to inverter half-bridge duty cycles. The reference-
- * frame transforms (Clarke, Park, symmetrical components) that feed these live in
- * @ref transforms.
+ * Maps a commanded voltage (αβ or per-phase) to switch duty cycles for a
+ * three-phase voltage-source inverter. Domain-neutral: equally applicable to
+ * motor drives, grid-tie inverters, and active front-ends. The reference-frame
+ * transforms (Clarke, Park, symmetrical components) that produce the voltage
+ * command live in @ref transforms.
+ *
+ * Currently provides continuous space-vector PWM (SVPWM) via min-max
+ * zero-sequence injection. Planned additions (discontinuous PWM, overmodulation,
+ * dead-time compensation) belong here too — see the roadmap.
  *
  * @see https://en.wikipedia.org/wiki/Space_vector_modulation
  */
 
 /**
  * @brief Min-max zero-sequence injection for space-vector PWM
- * @ingroup motor_control
+ * @ingroup modulation
  *
  * Returns the common-mode (zero-sequence) offset that, added equally to all
  * three phase references, centres them within the available bus and yields
@@ -50,7 +57,7 @@ template<typename T = float>
 /**
  * @brief Result of svm_duty_cycles(): the half-bridge duties plus an
  *        over-modulation flag.
- * @ingroup motor_control
+ * @ingroup modulation
  *
  * The duties are always a usable command (clamped to [0, 1]); is_clipped reports
  * whether that clamping engaged, i.e. the requested voltage exceeded the
@@ -67,7 +74,7 @@ struct SvmDuties {
 
 /**
  * @brief Space-vector PWM duty cycles from an αβ voltage command
- * @ingroup motor_control
+ * @ingroup modulation
  *
  * Resolves the αβ voltage command to phase voltages (inverse Clarke), applies
  * min-max zero-sequence injection (svpwm_zero_sequence()) to realise SVPWM, then
@@ -77,9 +84,10 @@ struct SvmDuties {
  *   d_x = \frac{1}{2} + \frac{v_x + v_0}{V_{dc}}, \qquad x \in \{a, b, c\}
  * @f]
  *
- * Voltages are in volts (the same units the current controller produces), so no
- * separate normalisation step is needed. Results are clamped to [0, 1]; clamping
- * only engages in over-modulation.
+ * Takes an amplitude-invariant αβ command (its magnitude is the peak phase volt,
+ * which is what the duty math below assumes); a power-invariant AlphaBeta will not
+ * compile here. Results are clamped to [0, 1]; clamping only engages in
+ * over-modulation.
  *
  * @param v_ab αβ voltage command [V]
  * @param v_dc DC bus voltage [V]
