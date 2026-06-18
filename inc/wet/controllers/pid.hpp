@@ -123,6 +123,22 @@ struct PIDController;
 /**
  * @ingroup discrete_controllers
  * @brief Discrete 2-DOF PID controller specialization.
+ *
+ * @note The sample time @p Ts is supplied per call to control() / back_calculate(),
+ *       not stored on the controller. The gains are continuous-time: the integrator
+ *       uses backward (implicit) Euler — the current error is folded in
+ *       (`integral += e*Ts`) *before* it forms the output, so this tick's error acts
+ *       this tick (no forward-Euler one-sample lag) — and the derivative is `Δ/Ts`.
+ *       Each tick uses the *actual* elapsed period, so the loop tolerates jitter and
+ *       multi-rate execution with no reconfiguration. A non-positive @p Ts holds the
+ *       state and returns the current command (no divide-by-zero, no backward step).
+ *
+ * @note Consequence for tuning: gains from a continuous-time designer
+ *       (design::ziegler_nichols, cohen_coon, simc, lambda_tuning, pid_from_bandwidth)
+ *       are Ts-agnostic, but gains from a *discretizing* designer —
+ *       design::pid_pole_placement, which bakes Ts into `a = exp(-Ts/τ)` — are valid
+ *       only at their design Ts; pass that same Ts at runtime or the pole placement is
+ *       invalidated.
  */
 template<typename T>
 struct PIDController<T, PIDMode::PID> {
@@ -163,28 +179,45 @@ struct PIDController<T, PIDMode::PID> {
      * doesn't kick the derivative term with a stale prev value.
      */
     [[nodiscard]] constexpr T control(T r, T y, T Ts) {
+        // Guard a non-positive sample time (uninitialized / stalled dt): the
+        // derivative divides by Ts and the integrator steps by Ts, so a bad dt would
+        // produce inf/NaN or integrate backwards. Hold all state and emit the current
+        // command, preserving the active mode.
+        if (Ts <= T{0}) {
+            if (runtime_mode == PIDRuntimeMode::Tracking) {
+                return wet::clamp(u_track, u_min, u_max);
+            }
+            return wet::clamp((Kp * ((b * r) - y)) + (Ki * integral), u_min, u_max);
+        }
+
         const T cr_minus_y = (c * r) - y;
         const T derivative = (cr_minus_y - prev_cr_minus_y) / Ts;
         prev_cr_minus_y = cr_minus_y; // updated in both modes for bumpless re-engagement
 
+        const T e = r - y;
+
         if (runtime_mode == PIDRuntimeMode::Tracking) {
-            // Preload integrator so a future Auto tick would produce u_track:
-            //   u_would_be = Kp*(b*r - y) + Ki*integral + Kd*derivative ≡ u_track
+            // Preload so a re-enabled Auto tick reproduces u_track. Auto integrates
+            // with backward Euler (integral += e*Ts before the output is formed), so
+            // store the pre-integration value: target_post - e*Ts.
             if (Ki != T{0}) {
-                const T target = (u_track - (Kp * ((b * r) - y)) - (Kd * derivative)) / Ki;
+                const T target = ((u_track - (Kp * ((b * r) - y)) - (Kd * derivative)) / Ki) - (e * Ts);
                 integral = wet::clamp(target, i_min, i_max);
             }
             return wet::clamp(u_track, u_min, u_max);
         }
 
-        const T e = r - y;
+        // Backward (implicit) Euler: fold the current error into the integrator
+        // before it drives the output, so this tick's error acts this tick rather
+        // than one sample later (the forward-Euler 1-tick delay).
+        integral += e * Ts;
         const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral) + (Kd * derivative);
         const T u = wet::clamp(u_unsat, u_min, u_max);
 
+        // Back-calculation anti-windup: bleed the saturation excess back out of the
+        // integrator (effective next tick). Kbc == 0 -> plain integrator clamping.
         if (Kbc != T{0}) {
-            integral += Ts * (e + ((u - u_unsat) / Kbc));
-        } else {
-            integral += e * Ts;
+            integral += (Ts / Kbc) * (u - u_unsat);
         }
         integral = wet::clamp(integral, i_min, i_max);
 
@@ -239,6 +272,11 @@ struct PIDController<T, PIDMode::PID> {
 /**
  * @ingroup discrete_controllers
  * @brief Discrete 2-DOF PI controller specialization.
+ *
+ * @note @p Ts is supplied per call to control() / back_calculate(), not stored; a
+ *       non-positive @p Ts holds the state and returns the current command. See
+ *       PIDController<T, PIDMode::PID> for the rate-handling rationale and the
+ *       discretization caveat (gains from design::pid_pole_placement are Ts-locked).
  */
 template<typename T>
 struct PIDController<T, PIDMode::PI> {
@@ -273,22 +311,38 @@ struct PIDController<T, PIDMode::PI> {
      * and the integrator is pre-loaded for bumpless re-engagement.
      */
     [[nodiscard]] constexpr T control(T r, T y, T Ts) {
+        // Guard a non-positive sample time (uninitialized / stalled dt): the
+        // integrator steps by Ts, so a bad dt would integrate backwards. Hold state
+        // and emit the current command, preserving the active mode.
+        if (Ts <= T{0}) {
+            if (runtime_mode == PIDRuntimeMode::Tracking) {
+                return wet::clamp(u_track, u_min, u_max);
+            }
+            return wet::clamp((Kp * ((b * r) - y)) + (Ki * integral), u_min, u_max);
+        }
+
+        const T e = r - y;
+
         if (runtime_mode == PIDRuntimeMode::Tracking) {
+            // Preload so a re-enabled Auto tick reproduces u_track. Auto integrates
+            // with backward Euler (integral += e*Ts before the output), so store the
+            // pre-integration value: target_post - e*Ts.
             if (Ki != T{0}) {
-                const T target = (u_track - (Kp * ((b * r) - y))) / Ki;
+                const T target = ((u_track - (Kp * ((b * r) - y))) / Ki) - (e * Ts);
                 integral = wet::clamp(target, i_min, i_max);
             }
             return wet::clamp(u_track, u_min, u_max);
         }
 
-        const T e = r - y;
+        // Backward (implicit) Euler: integrate the current error before it drives
+        // the output, so it acts this tick rather than one sample later.
+        integral += e * Ts;
         const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral);
         const T u = wet::clamp(u_unsat, u_min, u_max);
 
+        // Back-calculation anti-windup (effective next tick); Kbc == 0 -> clamping.
         if (Kbc != T{0}) {
-            integral += Ts * (e + ((u - u_unsat) / Kbc));
-        } else {
-            integral += e * Ts;
+            integral += (Ts / Kbc) * (u - u_unsat);
         }
         integral = wet::clamp(integral, i_min, i_max);
         return u;

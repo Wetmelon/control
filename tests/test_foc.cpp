@@ -1,5 +1,6 @@
 
 #include <cmath>
+#include <limits>
 #include <numbers>
 
 #include "wet/utility/foc.hpp"
@@ -138,5 +139,98 @@ TEST_SUITE("FOC Controller") {
         foc.plant_inversion_ff = true;
         const float expected_q = 200e-6f * ((2.0f - 0.0f) / Ts); // L * dIq/dt
         CHECK(foc.current_controller(Idq_ref, Idq, Ts).Vdq.q == doctest::Approx(expected_q));
+    }
+
+    TEST_CASE("current_loop_pi returns a clean 2-DOF PIDResult") {
+        const double L = 250e-6;
+        const double R = 0.35;
+        const double wbw = 1500.0;
+        const auto   res = wet::design::current_loop_pi(L, R, wbw); // zeta=1, b=1 defaults
+
+        CHECK(res.Kp == doctest::Approx((2.0 * wbw * L) - R));
+        CHECK(res.Ki == doctest::Approx(L * wbw * wbw));
+        CHECK(res.Kd == doctest::Approx(0.0));
+        CHECK(res.Kbc == doctest::Approx(res.Kp)); // T_t = T_i anti-windup seed
+        CHECK(res.b == doctest::Approx(1.0));
+
+        // Regression: output/integrator limits must stay unbounded. A positional
+        // brace-init slip {Kp, Ki, Kd, Ts} once landed Ts in the u_min slot, which
+        // tune() discards (so gains looked fine) but which would silently clamp any
+        // PIDController built straight from the result.
+        constexpr double inf = std::numeric_limits<double>::infinity();
+        CHECK(res.u_min == -inf);
+        CHECK(res.u_max == inf);
+        CHECK(res.i_min == -inf);
+        CHECK(res.i_max == inf);
+
+        // The setpoint weight propagates for the I-P structure.
+        CHECK(wet::design::current_loop_pi(L, R, wbw, 1.0, 0.0).b == doctest::Approx(0.0));
+    }
+
+    TEST_CASE("tune() setpoint weight selects PI vs I-P") {
+        const float              wbw = 2.0f * std::numbers::pi_v<float> * 800.0f;
+        wet::FOController<float> foc({.d = 200e-6f, .q = 200e-6f}, 0.5f, 0.1f, 0.0f);
+
+        foc.tune(wbw); // default b = 1 -> standard PI on both axes
+        CHECK(foc.dctrl.b == doctest::Approx(1.0f));
+        CHECK(foc.qctrl.b == doctest::Approx(1.0f));
+
+        foc.tune(wbw, 1.0f, 0.0f); // b = 0 -> I-P
+        CHECK(foc.dctrl.b == doctest::Approx(0.0f));
+        CHECK(foc.qctrl.b == doctest::Approx(0.0f));
+    }
+
+    TEST_CASE("I-P removes the proportional step-kick") {
+        // omega = 0, lambda = 0 -> all feedforward terms vanish, isolating the PI/I-P.
+        const float wbw = 2.0f * std::numbers::pi_v<float> * 800.0f;
+        auto        make = [&](float b) {
+            wet::FOController<float> foc({.d = 200e-6f, .q = 200e-6f}, 0.5f, 0.0f, 0.0f);
+            foc.tune(wbw, 1.0f, b);
+            return foc;
+        };
+        wet::DirectQuadrature<float> ref = {.d = 0.0f, .q = 1.0f};
+        wet::DirectQuadrature<float> meas = {.d = 0.0f, .q = 0.0f};
+
+        auto        pi = make(1.0f);
+        auto        ip = make(0.0f);
+        const float vq_pi = pi.current_controller(ref, meas, Ts).Vdq.q;
+        const float vq_ip = ip.current_controller(ref, meas, Ts).Vdq.q;
+
+        // Backward-Euler: on the first tick the integrator is seeded by e*Ts, so both
+        // structures share the same integral term (Ki*e*Ts). The structural difference
+        // is purely the proportional path: PI feeds Kp*(r - y), I-P feeds Kp*(0 - y),
+        // so the step-kick PI carries over I-P is exactly Kp*r.
+        CHECK((vq_pi - vq_ip) == doctest::Approx(pi.qctrl.Kp * 1.0f)); // proportional step-kick
+        CHECK(vq_ip == doctest::Approx(ip.qctrl.Ki * Ts));             // I-P: only the integral acts
+    }
+
+    TEST_CASE("PMSM constant conversions") {
+        using namespace wet::design;
+        const double p = 7.0;
+        const double lambda = 0.00295;
+
+        // Kt <-> flux round trip (amplitude convention Kt = 1.5 p lambda).
+        const double Kt = torque_constant_from_flux(p, lambda);
+        CHECK(Kt == doctest::Approx(1.5 * p * lambda));
+        CHECK(flux_from_torque_constant(p, Kt) == doctest::Approx(lambda));
+
+        // iq for a requested torque inverts Te = Kt iq.
+        CHECK(iq_from_torque(2.0, p, lambda) == doctest::Approx(2.0 / Kt));
+
+        // Kv -> Kt uses the peak line-to-line constant 60*sqrt(3)/(4*pi) ~ 8.27.
+        const double Kv = 270.0;
+        CHECK(torque_constant_from_Kv(Kv) * Kv == doctest::Approx(8.2699).epsilon(1e-3));
+        CHECK(flux_from_Kv(p, Kv) == doctest::Approx(flux_from_torque_constant(p, torque_constant_from_Kv(Kv))));
+
+        // Motor constant figure of merit Km = Kt / sqrt(R).
+        CHECK(motor_constant(Kt, 0.039) == doctest::Approx(Kt / std::sqrt(0.039)));
+
+        // Voltage-circle radius = m * Vdc / sqrt(3).
+        CHECK(voltage_circle_radius(24.0) == doctest::Approx(24.0 / std::sqrt(3.0)));
+        CHECK(voltage_circle_radius(24.0, 0.9) == doctest::Approx(0.9 * 24.0 / std::sqrt(3.0)));
+
+        // Base speed: unloaded SPMSM (Id = Iq = 0) reduces to Vmax / lambda.
+        const double Vmax = voltage_circle_radius(24.0);
+        CHECK(base_speed(Vmax, wet::DirectQuadrature<double>{200e-6, 200e-6}, lambda) == doctest::Approx(Vmax / lambda));
     }
 }

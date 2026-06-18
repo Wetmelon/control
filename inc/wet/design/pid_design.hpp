@@ -58,7 +58,7 @@ enum class PIDType {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
+ziegler_nichols(T Ku, T Tu, [[maybe_unused]] T Ts, PIDType type = PIDType::PID) {
     T Kp{};
     T Ki{};
     T Kd{};
@@ -81,7 +81,7 @@ ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
             Kd = Kp * Tu / T{8};
             break;
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 /**
@@ -102,7 +102,7 @@ ziegler_nichols(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
+ziegler_nichols_step(T K, T L, T tau, [[maybe_unused]] T Ts, PIDType type = PIDType::PID) {
     T Kp{};
     T Ki{};
     T Kd{};
@@ -126,7 +126,7 @@ ziegler_nichols_step(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
             Kd = Kp * T{0.5} * L;
             break;
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 // ============================================================================
@@ -167,7 +167,7 @@ tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
             // Fall back to Ziegler-Nichols for P and PD
             return ziegler_nichols(Ku, Tu, Ts, type);
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 // ============================================================================
@@ -189,7 +189,7 @@ tyreus_luyben(T Ku, T Tu, T Ts, PIDType type = PIDType::PID) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
+cohen_coon(T K, T L, T tau, [[maybe_unused]] T Ts, PIDType type = PIDType::PID) {
     T Kp{};
     T Ki{};
     T Kd{};
@@ -219,7 +219,7 @@ cohen_coon(T K, T L, T tau, T Ts, PIDType type = PIDType::PID) {
             Kd = Kp * Td;
         } break;
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 // ============================================================================
@@ -291,10 +291,10 @@ simc(T K, T L, T tau, T tau_c, PIDType type = PIDType::PI) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
+lambda_tuning(T K, T L, T tau, T lambda, [[maybe_unused]] T Ts) {
     T Kp = tau / (K * (lambda + L));
     T Ki = Kp / tau;
-    return PIDResult<T>{Kp, Ki, T{0}, Ts};
+    return PIDResult<T>{Kp, Ki, T{0}};
 }
 
 // ============================================================================
@@ -321,7 +321,7 @@ lambda_tuning(T K, T L, T tau, T lambda, T Ts) {
  */
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
-pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
+pid_from_bandwidth(T wbw, T phase_margin, [[maybe_unused]] T Ts, PIDType type = PIDType::PID) {
     constexpr T pi = wet::numbers::pi_v<T>;
     T           phi = phase_margin * pi / T{180}; // Convert to radians
     T           desired_phase = phi - pi;         // Phase of C(jω) at crossover
@@ -381,7 +381,7 @@ pid_from_bandwidth(T wbw, T phase_margin, T Ts, PIDType type = PIDType::PID) {
             Kd = Kp * Td;
         } break;
     }
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 /**
@@ -546,7 +546,7 @@ pid_pole_placement(T K, T tau, T p1, T p2, T Ts) {
     T Kp = (a + T{1} - p1 - p2) / b;
     T Ki = ((p1 * p2) - a + (b * Kp)) / (b * Ts);
 
-    return PIDResult<T>{Kp, Ki, T{0}, Ts};
+    return PIDResult<T>{Kp, Ki, T{0}};
 }
 
 /**
@@ -595,7 +595,7 @@ pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
     // b*(-Kp + Kd/Ts + Ki*Ts) = -prod_p => Ki = (-prod_p/b + Kp - Kd/Ts) / Ts
     T Ki = ((-prod_p / b) + Kp - (Kd / Ts)) / Ts;
 
-    return PIDResult<T>{Kp, Ki, Kd, Ts};
+    return PIDResult<T>{Kp, Ki, Kd};
 }
 
 } // namespace design

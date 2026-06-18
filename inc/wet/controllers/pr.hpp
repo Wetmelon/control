@@ -254,8 +254,7 @@ struct MultiPRController {
     template<size_t M>
     constexpr MultiPRController(const wet::array<design::PRResult<T>, M>& results)
         requires(M == N)
-    {
-        Kp = results[0].Kp;
+        : Kp(results[0].Kp) {
         for (size_t i = 0; i < N; ++i) {
             auto r = results[i];
             r.Kp = T{0}; // Kp is applied once, not per-harmonic
