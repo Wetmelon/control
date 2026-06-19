@@ -5,28 +5,28 @@
 
 namespace wet::plc {
 
-typedef bool     BOOL;  //< Boolean type
-typedef uint8_t  BYTE;  //< 8-bit unsigned integer
-typedef uint16_t WORD;  //< 16-bit unsigned integer
-typedef uint32_t DWORD; //< 32-bit unsigned integer
-typedef uint64_t LWORD; //< 64-bit unsigned integer
+typedef bool     BOOL;  //!< Boolean type
+typedef uint8_t  BYTE;  //!< 8-bit unsigned integer
+typedef uint16_t WORD;  //!< 16-bit unsigned integer
+typedef uint32_t DWORD; //!< 32-bit unsigned integer
+typedef uint64_t LWORD; //!< 64-bit unsigned integer
 
-typedef int8_t  SINT; //< Signed 8-bit integer
-typedef int16_t INT;  //< Signed 16-bit integer
-typedef int32_t DINT; //< Signed 32-bit integer
-typedef int64_t LINT; //< Signed 64-bit integer
+typedef int8_t  SINT; //!< Signed 8-bit integer
+typedef int16_t INT;  //!< Signed 16-bit integer
+typedef int32_t DINT; //!< Signed 32-bit integer
+typedef int64_t LINT; //!< Signed 64-bit integer
 
-typedef uint8_t  USINT; //< Unsigned 8-bit integer
-typedef uint16_t UINT;  //< Unsigned 16-bit integer
-typedef uint32_t UDINT; //< Unsigned 32-bit integer
-typedef uint64_t ULINT; //< Unsigned 64-bit integer
-typedef float    REAL;  //< Single-precision floating point
-typedef double   LREAL; //< Double-precision floating point
+typedef uint8_t  USINT; //!< Unsigned 8-bit integer
+typedef uint16_t UINT;  //!< Unsigned 16-bit integer
+typedef uint32_t UDINT; //!< Unsigned 32-bit integer
+typedef uint64_t ULINT; //!< Unsigned 64-bit integer
+typedef float    REAL;  //!< Single-precision floating point
+typedef double   LREAL; //!< Double-precision floating point
 
-typedef char     CHAR;    //< Character type
-typedef wchar_t  WCHAR;   //< Wide character type
-typedef char*    STRING;  //< String type (pointer to char)
-typedef wchar_t* WSTRING; //< Wide string type (pointer to wchar_t)
+typedef char     CHAR;    //!< Character type
+typedef wchar_t  WCHAR;   //!< Wide character type
+typedef char*    STRING;  //!< String type (pointer to char)
+typedef wchar_t* WSTRING; //!< Wide string type (pointer to wchar_t)
 
 /**
  * @defgroup iec61131 IEC61131-3 Functions

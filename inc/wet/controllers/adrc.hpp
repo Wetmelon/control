@@ -20,14 +20,14 @@ namespace design {
  */
 template<size_t NX, typename T = double>
 struct ADRCResult {
-    T wc{}; //< Controller bandwidth
-    T wo{}; //< Observer bandwidth
-    T b0{}; //< Plant gain
+    T wc{}; //!< Controller bandwidth
+    T wo{}; //!< Observer bandwidth
+    T b0{}; //!< Plant gain
 
-    wet::array<T, NX + 1> beta{}; //< ESO gains
+    wet::array<T, NX + 1> beta{}; //!< ESO gains
 
-    T Kp{}; //< Proportional gain
-    T Kd{}; //< Derivative gain
+    T Kp{}; //!< Proportional gain
+    T Kd{}; //!< Derivative gain
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
@@ -102,14 +102,14 @@ template<size_t NX, typename T = double>
  */
 template<size_t NX, typename T = float>
 class ADRCController {
-    T b0{1.0f}; //< input gain
-    T Kp{1.0f}; //< proportional gain
-    T Kd{1.0f}; //< derivative gain
+    T b0{1.0f}; //!< input gain
+    T Kp{1.0f}; //!< proportional gain
+    T Kd{1.0f}; //!< derivative gain
 
-    wet::array<T, NX + 1> beta{};             //< ESO gains [β1, β2, ..., β_{NX+1}]
-    ColVec<NX + 1, T>     z{};                //< ESO state: [z1, z2, ..., z_{NX+1}]
-    T                     u_prev_{T{0}};      //< Last applied command (post-saturation)
-    T                     ki_factor_{T{1.0}}; //< Integrator gain-scheduling factor
+    wet::array<T, NX + 1> beta{};             //!< ESO gains [β1, β2, ..., β_{NX+1}]
+    ColVec<NX + 1, T>     z{};                //!< ESO state: [z1, z2, ..., z_{NX+1}]
+    T                     u_prev_{T{0}};      //!< Last applied command (post-saturation)
+    T                     ki_factor_{T{1.0}}; //!< Integrator gain-scheduling factor
 
 public:
     constexpr ADRCController() = default;
