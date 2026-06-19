@@ -131,6 +131,36 @@ Optimization-based constrained estimator; the estimation counterpart to MPC. Hos
 - Reference: Rao, Rawlings & Mayne, "Constrained State Estimation for Nonlinear Discrete-Time Systems," IEEE TAC, 2003, https://doi.org/10.1109/TAC.2003.812777.
 - Acceptance: matches Kalman on linear/unconstrained problems; respects state constraints on nonlinear references.
 
+### ☐ Distributed-IMU pose estimation for articulated robots (#25)
+
+Estimate the configuration (joint angles, end-effector pose) of a serial or
+parallel manipulator from an IMU mounted on each link, fusing the inertial
+measurements with the known kinematics rather than (or alongside) joint encoders.
+Builds on the shipped attitude fusion (`estimation/sensor_fusion.hpp`,
+`estimation/eskf.hpp`) and the kinematics chains (`kinematics/serial_arm.hpp`
+DH chains, `kinematics/stewart.hpp`).
+
+- **Per-link orientation → joint angle:** each link's IMU gives its orientation in the world frame; the relative rotation between consecutive links' frames yields the joint angle directly for revolute joints. Reuse `Quaternion`/`geometry.hpp` for the relative-rotation math; the DH frame assignments in `serial_arm.hpp` define which axis each joint rotates about.
+- **Kinematic fusion (the real win):** a filter that couples all link IMUs through the chain constraint — gyro rates relate to joint velocities via the geometric Jacobian (already in `serial_arm.hpp`), and gravity direction per link disambiguates absolute angle. This bounds the per-link integration drift that standalone attitude filters can't, and gives encoderless or encoder-redundant joint sensing.
+- **Parallel mechanisms:** the loop-closure constraints (Stewart platform, five-bar) over-determine the pose from the distributed IMUs — fusion must respect the closed-loop constraint, not treat legs independently.
+- **External pose references (aiding):** the same estimator must accept absolute references that bound the inertial drift, fused as measurement updates — optical tracking (reflector/prism balls, total stations, motion-capture markers → end-effector or link pose), laser-plane references (excavator/dozer grade-control: a laser receiver gives blade/boom height against a reference plane), and ranging (sonar/ultrasonic blade-height on graders/dozers). Each is just another measurement model into the kinematic filter — a partial pose, a height/elevation scalar, or a single link's position — not a separate pipeline. The machine-control cases (excavator boom, grader/dozer blade) are the headline industrial driver.
+- Open question: how much this leans on the planned unified observer concept (#3) vs. a kinematics-specific estimator; whether encoders are fused in or replaced.
+- Reference: El-Gohary & McNames, "Human Joint Angle Estimation with Inertial Sensors and Validation with a Robot Arm," IEEE T-BME 62(7), 2015, https://doi.org/10.1109/TBME.2015.2403368; Seel, Raisch & Schauer, "IMU-Based Joint Angle Measurement for Gait Analysis," Sensors 14(4), 2014. Implementation inspiration for the absolute-reference + ESKF measurement update: https://github.com/madcowswe/ESKF (15-state position-aided ESKF) — a starting point, not the ceiling.
+- Acceptance: on a simulated arm with known joint trajectory, per-link IMU streams reconstruct the joint angles (and end-effector pose via forward kinematics) within tolerance; the fused estimator bounds drift that per-link attitude-only filters accumulate, and an external pose/height reference (optical, laser-plane, or sonar) further bounds the absolute error when supplied.
+
+### ☐ GPS + IMU navigation fusion (#26)
+
+Loosely-coupled INS/GNSS: strapdown mechanization (gravity-compensate accel in
+the nav frame, double-integrate to velocity/position) aided by GPS position/
+velocity fixes to bound the integration drift. Extends the shipped attitude
+fusion (`estimation/eskf.hpp`) from orientation-only to full navigation state.
+
+- **Mechanization core** (embeddable): propagate position/velocity from bias-corrected accel + the existing orientation estimate; reuse `Quaternion`/`geometry.hpp`. Pure dead-reckoning drifts unbounded — documented, not hidden.
+- **Aided ESKF** (15-state: attitude, velocity, position, gyro+accel bias): generalize the 6/9-state `ErrorStateKalmanFilter` to take position/velocity aiding (GPS fix, or ZUPT zero-velocity updates as the cheap GPS-denied fallback). Reuse the existing error-state inject/reset machinery; nominal state stays external.
+- Loosely-coupled first (GPS reports a position/velocity solution); tightly-coupled raw-pseudorange fusion is out of scope.
+- Reference: Sola, "Quaternion kinematics for the error-state Kalman filter," 2017, https://arxiv.org/abs/1711.02508; Groves, *Principles of GNSS, Inertial, and Multisensor Integrated Navigation Systems*, 2nd ed., 2013. Implementation inspiration: https://github.com/madcowswe/ESKF (15-state position-aided ESKF).
+- Acceptance: with a noiseless IMU the mechanization round-trips a known trajectory; the aided ESKF bounds position error under a drift-inducing bias when GPS/ZUPT updates are supplied, and degrades to free-running INS drift when they are withheld.
+
 ### ◐ Serial N-DOF manipulator kinematics — closed-form IK (#23)
 
 The N-generic numerical foundation is **done** (`kinematics/serial_arm.hpp` — DH chains,

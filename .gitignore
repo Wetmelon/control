@@ -1,6 +1,5 @@
 .cache
 .tup
-.claude
 
 *.o
 *.exe
