@@ -412,6 +412,78 @@ template<size_t NX, size_t NU, typename T = double>
     }
 }
 
+/**
+ * @brief Single-input pole placement via Ackermann's formula.
+ *
+ * Computes the state-feedback gain K placing the eigenvalues of (A − B·K) at the
+ * requested poles. Unlike place(), Ackermann works through the characteristic
+ * polynomial rather than eigenvector assignment, so it assigns repeated/defective
+ * spectra fine — but it is single-input only and numerically weaker for large NX.
+ * Use place() for multi-input systems or when robustness matters.
+ *
+ * @tparam NX Number of states
+ * @param A      State matrix (NX×NX)
+ * @param B      Input vector (NX×1)
+ * @param poles  Desired closed-loop eigenvalues (complex; conjugate pairs cancel
+ *               to a real characteristic polynomial)
+ * @return Gain K (1×NX), or wet::nullopt if (A, B) is uncontrollable.
+ *
+ * @note Compare with MATLAB's K = acker(A, B, p).
+ * @see place for the robust multi-input path.
+ */
+template<size_t NX, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<1, NX, T>> ackermann(
+    const Matrix<NX, NX, T>&               A,
+    const Matrix<NX, 1, T>&                B,
+    const wet::array<wet::complex<T>, NX>& poles
+) {
+    // Controllability matrix Co = [B, AB, …, A^{NX-1}B].
+    Matrix<NX, NX, T> Co;
+    Matrix<NX, 1, T>  AB = B;
+    for (size_t r = 0; r < NX; ++r) {
+        Co(r, 0) = AB(r, 0);
+    }
+    for (size_t i = 1; i < NX; ++i) {
+        AB = A * AB;
+        for (size_t r = 0; r < NX; ++r) {
+            Co(r, i) = AB(r, 0);
+        }
+    }
+
+    // Desired characteristic polynomial φ(s) = Π(s − pᵢ), built in complex so
+    // conjugate pairs cancel to real coefficients.
+    wet::array<wet::complex<T>, NX + 1> cc{};
+    cc[0] = wet::complex<T>{T{1}, T{0}};
+    for (size_t i = 0; i < NX; ++i) {
+        const wet::complex<T> root = poles[i];
+        wet::complex<T>       carry = cc[0];
+        cc[0] = wet::complex<T>{T{0}, T{0}} - (root * cc[0]);
+        for (size_t j = 1; j <= NX; ++j) {
+            const wet::complex<T> next = cc[j];
+            cc[j] = carry - (root * cc[j]);
+            carry = next;
+        }
+    }
+
+    // φ(A) = Σ Re(coeffs[k]) · Aᵏ
+    Matrix<NX, NX, T> phi_A = Matrix<NX, NX, T>::zeros();
+    Matrix<NX, NX, T> A_power = Matrix<NX, NX, T>::identity();
+    for (size_t k = 0; k <= NX; ++k) {
+        phi_A = phi_A + (cc[k].real() * A_power);
+        A_power = A_power * A;
+    }
+
+    // K = e_Nᵀ · Co⁻¹ · φ(A). Solve Co·X = φ(A) instead of forming Co⁻¹;
+    // a singular Co (uncontrollable) makes solve() fail.
+    Matrix<1, NX, T> e_N{};
+    e_N(0, NX - 1) = T{1};
+    const auto CoInv_phi = mat::solve(Co, phi_A);
+    if (!CoInv_phi) {
+        return wet::nullopt;
+    }
+    return Matrix<1, NX, T>(e_N * (*CoInv_phi));
+}
+
 } // namespace design
 
 } // namespace wet

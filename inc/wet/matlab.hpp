@@ -286,61 +286,12 @@ constexpr wet::optional<Matrix<NU, NX, T>> acker(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B,
     const auto&              p
-) noexcept {
-    // Convert poles to wet::complex<T> array
-    const auto poles = std::apply([](const auto&... elems) { return wet::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p);
-
-    if constexpr (NU != 1) {
-        // Multi-input pole placement not implemented yet
-        return wet::nullopt;
-    } else {
-        // Compute controllability matrix
-        Matrix<NX, NX, T> Co;
-        Matrix<NX, 1, T>  AB = B;
-        for (size_t r = 0; r < NX; ++r) {
-            Co(r, 0) = AB(r, 0);
-        }
-        for (size_t i = 1; i < NX; ++i) {
-            AB = A * AB;
-            for (size_t r = 0; r < NX; ++r) {
-                Co(r, i) = AB(r, 0);
-            }
-        }
-
-        // Compute desired characteristic polynomial coefficients (assuming real poles)
-        wet::array<T, NX + 1> coeffs{};
-        coeffs[0] = 1.0;
-        for (size_t i = 0; i < NX; ++i) {
-            T root = poles[i].real(); // Use real part
-            T temp = coeffs[0];
-            coeffs[0] = -root * coeffs[0];
-            for (size_t j = 1; j <= NX; ++j) {
-                T next_temp = coeffs[j];
-                coeffs[j] = temp - root * coeffs[j];
-                temp = next_temp;
-            }
-        }
-
-        // Compute phi_d(A) = sum_{k=0}^NX coeffs[k] * A^k
-        Matrix<NX, NX, T> phi_A = Matrix<NX, NX, T>::zeros();
-        Matrix<NX, NX, T> A_power = Matrix<NX, NX, T>::identity();
-        for (size_t k = 0; k <= NX; ++k) {
-            phi_A = phi_A + coeffs[k] * A_power;
-            A_power = A_power * A;
-        }
-
-        // Compute K = e_N^T * Co^{-1} * phi_d(A). Solve Co·X = phi_A instead of
-        // forming Co^{-1}; a singular Co (uncontrollable) makes solve() fail.
-        Matrix<1, NX, T> e_N{};
-        e_N(0, NX - 1) = 1.0;
-        const auto CoInv_phi = mat::solve(Co, phi_A);
-        if (!CoInv_phi) {
-            return wet::nullopt;
-        }
-        auto temp = e_N * (*CoInv_phi);
-
-        return temp;
-    }
+) {
+    static_assert(NU == 1, "acker is single-input only; use place for multi-input systems");
+    const auto poles = std::apply(
+        [](const auto&... elems) { return wet::array<wet::complex<T>, sizeof...(elems)>{elems...}; }, p
+    );
+    return design::ackermann(A, B, poles);
 }
 
 /**
