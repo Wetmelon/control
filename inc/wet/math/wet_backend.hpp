@@ -17,10 +17,7 @@ struct MathBackend<float> : StdMathFallback<float> {
     static float atan(float x) { return wet::atan(x); }
     static float atan2(float y, float x) { return wet::atan2(y, x); }
 
-    static wet::pair<float, float> sincos(float x) {
-        const auto sc = wet::sincos(x);
-        return {sc.sin, sc.cos};
-    }
+    static wet::pair<float, float> sincos(float x) { return wet::sincos(x); }
 
     static float sqrt(float x) { return wet::sqrt(x); }
 };

@@ -23,12 +23,7 @@ inline float atan2(float y, float x);
 
 inline float sqrt(float x);
 
-struct SinCosResult {
-    float sin;
-    float cos;
-};
-
-inline SinCosResult sincos(float angle_rad);
+inline wet::pair<float, float> sincos(float angle_rad);
 
 } // namespace wet
 
@@ -145,9 +140,9 @@ inline float cos(float angle_rad) {
  * argument in [0, 0.5] where the fit is valid.
  *
  * @param angle_rad  Angle in radians
- * @return SinCosResult{sin, cos}
+ * @return {sin, cos}
  */
-inline SinCosResult sincos(float angle_rad) {
+inline wet::pair<float, float> sincos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
 
     float s = detail::sin_poly(frac);
@@ -158,7 +153,7 @@ inline SinCosResult sincos(float angle_rad) {
         c = -c;
     }
 
-    return {.sin = s, .cos = c};
+    return {s, c};
 }
 
 /**

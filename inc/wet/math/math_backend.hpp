@@ -7,7 +7,7 @@
  * Declares the MathBackend<T> customization point and binds the chosen backend
  * implementation from the profile macros (see config.hpp). This header is
  * intentionally free of <cmath> so a freestanding build never pulls it — the
- * std:: implementation lives in std_fallback.hpp / std_backend.hpp.
+ * std:: implementation lives in std_fallback.hpp.
  */
 
 #include "wet/config.hpp" // pulls the profile's backend-selection macros
@@ -21,7 +21,7 @@ namespace wet {
  * provided for each scalar type used at runtime. Selection is driven by the
  * profile macros read through wet/config.hpp (set in your wet_profile.hpp):
  *
- *   - default                       → std_backend.hpp (the std:: backend)
+ *   - default                       → std_fallback.hpp (the std:: backend)
  *   - WET_MATH_BACKEND_WET          → wet_backend.hpp (fast float math/trig.hpp)
  *   - WET_MATH_BACKEND_FREESTANDING → series_backend.hpp (constexpr series, no <cmath>)
  *   - WET_MATH_BACKEND_HEADER "h"   → include "h", which defines MathBackend<T>
@@ -49,5 +49,12 @@ struct MathBackend;
 #elif defined(WET_MATH_BACKEND_WET)
 #include "wet_backend.hpp" // IWYU pragma: keep
 #else
-#include "std_backend.hpp" // IWYU pragma: keep
+// Default: the std:: (<cmath>) backend — StdMathFallback unmodified.
+#include "std_fallback.hpp" // IWYU pragma: keep
+namespace wet {
+template<>
+struct MathBackend<float> : StdMathFallback<float> {};
+template<>
+struct MathBackend<double> : StdMathFallback<double> {};
+} // namespace wet
 #endif
