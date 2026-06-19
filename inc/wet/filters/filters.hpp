@@ -886,4 +886,166 @@ private:
     size_t              idx_{0};
 };
 
+/**
+ * @brief First-order high-pass (washout) filter runtime.
+ *
+ * The everyday "remove the DC / slow drift, keep the changes" block: a
+ * first-order washout with corner @p fc. Realized as `y = x − LPF(x)` so the
+ * DC gain is *exactly* zero and the high-frequency gain is unity:
+ *
+ *   H(z) = (1 − z⁻¹) / (1 − (1−α)z⁻¹),  α = ωc·Ts / (1 + ωc·Ts),  ωc = 2π·fc.
+ *
+ * Use it to drift-compensate an integrating sensor, AC-couple a signal, or
+ * extract a perturbation from its operating point (the same realization the
+ * extremum-seeking controller uses internally).
+ *
+ * @code
+ * HighPass<float> hp{2.0f, 1.0f / 1000.0f}; // 2 Hz corner @ 1 kHz
+ * float ac = hp(sample);
+ * @endcode
+ */
+template<typename T = float>
+class HighPass {
+public:
+    constexpr HighPass() = default;
+
+    /// @param fc Corner frequency [Hz]. @param Ts Sample time [s].
+    constexpr HighPass(T fc, T Ts) {
+        const T wc = T{2} * wet::numbers::pi_v<T> * fc;
+        alpha_ = (wc * Ts) / (T{1} + (wc * Ts));
+    }
+
+    /// Process one sample: x − LPF(x), using the pre-update LPF state.
+    constexpr T operator()(T x) {
+        const T hp = x - lpf_;
+        lpf_ += alpha_ * (x - lpf_);
+        return hp;
+    }
+
+    constexpr void reset() { lpf_ = T{0}; }
+
+private:
+    T alpha_{1}; //!< LPF coefficient (1 ⇒ pass-through high-pass)
+    T lpf_{0};   //!< low-pass state (the DC estimate being removed)
+};
+
+/**
+ * @brief Sliding-window median filter — nonlinear spike/outlier rejection.
+ *
+ * Returns the median of the last N samples. Unlike a moving average it rejects
+ * impulse noise (single-sample spikes, dropouts) without smearing edges — the
+ * standard despiker for noisy encoders, ADC glitches, and range finders.
+ *
+ * `MaxN` bounds the window at compile time (allocation-free). The active window
+ * N ≤ MaxN is set at construction. During warm-up (fewer than N samples seen)
+ * the median is taken over the samples available so far.
+ *
+ * @tparam MaxN Maximum window length. @tparam T Scalar type.
+ */
+template<size_t MaxN, typename T = float>
+class MedianFilter {
+public:
+    static_assert(MaxN >= 1, "MedianFilter needs MaxN >= 1");
+
+    constexpr MedianFilter() = default;
+
+    /// Construct with an active window of @p window samples (clamped to [1, MaxN]).
+    constexpr explicit MedianFilter(size_t window)
+        : n_(window == 0 ? size_t{1} : (window > MaxN ? MaxN : window)) {}
+
+    /// Push one sample, return the current windowed median.
+    constexpr T operator()(T x) {
+        buffer_[idx_] = x;
+        idx_ = (idx_ + 1) % n_;
+        if (count_ < n_) {
+            ++count_;
+        }
+
+        // Insertion-sort a copy of the valid samples (n_ is small).
+        wet::array<T, MaxN> s{};
+        for (size_t i = 0; i < count_; ++i) {
+            s[i] = buffer_[i];
+        }
+        for (size_t i = 1; i < count_; ++i) {
+            const T key = s[i];
+            size_t  j = i;
+            while (j > 0 && s[j - 1] > key) {
+                s[j] = s[j - 1];
+                --j;
+            }
+            s[j] = key;
+        }
+
+        const size_t mid = count_ / 2;
+        if (count_ % 2 == 0) {
+            return (s[mid - 1] + s[mid]) / T{2}; // even window: mean of the two middle
+        }
+        return s[mid];
+    }
+
+    constexpr void reset() {
+        buffer_ = {};
+        idx_ = 0;
+        count_ = 0;
+    }
+
+    [[nodiscard]] constexpr size_t window() const { return n_; }
+
+private:
+    wet::array<T, MaxN> buffer_{};
+    size_t              n_{MaxN};  //!< active window length
+    size_t              idx_{0};   //!< ring write position
+    size_t              count_{0}; //!< samples seen so far (≤ n_)
+};
+
+/**
+ * @brief Scalar (1-D) complementary filter — fuse a fast rate with a slow absolute.
+ *
+ * The classic two-input sensor blend: high-pass an integrated *rate* signal
+ * (low drift, but accumulates error) and low-pass an *absolute* measurement
+ * (no drift, but noisy), crossing them over at `1/τ`:
+ *
+ *   y ← α·(y + rate·dt) + (1−α)·measurement,   α = τ / (τ + dt).
+ *
+ * The textbook example is tilt from a gyro (`rate`) and accelerometer
+ * (`measurement`); also altitude from baro + vertical accel, etc. For full
+ * 3-D orientation use @ref ComplementaryFilter / @ref MahonyFilter instead —
+ * this is the cheap scalar case.
+ *
+ * The first sample seeds the state to `measurement` (no start-up ramp).
+ */
+template<typename T = float>
+class Complementary {
+public:
+    constexpr Complementary() = default;
+
+    /// @param tau Crossover time constant [s] (larger ⇒ trust the rate longer).
+    constexpr explicit Complementary(T tau) : tau_(tau) {}
+
+    /// @param measurement Absolute (slow/noisy) reading. @param rate Its
+    /// derivative (fast/low-drift). @param dt Sample time [s].
+    constexpr T operator()(T measurement, T rate, T dt) {
+        if (!init_) {
+            y_ = measurement;
+            init_ = true;
+            return y_;
+        }
+        const T alpha = tau_ / (tau_ + dt);
+        y_ = (alpha * (y_ + (rate * dt))) + ((T{1} - alpha) * measurement);
+        return y_;
+    }
+
+    [[nodiscard]] constexpr T value() const { return y_; }
+
+    constexpr void reset() {
+        y_ = T{0};
+        init_ = false;
+    }
+
+private:
+    T    tau_{T{1}};
+    T    y_{T{0}};
+    bool init_{false};
+};
+
 } // namespace wet
