@@ -80,8 +80,11 @@ struct ESCConfig {
         if (lp_alpha <= scalar{0} || lp_alpha > scalar{1}) {
             return false;
         }
-        // The dither must be resolvable by the sample rate (below Nyquist).
-        if (dither_omega * Ts >= wet::numbers::pi_v<scalar>) {
+        // The dither must be well-resolved by the sample rate — not merely below
+        // Nyquist. ESC needs the perturbation cleanly sampled to demodulate it, so
+        // require ≥ 8 samples per dither period (ω·Ts ≤ π/4). Below that the gradient
+        // estimate degrades and the scale separation (HPF < ω < Nyquist) collapses.
+        if (dither_omega * Ts > wet::numbers::pi_v<scalar> / scalar{4}) {
             return false;
         }
         return true;
@@ -232,11 +235,21 @@ public:
         : config_(config), uhat_(config.u_init), valid_(config.valid()) {}
 
     constexpr explicit ExtremumSeekingController(const design::ESCResult<T>& design)
-        : config_(design.config), uhat_(design.config.u_init), valid_(design.success) {}
+        : config_(design.config), uhat_(design.config.u_init), valid_(design.success && design.config.valid()) {}
 
     /// Current perturbed input to apply, û + a·sin(phase).
+    ///
+    /// When a clamp band is configured (`u_min < u_max`) the *applied* command is
+    /// clamped to it: the estimate û is bounded, but û + dither could otherwise
+    /// ride a full dither amplitude past a hard actuator limit. Near a bound this
+    /// clips the perturbation asymmetrically (a small, benign gradient bias) in
+    /// exchange for never commanding past the limit.
     [[nodiscard]] constexpr T input() const {
-        return uhat_ + (config_.dither_amplitude * wet::sin(phase_));
+        const T u = uhat_ + (config_.dither_amplitude * wet::sin(phase_));
+        if (config_.u_min < config_.u_max) {
+            return wet::clamp(u, config_.u_min, config_.u_max);
+        }
+        return u;
     }
 
     /**
@@ -247,6 +260,13 @@ public:
     [[nodiscard]] constexpr T step(T objective, bool measurement_valid = true) {
         if (!valid_) {
             return uhat_;
+        }
+        // Seed the DC estimate to the first objective so the high-pass starts at 0
+        // instead of dumping the full operating-point level through as a spurious
+        // gradient on the first few ticks.
+        if (!primed_) {
+            hp_state_ = objective;
+            primed_ = true;
         }
         // High-pass the objective: hp = J − LPF(J), removing the operating-point DC.
         const T hp = objective - hp_state_;
@@ -281,6 +301,7 @@ public:
         hp_state_ = T{0};
         grad_state_ = T{0};
         gradient_ = T{0};
+        primed_ = false;
     }
 
 private:
@@ -294,6 +315,7 @@ private:
     T    grad_state_{T{0}};
     T    gradient_{T{0}}; // Most recent (filtered) gradient estimate.
     bool valid_{false};
+    bool primed_{false}; // Whether hp_state_ has been seeded to the first objective.
 };
 
 } // namespace wet
