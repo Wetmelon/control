@@ -108,7 +108,10 @@
 // --- Embedded firmware primitives (allocation-free leaf utilities) ----------
 // Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)
 // is out of scope — pair with ETL for those.
-#include "wet/utility/encoder.hpp" // IWYU pragma: keep
-#include "wet/utility/lookup.hpp"  // IWYU pragma: keep
-#include "wet/utility/scaling.hpp" // IWYU pragma: keep
-#include "wet/utility/timing.hpp"  // IWYU pragma: keep
+#include "wet/utility/conditioning.hpp" // IWYU pragma: keep
+#include "wet/utility/encoder.hpp"      // IWYU pragma: keep
+#include "wet/utility/io.hpp"           // IWYU pragma: keep
+#include "wet/utility/logic.hpp"        // IWYU pragma: keep
+#include "wet/utility/lookup.hpp"       // IWYU pragma: keep
+#include "wet/utility/scaling.hpp"      // IWYU pragma: keep
+#include "wet/utility/timing.hpp"       // IWYU pragma: keep

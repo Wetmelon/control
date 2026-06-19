@@ -462,3 +462,23 @@ TEST_SUITE("IEC61131-3 conformance (2.5.2.3)") {
         CHECK(ctu(false, true) == true); // reset, CV = 0, Q = (0 >= 0) = true
     }
 }
+TEST_SUITE("IEC61131-3 selection functions") {
+    TEST_CASE("LIMIT clamps to [mn, mx]") {
+        CHECK(LIMIT(0.0, -1.0, 10.0) == doctest::Approx(0.0));
+        CHECK(LIMIT(0.0, 5.0, 10.0) == doctest::Approx(5.0));
+        CHECK(LIMIT(0.0, 99.0, 10.0) == doctest::Approx(10.0));
+        CHECK(LIMIT(-5, 3, 5) == 3);
+    }
+
+    TEST_CASE("SEL picks by the boolean gate") {
+        CHECK(SEL(false, 10, 20) == 10);
+        CHECK(SEL(true, 10, 20) == 20);
+    }
+
+    TEST_CASE("MUX selects the Kth input, clamps out-of-range to IN0") {
+        CHECK(MUX(0, 10, 20, 30) == 10);
+        CHECK(MUX(1, 10, 20, 30) == 20);
+        CHECK(MUX(2, 10, 20, 30) == 30);
+        CHECK(MUX(9, 10, 20, 30) == 10); // out of range -> IN0
+    }
+}

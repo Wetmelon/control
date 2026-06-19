@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
+
+#include "wet/backend.hpp"
 
 namespace wet::plc {
 
@@ -574,5 +577,36 @@ public:
 private:
     T elapsed_{0};
 };
+
+/**
+ * @brief LIMIT (IEC 61131-3 selection function): clamp @p in to [@p mn, @p mx].
+ *
+ * Equivalent to `MIN(MAX(in, mn), mx)`. Argument order matches the standard:
+ * `LIMIT(MN, IN, MX)`.
+ */
+template<typename T>
+[[nodiscard]] constexpr T LIMIT(T mn, T in, T mx) {
+    return wet::min(wet::max(in, mn), mx);
+}
+
+/**
+ * @brief SEL (IEC 61131-3 binary selection): @p g ? @p in1 : @p in0.
+ */
+template<typename T>
+[[nodiscard]] constexpr T SEL(bool g, T in0, T in1) {
+    return g ? in1 : in0;
+}
+
+/**
+ * @brief MUX (IEC 61131-3 multiplexer): select input @p k of N (0-based).
+ *
+ * `MUX(K, IN0, IN1, …)` returns the Kth input. An out-of-range @p k selects
+ * IN0 (clamped, never UB), matching the conservative PLC convention.
+ */
+template<typename T, typename... Ts>
+[[nodiscard]] constexpr T MUX(size_t k, T in0, Ts... ins) {
+    const T arr[] = {in0, static_cast<T>(ins)...};
+    return arr[k < (sizeof...(ins) + 1) ? k : 0];
+}
 
 } // namespace wet::plc
