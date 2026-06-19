@@ -38,7 +38,8 @@ namespace design {
 template<size_t N, typename T = double>
 struct HarmonicSuppressorResult {
 
-    wet::array<PRResult<T>, N> gains{}; //!< one PR resonator per harmonic
+    wet::array<PRResult<T>, N> gains{};  //!< one PR resonator per harmonic
+    T                          w_fund{}; //!< fundamental frequency [rad/s] (for set_fundamental rescaling)
     bool                       success{false};
 
     template<typename U>
@@ -47,6 +48,7 @@ struct HarmonicSuppressorResult {
         for (size_t i = 0; i < N; ++i) {
             out.gains[i] = gains[i].template as<std::remove_const_t<U>>();
         }
+        out.w_fund = static_cast<std::remove_const_t<U>>(w_fund);
         out.success = success;
         return out;
     }
@@ -91,6 +93,7 @@ template<size_t N, typename T = double>
         }
     }
     result.gains = pr_harmonics(Kp, Ki_fund, w_fund, wc, Ts, harmonics);
+    result.w_fund = w_fund;
     result.success = true;
     return result;
 }
@@ -115,14 +118,17 @@ public:
 
     constexpr HarmonicSuppressor() = default;
 
-    constexpr explicit HarmonicSuppressor(const wet::array<design::PRResult<T>, N>& gains) {
+    constexpr explicit HarmonicSuppressor(const wet::array<design::PRResult<T>, N>& gains)
+        // No fundamental is carried with a raw gains array; assume resonator 0 is
+        // the fundamental (order 1) so set_fundamental() can rescale proportionally.
+        : w_fund_(gains[0].w0) {
         for (size_t i = 0; i < N; ++i) {
             resonators_[i] = PRController<T>(gains[i]);
         }
     }
 
     constexpr explicit HarmonicSuppressor(const design::HarmonicSuppressorResult<N, T>& design)
-        : valid_(design.success) {
+        : w_fund_(design.w_fund), valid_(design.success) {
         for (size_t i = 0; i < N; ++i) {
             resonators_[i] = PRController<T>(design.gains[i]);
         }
@@ -149,11 +155,14 @@ public:
     /// Re-tune the bank to a new fundamental (grid-frequency adaptation); the
     /// harmonic ratios are preserved (resonator i tracks its original order).
     constexpr void set_fundamental(T w_fund) {
-        // resonator i was tuned to w0_i = order_i · w_fund_old; rescale by the
-        // ratio so the per-resonator order is preserved.
+        if (w_fund_ <= T{0} || w_fund <= T{0}) {
+            return; // no valid prior fundamental to rescale from
+        }
+        // Every resonator was tuned to w0_i = order_i · w_fund_old; scaling all by
+        // the same ratio w_fund/w_fund_old preserves each per-resonator order.
+        const T ratio = w_fund / w_fund_;
         for (size_t i = 0; i < N; ++i) {
-            const T order = resonators_[i].w0 / w_fund_;
-            resonators_[i].set_frequency(order * w_fund);
+            resonators_[i].set_frequency(resonators_[i].w0 * ratio);
         }
         w_fund_ = w_fund;
     }
@@ -163,7 +172,7 @@ public:
 
 private:
     wet::array<PRController<T>, N> resonators_{};
-    T                              w_fund_{T{1}};
+    T                              w_fund_{T{0}};
     bool                           valid_{true};
 };
 
