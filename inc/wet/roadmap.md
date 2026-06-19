@@ -187,7 +187,21 @@ converter models as Tier-2 `StateSpace`/`TransferFunction` builders.
 - References: Erickson & Maksimović, *Fundamentals of Power Electronics*, 3rd ed., 2020 (DC-DC, PFC, current-mode); Holmes & Lipo, *Pulse Width Modulation for Power Converters*, IEEE Press, 2003 (inverter PWM, multilevel); Hava et al., IEEE T-PEL 14(1), 1999 (CPWM/DPWM/GDPWM).
 - Acceptance (per piece): duty feedforward matches the CCM conversion ratio; center-aligned/interleaved carriers give the expected phase/ripple relationships; MPPT converges to the true MPP under irradiance steps (matches ESC on a smooth P-V curve); boost-PFC current tracks the rectified-sine template at unity displacement factor; NPC neutral-point stays balanced; ANPC switch-state selection equalizes per-device loss.
 
-## Open decisions
+### ☐ Tier-2 drive/control mixers (#TBD)
+
+Stateless mixing functions that combine conditioned operator axes into actuator
+commands, living alongside the tier-2 I/O appliances in `utility/io.hpp`
+(`wet::io`). The primitives are already in place — `AxisInput` (cal → scaled
+dead zone → `expo` → scale), `deadband`/`scaled_deadband`/`expo`, and
+`SlewLimiter` for output rate-limiting — so this is the combiner layer on top.
+
+**Remaining:**
+
+- **Differential / tank drive:** `differential_drive(throttle, turn) → {left, right}`, with proper normalization so a combined command never clips past the actuator range (scale both outputs down by the overshoot rather than hard-clamping, which distorts the turn ratio). *Owner note (Paul): has prior art from Rexroth dual-path hydrostatic drive control — wants to drive the normalization/anti-clip design here.*
+- **Arcade (single-stick):** `arcade_drive(x, y) → {left, right}` — same kinematics, one-stick ergonomics.
+- **Mecanum / holonomic:** `mecanum_drive(x, y, rotation) → {fl, fr, rl, rr}` with joint normalization across all four wheels.
+- **Elevon / aileron (flight, low priority):** combine pitch+roll into two control surfaces.
+- Acceptance (per piece): straight-line command yields equal wheel outputs; a saturating combined command preserves the turn/throttle *ratio* after normalization (no clip distortion); zero input → zero output; mecanum recovers pure translation/rotation on the cardinal inputs.
 
 Tracked in [decisions.md](decisions.md): O1 (ESC perturbation policy for MPPT, #8),
 O2 (anti-chatter update strategy, #9), O3 (error-reporting under the ETL backend, #21),
