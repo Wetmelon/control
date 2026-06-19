@@ -35,47 +35,9 @@ struct LQGResult {
 };
 
 /**
- * @brief  LQG regulator design combining LQR and Kalman filter
+ * @brief Linear-Quadratic-Gaussian regulator design combining LQR and Kalman filter
  *
- * @param sys    State-space system
- * @param Q_lqr  State cost for LQR
- * @param R_lqr  Input cost for LQR
- * @param Q_kf   Process noise covariance for Kalman filter
- * @param R_kf   Measurement noise covariance for Kalman filter
- * @param N      (optional) Cross-term cost matrix
- *
- * @return LQGResult combining LQR and Kalman filter designs
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg_regulator(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NX, NX, T>&                 Q_lqr,
-    const Matrix<NU, NU, T>&                 R_lqr,
-    const Matrix<NW, NW, T>&                 Q_kf,
-    const Matrix<NV, NV, T>&                 R_kf,
-    const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
-) {
-    return lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
-}
-
-/**
- * @brief Combine separate Kalman and LQR results into an LQG controller
- *
- * @param kest          Kalman filter design result
- * @param lqr_result    LQR controller design result
- *
- * @return LQG Regulator combining the provided Kalman and LQR results
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
-    const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
-    const LQRResult<NX, NU, T>&                lqr_result
-) {
-    return lqgreg(kest, lqr_result);
-}
-
-/**
- * @brief Linear-Quadratic-Gaussian regulator design combining LQR and Kalman filter (runtime version)
+ * @note Compare with MATLAB's lqg(sys, ...) — exposed as the lqg() alias in matlab.hpp.
  *
  * @param sys     State-space system
  * @param Q_lqr   State cost for LQR
@@ -87,7 +49,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
  * @return LQGResult combining LQR and Kalman filter designs
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg(
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> discrete_lqg(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX, NX, T>&                 Q_lqr,
     const Matrix<NU, NU, T>&                 R_lqr,
@@ -101,7 +63,9 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 }
 
 /**
- * @brief Combine separate Kalman filter and LQR designs into an LQG controller (runtime version)
+ * @brief Combine separate Kalman filter and LQR designs into an LQG controller
+ *
+ * @note Compare with MATLAB's lqgreg(kest, k) — exposed as the lqgreg() alias in matlab.hpp.
  *
  * @param kest        Kalman filter design result
  * @param lqr_result  LQR controller design result
@@ -109,7 +73,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
  * @return LQGResult combining the provided Kalman and LQR designs
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqgreg(
+[[nodiscard]] constexpr LQGResult<NX, NU, NY, NW, NV, T> lqg_from_parts(
     const KalmanResult<NX, NU, NY, NW, NV, T>& kest,
     const LQRResult<NX, NU, T>&                lqr_result
 ) {

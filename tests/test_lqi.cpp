@@ -10,7 +10,7 @@
 using namespace wet;
 
 TEST_CASE("LQIResult::as<U>() conversion") {
-    constexpr auto lqi_d = design::lqi(
+    constexpr auto lqi_d = design::discrete_lqi(
         StateSpace<1, 1, 1, 1, 1>{Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>::zeros()},
         Matrix<2, 2>{{1.0, 0.0}, {0.0, 1.0}}, Matrix<1, 1>{{1.0}}
     );

@@ -6,7 +6,7 @@
 using namespace wet;
 
 // LQG = LQR (state feedback) + Kalman filter (state estimation), tied together
-// by the separation principle. design::lqg() was previously only covered
+// by the separation principle. design::discrete_lqg() was previously only covered
 // indirectly via test_design/test_api; this exercises the full Tier 2 → Tier 3
 // path including the runtime LQG controller built straight from the result
 // (which feeds the Kalman filter from result.kalman.sys — the constructor
@@ -36,7 +36,7 @@ TEST_SUITE("LQG") {
         constexpr Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         constexpr Matrix<1, 1> R_kf{{0.1}};
 
-        constexpr auto result = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        constexpr auto result = design::discrete_lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
         static_assert(result.success, "LQG design must converge at compile time");
         static_assert(result.lqr.success);
         static_assert(result.kalman.success);
@@ -58,7 +58,7 @@ TEST_SUITE("LQG") {
         const Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         const Matrix<1, 1> R_kf{{0.1}};
 
-        const auto result = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        const auto result = design::discrete_lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
         REQUIRE(result.success);
 
         // Built straight from the result — exercises kf(result.kalman).
@@ -79,7 +79,7 @@ TEST_SUITE("LQG") {
 
     TEST_CASE("LQGResult::as<float>() preserves the design") {
         const auto sys = make_plant();
-        const auto result = design::lqg(
+        const auto result = design::discrete_lqg(
             sys, Matrix<2, 2>::identity(), Matrix<1, 1>{{0.1}},
             Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}}
         );
@@ -98,7 +98,7 @@ TEST_SUITE("LQG") {
         REQUIRE(kf.success);
         REQUIRE(lqr.success);
 
-        const auto combined = design::lqgreg(kf, lqr);
+        const auto combined = design::lqg_from_parts(kf, lqr);
         CHECK(combined.success);
         // The combined result reuses the inputs verbatim.
         CHECK(combined.lqr.K(0, 0) == lqr.K(0, 0));

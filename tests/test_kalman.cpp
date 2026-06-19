@@ -132,7 +132,7 @@ TEST_CASE("LQG combines LQR and KF") {
     Matrix<1, 1> Qkf = {{0.1}};
     Matrix<1, 1> Rkf = {{0.25}};
 
-    LQG lqg = design::lqg(sys, Qlqr, Rlqr, Qkf, Rkf);
+    LQG lqg = design::discrete_lqg(sys, Qlqr, Rlqr, Qkf, Rkf);
 
     ColVec<1> y = {1.0};
     bool      ok = lqg.update(y);
@@ -158,7 +158,7 @@ TEST_CASE("LQG servo (LQI + KF) tracks reference") {
     Matrix<1, 1> Qkf = {{0.1}};
     Matrix<1, 1> Rkf = {{0.25}};
 
-    LQGI lqgs = design::lqgtrack(sys, Q_aug, R, Qkf, Rkf);
+    LQGI lqgs = design::discrete_lqgi(sys, Q_aug, R, Qkf, Rkf);
 
     ColVec<1> y = {0.0};
     lqgs.update(y);

@@ -7,7 +7,7 @@ using namespace wet;
 
 // LQGI = LQI (state feedback with integral action) + Kalman estimator. The
 // integral state drives steady-state output error to zero for constant
-// references/disturbances. design::lqgtrack() was only covered indirectly;
+// references/disturbances. design::discrete_lqgi() was only covered indirectly;
 // this exercises the design and the runtime tracking loop, including the
 // integrator augmentation [x; xi].
 //
@@ -45,7 +45,7 @@ TEST_SUITE("LQGI") {
         constexpr Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         constexpr Matrix<1, 1> R_kf{{0.1}};
 
-        constexpr auto result = design::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
+        constexpr auto result = design::discrete_lqgi(sys, Q_aug, R, Q_kf, R_kf);
         static_assert(result.success);
         static_assert(result.lqi.success);
         static_assert(result.kalman.success);
@@ -62,7 +62,7 @@ TEST_SUITE("LQGI") {
         const Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         const Matrix<1, 1> R_kf{{0.1}};
 
-        const auto result = design::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
+        const auto result = design::discrete_lqgi(sys, Q_aug, R, Q_kf, R_kf);
         REQUIRE(result.success);
 
         LQGI<2, 1, 1, 2, 1> controller{result}; // exercises kf(result.kalman)
@@ -90,7 +90,7 @@ TEST_SUITE("LQGI") {
 
     TEST_CASE("LQGIResult::as<float>() preserves the design") {
         const auto sys = make_plant();
-        const auto result = design::lqgtrack(sys, make_Q_aug(), Matrix<1, 1>{{0.1}}, Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}});
+        const auto result = design::discrete_lqgi(sys, make_Q_aug(), Matrix<1, 1>{{0.1}}, Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}});
         REQUIRE(result.success);
 
         const auto rf = result.as<float>();

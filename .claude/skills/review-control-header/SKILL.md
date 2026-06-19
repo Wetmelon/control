@@ -17,6 +17,15 @@ This is the method that caught a runtime controller delegating to a deleted
 overload, an uninitialized member used in a rescale, and an output that rode past
 its clamp — read the *whole* header and trace the math, don't skim.
 
+**Bias every recommendation toward numerical robustness.** When two options are
+equally simple, recommend the more numerically sound one — and when a less robust
+form is in use, flag it and name the better one even if it costs a few lines:
+factored/triangular solves over explicit inverses, Joseph-form covariance updates,
+`hypot`/`log1p`/`expm1` over naive algebra, Kahan/pairwise summation on long
+accumulations, Tustin/ZOH over forward Euler, symmetric eigen paths for symmetric
+matrices. Correctness and conditioning win over brevity; never recommend the
+flimsier algorithm to save code.
+
 ## Method
 
 Work the phases in order. Read the entire header first (it's one file); don't
@@ -107,6 +116,17 @@ it slips through. (This is exactly how the ADRC runtime was found gutted.)
   `LtiSystem`/`SisoController` shape) replace a bare `typename` to improve
   overload clarity and error messages? Note where `requires` would tighten an
   interface that's currently structurally typed.
+- **Purity & `const`:** prefer pure functions and `const`-correct methods.
+  `design::` synthesis should be free functions returning a result by value (not
+  mutating an out-param or hidden state); runtime accessors and any method that
+  doesn't change state must be `const` (and `[[nodiscard]]`). Don't fear returning
+  matrices/structs by value — guaranteed copy elision / NRVO makes it free. Flag
+  reference-out-params and non-`const` methods that only read.
+- **Minimize class state (YAGNI):** a runtime class should store only what
+  `control()`/`reset()` actually need between calls — gains and live accumulators.
+  Flag members that are cached derivations of other members, config that could be
+  a `control()` argument, or "might need it later" fields. The leaner the state,
+  the cheaper `reset()`, conversion, and reasoning about correctness.
 
 ### 6. Verify
 
@@ -120,20 +140,22 @@ it slips through. (This is exactly how the ADRC runtime was found gutted.)
 
 ## Output format
 
-Group findings by severity; one finding per bullet, `file:line` clickable.
+Be terse. One finding per bullet, `file:line` clickable, severity-grouped. State
+the fix, don't explain it — the reader is a 20-year controls engineer. Skip empty
+sections and any preamble.
 
 ```
+**Verdict:** <one line — what's correct, count by severity>.
+
 ## Critical
-**N. <header>:<line> — <one-line title>.** <what's wrong, why it bites, the fix>.
+- **<header>:<line>** — <what's wrong + fix, one sentence>.
 
 ## Minor
-- **<header>:<line>** — <issue + suggested fix>.
+- **<header>:<line>** — <issue + fix>.
 
-## Notes (style / reuse / composability)
-- <API/Doxygen deviations, reuse & matrix-library opportunities, proposed matrix
-  or concept additions, missing design:: SS/TF builder, untested-but-correct paths>.
+## Notes
+- <style / reuse / composability — one line each>.
 ```
 
-Lead with a one-line verdict (e.g. "core is correct; one critical, two minor, plus
-reuse/composability notes"). End by offering to fix the criticals and add any
-missing tests. Do not apply fixes unless asked.
+End with a one-line offer to fix criticals and add missing tests. Do not apply
+fixes unless asked.

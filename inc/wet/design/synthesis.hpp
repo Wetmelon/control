@@ -5,7 +5,7 @@
  * @brief High-level glue for design, analysis artifacts, and runtime bundles
  *
  * Provides thin orchestration helpers that connect existing primitives:
- * - design::lqg(...)
+ * - design::discrete_lqg(...)
  * - closed-loop analysis models
  * - runtime LQG controller bundles
  * - optional SISO PR internal model composition
@@ -413,7 +413,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     LQGArtifacts<NX, NU, NY, NW, NV, T, TRuntime> out{};
 
-    out.design = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
+    out.design = design::discrete_lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
     out.models = build_lqg_analysis_models(sys, out.design);
 
     const auto runtime_design = out.design.template as<TRuntime>();
@@ -461,7 +461,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 ) {
     LQIArtifacts<NX, NU, NY, NW, NV, T, TRuntime> out{};
 
-    out.design = design::lqi(sys, Q_aug, R);
+    out.design = design::discrete_lqi(sys, Q_aug, R);
     out.models = build_lqi_analysis_models(sys, out.design);
 
     const auto runtime_design = out.design.template as<TRuntime>();
@@ -485,7 +485,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typena
 ) {
     LQGIArtifacts<NX, NU, NY, NW, NV, T, TRuntime> out{};
 
-    out.design = design::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
+    out.design = design::discrete_lqgi(sys, Q_aug, R, Q_kf, R_kf);
     out.models = build_lqgi_analysis_models(sys, out.design);
 
     const auto runtime_design = out.design.template as<TRuntime>();

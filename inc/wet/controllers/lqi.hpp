@@ -38,6 +38,8 @@ struct LQIResult {
 /**
  * @brief Linear-Quadratic Integral design for tracking with servo action
  *
+ * @note Compare with MATLAB's lqi(sys, Q, R) — exposed as the lqi() alias in matlab.hpp.
+ *
  * @param sys  State-space system
  * @param Q    Augmented state cost matrix (state + integral error)
  * @param R    Input cost matrix
@@ -45,7 +47,7 @@ struct LQIResult {
  * @return LQIResult containing state and integral gains
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] constexpr LQIResult<NX, NU, NY, T> lqi(
+[[nodiscard]] constexpr LQIResult<NX, NU, NY, T> discrete_lqi(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q,
     const Matrix<NU, NU, T>&                 R
@@ -82,11 +84,7 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     }
     Matrix<NX + NY, NX + NY, T> P_aug = dare_opt.value();
 
-    // Solve (R + BᵀPB) K = BᵀPA via Cholesky (R + BᵀPB is positive definite)
-    const Matrix denom = R + B_aug.t() * P_aug * B_aug;
-    const Matrix rhs = B_aug.t() * P_aug * A_aug;
-    const auto   K_opt = mat::cholesky_solve(denom, rhs);
-
+    const auto K_opt = lqr_gain(A_aug, B_aug, P_aug, R);
     if (!K_opt) {
         return LQIResult<NX, NU, NY, T>{};
     }
@@ -94,25 +92,6 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 
     ColVec<NX + NY, wet::complex<T>> poles = stability::closed_loop_poles(A_aug, B_aug, K_aug);
     return LQIResult<NX, NU, NY, T>{K_aug, P_aug, poles, true};
-}
-
-/**
- * @brief Design continuous LQR with integral action for state-space system
- *
- * @param sys State-space system
- * @param Q   Augmented state cost matrix (state + integral)
- * @param R   Input cost matrix
- * @param dof Servo degrees of freedom (1DOF or 2DOF)
- *
- * @return LQIResult containing gains and solution to DARE
- */
-template<size_t NX, size_t NU, size_t NY, typename T = double>
-[[nodiscard]] constexpr LQIResult<NX, NU, NY, T> lqr_with_integral(
-    const StateSpace<NX, NU, NY, NX, NY, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q,
-    const Matrix<NU, NU, T>&                 R
-) {
-    return lqi(sys, Q, R);
 }
 } // namespace design
 

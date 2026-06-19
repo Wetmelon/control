@@ -1,9 +1,6 @@
 ﻿#include <cmath>
 
-#include "wet/controllers/lqg.hpp"
-#include "wet/controllers/lqgi.hpp"
-#include "wet/controllers/lqi.hpp"
-#include "wet/controllers/lqr.hpp"
+#include "wet/matlab.hpp"
 #include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
@@ -27,7 +24,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2>     Q{{1.0, 0.0}, {0.0, 1.0}};
         Matrix<1, 1>     R{{0.1}};
 
-        auto result = design::discrete_lqr(Ad, Bd, Q, R);
+        auto result = matlab::dlqr(Ad, Bd, Q, R);
 
         // Should produce non-zero gain
         CHECK(result.K(0, 0) != 0.0);
@@ -36,6 +33,20 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         // S should be positive definite (check diagonal)
         CHECK(result.S(0, 0) > 0.0);
         CHECK(result.S(1, 1) > 0.0);
+    }
+
+    // Test lqrd: discrete LQR from a continuous-time system
+    TEST_CASE("lqrd: discrete LQR from continuous design") {
+        Matrix<2, 2> A{{0.0, 1.0}, {0.0, 0.0}}; // continuous double integrator
+        Matrix<2, 1> B{{0.0}, {1.0}};
+        Matrix<2, 2> Q = Matrix<2, 2>::identity();
+        Matrix<1, 1> R{{1.0}};
+
+        auto result = matlab::lqrd(A, B, Q, R, 0.1);
+
+        REQUIRE(result.success);
+        CHECK(result.is_stable());
+        CHECK(result.K(0, 0) != 0.0);
     }
 
     // Test lqi: LQI controller design
@@ -53,7 +64,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Q_aug(2, 2) = 10.0; // integral (high weight for tracking)
         Matrix<1, 1> R{{0.1}};
 
-        auto lqi_result = design::lqi(sys, Q_aug, R);
+        auto lqi_result = matlab::lqi(sys, Q_aug, R);
 
         // Should have computed gains
         CHECK(lqi_result.K(0, 0) != 0.0);
@@ -77,7 +88,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf{{0.1}};
 
-        auto lqg_result = design::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
+        auto lqg_result = matlab::lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf);
 
         // LQR gain should exist
         CHECK(lqg_result.lqr.K(0, 0) != 0.0);
@@ -103,7 +114,7 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         Matrix<2, 2> Q_kf{{0.01, 0.0}, {0.0, 0.01}};
         Matrix<1, 1> R_kf{{0.1}};
 
-        auto servo_result = design::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
+        auto servo_result = matlab::lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
 
         // Should have computed gains
         CHECK(servo_result.lqi.K(0, 0) != 0.0);
@@ -130,10 +141,10 @@ TEST_SUITE("MATLAB®-Style Control Design API") {
         // Create LQR result using dlqr free function
         Matrix<2, 2> Q_lqr = Matrix<2, 2>::identity();
         Matrix<1, 1> R_lqr{{0.1}};
-        auto         lqr_result = design::discrete_lqr(sys.A, sys.B, Q_lqr, R_lqr);
+        auto         lqr_result = matlab::dlqr(sys.A, sys.B, Q_lqr, R_lqr);
 
         // Combine into LQGResult
-        auto lqg_result = design::lqgreg(kf_result, lqr_result);
+        auto lqg_result = matlab::lqgreg(kf_result, lqr_result);
 
         // Should preserve the LQR gain
         CHECK(lqg_result.lqr.K(0, 0) == lqr_result.K(0, 0));

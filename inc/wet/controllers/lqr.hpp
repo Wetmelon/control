@@ -4,6 +4,8 @@
 
 #include "wet/design/riccati.hpp"
 #include "wet/design/stability.hpp"
+#include "wet/matrix/block.hpp"
+#include "wet/matrix/functions.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
@@ -42,7 +44,7 @@ struct LQRResult {
     /**
      * @brief Check if the closed-loop system is stable
      *
-     * Stability is determined by checking if all closed-loop lie within the unit circle.
+     * Stability is determined by checking if all closed-loop poles lie within the unit circle.
      *
      * @return true if stable, false otherwise
      */
@@ -97,11 +99,7 @@ template<size_t NX, size_t NU, typename T = double>
     }
     const Matrix<NX, NX, T> S = dare_opt.value();
 
-    //! Solve (R + BᵀSB) K = BᵀSA + Nᵀ via Cholesky (R + BᵀSB is positive definite)
-    const Matrix<NU, NU, T> denom = R + B.t() * S * B;
-    const Matrix<NU, NX, T> rhs = B.t() * S * A + N.t();
-    const auto              K_opt = mat::cholesky_solve(denom, rhs);
-
+    const auto K_opt = lqr_gain(A, B, S, R, N);
     if (!K_opt) {
         return result;
     }
@@ -113,15 +111,111 @@ template<size_t NX, size_t NU, typename T = double>
 }
 
 /**
+ * @struct LQRCost
+ * @brief Discretized LQR cost weights (Q, R, N) for a sampled-data problem
+ */
+template<size_t NX, size_t NU, typename T = double>
+struct LQRCost {
+    Matrix<NX, NX, T> Q{}; ///< Discrete state cost
+    Matrix<NU, NU, T> R{}; ///< Discrete input cost
+    Matrix<NX, NU, T> N{}; ///< Discrete cross-term cost
+};
+
+/**
+ * @brief Discretize a continuous LQR cost integral over one sample (Van Loan)
+ *
+ * Maps the continuous running cost
+ * @f[
+ *   J = \int_0^\infty \big( x^\top Q x + 2 x^\top N u + u^\top R u \big)\, dt
+ * @f]
+ * to its exact discrete equivalent @f$ \sum (x^\top Q_d x + 2 x^\top N_d u + u^\top R_d u) @f$
+ * for a zero-order-hold input. Naively reusing the continuous @f$ (Q,R,N) @f$ on
+ * the discretized dynamics is only first-order accurate in @f$ T_s @f$; this is exact.
+ *
+ * Augmenting the held input as constant states @f$ \bar A = [A\;B;\,0\;0] @f$ with
+ * weight @f$ \bar Q = [Q\;N;\,N^\top\;R] @f$, the discrete weights follow from a
+ * single matrix exponential (Van Loan, 1978):
+ * @f[
+ *   \exp\!\left( \begin{bmatrix} -\bar A^\top & \bar Q \\ 0 & \bar A \end{bmatrix} T_s \right)
+ *     = \begin{bmatrix} M_{11} & M_{12} \\ 0 & M_{22} \end{bmatrix}, \quad
+ *   \begin{bmatrix} Q_d & N_d \\ N_d^\top & R_d \end{bmatrix} = M_{22}^\top M_{12}.
+ * @f]
+ *
+ * @note This is the cost-discretization step of MATLAB's lqrd(A, B, Q, R, Ts).
+ * @see "Computing Integrals Involving the Matrix Exponential" (Van Loan, 1978),
+ *      IEEE TAC 23(3), https://doi.org/10.1109/TAC.1978.1101743
+ *
+ * @param A   State transition matrix (continuous-time, NX × NX)
+ * @param B   Control input matrix (continuous-time, NX × NU)
+ * @param Q   Continuous state cost (NX × NX, positive semidefinite)
+ * @param R   Continuous input cost (NU × NU, positive definite)
+ * @param Ts  Sampling time [s]
+ * @param N   Continuous cross-term cost (NX × NU, default: zero)
+ * @return Discrete cost weights {Q_d, R_d, N_d}
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr LQRCost<NX, NU, T> discretize_lqr_cost(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    T                        Ts,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    constexpr size_t NA = NX + NU; // augmented (state + held input) dimension
+
+    //! Augmented dynamics Ā = [A B; 0 0] and weight Q̄ = [Q N; Nᵀ R]
+    const Matrix<NU, NX, T> Nt = N.t();
+    Matrix<NA, NA, T>       Abar{};
+    Abar.template block<NX, NX>(0, 0) = A;
+    Abar.template block<NX, NU>(0, NX) = B;
+
+    Matrix<NA, NA, T> Qbar{};
+    Qbar.template block<NX, NX>(0, 0) = Q;
+    Qbar.template block<NX, NU>(0, NX) = N;
+    Qbar.template block<NU, NX>(NX, 0) = Nt;
+    Qbar.template block<NU, NU>(NX, NX) = R;
+
+    //! Van Loan block Z = [-Āᵀ Q̄; 0 Ā]·Ts, then exp(Z) = [M11 M12; 0 M22]
+    const Matrix<NA, NA, T>   AbarT = Abar.t();
+    const Matrix<NA, NA, T>   neg_AbarT = AbarT * (-Ts);
+    const Matrix<NA, NA, T>   Qbar_Ts = Qbar * Ts;
+    const Matrix<NA, NA, T>   Abar_Ts = Abar * Ts;
+    Matrix<2 * NA, 2 * NA, T> Z{};
+    Z.template block<NA, NA>(0, 0) = neg_AbarT;
+    Z.template block<NA, NA>(0, NA) = Qbar_Ts;
+    Z.template block<NA, NA>(NA, NA) = Abar_Ts;
+
+    const Matrix<2 * NA, 2 * NA, T> G = mat::expm(Z);
+    const Matrix<NA, NA, T>         M12 = G.template block<NA, NA>(0, NA);
+    const Matrix<NA, NA, T>         M22 = G.template block<NA, NA>(NA, NA);
+    const Matrix<NA, NA, T>         M22t = M22.t();
+
+    //! Q̄_d = M22ᵀ·M12; symmetrize to scrub round-off asymmetry before slicing
+    Matrix<NA, NA, T>       Qbar_d = M22t * M12;
+    const Matrix<NA, NA, T> Qbar_dt = Qbar_d.t();
+    Qbar_d = (Qbar_d + Qbar_dt) * T{0.5};
+
+    return LQRCost<NX, NU, T>{
+        Qbar_d.template block<NX, NX>(0, 0),
+        Qbar_d.template block<NU, NU>(NX, NX),
+        Qbar_d.template block<NX, NU>(0, NX)
+    };
+}
+
+/**
  * @brief Design discrete LQR from continuous-time system via discretization
  *
- * Discretizes the continuous-time system (A, B) using ZOH, then solves the
- * discrete LQR problem on the resulting system.
+ * Discretizes both the dynamics (ZOH) and the cost integral (Van Loan), then
+ * solves the discrete LQR problem. Equivalent to MATLAB's lqrd — discretizing
+ * the cost is what distinguishes this from feeding continuous Q, R, N into the
+ * sampled dynamics, which is only first-order accurate in Ts.
  *
  * @note Compare with MATLAB's lqrd(A, B, Q, R, Ts).
  *
  * @see discrete_lqr() for the discrete-time design
- * @see discretize() for the ZOH discretization step
+ * @see discretize() for the ZOH dynamics discretization step
+ * @see discretize_lqr_cost() for the Van Loan cost discretization step
  *
  * @param A   State transition matrix (continuous-time, NX × NX)
  * @param B   Control input matrix (continuous-time, NX × NU)
@@ -142,7 +236,8 @@ template<size_t NX, size_t NU, typename T = double>
 ) {
     StateSpace<NX, NU, NX, NX, NX, T> sys_c{A, B, Matrix<NX, NX, T>::identity()};
     const auto                        sys_d = discretize(sys_c, Ts, DiscretizationMethod::ZOH);
-    return discrete_lqr(sys_d.A, sys_d.B, Q, R, N);
+    const auto                        cost = discretize_lqr_cost(A, B, Q, R, Ts, N);
+    return discrete_lqr(sys_d.A, sys_d.B, cost.Q, cost.R, cost.N);
 }
 
 /**

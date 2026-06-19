@@ -4,6 +4,9 @@
 #include <type_traits>
 
 #include "wet/backend.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
 #include "wet/controllers/lqr.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/design/linearization.hpp"
@@ -365,6 +368,62 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
 ) {
     return design::discrete_lqr_from_continuous(sys, Q, R, Ts, N);
+}
+
+/**
+ * @brief Linear-Quadratic Integral design for tracking
+ * @note Alias for design::discrete_lqi. Compare with MATLAB's lqi(sys, Q, R).
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
+[[nodiscard]] constexpr auto lqi(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const Matrix<NX + NY, NX + NY, T>&       Q,
+    const Matrix<NU, NU, T>&                 R
+) {
+    return design::discrete_lqi(sys, Q, R);
+}
+
+/**
+ * @brief Linear-Quadratic-Gaussian regulator design
+ * @note Alias for design::discrete_lqg. Compare with MATLAB's lqg(sys, ...).
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
+[[nodiscard]] constexpr auto lqg(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const Matrix<NX, NX, T>&                 Q_lqr,
+    const Matrix<NU, NU, T>&                 R_lqr,
+    const Matrix<NW, NW, T>&                 Q_kf,
+    const Matrix<NV, NV, T>&                 R_kf,
+    const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
+) {
+    return design::discrete_lqg(sys, Q_lqr, R_lqr, Q_kf, R_kf, N);
+}
+
+/**
+ * @brief Combine separate Kalman filter and LQR designs into an LQG controller
+ * @note Alias for design::lqg_from_parts. Compare with MATLAB's lqgreg(kest, k).
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
+[[nodiscard]] constexpr auto lqgreg(
+    const design::KalmanResult<NX, NU, NY, NW, NV, T>& kest,
+    const design::LQRResult<NX, NU, T>&                lqr_result
+) {
+    return design::lqg_from_parts(kest, lqr_result);
+}
+
+/**
+ * @brief Linear-Quadratic-Gaussian design with integral action for tracking
+ * @note Alias for design::discrete_lqgi. Compare with MATLAB's lqgtrack(...).
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
+[[nodiscard]] constexpr auto lqgtrack(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const Matrix<NX + NY, NX + NY, T>&       Q_aug,
+    const Matrix<NU, NU, T>&                 R,
+    const Matrix<NW, NW, T>&                 Q_kf,
+    const Matrix<NV, NV, T>&                 R_kf
+) {
+    return design::discrete_lqgi(sys, Q_aug, R, Q_kf, R_kf);
 }
 
 /**

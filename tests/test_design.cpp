@@ -212,7 +212,7 @@ TEST_SUITE("Design: Golden Data Tests") {
         constexpr Matrix<2, 2> Q_kf{{0.1, 0.0}, {0.0, 0.1}};
         constexpr Matrix<1, 1> R_kf{{0.5}};
 
-        constexpr auto result = design::lqg(
+        constexpr auto result = design::discrete_lqg(
             StateSpace<2, 1, 1, 2, 1>{A, B, C, Matrix<1, 1>::zeros(), Matrix<2, 2>::identity(), Matrix<1, 1>::identity()},
             Q_lqr, R_lqr, Q_kf, R_kf
         );
@@ -298,7 +298,7 @@ TEST_SUITE("Design: Result Type Conversions") {
     }
 
     TEST_CASE("LQGResult::as<U>() conversion") {
-        constexpr auto lqg_d = design::lqg(
+        constexpr auto lqg_d = design::discrete_lqg(
             StateSpace<1, 1, 1, 1, 1>{Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>::zeros(), Matrix<1, 1>::identity(), Matrix<1, 1>::identity()},
             Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.5}}
         );
@@ -312,7 +312,7 @@ TEST_SUITE("Design: Result Type Conversions") {
     }
 
     TEST_CASE("LQGIResult::as<U>() conversion") {
-        constexpr auto lqgi_d = design::lqgtrack(
+        constexpr auto lqgi_d = design::discrete_lqgi(
             StateSpace<1, 1, 1, 1, 1>{Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>::zeros(), Matrix<1, 1>::identity(), Matrix<1, 1>::identity()},
             Matrix<2, 2>{{1.0, 0.0}, {0.0, 1.0}}, Matrix<1, 1>{{1.0}}, Matrix<1, 1>{{0.1}}, Matrix<1, 1>{{0.5}}
         );

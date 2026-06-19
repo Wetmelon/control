@@ -626,6 +626,40 @@ constexpr wet::optional<Matrix<NX, NX, T>> dare(
 }
 
 /**
+ * @brief Optimal LQR state-feedback gain from a Riccati solution
+ *
+ * Given the DARE solution @f$ S @f$, computes the gain @f$ K @f$ for @f$ u = -Kx @f$:
+ * @f[
+ *   K = (R + B^\top S B)^{-1} (B^\top S A + N^\top).
+ * @f]
+ * @f$ R + B^\top S B @f$ is symmetric positive definite, so the system is solved
+ * by Cholesky factorization rather than forming an explicit inverse — the
+ * numerically stabler and cheaper route. Shared by dlqr/lqi/lqg gain synthesis.
+ *
+ * @see dare() — produces the Riccati solution S
+ * @see "Optimal Control" (Anderson & Moore, 1990), §4.3
+ *
+ * @param A  State transition matrix (NX × NX)
+ * @param B  Input matrix (NX × NU)
+ * @param S  DARE solution (NX × NX, symmetric positive semidefinite)
+ * @param R  Input cost matrix (NU × NU, positive definite)
+ * @param N  Cross-term cost matrix (NX × NU, default: zero)
+ * @return Optimal gain K (NU × NX) or wet::nullopt if the Cholesky solve fails
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NU, NX, T>> lqr_gain(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& S,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    const Matrix<NU, NU, T> denom = R + B.t() * S * B;
+    const Matrix<NU, NX, T> rhs = B.t() * S * A + N.t();
+    return mat::cholesky_solve(denom, rhs);
+}
+
+/**
  * @brief Solve the Continuous-time Algebraic Riccati Equation (CARE)
  *
  * Finds the unique stabilizing solution X to:

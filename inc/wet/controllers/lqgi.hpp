@@ -33,49 +33,27 @@ struct LQGIResult {
 /**
  * @brief Linear-Quadratic-Gaussian with integral action for tracking
  *
+ * @note Compare with MATLAB's lqgtrack(...) — exposed as the lqgtrack() alias in matlab.hpp.
+ *
  * @param sys      State-space system
  * @param Q_aug    Augmented state cost (state + integral error)
  * @param R        Input cost matrix
  * @param Q_kf     Process noise covariance for Kalman filter
  * @param R_kf     Measurement noise covariance for Kalman filter
- * @param dof      Servo degrees of freedom (1DOF or 2DOF)
  *
  * @return LQGIResult with integral action for tracking
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
-[[nodiscard]] constexpr LQGIResult<NX, NU, NY, NW, NV, T> lqgtrack(
+[[nodiscard]] constexpr LQGIResult<NX, NU, NY, NW, NV, T> discrete_lqgi(
     const StateSpace<NX, NU, NY, NW, NV, T>& sys,
     const Matrix<NX + NY, NX + NY, T>&       Q_aug,
     const Matrix<NU, NU, T>&                 R,
     const Matrix<NW, NW, T>&                 Q_kf,
     const Matrix<NV, NV, T>&                 R_kf
 ) {
-    const auto lqi_result = lqi(sys, Q_aug, R);
+    const auto lqi_result = discrete_lqi(sys, Q_aug, R);
     const auto kalman_result = kalman(sys, Q_kf, R_kf);
     return LQGIResult<NX, NU, NY, NW, NV, T>{lqi_result, kalman_result, lqi_result.success && kalman_result.success};
-}
-
-/**
- * @brief LQG with integral action for tracking
- *
- * @param sys    State-space system
- * @param Q_aug  Augmented state cost (state + integral)
- * @param R      Input cost
- * @param Q_kf   Process noise covariance
- * @param R_kf   Measurement noise covariance
- * @param dof    Servo degrees of freedom (1DOF or 2DOF)
- *
- * @return  LQGIResult with integral action for tracking
- */
-template<size_t NX, size_t NU, size_t NY, size_t NW = NX, size_t NV = NY, typename T = double>
-[[nodiscard]] constexpr LQGIResult<NX, NU, NY, NW, NV, T> lqg_servo(
-    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
-    const Matrix<NX + NY, NX + NY, T>&       Q_aug,
-    const Matrix<NU, NU, T>&                 R,
-    const Matrix<NW, NW, T>&                 Q_kf,
-    const Matrix<NV, NV, T>&                 R_kf
-) {
-    return lqgtrack(sys, Q_aug, R, Q_kf, R_kf);
 }
 } // namespace design
 
