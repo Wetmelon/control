@@ -127,7 +127,7 @@ int main() {
     // Design the super-twisting gains from a bound on the disturbance rate |ḋ|.
     // The load ripple dominates: |d(T_load)/dt|/J ~ (2*2π*90)/0.02 ~ 5.7e4, so take
     // L ~ 1e5 with a 1.5x margin. k1 = 1.5*margin*sqrt(L), k2 = 1.1*margin*L.
-    constexpr auto art = design::synthesize_stsmc(1.0e5, dt, /*lambda=*/0.0, /*k_lin=*/0.0,
+    constexpr auto art = design::synthesize_stsmc(1.0e5, /*lambda=*/0.0, /*k_lin=*/0.0,
                                                   /*epsilon=*/0.0, /*gain_margin=*/1.5);
     static_assert(art.success);
     fmt::print("Designed STA gains: k1={:.1f}, k2={:.0f}  (from L=1e5, margin=1.5)\n\n", art.k1, art.k2);
@@ -137,11 +137,11 @@ int main() {
     const Metrics smc = run([&](double s) { return -k_sign * static_cast<double>(wet::sgn(s)); }, 0.0);
 
     // (2) Classic super-twisting on the *raw* differentiated rate.
-    const Metrics sta_raw = run([c = SuperTwistingController<double>(art)](double s) mutable { return c.control(s); }, 0.0);
+    const Metrics sta_raw = run([c = SuperTwistingController<double>(art)](double s) mutable { return c.control(s, dt); }, 0.0);
 
     // (3) Same controller, but low-pass the rate estimate (tau = 2 ms) — the real
     //     cure for the differentiated-noise chatter.
-    const Metrics sta_filt = run([c = SuperTwistingController<double>(art)](double s) mutable { return c.control(s); }, 2.0e-3);
+    const Metrics sta_filt = run([c = SuperTwistingController<double>(art)](double s) mutable { return c.control(s, dt); }, 2.0e-3);
 
     fmt::print("{:<30} {:>14} {:>16} {:>14}\n", "Controller", "track RMS[mrad]", "chatter |du|[Nm]", "effort RMS[Nm]");
     fmt::print("{:-<76}\n", "");

@@ -27,14 +27,13 @@ struct STSMCResult {
     T    lambda{};       ///< Sliding-surface slope for the (r, y) convenience form (s = λe + ė)
     T    k_lin{};        ///< Generalized-STA linear gain (0 = classic super-twisting)
     T    epsilon{};      ///< Boundary-layer thickness for the sign function (0 = true sign)
-    T    Ts{};           ///< Sample time [s]
-    bool success{false}; ///< true if gains are valid (k1, k2, Ts > 0)
+    bool success{false}; ///< true if gains are valid (k1, k2 > 0)
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
         return STSMCResult<U>{
             static_cast<U>(k1), static_cast<U>(k2), static_cast<U>(lambda), static_cast<U>(k_lin),
-            static_cast<U>(epsilon), static_cast<U>(Ts), success
+            static_cast<U>(epsilon), success
         };
     }
 };
@@ -69,7 +68,6 @@ struct STSMCResult {
  *
  * @tparam T Scalar type
  * @param disturbance_bound L, the bound on |ḋ| (must be > 0)
- * @param Ts                Sample time [s] (must be > 0)
  * @param lambda            Sliding-surface slope for the (r, y) form (0 if you supply s directly)
  * @param k_lin             Generalized-STA linear gain (≥ 0; 0 = classic super-twisting)
  * @param epsilon           Boundary-layer thickness for the sign function (≥ 0; 0 = true sign)
@@ -82,14 +80,13 @@ struct STSMCResult {
 template<typename T = double>
 [[nodiscard]] constexpr STSMCResult<T> synthesize_stsmc(
     T disturbance_bound,
-    T Ts,
     T lambda = T{0},
     T k_lin = T{0},
     T epsilon = T{0},
     T gain_margin = T{1}
 ) {
     STSMCResult<T> result{};
-    if (disturbance_bound <= T{0} || Ts <= T{0} || gain_margin < T{1} || k_lin < T{0} || epsilon < T{0}) {
+    if (disturbance_bound <= T{0} || gain_margin < T{1} || k_lin < T{0} || epsilon < T{0}) {
         return result;
     }
     const T L = disturbance_bound;
@@ -98,7 +95,6 @@ template<typename T = double>
     result.lambda = lambda;
     result.k_lin = k_lin;
     result.epsilon = epsilon;
-    result.Ts = Ts;
     result.success = true;
     return result;
 }
@@ -110,16 +106,15 @@ template<typename T = double>
  *
  * @param k1 Continuous gain on |s|^½·sign(s) (> 0)
  * @param k2 Integral gain on sign(s) (> 0)
- * @param Ts Sample time [s] (> 0)
  * @param lambda  Sliding-surface slope for the (r, y) form
  * @param k_lin      Generalized-STA linear gain (≥ 0)
  * @param epsilon Boundary-layer thickness (≥ 0)
  */
 template<typename T = double>
 [[nodiscard]] constexpr STSMCResult<T>
-stsmc(T k1, T k2, T Ts, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
+stsmc(T k1, T k2, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
     STSMCResult<T> result{};
-    result.success = (k1 > T{0} && k2 > T{0} && Ts > T{0} && k_lin >= T{0} && epsilon >= T{0});
+    result.success = (k1 > T{0} && k2 > T{0} && k_lin >= T{0} && epsilon >= T{0});
     if (!result.success) {
         return result;
     }
@@ -128,7 +123,6 @@ stsmc(T k1, T k2, T Ts, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
     result.lambda = lambda;
     result.k_lin = k_lin;
     result.epsilon = epsilon;
-    result.Ts = Ts;
     return result;
 }
 
@@ -151,8 +145,8 @@ stsmc(T k1, T k2, T Ts, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
  * **generalized** form adds linear damping for noisy / higher-order plants.
  *
  * Two entry points per step:
- *  - `control(s)`        — canonical: you form the sliding variable s yourself.
- *  - `control(r, y)`     — convenience: builds s = λ·e + ė (ė by backward
+ *  - `control(s, Ts)`    — canonical: you form the sliding variable s yourself.
+ *  - `control(r, y, Ts)` — convenience: builds s = λ·e + ė (ė by backward
  *                          difference), matching `SMCController`'s surface.
  *
  * The integral state is updated by explicit Euler. The output is the
@@ -163,10 +157,10 @@ stsmc(T k1, T k2, T Ts, T lambda = T{0}, T k_lin = T{0}, T epsilon = T{0}) {
  * @code
  * using namespace wet;
  * // |ḋ| ≤ 2, 1 kHz loop; supply s directly.
- * constexpr auto art = design::synthesize_stsmc(2.0, 1e-3);
+ * constexpr auto art = design::synthesize_stsmc(2.0);
  * static_assert(art.success);
  * SuperTwistingController u_st(art.as<float>());
- * // In the loop: float u = u_st.control(s);   // s = your sliding variable
+ * // In the loop: float u = u_st.control(s, 1e-3f);  // s = your sliding variable
  * @endcode
  *
  * @tparam T Scalar type (default: float)
@@ -179,14 +173,15 @@ public:
     constexpr SuperTwistingController() = default;
 
     constexpr SuperTwistingController(const design::STSMCResult<T>& result)
-        : k1_(result.k1), k2_(result.k2), lambda_(result.lambda), k_lin_(result.k_lin), epsilon_(result.epsilon), Ts_(result.Ts), valid_(result.success) {}
+        : k1_(result.k1), k2_(result.k2), lambda_(result.lambda), k_lin_(result.k_lin), epsilon_(result.epsilon), valid_(result.success) {}
 
     template<typename U>
     constexpr SuperTwistingController(const SuperTwistingController<U>& other)
-        : k1_(static_cast<T>(other.k1_)), k2_(static_cast<T>(other.k2_)), lambda_(static_cast<T>(other.lambda_)), k_lin_(static_cast<T>(other.k_lin_)), epsilon_(static_cast<T>(other.epsilon_)), Ts_(static_cast<T>(other.Ts_)), v_(static_cast<T>(other.v_)), e_prev_(static_cast<T>(other.e_prev_)), valid_(other.valid_) {}
+        : k1_(static_cast<T>(other.k1_)), k2_(static_cast<T>(other.k2_)), lambda_(static_cast<T>(other.lambda_)), k_lin_(static_cast<T>(other.k_lin_)), epsilon_(static_cast<T>(other.epsilon_)), v_(static_cast<T>(other.v_)), e_prev_(static_cast<T>(other.e_prev_)), valid_(other.valid_) {}
 
     /// Super-twisting control from the sliding variable @p s (canonical form).
-    [[nodiscard]] constexpr T control(T s) {
+    /// @param Ts Sample time [s] for the explicit-Euler integral state.
+    [[nodiscard]] constexpr T control(T s, T Ts) {
         if (!valid_) {
             return T{0};
         }
@@ -202,7 +197,7 @@ public:
         // φ₂ = sign(s) + 3·k_lin·|s|^½·sign(s) + 2·k_lin²·s  (= classic sign(s) when k_lin = 0,
         // keeping the k₁ = 1.5√L / k₂ = 1.1L formulas valid). Explicit-Euler integral.
         const T phi2 = sign_s + (T{3} * k_lin_ * sqrt_s * sign_s) + (T{2} * k_lin_ * k_lin_ * s);
-        v_ += -k2_ * phi2 * Ts_;
+        v_ += -k2_ * phi2 * Ts;
 
         return u;
     }
@@ -210,13 +205,13 @@ public:
     /// Convenience: build s = λ·e + ė (ė via backward difference) then apply STA.
     /// @note Assumes the control enters the surface dynamics with the canonical
     ///       sign (ṡ = u + d). If your plant gives ṡ = −u + d, negate the output
-    ///       (or your λ/s), or use the `control(s)` form with a surface you sign
+    ///       (or your λ/s), or use the `control(s, Ts)` form with a surface you sign
     ///       yourself.
-    [[nodiscard]] constexpr T control(T r, T y) {
+    [[nodiscard]] constexpr T control(T r, T y, T Ts) {
         const T e = r - y;
-        const T de = (e - e_prev_) / Ts_;
+        const T de = (e - e_prev_) / Ts;
         e_prev_ = e;
-        return control((lambda_ * e) + de);
+        return control((lambda_ * e) + de, Ts);
     }
 
     /// Current value of the integral state v (the disturbance estimate, −d̂).
@@ -235,7 +230,6 @@ public:
     T    lambda_{T{0}};
     T    k_lin_{T{0}};
     T    epsilon_{T{0}};
-    T    Ts_{T{1}};
     T    v_{T{0}};
     T    e_prev_{T{0}};
     bool valid_{false};

@@ -227,7 +227,6 @@ struct LeadLagController {
     T K{};
     T z{};
     T p{};
-    T Ts{};
 
     // Pre-computed IIR coefficients (1st-order: y[n] = b0*u[n] + b1*u[n-1] - a1*y[n-1])
     T b0{0};
@@ -241,13 +240,13 @@ struct LeadLagController {
     constexpr LeadLagController() = default;
 
     constexpr LeadLagController(const design::LeadLagResult<T>& result)
-        : K(result.K), z(result.z), p(result.p), Ts(result.Ts) {
-        compute_coefficients();
+        : K(result.K), z(result.z), p(result.p) {
+        compute_coefficients(result.Ts);
     }
 
     template<typename U>
     constexpr LeadLagController(const LeadLagController<U>& other)
-        : K(other.K), z(other.z), p(other.p), Ts(other.Ts), b0(other.b0), b1(other.b1), a1(other.a1), u_prev(other.u_prev), y_prev(other.y_prev) {}
+        : K(other.K), z(other.z), p(other.p), b0(other.b0), b1(other.b1), a1(other.a1), u_prev(other.u_prev), y_prev(other.y_prev) {}
 
     /**
      * @brief Compute compensator output
@@ -296,7 +295,7 @@ private:
      * Denominator: (2/Ts)*(z-1)/(z+1) + p_loc
      *            = ((2/Ts + p_loc)*z + (p_loc - 2/Ts)) / (z+1)
      */
-    constexpr void compute_coefficients() {
+    constexpr void compute_coefficients(T Ts) {
         T k = T{2} / Ts; // Tustin substitution factor
 
         // Denominator coefficients (before normalization)
