@@ -106,10 +106,9 @@ class ADRCController {
     T Kp{1.0f}; //!< proportional gain
     T Kd{1.0f}; //!< derivative gain
 
-    wet::array<T, NX + 1> beta{};             //!< ESO gains [β1, β2, ..., β_{NX+1}]
-    ColVec<NX + 1, T>     z{};                //!< ESO state: [z1, z2, ..., z_{NX+1}]
-    T                     u_prev_{T{0}};      //!< Last applied command (post-saturation)
-    T                     ki_factor_{T{1.0}}; //!< Integrator gain-scheduling factor
+    wet::array<T, NX + 1> beta{};        //!< ESO gains [β1, β2, ..., β_{NX+1}]
+    ColVec<NX + 1, T>     z{};           //!< ESO state: [ŷ, ŷ̇, ..., f̂]
+    T                     u_prev_{T{0}}; //!< Last applied command (post-saturation)
 
 public:
     constexpr ADRCController() = default;
@@ -118,25 +117,53 @@ public:
 
     template<typename U>
     constexpr ADRCController(const ADRCController<NX, U>& other)
-        : b0(other.b0), Kp(other.Kp), Kd(other.Kd), beta(other.beta), z(other.z), u_prev_(other.u_prev_), ki_factor_(other.ki_factor_) {}
+        : b0(other.b0), Kp(other.Kp), Kd(other.Kd), beta(other.beta), z(other.z), u_prev_(other.u_prev_) {}
 
     /**
-     * @brief Set the integrator gain-scheduling factor used by the 2-arg
-     *        @ref control overload. Defaults to 1.0.
-     */
-    constexpr void set_ki_factor(T factor) { ki_factor_ = factor; }
-
-    /**
-     * @brief Reference-tracking overload satisfying @ref SISOController.
+     * @brief Reference-tracking control step (Gao's linear ADRC).
      *
-     * The ESO uses the previously-applied command (stored in `u_prev_`) for
-     * its update. After computing a new command this overload optimistically
-     * stores the unsaturated value in `u_prev_`; if a downstream stage clamps
-     * the command, the caller should follow up with `back_calculate(u_unsat,
-     * u_sat)` so the ESO's next tick uses what was actually applied.
+     * Runs the linear extended-state observer one Euler step using the
+     * previously-applied command, then forms the control law
+     *
+     *     u = (Kp·(r − ẑ₁) − Kd·ẑ₂ − f̂) / b0
+     *
+     * where `f̂ = z_{NX+1}` is the ESO's total-disturbance estimate. Cancelling
+     * `f̂` is what gives ADRC its disturbance rejection and (integral-free) zero
+     * steady-state error. The two design knobs are the controller and observer
+     * bandwidths `wc`/`wo` (see @ref design::adrc); there is no separate
+     * integrator gain.
+     *
+     * The ESO uses the previously-applied command (stored in `u_prev_`). After
+     * computing a new command this overload optimistically stores the
+     * unsaturated value in `u_prev_`; if a downstream stage clamps the command,
+     * follow up with `back_calculate(u_unsat, u_sat)` so the next ESO tick uses
+     * what was actually applied.
+     *
+     * @param r  Reference (setpoint).
+     * @param y  Measurement (plant output).
+     * @param Ts Sample time [s] for the explicit-Euler ESO update.
+     * @return Control command `u`.
      */
     [[nodiscard]] constexpr T control(T r, T y, T Ts) {
-        const T u = control(r, y, Ts, u_prev_, Ts, ki_factor_);
+        // --- Linear ESO, explicit-Euler update using the last applied command.
+        // Plant model: y^(NX) = f + b0·u, with z = [ŷ, ŷ̇, …, ŷ^(NX-1), f̂].
+        const T e = z[0] - y; // estimation error (ŷ − y)
+
+        wet::array<T, NX + 1> dz{};
+        for (size_t i = 0; i < NX; ++i) {
+            dz[i] = z[i + 1] - (beta[i] * e); // ż_i = ẑ_{i+1} − β_i·e
+        }
+        dz[NX - 1] += b0 * u_prev_; // b0·u enters the highest derivative state
+        dz[NX] = -(beta[NX] * e);   // ḟ̂ = −β_{NX+1}·e
+
+        for (size_t i = 0; i <= NX; ++i) {
+            z[i] += Ts * dz[i];
+        }
+
+        // --- Control law: PD on the estimated state, minus the disturbance.
+        const T u0 = (Kp * (r - z[0])) - (Kd * z[1]); // Kd == 0 for NX == 1
+        const T u = (u0 - z[NX]) / b0;                // cancel f̂ = z_{NX+1}
+
         u_prev_ = u;
         return u;
     }
