@@ -15,59 +15,88 @@ Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 
 ## Library Contents
 
-### Core Modeling and Math
+Every header follows the three-tier pattern (constexpr `design::` → result struct with
+`.as<U>()` → allocation-free runtime). See [decisions.md](inc/wet/decisions.md) for the
+design rationale and [inc/wet/roadmap.md](inc/wet/roadmap.md) for planned work.
 
-- Fixed-size matrix algebra with compile-time dimensions (`matrix.hpp`, `matrix/*`)
-- State-space models and interconnections (series, parallel, feedback) (`state_space.hpp`)
-- Transfer functions and block-diagram arithmetic (`transfer_function.hpp`)
-- Continuous-to-discrete conversion methods (Forward Euler, ZOH, Tustin) (`discretization.hpp`)
-- Stability and structural analysis primitives (`stability.hpp`, `analysis.hpp`)
+### Core modeling and math
 
-### Runtime Controllers
+- Fixed-size `constexpr` matrix algebra: arithmetic, blocks, views, LU/QR/Cholesky/eigen decompositions, linear solve, matrix functions (`matrix/*`)
+- Constexpr scalar math and `wet::complex` (`math/*`); selectable stdlib/freestanding math backend
+- State-space models and interconnections — series, parallel, feedback (`systems/state_space.hpp`)
+- Transfer functions and block-diagram arithmetic (`systems/transfer_function.hpp`)
+- Continuous-to-discrete conversion — Forward Euler, ZOH, Tustin (`systems/discretization.hpp`)
 
-- PID (`pid.hpp`)
-- PR and multi-harmonic PR (`pr.hpp`)
-- LQR (`lqr.hpp`)
-- LQI (`lqi.hpp`)
-- LQG (`lqg.hpp`)
-- LQGI (`lqgi.hpp`)
+### Runtime controllers (`controllers/`)
+
+- PID with anti-windup (`pid.hpp`)
+- Proportional-resonant and multi-harmonic PR (`pr.hpp`)
+- LQR / LQI / LQG / LQGI optimal state-feedback (`lqr.hpp`, `lqi.hpp`, `lqg.hpp`, `lqgi.hpp`)
 - Lead-lag compensator (`lead_lag.hpp`)
-- ADRC (`adrc.hpp`)
-- Sliding Mode Control (SMC) (`smc.hpp`)
-- Single-phase PLL (`pll.hpp`)
+- ADRC — active disturbance rejection with extended-state observer (`adrc.hpp`)
+- Sliding-mode control — first-order with boundary layer (`smc.hpp`) and super-twisting / generalized STA (`stsmc.hpp`)
+- Extremum-seeking control + MPPT (`esc.hpp`)
+- Repetitive control — internal-model periodic-disturbance rejection (`repetitive.hpp`)
+- Selective harmonic suppression — parallel PR resonator bank (`harmonic_suppression.hpp`)
 
-### Design/Tuning APIs
+### Design / synthesis (`design/`)
 
-- LQR/LQI/LQG/LQGI synthesis result APIs (`lqr.hpp`, `lqi.hpp`, `lqg.hpp`, `lqgi.hpp`)
-- PID tuning methods: Ziegler-Nichols, Tyreus-Luyben, Cohen-Coon, SIMC, lambda, bandwidth-based, pole placement (`pid_design.hpp`)
-- PID performance-spec synthesis helpers from settling time and overshoot (`pid_design.hpp`)
-- PR/ADRC/SMC/lead-lag design helpers (`pr.hpp`, `adrc.hpp`, `smc.hpp`, `lead_lag.hpp`)
-
-### Observers and Estimators
-
-- Linear Kalman filter (`kalman.hpp`)
-- Extended Kalman Filter (EKF) (`ekf.hpp`)
-- Error-State Kalman Filter (ESKF) (`eskf.hpp`)
-- Sensor-fusion filters: Complementary, Madgwick, Mahony, ESKF orientation (`sensor_fusion.hpp`)
-
-### Analysis and Simulation
-
-- Frequency-domain analysis: Bode, Nyquist, margins, bandwidth, loop metrics (`analysis.hpp`)
+- Robust MIMO pole placement (`design::place`, Kautsky–Nichols–Van Dooren) + single-input Ackermann (`pole_placement.hpp`)
+- Riccati / DARE solvers backing the LQ family (`riccati.hpp`)
+- PID tuning rules: Ziegler-Nichols, Tyreus-Luyben, Cohen-Coon, SIMC, lambda, bandwidth, pole placement, plus settling-time/overshoot spec synthesis (`pid_design.hpp`)
+- Relay (Åström–Hägglund) autotuner runtime (`relay_autotune.hpp`)
 - Nonlinear operating-point linearization to A/B/C/D (`linearization.hpp`)
-- ODE solvers and closed-loop simulation helpers (`solver.hpp`, `integrator.hpp`, `simulate.hpp`)
+- Stability/structural analysis primitives (`stability.hpp`)
+- High-level workflow artifacts — combined design + analysis + runtime bundle (`synthesis.hpp`)
 
-### Signal Conditioning and Utilities
+### Observers and estimators (`estimation/`)
 
-- SOGI and MSTOGI system models/runtime SOGI block (`sogi.hpp`)
-- First/second-order and Butterworth low-pass design, delay approximations, runtime low-pass and delay blocks (`filters.hpp`)
-- Geometry and attitude utilities: DCM, Quaternion, Euler (`geometry.hpp`)
-- Motor-control transforms: Clarke/Park and inverse transforms (`motor_control.hpp`)
-- IEC 61131-3 function blocks for PLC-style control logic (`iec61131.hpp`)
+- Linear Kalman filter (`kalman.hpp`), Extended (`ekf.hpp`), Error-State (`eskf.hpp`), Unscented / sigma-point (`ukf.hpp`)
+- Luenberger full-order and reduced-order (Gopinath) observers (`observer.hpp`)
+- Disturbance observers — scalar innovation-based + classical Pn⁻¹·Q (Ohnishi) bolt-on (`disturbance_observer.hpp`)
+- Sensor-fusion filters: Complementary, Madgwick, Mahony, ESKF orientation (`sensor_fusion.hpp`)
+- Recursive least squares (`recursive_least_squares.hpp`)
+- Excitation generators — Chirp, PRBS, StepTrain, Ramp, MultiSine (`excitation.hpp`)
+- Identification model types — FOPDT/SOPDT/ARX, fit/validation metrics (`identification.hpp`)
 
-### Interop and High-Level Glue
+### Filters and signal conditioning (`filters/`)
 
+- Biquad family (RBJ notch/bandpass/peaking/shelf) + utility runtime blocks (moving average, RMS, median, rate limiter, dirty derivative, clamped integrator, deadband, hysteresis, EWMA, peak/envelope) (`filters.hpp`)
+- Spectral primitives — Goertzel single-bin DFT + harmonic analyzer/THD (`spectral.hpp`)
+- Robust exact (Levant super-twisting) differentiator (`differentiator.hpp`)
+- SOGI / MSTOGI and SOGI-FLL self-tuning tracker (`sogi.hpp`)
+- Single-phase PLL (`pll.hpp`) and three-phase DSOGI sequence PLL (`dsogi_pll.hpp`)
+
+### Trajectory and motion planning (`trajectory/`)
+
+- Trapezoidal and S-curve time-optimal profiles, arbitrary boundary velocities + asymmetric limits (`trapezoidal.hpp`, `scurve.hpp`)
+- Polynomial BVP trajectories — min-jerk/accel/snap + `TrajectoryBank` multi-axis coordination (`polynomial.hpp`)
+- Multi-waypoint C²/C⁴ splines (`spline.hpp`)
+- Input shaping — ZV/ZVD/ZVDD/EI command prefilter (`input_shaper.hpp`)
+- Cartesian / task-space path-preserving moves (`cartesian_move.hpp`) and time-optimal path parameterization / TOPP (`topp.hpp`)
+
+### Kinematics (`kinematics/`)
+
+- `Pose` (quaternion + translation) interchange type (`pose.hpp`)
+- Motion-system maps — Cartesian, CoreXY, polar, rotary/linear delta (`motion_maps.hpp`)
+- Stewart platform — 6-DOF parallel manipulator, closed-form IK + Newton FK (`stewart.hpp`)
+- Serial N-DOF arm (N≤6) — DH chains, geometric Jacobian, damped-least-squares IK (`serial_arm.hpp`)
+- SCARA — series RRPR + parallel five-bar (`scara.hpp`)
+
+### Utilities (`utility/`)
+
+- Scaling/calibration (`scaling.hpp`), interpolation LUTs (`lookup.hpp`), software timers (`timing.hpp`)
+- Quadrature encoder + tachometer (`encoder.hpp`), thermistor linearization (`thermistor.hpp`), actuator models (`actuator.hpp`)
+- Geometry/attitude — DCM, Quaternion, Euler, Vec3 (`geometry.hpp`)
+- Motor-control: Clarke/Park transforms (`transforms.hpp`), SVPWM modulation (`modulation.hpp`), field-oriented control (`foc.hpp`)
+- IEC 61131-3 function blocks for PLC-style logic (`iec61131.hpp`)
+
+### Analysis, simulation, interop (host-only behind `toolbox.hpp`)
+
+- Frequency-domain analysis — Bode, Nyquist, margins, bandwidth, loop metrics (`analysis.hpp`)
+- ODE solvers and closed-loop simulation (`simulation/{solver,integrator,simulate}.hpp`)
+- Plotting — text/console and Plotly/SVG (`plotting/{plot,plot_plotly}.hpp`)
 - MATLAB-style short-name wrappers (`matlab.hpp`)
-- High-level workflow artifacts for combined design + analysis + runtime assembly (`synthesis.hpp`)
 
 ## Quick Start
 
@@ -133,17 +162,29 @@ Or reach for a single feature directly:
 ```
 inc/wet/
   control.hpp      embeddable umbrella        toolbox.hpp   host superset
-  math/            constexpr math primitives  matrix/       linear algebra
+  config.hpp · backend.hpp                    backend profile (stdlib / ETL)
+  math/            constexpr math, complex, backends
+  matrix/          fixed-size linear algebra, decompositions, solve, eigen
   systems/         state_space, transfer_function, discretization
-  controllers/     lqr, lqi, lqg, lqgi, riccati, pid(+design), pr,
-                   lead_lag, adrc, smc, pll, synthesis
-  estimation/      kalman, ekf, eskf, sensor_fusion
-  filters/         filters, sogi
-  analysis/        stability, linearization    + analysis (host: Bode/Nyquist)
+  controllers/     pid, pr, lqr, lqi, lqg, lqgi, lead_lag, adrc,
+                   smc, stsmc, esc, repetitive, harmonic_suppression
+  design/          pole_placement, riccati, pid_design, relay_autotune,
+                   linearization, stability, synthesis
+  estimation/      kalman, ekf, eskf, ukf, observer, disturbance_observer,
+                   sensor_fusion, recursive_least_squares, excitation, identification
+  filters/         filters, spectral, differentiator, sogi, pll, dsogi_pll
+  trajectory/      trapezoidal, scurve, polynomial, spline, input_shaper,
+                   cartesian_move, topp
+  kinematics/      pose, motion_maps, stewart, serial_arm, scara
+  utility/         scaling, lookup, timing, encoder, thermistor, actuator,
+                   geometry, transforms, modulation, foc, iec61131
+  analysis.hpp · matlab.hpp                    (host)
   simulation/      integrator                  + solver, simulate (host)
-  plotting/        plot, plot_plotly (host)
-  geometry.hpp · motor_control.hpp · iec61131.hpp · utility.hpp · matlab.hpp (host)
+  plotting/        plot, plot_plotly           (host)
 ```
+
+Planning docs live alongside the code: [inc/wet/roadmap.md](inc/wet/roadmap.md)
+(what's next) and [inc/wet/decisions.md](inc/wet/decisions.md) (why it's built this way).
 
 The one-call synthesis helpers live in `design::` (e.g. `design::synthesize_lqgi`) — design + analysis models + a ready-to-deploy runtime bundle in a single constexpr call.
 
