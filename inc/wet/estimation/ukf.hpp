@@ -34,7 +34,6 @@
 #include <cstddef>
 
 #include "wet/backend.hpp"
-#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
 namespace wet {
@@ -136,7 +135,15 @@ struct UnscentedKalmanFilter {
     // Type conversion constructor
     template<typename U>
     constexpr UnscentedKalmanFilter(const UnscentedKalmanFilter<NX, NU, NY, U>& other)
-        : x(other.state()), P(other.covariance()), Q(other.process_noise_covariance()), innov(other.innovation()), p{static_cast<T>(other.params().alpha), static_cast<T>(other.params().beta), static_cast<T>(other.params().kappa)} {
+        : x(other.state()),
+          P(other.covariance()),
+          Q(other.process_noise_covariance()),
+          innov(other.innovation()),
+          p{
+              static_cast<T>(other.params().alpha),
+              static_cast<T>(other.params().beta),
+              static_cast<T>(other.params().kappa),
+          } {
         compute_weights();
     }
 
