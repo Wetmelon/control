@@ -93,6 +93,102 @@ TEST_SUITE("PR Controller") {
         CHECK(ctrl.w0 == doctest::Approx(w0_60));
     }
 
+    TEST_CASE("PR control(r,y) matches control(error)") {
+        auto                 result = design::pr(2.0, 100.0, 314.0, 10.0, 0.0001);
+        PRController<double> a(result);
+        PRController<double> b(result);
+        for (int k = 0; k < 50; ++k) {
+            double r = std::sin(0.1 * k);
+            double y = 0.3 * r;
+            CHECK(a.control(r, y) == doctest::Approx(b.control(r - y)));
+        }
+    }
+
+    TEST_CASE("PR converting ctor preserves Kbc and state") {
+        PRController<double> d(design::pr(1.0, 100.0, 314.0, 10.0, 0.0001));
+        d.Kbc = 5.0;
+        (void)d.control(0.7);
+        (void)d.control(-0.2);
+
+        PRController<float> f(d); // U -> T converting ctor
+        CHECK(f.Kbc == doctest::Approx(5.0f));
+        // Resonant delay line carried over.
+        CHECK(f.resonant.last_output() == doctest::Approx((float)d.resonant.last_output()));
+        // Coefficients carried over too: the next step matches within float precision.
+        CHECK((double)f.control(0.1) == doctest::Approx(d.control(0.1)).epsilon(0.01));
+    }
+
+    TEST_CASE("PR back_calculate unwinds resonant state") {
+        PRController<double> ctrl(design::pr(1.0, 100.0, 314.0, 10.0, 0.0001));
+        ctrl.Kbc = 2.0;
+        (void)ctrl.control(1.0);
+        double y_before = ctrl.resonant.last_output();
+
+        // Saturation: realizable command below the requested one -> pull output down.
+        ctrl.back_calculate(/*u_unsat=*/5.0, /*u_sat=*/3.0, /*Ts=*/0.0001);
+        CHECK(ctrl.resonant.last_output() < y_before);
+
+        // True no-op when there is no saturation excess (matches PID).
+        PRController<double> nctrl(design::pr(1.0, 100.0, 314.0, 10.0, 0.0001));
+        (void)nctrl.control(1.0);
+        double y_noop = nctrl.resonant.last_output();
+        nctrl.back_calculate(3.0, 3.0, 0.0001);
+        CHECK(nctrl.resonant.last_output() == doctest::Approx(y_noop));
+    }
+
+    TEST_CASE("PR Ts<=0 yields proportional-only output") {
+        PRController<double> ctrl(design::pr(2.0, 100.0, 314.0, 10.0, 0.0));
+        CHECK(ctrl.control(1.0) == doctest::Approx(2.0)); // Kp*error, no resonant
+        CHECK(ctrl.control(-3.0) == doctest::Approx(-6.0));
+    }
+
+    TEST_CASE("PRResult to_tf / to_ss match the PR law at DC and resonance") {
+        constexpr double w0 = 314.0;
+        constexpr double wc = 10.0;
+        constexpr double Kp = 2.0;
+        constexpr double Ki = 100.0;
+        auto             tf = design::pr(Kp, Ki, w0, wc, 0.0).to_tf();
+        auto             ss = design::pr(Kp, Ki, w0, wc, 0.0).to_ss();
+
+        // DC gain (s=0): num[0]/den[0] = Kp*w0²/w0² = Kp
+        CHECK(tf.num[0] / tf.den[0] == doctest::Approx(Kp));
+        // State-space D feedthrough is the proportional term.
+        CHECK(ss.D(0, 0) == doctest::Approx(Kp));
+        CHECK(ss.C(0, 1) == doctest::Approx(2.0 * Ki * wc));
+    }
+
+    TEST_CASE("MultiPRController runtime: control and reset") {
+        constexpr double                w_fund = 2.0 * std::numbers::pi * 50.0;
+        constexpr std::array<size_t, 3> harmonics = {1, 3, 5};
+        auto                            results = design::pr_harmonics(1.0, 100.0, w_fund, 10.0, 1.0 / 10000.0, harmonics);
+
+        MultiPRController<3, double> ctrl(results);
+        double                       u = ctrl.control(1.0); // first sample: Kp*1 + sum of resonant b0
+        CHECK(u != 0.0);
+
+        // control(r,y) forwards the error to control(error).
+        MultiPRController<3, double> a(results);
+        MultiPRController<3, double> b(results);
+        CHECK(a.control(0.5, 0.1) == doctest::Approx(b.control(0.4)));
+
+        // reset clears all resonant history -> first post-reset sample is finite/nonzero.
+        ctrl.reset();
+        CHECK(ctrl.control(1.0) != 0.0);
+    }
+
+    TEST_CASE("MultiPRController converting ctor preserves state") {
+        constexpr double                w_fund = 2.0 * std::numbers::pi * 50.0;
+        constexpr std::array<size_t, 3> harmonics = {1, 3, 5};
+        auto                            results = design::pr_harmonics(1.0, 100.0, w_fund, 10.0, 1.0 / 10000.0, harmonics);
+
+        MultiPRController<3, double> d(results);
+        (void)d.control(0.5);
+
+        MultiPRController<3, float> f(d); // U -> T converting ctor
+        CHECK(f.Kp == doctest::Approx(1.0f));
+        CHECK(f.resonants[0].resonant.last_output() == doctest::Approx((float)d.resonants[0].resonant.last_output()));
+    }
+
     TEST_CASE("Multi-harmonic PR design") {
         constexpr double                w_fund = 2.0 * std::numbers::pi * 50.0;
         constexpr double                wc = 10.0;

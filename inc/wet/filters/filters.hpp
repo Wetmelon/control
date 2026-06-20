@@ -686,6 +686,19 @@ public:
     constexpr explicit Biquad(const design::SecondOrderCoeffs<T>& c)
         : b0_(c.b0), b1_(c.b1), b2_(c.b2), a1_(c.a1), a2_(c.a2) {}
 
+    /// Convert across scalar precision, preserving coefficients and delay line.
+    template<typename U>
+    constexpr explicit Biquad(const Biquad<U>& o)
+        : b0_(static_cast<T>(o.b0_)),
+          b1_(static_cast<T>(o.b1_)),
+          b2_(static_cast<T>(o.b2_)),
+          a1_(static_cast<T>(o.a1_)),
+          a2_(static_cast<T>(o.a2_)),
+          x1_(static_cast<T>(o.x1_)),
+          x2_(static_cast<T>(o.x2_)),
+          y1_(static_cast<T>(o.y1_)),
+          y2_(static_cast<T>(o.y2_)) {}
+
     /// Process one sample.
     constexpr T operator()(T x) {
         const T y = (b0_ * x) + (b1_ * x1_) + (b2_ * x2_) - (a1_ * y1_) - (a2_ * y2_);
@@ -701,7 +714,24 @@ public:
         x1_ = x2_ = y1_ = y2_ = T{0};
     }
 
+    /// Replace the coefficients in place, keeping the delay line — for adaptive
+    /// filters that retune (e.g. grid-frequency tracking) without losing state.
+    constexpr void set_coefficients(const design::SecondOrderCoeffs<T>& c) {
+        b0_ = c.b0;
+        b1_ = c.b1;
+        b2_ = c.b2;
+        a1_ = c.a1;
+        a2_ = c.a2;
+    }
+
+    /// Most recent output y[n-1]; read/adjust to seed anti-windup unwinding.
+    [[nodiscard]] constexpr T last_output() const { return y1_; }
+    constexpr void            set_last_output(T y1) { y1_ = y1; }
+
 private:
+    template<typename>
+    friend class Biquad;
+
     T b0_{1}, b1_{0}, b2_{0}, a1_{0}, a2_{0};
     T x1_{0}, x2_{0}, y1_{0}, y2_{0};
 };
