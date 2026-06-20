@@ -41,14 +41,15 @@ namespace design {
  */
 template<typename T = double>
 struct LeadLagResult {
-    T K{};  //!< DC gain of the compensator
-    T z{};  //!< Zero location (rad/s, positive value; actual zero at s = -z)
-    T p{};  //!< Pole location (rad/s, positive value; actual pole at s = -p)
-    T Ts{}; //!< Sampling time (seconds), 0 = continuous
+    T    K{};            //!< DC gain of the compensator
+    T    z{};            //!< Zero location (rad/s, positive value; actual zero at s = -z)
+    T    p{};            //!< Pole location (rad/s, positive value; actual pole at s = -p)
+    T    Ts{};           //!< Sampling time (seconds), 0 = continuous
+    bool success{false}; //!< true if the spec produced valid (finite, positive) z, p
 
     template<typename U>
     [[nodiscard]] constexpr LeadLagResult<U> as() const {
-        return {static_cast<U>(K), static_cast<U>(z), static_cast<U>(p), static_cast<U>(Ts)};
+        return {static_cast<U>(K), static_cast<U>(z), static_cast<U>(p), static_cast<U>(Ts), success};
     }
 
     /**
@@ -111,6 +112,11 @@ struct LeadLagResult {
  */
 template<typename T = double>
 [[nodiscard]] constexpr LeadLagResult<T> lead(T phi_max, T wc, T Ts = T{0}) {
+    // Valid lead requires 0 < phi_max < pi/2 (else alpha <= 0) and wc > 0.
+    if (!(phi_max > T{0}) || !(phi_max < wet::numbers::pi_v<T> / T{2}) || !(wc > T{0})) {
+        return LeadLagResult<T>{};
+    }
+
     // alpha = (1 - sin(phi)) / (1 + sin(phi))
     // For a lead: alpha < 1
     T s = wet::sin(phi_max);
@@ -130,7 +136,7 @@ template<typename T = double>
     // So K = 1/sqrt(alpha) for unity gain at crossover.
     T K = T{1} / sqrt_alpha;
 
-    return LeadLagResult<T>{K, z, p, Ts};
+    return LeadLagResult<T>{K, z, p, Ts, true};
 }
 
 /**
@@ -151,6 +157,11 @@ template<typename T = double>
  */
 template<typename T = double>
 [[nodiscard]] constexpr LeadLagResult<T> lag(T dc_gain_boost, T wc, T margin_factor = T{10}, T Ts = T{0}) {
+    // Valid lag requires a real DC boost, a positive crossover, and a positive margin.
+    if (!(dc_gain_boost > T{1}) || !(wc > T{0}) || !(margin_factor > T{0})) {
+        return LeadLagResult<T>{};
+    }
+
     // Place zero at wc / margin_factor
     // Place pole at zero / dc_gain_boost (further below, so z > p → lag)
     T z = wc / margin_factor;
@@ -160,7 +171,7 @@ template<typename T = double>
     // Set K = 1 so the total DC gain is exactly dc_gain_boost
     T K = T{1};
 
-    return LeadLagResult<T>{K, z, p, Ts};
+    return LeadLagResult<T>{K, z, p, Ts, true};
 }
 
 /**
@@ -208,7 +219,7 @@ lead_lag(T phi_max, T wc, T dc_gain_boost, T margin_factor = T{10}, T Ts = T{0})
  */
 template<typename T = double>
 [[nodiscard]] constexpr LeadLagResult<T> lead_lag_direct(T K, T z, T p, T Ts = T{0}) {
-    return LeadLagResult<T>{K, z, p, Ts};
+    return LeadLagResult<T>{K, z, p, Ts, z > T{0} && p > T{0}};
 }
 
 } // namespace design
@@ -296,6 +307,16 @@ private:
      *            = ((2/Ts + p_loc)*z + (p_loc - 2/Ts)) / (z+1)
      */
     constexpr void compute_coefficients(T Ts) {
+        // Ts <= 0 means a continuous-time design (e.g. the design factories' default
+        // Ts = 0) was handed to a discrete controller. There is no valid Tustin
+        // mapping.
+        if (!(Ts > T{0})) {
+            b0 = K;
+            b1 = T{0};
+            a1 = T{0};
+            return;
+        }
+
         T k = T{2} / Ts; // Tustin substitution factor
 
         // Denominator coefficients (before normalization)

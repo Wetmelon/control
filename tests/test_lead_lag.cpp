@@ -244,6 +244,38 @@ TEST_SUITE("Lead-Lag Compensator") {
         CHECK(y == doctest::Approx(1.320377f).epsilon(1e-4));
     }
 
+    TEST_CASE("control(r, y) equals control(r - y)") {
+        constexpr double          phi = std::numbers::pi / 4.0;
+        constexpr auto            r = design::lead(phi, 1000.0, 0.001);
+        LeadLagController<double> a(r);
+        LeadLagController<double> b(r);
+
+        // Feed the same error through both forms; outputs must match step for step.
+        const double refs[] = {1.0, 1.0, 0.5, -0.3, 0.0};
+        const double meas[] = {0.0, 0.4, 0.6, 0.1, -0.2};
+        for (int i = 0; i < 5; ++i) {
+            double ya = a.control(refs[i], meas[i]);
+            double yb = b.control(refs[i] - meas[i]);
+            CHECK(ya == doctest::Approx(yb).epsilon(1e-15));
+        }
+    }
+
+    TEST_CASE("Invalid specs report success = false") {
+        // Lead requires 0 < phi < pi/2 and wc > 0.
+        static_assert(!design::lead(0.0, 1000.0).success);
+        static_assert(!design::lead(std::numbers::pi / 2.0, 1000.0).success);
+        static_assert(!design::lead(std::numbers::pi / 4.0, -1.0).success);
+        static_assert(design::lead(std::numbers::pi / 4.0, 1000.0).success);
+
+        // Lag requires dc_gain_boost > 1, wc > 0, margin > 0.
+        static_assert(!design::lag(1.0, 1000.0).success);
+        static_assert(!design::lag(10.0, 0.0).success);
+        static_assert(design::lag(10.0, 1000.0).success);
+
+        static_assert(!design::lead_lag_direct(1.0, -1.0, 5.0).success);
+        static_assert(design::lead_lag_direct(1.0, 100.0, 500.0).success);
+    }
+
     TEST_CASE("to_discrete_ss roundtrip (dimensions and sample time)") {
         constexpr double phi = std::numbers::pi / 4.0;
         constexpr double wc = 1000.0;
