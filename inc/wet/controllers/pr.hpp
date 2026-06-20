@@ -234,20 +234,18 @@ struct PRController {
      * resonant output so the next tick's resonant contribution is pulled back
      * toward the realizable command. Same shape and sign convention as
      * `PIDController::back_calculate` (`Ts` is per-call, not stored), so a
-     * generic anti-windup wrapper can drive either uniformly. When `Kbc == 0`
-     * it falls back to a unit-rate rollback of one sample's excess.
+     * generic anti-windup wrapper can drive either uniformly. No-op when
+     * `Kbc == 0` (back-calculation not configured).
      *
      * @param u_unsat Command this controller requested.
      * @param u_sat   Command actually applied after downstream clamping.
      * @param Ts      Sample time (s).
      */
     constexpr void back_calculate(T u_unsat, T u_sat, T Ts) {
-        if (u_unsat == u_sat) {
+        if (Kbc == T{0} || u_unsat == u_sat) {
             return;
         }
-        const T excess = u_sat - u_unsat;
-        const T unwind = (Kbc != T{0}) ? (excess / Kbc) : excess;
-        resonant.set_last_output(resonant.last_output() + Ts * unwind);
+        resonant.set_last_output(resonant.last_output() + Ts * ((u_sat - u_unsat) / Kbc));
     }
 
     /**

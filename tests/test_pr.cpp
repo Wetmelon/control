@@ -128,11 +128,11 @@ TEST_SUITE("PR Controller") {
         ctrl.back_calculate(/*u_unsat=*/5.0, /*u_sat=*/3.0, /*Ts=*/0.0001);
         CHECK(ctrl.resonant.last_output() < y_before);
 
-        // True no-op when there is no saturation excess (matches PID).
+        // No-op when Kbc == 0 (back-calculation not configured), even with excess.
         PRController<double> nctrl(design::pr(1.0, 100.0, 314.0, 10.0, 0.0001));
         (void)nctrl.control(1.0);
         double y_noop = nctrl.resonant.last_output();
-        nctrl.back_calculate(3.0, 3.0, 0.0001);
+        nctrl.back_calculate(5.0, 3.0, 0.0001); // Kbc == 0 -> unchanged
         CHECK(nctrl.resonant.last_output() == doctest::Approx(y_noop));
     }
 
