@@ -261,6 +261,24 @@ TEST_SUITE("PID Design - Type Conversion") {
         double        u = controller.control(1.0, 0.0, 0.01);
         CHECK(u != 0.0); // Non-zero output for non-zero error
     }
+
+    TEST_CASE("PIDResult::to_tf yields Kp + Ki/s + Kd*s/(1+Tf*s)") {
+        // Ideal PID (Tf = 0): C(s) = (Kd s^2 + Kp s + Ki)/s, ascending powers.
+        constexpr auto tf = design::pid(2.0, 3.0, 0.5).to_tf();
+        CHECK(tf.num[0] == doctest::Approx(3.0)); // Ki
+        CHECK(tf.num[1] == doctest::Approx(2.0)); // Kp
+        CHECK(tf.num[2] == doctest::Approx(0.5)); // Kd
+        CHECK(tf.den[0] == doctest::Approx(0.0));
+        CHECK(tf.den[1] == doctest::Approx(1.0));
+        CHECK(tf.den[2] == doctest::Approx(0.0));
+
+        // Filtered (Tf > 0): num = {Ki, Kp + Ki*Tf, Kp*Tf + Kd}, den = {0, 1, Tf}.
+        constexpr double inf = std::numeric_limits<double>::infinity();
+        constexpr auto   tff = design::pid(2.0, 3.0, 0.5, -inf, inf, -inf, inf, 0.0, 1.0, 1.0, 0.1).to_tf();
+        CHECK(tff.den[2] == doctest::Approx(0.1));
+        CHECK(tff.num[1] == doctest::Approx(2.0 + (3.0 * 0.1)));
+        CHECK(tff.num[2] == doctest::Approx((2.0 * 0.1) + 0.5));
+    }
 }
 
 TEST_SUITE("PID Design - Performance Spec Glue") {

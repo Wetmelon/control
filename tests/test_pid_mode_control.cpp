@@ -174,4 +174,80 @@ TEST_SUITE("PID Mode Control") {
         const float u_saturated = pi.control(5.0f, 0.0f, Ts);
         CHECK(u_saturated == doctest::Approx(1.0f)); // clamped at u_max
     }
+
+    TEST_CASE("non-positive Ts holds state and returns the current command") {
+        PIDController<double, PIDMode::PID> pid{design::pid(2.0, 5.0, 0.1)};
+        (void)pid.control(1.0, 0.0, 0.01);
+        const double integ = pid.integral;
+
+        // Ts == 0: integrator does not step; output is Kp*(b r - y) + Ki*integral.
+        const double u0 = pid.control(1.0, 0.0, 0.0);
+        CHECK(pid.integral == doctest::Approx(integ));
+        CHECK(u0 == doctest::Approx((2.0 * 1.0) + (5.0 * integ)));
+
+        // Negative Ts: same hold.
+        (void)pid.control(1.0, 0.0, -0.5);
+        CHECK(pid.integral == doctest::Approx(integ));
+
+        PIDController<float, PIDMode::PI> pi{design::pid(1.0f, 1.0f, 0.0f)};
+        (void)pi.control(1.0f, 0.0f, 0.01f);
+        const float pinteg = pi.integral;
+        (void)pi.control(1.0f, 0.0f, 0.0f);
+        CHECK(pi.integral == doctest::Approx(pinteg));
+    }
+
+    TEST_CASE("back_calculate is a no-op when Kbc == 0, bleeds when Kbc > 0") {
+        PIDController<double, PIDMode::PID> pid{design::pid(1.0, 1.0, 0.0)}; // Kbc defaults to 0
+        (void)pid.control(1.0, 0.0, 0.01);
+        const double integ = pid.integral;
+        pid.back_calculate(5.0, 1.0, 0.01); // would unwind if Kbc > 0
+        CHECK(pid.integral == doctest::Approx(integ));
+
+        constexpr double                    inf = std::numeric_limits<double>::infinity();
+        PIDController<double, PIDMode::PID> pid2{design::pid(1.0, 1.0, 0.0, -inf, inf, -inf, inf, 0.5)};
+        (void)pid2.control(1.0, 0.0, 0.01);
+        const double before = pid2.integral;
+        pid2.back_calculate(5.0, 1.0, 0.01); // u_sat < u_unsat -> integral down
+        CHECK(pid2.integral < before);
+    }
+
+    TEST_CASE("cross-precision converting ctor copies gains and live state") {
+        PIDController<double, PIDMode::PID> d{design::pid(1.5, 2.0, 0.3)};
+        d.disable(0.4);
+        (void)d.control(1.0, 0.2, 0.01); // populate integral / prev / deriv / mode
+        d.enable();
+        (void)d.control(1.0, 0.25, 0.01);
+
+        PIDController<float, PIDMode::PID> f(d);
+        CHECK(f.Kp == doctest::Approx(static_cast<float>(d.Kp)));
+        CHECK(f.Tf == doctest::Approx(static_cast<float>(d.Tf)));
+        CHECK(f.integral == doctest::Approx(static_cast<float>(d.integral)));
+        CHECK(f.prev_cr_minus_y == doctest::Approx(static_cast<float>(d.prev_cr_minus_y)));
+        CHECK(f.deriv == doctest::Approx(static_cast<float>(d.deriv)));
+        CHECK(f.is_enabled() == d.is_enabled());
+    }
+
+    TEST_CASE("P: (r, y, Ts) overload ignores Ts and matches (r, y)") {
+        PIDController<float, PIDMode::P> a{design::pid(2.0f, 0.0f, 0.0f)};
+        PIDController<float, PIDMode::P> b{design::pid(2.0f, 0.0f, 0.0f)};
+        CHECK(a.control(1.0f, 0.3f, 0.01f) == doctest::Approx(b.control(1.0f, 0.3f)));
+    }
+
+    TEST_CASE("PID first tick has no derivative kick; Tf attenuates the derivative") {
+        constexpr double inf = std::numeric_limits<double>::infinity();
+
+        // Pure-D controller: first tick seeds the derivative history, so a large
+        // initial measurement produces no spike.
+        PIDController<double, PIDMode::PID> d{design::pid(0.0, 0.0, 1.0)};
+        CHECK(d.control(0.0, 1.0, 0.01) == doctest::Approx(0.0));    // seeded: no kick
+        CHECK(d.control(0.0, 2.0, 0.01) == doctest::Approx(-100.0)); // Kd*(-1)/Ts
+
+        // Tf > 0 attenuates the same measurement step versus Tf == 0.
+        auto step = [&](double Tf) {
+            PIDController<double, PIDMode::PID> c{design::pid(0.0, 0.0, 1.0, -inf, inf, -inf, inf, 0.0, 1.0, 1.0, Tf)};
+            (void)c.control(0.0, 0.0, 0.01);
+            return c.control(0.0, 1.0, 0.01);
+        };
+        CHECK(std::abs(step(0.1)) < std::abs(step(0.0)));
+    }
 } // TEST_SUITE

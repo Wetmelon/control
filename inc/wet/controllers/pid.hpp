@@ -4,6 +4,7 @@
 #include <limits>
 
 #include "wet/backend.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 namespace wet {
 namespace design {
@@ -35,10 +36,30 @@ struct PIDResult {
     T Kbc = T{0}; ///< Back-calculation anti-windup gain
     T b = T{1};   ///< Proportional setpoint weight (0=I-PD, 1=standard PID)
     T c = T{1};   ///< Derivative setpoint weight   (0=PI-D, 1=standard PID)
+    T Tf = T{0};  ///< Derivative filter time constant (0 = unfiltered)
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
-        return PIDResult<U>{(U)Kp, (U)Ki, (U)Kd, (U)u_min, (U)u_max, (U)i_min, (U)i_max, (U)Kbc, (U)b, (U)c};
+        return PIDResult<U>{
+            static_cast<U>(Kp), static_cast<U>(Ki), static_cast<U>(Kd),
+            static_cast<U>(u_min), static_cast<U>(u_max), static_cast<U>(i_min), static_cast<U>(i_max),
+            static_cast<U>(Kbc), static_cast<U>(b), static_cast<U>(c), static_cast<U>(Tf)
+        };
+    }
+
+    /**
+     * @brief Continuous-time controller transfer function C(s).
+     *
+     * Returns @f$C(s) = K_p + K_i/s + K_d s/(1 + T_f s)@f$ as a 2nd-order TF in
+     * ascending powers of s, so PID drops into the analysis tooling (Bode,
+     * `series`/`feedback`, `discretize`) like the lead-lag / PR design results.
+     * `Tf = 0` gives the ideal form @f$(K_d s^2 + K_p s + K_i)/s@f$.
+     */
+    [[nodiscard]] constexpr TransferFunction<3, 3, T> to_tf() const {
+        return TransferFunction<3, 3, T>{
+            .num = {Ki, Kp + (Ki * Tf), (Kp * Tf) + Kd},
+            .den = {T{0}, T{1}, Tf},
+        };
     }
 };
 
@@ -61,6 +82,7 @@ struct PIDResult {
  * @param Kbc   Back-calculation anti-windup gain (0 = clamping only)
  * @param b     Proportional setpoint weight (default: 1 - standard PID)
  * @param c     Derivative setpoint weight   (default: 1 - standard PID)
+ * @param Tf    Derivative filter time constant (default: 0 - unfiltered)
  *
  * @return PIDResult with the specified parameters
  */
@@ -73,9 +95,10 @@ template<typename T = double>
     T i_max = std::numeric_limits<T>::infinity(),
     T Kbc = T{0},
     T b = T{1},
-    T c = T{1}
+    T c = T{1},
+    T Tf = T{0}
 ) {
-    return PIDResult<T>{Kp, Ki, Kd, u_min, u_max, i_min, i_max, Kbc, b, c};
+    return PIDResult<T>{Kp, Ki, Kd, u_min, u_max, i_min, i_max, Kbc, b, c, Tf};
 }
 
 } // namespace design
@@ -124,6 +147,20 @@ struct PIDController;
  * @ingroup discrete_controllers
  * @brief Discrete 2-DOF PID controller specialization.
  *
+ * Control law (2-DOF, optional first-order derivative filter):
+ * @f[
+ *   u = K_p(b\,r - y) + K_i\!\int (r-y)\,dt + \frac{K_d\, s}{1 + T_f s}(c\,r - y)
+ * @f]
+ *
+ * @code
+ * auto                k = design::pid(2.0, 5.0, 0.1); // Kp, Ki, Kd
+ * PIDController<double> c(k);
+ * double              u = c.control(r, y, Ts);
+ * @endcode
+ *
+ * MATLAB equivalent: `C = pid(Kp, Ki, Kd, Tf)` (2-DOF weights via `pid2`).
+ * @see Åström & Hägglund, "Advanced PID Control" (2006), Sec. 3.3–4.4
+ *
  * @note The sample time @p Ts is supplied per call to control() / back_calculate(),
  *       not stored on the controller. The gains are continuous-time: the integrator
  *       uses backward (implicit) Euler — the current error is folded in
@@ -152,9 +189,12 @@ struct PIDController<T, PIDMode::PID> {
     T Kbc = T{0}; ///< Back-calculation anti-windup gain
     T b = T{1};   ///< Proportional setpoint weight
     T c = T{1};   ///< Derivative setpoint weight
+    T Tf = T{0};  ///< Derivative filter time constant (0 = unfiltered)
 
-    T integral = T{0};        ///< Integrator state
-    T prev_cr_minus_y = T{0}; ///< Previous value of (c*r - y) for derivative
+    T    integral = T{0};        ///< Integrator state
+    T    prev_cr_minus_y = T{0}; ///< Previous value of (c*r - y) for derivative
+    T    deriv = T{0};           ///< Filtered derivative term (carries Kd)
+    bool first_ = true;          ///< Seed derivative history on the first control() tick
 
     PIDRuntimeMode runtime_mode{PIDRuntimeMode::Auto}; ///< Auto (control) or Tracking (follow u_track)
     T              u_track{T{0}};                      ///< External tracking signal (used only in Tracking mode)
@@ -162,11 +202,37 @@ struct PIDController<T, PIDMode::PID> {
     constexpr PIDController() = default;
 
     constexpr explicit PIDController(const design::PIDResult<T>& result)
-        : Kp(result.Kp), Ki(result.Ki), Kd(result.Kd), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b), c(result.c) {}
+        : Kp(result.Kp),
+          Ki(result.Ki),
+          Kd(result.Kd),
+          u_min(result.u_min),
+          u_max(result.u_max),
+          i_min(result.i_min),
+          i_max(result.i_max),
+          Kbc(result.Kbc),
+          b(result.b),
+          c(result.c),
+          Tf(result.Tf) {}
 
     template<typename U>
     constexpr explicit PIDController(const PIDController<U, PIDMode::PID>& other)
-        : Kp(other.Kp), Ki(other.Ki), Kd(other.Kd), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), c(other.c), integral(other.integral), prev_cr_minus_y(other.prev_cr_minus_y), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
+        : Kp(other.Kp),
+          Ki(other.Ki),
+          Kd(other.Kd),
+          u_min(other.u_min),
+          u_max(other.u_max),
+          i_min(other.i_min),
+          i_max(other.i_max),
+          Kbc(other.Kbc),
+          b(other.b),
+          c(other.c),
+          Tf(other.Tf),
+          integral(other.integral),
+          prev_cr_minus_y(other.prev_cr_minus_y),
+          deriv(other.deriv),
+          first_(other.first_),
+          runtime_mode(other.runtime_mode),
+          u_track(other.u_track) {}
 
     /**
      * @brief Compute 2-DOF PID control output.
@@ -191,8 +257,17 @@ struct PIDController<T, PIDMode::PID> {
         }
 
         const T cr_minus_y = (c * r) - y;
-        const T derivative = (cr_minus_y - prev_cr_minus_y) / Ts;
+        if (first_) {
+            prev_cr_minus_y = cr_minus_y; // seed on the first tick: no derivative kick
+            first_ = false;
+        }
+        const T dX = cr_minus_y - prev_cr_minus_y;
         prev_cr_minus_y = cr_minus_y; // updated in both modes for bumpless re-engagement
+
+        // Filtered derivative term D = Kd*s/(1 + Tf*s) on (c*r - y), backward Euler.
+        // Tf == 0 reduces exactly to the raw Kd*(ΔX)/Ts. Updated in both modes so a
+        // Tracking->Auto transition doesn't kick the derivative with a stale value.
+        deriv = ((Tf * deriv) + (Kd * dX)) / (Ts + Tf);
 
         const T e = r - y;
 
@@ -201,7 +276,7 @@ struct PIDController<T, PIDMode::PID> {
             // with backward Euler (integral += e*Ts before the output is formed), so
             // store the pre-integration value: target_post - e*Ts.
             if (Ki != T{0}) {
-                const T target = ((u_track - (Kp * ((b * r) - y)) - (Kd * derivative)) / Ki) - (e * Ts);
+                const T target = ((u_track - (Kp * ((b * r) - y)) - deriv) / Ki) - (e * Ts);
                 integral = wet::clamp(target, i_min, i_max);
             }
             return wet::clamp(u_track, u_min, u_max);
@@ -209,17 +284,19 @@ struct PIDController<T, PIDMode::PID> {
 
         // Backward (implicit) Euler: fold the current error into the integrator
         // before it drives the output, so this tick's error acts this tick rather
-        // than one sample later (the forward-Euler 1-tick delay).
+        // than one sample later (the forward-Euler 1-tick delay). Clamp immediately
+        // so the output reflects the bounded integrator on the same tick.
         integral += e * Ts;
-        const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral) + (Kd * derivative);
+        integral = wet::clamp(integral, i_min, i_max);
+        const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral) + deriv;
         const T u = wet::clamp(u_unsat, u_min, u_max);
 
         // Back-calculation anti-windup: bleed the saturation excess back out of the
         // integrator (effective next tick). Kbc == 0 -> plain integrator clamping.
         if (Kbc != T{0}) {
             integral += (Ts / Kbc) * (u - u_unsat);
+            integral = wet::clamp(integral, i_min, i_max);
         }
-        integral = wet::clamp(integral, i_min, i_max);
 
         return u;
     }
@@ -227,6 +304,8 @@ struct PIDController<T, PIDMode::PID> {
     constexpr void reset() {
         integral = T{0};
         prev_cr_minus_y = T{0};
+        deriv = T{0};
+        first_ = true;
         // Mode and u_track preserved -- reset is for clearing accumulated state,
         // not for operator-mode changes.
     }
@@ -253,18 +332,15 @@ struct PIDController<T, PIDMode::PID> {
      * or rejected outside this controller -- e.g. a cascade clamped the
      * inner reference, or a master rate limiter capped the command. Winds
      * down the integrator by `(u_sat - u_unsat) * Ts / Kbc` so the next tick
-     * does not push further into saturation. When `Kbc == 0` falls back to a
-     * straight conditional rollback equal to one sample's worth of unwind.
+     * does not push further into saturation. No-op when `Kbc == 0`
+     * (back-calculation not configured), matching the in-loop path which then
+     * relies on the integrator clamp alone.
      */
     constexpr void back_calculate(T u_unsat, T u_sat, T Ts) {
-        if (u_unsat == u_sat) {
+        if (Kbc == T{0} || u_unsat == u_sat) {
             return;
         }
-        if (Kbc != T{0}) {
-            integral += Ts * ((u_sat - u_unsat) / Kbc);
-        } else {
-            integral += Ts * (u_sat - u_unsat);
-        }
+        integral += Ts * ((u_sat - u_unsat) / Kbc);
         integral = wet::clamp(integral, i_min, i_max);
     }
 };
@@ -297,11 +373,28 @@ struct PIDController<T, PIDMode::PI> {
     constexpr PIDController() = default;
 
     constexpr explicit PIDController(const design::PIDResult<T>& result)
-        : Kp(result.Kp), Ki(result.Ki), u_min(result.u_min), u_max(result.u_max), i_min(result.i_min), i_max(result.i_max), Kbc(result.Kbc), b(result.b) {}
+        : Kp(result.Kp),
+          Ki(result.Ki),
+          u_min(result.u_min),
+          u_max(result.u_max),
+          i_min(result.i_min),
+          i_max(result.i_max),
+          Kbc(result.Kbc),
+          b(result.b) {}
 
     template<typename U>
     constexpr explicit PIDController(const PIDController<U, PIDMode::PI>& other)
-        : Kp(other.Kp), Ki(other.Ki), u_min(other.u_min), u_max(other.u_max), i_min(other.i_min), i_max(other.i_max), Kbc(other.Kbc), b(other.b), integral(other.integral), runtime_mode(other.runtime_mode), u_track(other.u_track) {}
+        : Kp(other.Kp),
+          Ki(other.Ki),
+          u_min(other.u_min),
+          u_max(other.u_max),
+          i_min(other.i_min),
+          i_max(other.i_max),
+          Kbc(other.Kbc),
+          b(other.b),
+          integral(other.integral),
+          runtime_mode(other.runtime_mode),
+          u_track(other.u_track) {}
 
     /**
      * @brief Compute PI control output.
@@ -335,16 +428,18 @@ struct PIDController<T, PIDMode::PI> {
         }
 
         // Backward (implicit) Euler: integrate the current error before it drives
-        // the output, so it acts this tick rather than one sample later.
+        // the output, so it acts this tick rather than one sample later. Clamp
+        // immediately so the output reflects the bounded integrator this tick.
         integral += e * Ts;
+        integral = wet::clamp(integral, i_min, i_max);
         const T u_unsat = (Kp * ((b * r) - y)) + (Ki * integral);
         const T u = wet::clamp(u_unsat, u_min, u_max);
 
         // Back-calculation anti-windup (effective next tick); Kbc == 0 -> clamping.
         if (Kbc != T{0}) {
             integral += (Ts / Kbc) * (u - u_unsat);
+            integral = wet::clamp(integral, i_min, i_max);
         }
-        integral = wet::clamp(integral, i_min, i_max);
         return u;
     }
 
@@ -365,14 +460,10 @@ struct PIDController<T, PIDMode::PI> {
      * @see PIDController<T, PIDMode::PID>::back_calculate for semantics.
      */
     constexpr void back_calculate(T u_unsat, T u_sat, T Ts) {
-        if (u_unsat == u_sat) {
+        if (Kbc == T{0} || u_unsat == u_sat) {
             return;
         }
-        if (Kbc != T{0}) {
-            integral += Ts * ((u_sat - u_unsat) / Kbc);
-        } else {
-            integral += Ts * (u_sat - u_unsat);
-        }
+        integral += Ts * ((u_sat - u_unsat) / Kbc);
         integral = wet::clamp(integral, i_min, i_max);
     }
 };
@@ -418,6 +509,10 @@ struct PIDController<T, PIDMode::P> {
         }
         return wet::clamp(Kp * ((b * r) - y), u_min, u_max);
     }
+
+    /// (r, y, Ts) overload for uniform use across the PIDController family; Ts is
+    /// ignored (P has no rate-dependent term).
+    [[nodiscard]] constexpr T control(T r, T y, T /*Ts*/) { return control(r, y); }
 
     constexpr void reset() {}
 
