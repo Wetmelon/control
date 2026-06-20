@@ -1,7 +1,5 @@
 ﻿#pragma once
 
-#include <type_traits>
-
 #include "wet/math/math.hpp"
 
 namespace wet {
@@ -22,14 +20,15 @@ namespace design {
  */
 template<typename T = double>
 struct SMCResult {
-    T lambda{}; //!< Sliding-surface slope λ in s = λ·e + ė [1/s]. Larger = faster but noisier.
-    T k{};      //!< Switching gain (must exceed the disturbance/uncertainty bound) [output units].
-    T b0{};     //!< Control effectiveness ṡ = b0·u + … ; the nominal plant input gain.
+    T    lambda{};       //!< Sliding-surface slope λ in s = λ·e + ė [1/s]. Larger = faster but noisier.
+    T    k{};            //!< Switching gain (must exceed the disturbance/uncertainty bound) [output units].
+    T    b0{};           //!< Control effectiveness ṡ = b0·u + … ; the nominal plant input gain.
+    bool success{false}; //!< true if λ, k, b0 are all > 0 (b0 = 0 would divide-by-zero at runtime).
 
     /// Re-cast the parameters to a different scalar type (e.g. double → float).
     template<typename U>
     [[nodiscard]] constexpr auto as() const {
-        return SMCResult<U>{lambda, k, b0};
+        return SMCResult<U>{static_cast<U>(lambda), static_cast<U>(k), static_cast<U>(b0), success};
     }
 };
 
@@ -48,7 +47,15 @@ struct SMCResult {
  */
 template<typename T = double>
 [[nodiscard]] constexpr SMCResult<T> smc(T lambda, T k, T b0) {
-    return SMCResult<T>{lambda, k, b0};
+    SMCResult<T> result{};
+    result.success = (lambda > T{0} && k > T{0} && b0 > T{0});
+    if (!result.success) {
+        return result; // reject λ/k ≤ 0 or b0 ≤ 0 rather than producing a divide-by-zero controller
+    }
+    result.lambda = lambda;
+    result.k = k;
+    result.b0 = b0;
+    return result;
 }
 
 } // namespace design
@@ -77,8 +84,9 @@ template<typename T = double>
  * `s` reaches 0 in finite time and stays there. The price of the hard `sign()`
  * is **chattering** — buzzing as `u` slams between ±k/b₀ every sample. The
  * @p phi boundary layer fixes that: inside a band `|s| < phi` the relay is
- * replaced by a smooth ramp `s/(phi + |s|)`, trading a little steady-state
- * accuracy for a continuous command. For *continuous* control with no such
+ * replaced by the saturation `sat(s/phi)` (a linear ramp through the layer, ±1
+ * outside, so full switching gain is restored beyond it), trading a little
+ * steady-state accuracy for a continuous command. For *continuous* control with no such
  * trade-off, see the super-twisting controller (@ref SuperTwistingController),
  * which hides the discontinuity under an integrator.
  *
@@ -114,21 +122,26 @@ template<typename T = double>
  */
 template<typename T = float>
 class SMCController {
+    template<typename>
+    friend class SMCController; // cross-precision converting ctor
+
     T lambda{}; //!< Sliding-surface slope λ [1/s].
     T k{};      //!< Switching gain (> disturbance bound).
     T b0{};     //!< Control effectiveness / input gain.
 
-    T error_prev{}; //!< Previous error, for the backward-difference rate ė.
+    T    error_prev{};  //!< Previous error, for the backward-difference rate ė.
+    bool first_{true};  //!< Seed error_prev on the first control() tick (no derivative kick).
+    bool valid_{false}; //!< From the design's success flag; gates control().
 
 public:
     constexpr SMCController() = default;
 
     constexpr SMCController(const design::SMCResult<T>& result)
-        : lambda(result.lambda), k(result.k), b0(result.b0) {}
+        : lambda(result.lambda), k(result.k), b0(result.b0), valid_(result.success) {}
 
     template<typename U>
     constexpr SMCController(const SMCController<U>& other)
-        : lambda(other.lambda), k(other.k), b0(other.b0), error_prev(other.error_prev) {}
+        : lambda(static_cast<T>(other.lambda)), k(static_cast<T>(other.k)), b0(static_cast<T>(other.b0)), error_prev(static_cast<T>(other.error_prev)), first_(other.first_), valid_(other.valid_) {}
 
     /**
      * @brief Run one control step: u = −(k/b0)·sign(λ·e + ė).
@@ -144,27 +157,38 @@ public:
      *
      * @return Control command `u`.
      */
-    [[nodiscard]] constexpr T control(T r, T y, T Ts, T phi = T{0.0}) {
-        T error = r - y;
+    [[nodiscard]] constexpr T control(T r, T y, T Ts, T phi = T{0}) {
+        // A non-positive Ts (uninitialized / stalled dt) would divide-by-zero in the
+        // backward-difference rate; an invalid design has a zero/garbage b0. Either
+        // way emit no correction and hold the state.
+        if (!valid_ || Ts <= T{0}) {
+            return T{0};
+        }
 
-        // Compute derivative of error using backward difference
-        T dot_e = (error - error_prev) / Ts;
+        const T error = r - y;
+        if (first_) {
+            error_prev = error; // seed: this tick's rate is 0, no derivative kick
+            first_ = false;
+        }
+        const T dot_e = (error - error_prev) / Ts;
         error_prev = error;
 
-        // Define the "sliding surface"
-        // Lambda weights error relative to its derivative.
-        T s = (lambda * error) + dot_e;
+        // Sliding surface: λ weights the error against its rate.
+        const T s = (lambda * error) + dot_e;
 
-        // Compute control using saturation function for boundary layer
-        if (phi <= T{0.0}) {
-            return -(k / b0) * wet::sgn(s);
-        } else {
-            return -(k / b0) * s / (phi + wet::abs(s));
+        // phi <= 0: hard relay. phi > 0: saturation boundary layer sat(s/phi) — a
+        // linear ramp through |s| < phi, full ±1 switching gain restored beyond it.
+        if (phi <= T{0}) {
+            return -(k / b0) * static_cast<T>(wet::sgn(s));
         }
+        return -(k / b0) * wet::clamp(s / phi, T{-1}, T{1});
     }
+
+    [[nodiscard]] constexpr bool valid() const { return valid_; }
 
     constexpr void reset() {
         error_prev = T{};
+        first_ = true;
     }
 };
 

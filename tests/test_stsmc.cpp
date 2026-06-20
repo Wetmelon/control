@@ -128,19 +128,41 @@ TEST_SUITE("stsmc") {
     }
 
     TEST_CASE("(r,y) overload builds s = lambda*e + e_dot then applies the STA") {
-        // The (r, y) form is just a surface-builder over control(s): the first
-        // call sees e = r - y, e_prev = 0, so e_dot = e/Ts. Verify it equals
-        // calling control(s) with that same s on an identical controller.
+        // The (r, y) form is a surface-builder over control(s). The first call
+        // seeds e_prev = e (no derivative kick), so e_dot = 0 and s = lambda*e;
+        // the next call exercises the backward difference.
         const double                    Ts = 1e-3;
         const double                    lambda = 5.0;
         SuperTwistingController<double> via_ry(design::synthesize_stsmc(2.0, lambda));
         SuperTwistingController<double> via_s(design::synthesize_stsmc(2.0, lambda));
 
-        const double r = 1.0;
-        const double y = 0.0;
-        const double e = r - y;
-        const double s = (lambda * e) + (e / Ts); // e_dot = (e - 0)/Ts
-        CHECK(via_ry.control(r, y, Ts) == doctest::Approx(via_s.control(s, Ts)));
+        const double e1 = 1.0;         // r=1, y=0
+        const double s1 = lambda * e1; // first call: e_dot = 0 (seeded)
+        CHECK(via_ry.control(1.0, 0.0, Ts) == doctest::Approx(via_s.control(s1, Ts)));
+
+        const double e2 = 1.5 - 0.2;                        // r=1.5, y=0.2
+        const double s2 = (lambda * e2) + ((e2 - e1) / Ts); // e_dot from backward difference
+        CHECK(via_ry.control(1.5, 0.2, Ts) == doctest::Approx(via_s.control(s2, Ts)));
+    }
+
+    TEST_CASE("cross-precision converting ctor preserves gains and integral state") {
+        SuperTwistingController<double> d(design::synthesize_stsmc(2.0, 5.0));
+        (void)d.control(1.0, 1e-3);
+        (void)d.control(0.8, 1e-3);          // advance the integral state v
+        SuperTwistingController<float> f(d); // converting ctor (private members via friend)
+        CHECK(f.valid());
+        CHECK(f.integral_state() == doctest::Approx(static_cast<float>(d.integral_state())));
+        // Continues from the copied state: next command matches within float precision.
+        CHECK(f.control(0.6f, 1e-3f) == doctest::Approx(static_cast<float>(d.control(0.6, 1e-3))).epsilon(1e-4));
+    }
+
+    TEST_CASE("non-positive Ts holds: no divide in (r,y), no backward integration in (s)") {
+        SuperTwistingController<double> c(design::synthesize_stsmc(2.0, 5.0));
+        CHECK(c.control(1.0, 0.0, 0.0) == doctest::Approx(0.0)); // (r,y) Ts=0 -> inert, no NaN
+        (void)c.control(0.5, 1e-3);
+        const double v = c.integral_state();
+        (void)c.control(0.5, 0.0); // (s) Ts=0 -> integral frozen
+        CHECK(c.integral_state() == doctest::Approx(v));
     }
 
     TEST_CASE("invalid design is inert; reset clears state") {

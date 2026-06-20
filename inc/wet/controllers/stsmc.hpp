@@ -2,7 +2,8 @@
 
 /**
  * @file stsmc.hpp
- * @brief Placeholder header for super-twisting SMC feature.
+ * @brief Super-twisting (second-order sliding-mode) controller — continuous
+ *        finite-time rejection of a Lipschitz matched disturbance.
  */
 
 #include "wet/math/math.hpp"
@@ -177,7 +178,15 @@ public:
 
     template<typename U>
     constexpr SuperTwistingController(const SuperTwistingController<U>& other)
-        : k1_(static_cast<T>(other.k1_)), k2_(static_cast<T>(other.k2_)), lambda_(static_cast<T>(other.lambda_)), k_lin_(static_cast<T>(other.k_lin_)), epsilon_(static_cast<T>(other.epsilon_)), v_(static_cast<T>(other.v_)), e_prev_(static_cast<T>(other.e_prev_)), valid_(other.valid_) {}
+        : k1_(static_cast<T>(other.k1_)),
+          k2_(static_cast<T>(other.k2_)),
+          lambda_(static_cast<T>(other.lambda_)),
+          k_lin_(static_cast<T>(other.k_lin_)),
+          epsilon_(static_cast<T>(other.epsilon_)),
+          v_(static_cast<T>(other.v_)),
+          e_prev_(static_cast<T>(other.e_prev_)),
+          first_(other.first_),
+          valid_(other.valid_) {}
 
     /// Super-twisting control from the sliding variable @p s (canonical form).
     /// @param Ts Sample time [s] for the explicit-Euler integral state.
@@ -197,7 +206,9 @@ public:
         // φ₂ = sign(s) + 3·k_lin·|s|^½·sign(s) + 2·k_lin²·s  (= classic sign(s) when k_lin = 0,
         // keeping the k₁ = 1.5√L / k₂ = 1.1L formulas valid). Explicit-Euler integral.
         const T phi2 = sign_s + (T{3} * k_lin_ * sqrt_s * sign_s) + (T{2} * k_lin_ * k_lin_ * s);
-        v_ += -k2_ * phi2 * Ts;
+        if (Ts > T{0}) {
+            v_ += -k2_ * phi2 * Ts; // explicit-Euler integral; skip on a stalled/non-positive dt
+        }
 
         return u;
     }
@@ -208,7 +219,15 @@ public:
     ///       (or your λ/s), or use the `control(s, Ts)` form with a surface you sign
     ///       yourself.
     [[nodiscard]] constexpr T control(T r, T y, T Ts) {
+        // Guard the backward-difference divide; a non-positive Ts holds and emits nothing.
+        if (!valid_ || Ts <= T{0}) {
+            return T{0};
+        }
         const T e = r - y;
+        if (first_) {
+            e_prev_ = e; // seed: no first-tick derivative kick into the surface
+            first_ = false;
+        }
         const T de = (e - e_prev_) / Ts;
         e_prev_ = e;
         return control((lambda_ * e) + de, Ts);
@@ -222,9 +241,13 @@ public:
     constexpr void reset() {
         v_ = T{0};
         e_prev_ = T{0};
+        first_ = true;
     }
 
-    // Public for the cross-precision converting constructor.
+private:
+    template<typename>
+    friend class SuperTwistingController; // cross-precision converting ctor
+
     T    k1_{T{0}};
     T    k2_{T{0}};
     T    lambda_{T{0}};
@@ -232,6 +255,7 @@ public:
     T    epsilon_{T{0}};
     T    v_{T{0}};
     T    e_prev_{T{0}};
+    bool first_{true};
     bool valid_{false};
 };
 

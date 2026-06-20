@@ -104,6 +104,22 @@ struct RepetitiveConfig {
         }
         return true;
     }
+
+    /// Convert the configuration to a different scalar precision.
+    template<typename U>
+    [[nodiscard]] constexpr RepetitiveConfig<std::remove_const_t<U>, MaxQHalf> as() const {
+        using out_scalar = scalar_type_t<std::remove_const_t<U>>;
+        RepetitiveConfig<std::remove_const_t<U>, MaxQHalf> out{};
+        out.period = period;
+        out.gain = static_cast<out_scalar>(gain);
+        out.q_filter = static_cast<out_scalar>(q_filter);
+        out.lead = lead;
+        out.q_half = q_half;
+        for (size_t i = 0; i < MaxQHalf; ++i) {
+            out.q_side[i] = static_cast<out_scalar>(q_side[i]);
+        }
+        return out;
+    }
 };
 
 /**
@@ -117,18 +133,7 @@ struct RepetitiveResult {
 
     template<typename U>
     [[nodiscard]] constexpr RepetitiveResult<std::remove_const_t<U>, MaxQHalf> as() const {
-        using out_t = std::remove_const_t<U>;
-        RepetitiveResult<out_t, MaxQHalf> out{};
-        out.config.period = config.period;
-        out.config.gain = static_cast<scalar_type_t<out_t>>(config.gain);
-        out.config.q_filter = static_cast<scalar_type_t<out_t>>(config.q_filter);
-        out.config.lead = config.lead;
-        out.config.q_half = config.q_half;
-        for (size_t i = 0; i < MaxQHalf; ++i) {
-            out.config.q_side[i] = static_cast<scalar_type_t<out_t>>(config.q_side[i]);
-        }
-        out.success = success;
-        return out;
+        return RepetitiveResult<std::remove_const_t<U>, MaxQHalf>{config.template as<U>(), success};
     }
 };
 
@@ -138,6 +143,18 @@ struct RepetitiveResult {
  * Computes the period N = round(fs / f0) and validates the tuning. Returns
  * `success = false` (rather than asserting) on an invalid spec so it composes in
  * `constexpr` design code.
+ *
+ * @code
+ * auto                             d = design::synthesize_repetitive(10000.0, 50.0); // 10 kHz, 50 Hz
+ * RepetitiveController<256, double> rc(d);
+ * double                           u = base.control(r, y) + rc.step(r - y); // plug-in correction
+ * @endcode
+ *
+ * MATLAB equivalent (no single builtin — the internal model is a delay loop):
+ * @code{.m}
+ *   N = round(fs / f0);
+ *   % w(k) = q*w(k-N) + e(k);   u_rc(k) = k_rc * w(k-N+m);
+ * @endcode
  *
  * @param fs_hz Sample rate [Hz]
  * @param f0_hz Fundamental frequency to reject/track [Hz]
@@ -255,6 +272,15 @@ public:
     constexpr explicit RepetitiveController(const design::RepetitiveResult<T, MaxQHalf>& design)
         : config_(design.config), valid_(design.success && design.config.period + design.config.q_half <= MaxPeriod) {}
 
+    /// Convert across scalar precision, preserving the learned internal model.
+    template<typename U>
+    constexpr explicit RepetitiveController(const RepetitiveController<MaxPeriod, U, MaxQHalf>& other)
+        : config_(other.config_.template as<T>()), write_idx_(other.write_idx_), valid_(other.valid_) {
+        for (size_t i = 0; i < MaxPeriod; ++i) {
+            mem_[i] = static_cast<T>(other.mem_[i]);
+        }
+    }
+
     /**
      * @brief Advance one tick with the current tracking error; returns the
      *        repetitive correction u_rc to add to the base command.
@@ -264,7 +290,7 @@ public:
             return T{0};
         }
         const size_t n = config_.period;
-        const size_t m = config_.q_half;
+        const size_t mq = config_.q_half; // FIR Q half-width (distinct from the doc's phase-lead m = config_.lead)
 
         // Phase-advanced output tap w[k-N+lead].
         const size_t read_out = (write_idx_ + MaxPeriod - n + config_.lead) % MaxPeriod;
@@ -273,7 +299,7 @@ public:
         // Zero-phase FIR Q applied to the N-delayed signal:
         //   Q·w[k-N] = q_0·w[k-N] + Σ_{i=1}^{M} q_i·(w[k-N-i] + w[k-N+i]).
         T qw = static_cast<T>(config_.q_filter) * mem_[(write_idx_ + MaxPeriod - n) % MaxPeriod];
-        for (size_t i = 1; i <= m; ++i) {
+        for (size_t i = 1; i <= mq; ++i) {
             const T older = mem_[(write_idx_ + MaxPeriod - n - i) % MaxPeriod]; // w[k-N-i]
             const T newer = mem_[(write_idx_ + MaxPeriod - n + i) % MaxPeriod]; // w[k-N+i]
             qw += static_cast<T>(config_.q_side[i - 1]) * (older + newer);
@@ -285,15 +311,21 @@ public:
         return u_rc;
     }
 
+    /// Clear the learned internal model (buffer + write index); config preserved.
     constexpr void reset() {
         mem_ = {};
         write_idx_ = 0;
     }
 
+    /// The active configuration (period, gain, Q taps, phase lead).
     [[nodiscard]] constexpr const auto& config() const { return config_; }
-    [[nodiscard]] constexpr bool        valid() const { return valid_; }
+    /// True if the design is valid and fit the buffer (period + q_half ≤ MaxPeriod).
+    [[nodiscard]] constexpr bool valid() const { return valid_; }
 
 private:
+    template<size_t, typename, size_t>
+    friend class RepetitiveController; // cross-precision converting ctor
+
     design::RepetitiveConfig<T, MaxQHalf> config_{};
     wet::array<T, MaxPeriod>              mem_{};
     size_t                                write_idx_{0};

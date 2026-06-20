@@ -135,6 +135,28 @@ TEST_SUITE("repetitive") {
         static_assert(ok, "repetitive controller must work at compile time");
         CHECK(ok);
     }
+
+    TEST_CASE("cross-precision converting ctor preserves the learned model") {
+        const auto                       d = design::synthesize_repetitive(1000.0, 50.0, 1.0, 0.99, 1);
+        RepetitiveController<64, double> rc(d);
+
+        // Learn from a periodic error for several periods.
+        for (size_t k = 0; k < 100; ++k) {
+            (void)rc.step(std::sin(2.0 * pi * static_cast<double>(k) / 20.0));
+        }
+
+        RepetitiveController<64, float> rf(rc); // double -> float converting ctor
+        CHECK(rf.valid() == rc.valid());
+        CHECK(rf.config().period == rc.config().period);
+        CHECK(rf.config().gain == doctest::Approx(static_cast<float>(rc.config().gain)));
+
+        // The learned buffer carried over: the next correction matches within
+        // float precision (a freshly-built rf would instead emit a stale value).
+        const double e_next = std::sin(2.0 * pi * 100.0 / 20.0);
+        const double u_d = rc.step(e_next);
+        const float  u_f = rf.step(static_cast<float>(e_next));
+        CHECK(static_cast<double>(u_f) == doctest::Approx(u_d).epsilon(1e-4));
+    }
 }
 
 // ---------------------------------------------------------------------------
