@@ -101,7 +101,9 @@ eval_output(const Output& output, const ColVec<NX, T>& x, const ColVec<NU, T>& u
 
 template<typename T>
 [[nodiscard]] constexpr T default_linearization_epsilon() {
-    return wet::sqrt(std::numeric_limits<T>::epsilon());
+    // Central differences: optimal step ~ ε^(1/3) balances the O(h²) truncation
+    // error against round-off, unlike the ε^(1/2) of one-sided differences.
+    return wet::cbrt(std::numeric_limits<T>::epsilon());
 }
 
 } // namespace detail

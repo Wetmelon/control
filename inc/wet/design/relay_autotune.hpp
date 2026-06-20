@@ -108,10 +108,6 @@ namespace design {
  */
 template<typename T = double>
 struct RelayAutotuneConfig {
-    /// Maximum supported `measure_cycles`. Lets the runtime keep a fixed
-    /// state footprint without dynamic allocation.
-    static constexpr std::size_t kMaxMeasureCycles = 32;
-
     T amplitude{T{1}};                            ///< Relay magnitude d (> 0)
     T hysteresis{T{0}};                           ///< ε around setpoint (≥ 0)
     T setpoint{T{0}};                             ///< Operating point r
@@ -129,16 +125,16 @@ struct RelayAutotuneConfig {
         if (amplitude <= T{0}) {
             return false;
         }
-        if (hysteresis < T{0}) {
+        // ε must be ≥ 0 and strictly below the relay magnitude — otherwise the
+        // relay cannot sustain a limit cycle and Kᵤ = 4d/(π√(a²−ε²)) has no
+        // valid amplitude (the Failed "amplitude ≤ hysteresis" case).
+        if (hysteresis < T{0} || hysteresis >= amplitude) {
             return false;
         }
         if (u_min >= u_max) {
             return false;
         }
         if (measure_cycles < std::size_t{2}) {
-            return false;
-        }
-        if (measure_cycles > kMaxMeasureCycles) {
             return false;
         }
         if (period_tolerance <= T{0}) {

@@ -58,6 +58,13 @@ struct LQGRuntimeBundle {
         controller.predict(u);
         return u;
     }
+
+    /**
+     * @brief Clear the estimator state estimate (covariance stays steady-state)
+     */
+    constexpr void reset() {
+        controller.kf.set_state(ColVec<NX, T>{});
+    }
 };
 
 /**
@@ -93,6 +100,14 @@ struct LQGPRRuntimeBundle {
 
         lqg.predict(u);
         return u;
+    }
+
+    /**
+     * @brief Clear the estimator state estimate and the PR internal model
+     */
+    constexpr void reset() {
+        lqg.kf.set_state(ColVec<NX, T>{});
+        pr.reset();
     }
 };
 

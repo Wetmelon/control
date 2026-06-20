@@ -66,39 +66,8 @@ constexpr bool is_stabilizable(
                 }
             }
 
-            // Check rank via Gaussian elimination with partial pivoting
-            size_t                       rank = 0;
-            Matrix<NX, NX + NU, Complex> work = test_mat;
-            for (size_t col = 0; col < NX + NU && rank < NX; ++col) {
-                size_t pivot = rank;
-                T      max_val = work(rank, col).abs();
-                for (size_t r = rank + 1; r < NX; ++r) {
-                    T val = work(r, col).abs();
-                    if (val > max_val) {
-                        max_val = val;
-                        pivot = r;
-                    }
-                }
-                if (max_val < tol) {
-                    continue;
-                }
-                if (pivot != rank) {
-                    for (size_t j = 0; j < NX + NU; ++j) {
-                        auto tmp = work(rank, j);
-                        work(rank, j) = work(pivot, j);
-                        work(pivot, j) = tmp;
-                    }
-                }
-                for (size_t r = rank + 1; r < NX; ++r) {
-                    auto factor = work(r, col) / work(rank, col);
-                    for (size_t j = col; j < NX + NU; ++j) {
-                        work(r, j) = work(r, j) - factor * work(rank, j);
-                    }
-                }
-                ++rank;
-            }
-
-            if (rank < NX) {
+            // Uncontrollable unstable mode ⇒ not stabilizable.
+            if (mat::rank(test_mat, tol) < NX) {
                 return false;
             }
         }
@@ -138,37 +107,8 @@ constexpr bool is_stabilizable(
                 }
             }
 
-            // Rank check via Gaussian elimination
-            size_t                 rank = 0;
-            Matrix<NX, NX + NU, T> work = test_mat;
-            for (size_t col = 0; col < NX + NU && rank < NX; ++col) {
-                size_t pivot = rank;
-                T      max_val = wet::abs(work(rank, col));
-                for (size_t r = rank + 1; r < NX; ++r) {
-                    T val = wet::abs(work(r, col));
-                    if (val > max_val) {
-                        max_val = val;
-                        pivot = r;
-                    }
-                }
-                if (max_val < tol) {
-                    continue;
-                }
-                if (pivot != rank) {
-                    for (size_t j = 0; j < NX + NU; ++j) {
-                        wet::swap(work(rank, j), work(pivot, j));
-                    }
-                }
-                for (size_t r = rank + 1; r < NX; ++r) {
-                    T factor = work(r, col) / work(rank, col);
-                    for (size_t j = col; j < NX + NU; ++j) {
-                        work(r, j) -= factor * work(rank, j);
-                    }
-                }
-                ++rank;
-            }
-
-            if (rank < NX) {
+            // Uncontrollable unstable mode ⇒ not stabilizable.
+            if (mat::rank(test_mat, tol) < NX) {
                 return false;
             }
         }
@@ -501,8 +441,10 @@ constexpr wet::optional<Matrix<NX, NX, T>> care_sign(
         return wet::nullopt;
     }
 
-    //! Partition sign(H) and solve [W₁₂; W₂₂+I] X = −[W₁₁+I; W₂₁] via normal
-    //! equations: (W₁₂ᵀW₁₂ + (W₂₂+I)ᵀ(W₂₂+I)) X = −(W₁₂ᵀ(W₁₁+I) + (W₂₂+I)ᵀW₂₁).
+    //! Partition sign(H) and solve the consistent, overdetermined stacked system
+    //! [W₁₂; W₂₂+I] X = −[W₁₁+I; W₂₁] in least squares — via a Householder QR of
+    //! the stacked matrix rather than the normal equations, which would square
+    //! its condition number for near-singular Hamiltonians.
     Matrix<NX, NX, T> W11{};
     Matrix<NX, NX, T> W12{};
     Matrix<NX, NX, T> W21{};
@@ -519,10 +461,32 @@ constexpr wet::optional<Matrix<NX, NX, T>> care_sign(
     const Matrix<NX, NX, T> W22pI = W22 + id;
     const Matrix<NX, NX, T> W11pI = W11 + id;
 
-    const Matrix<NX, NX, T> lhs = W12.t() * W12 + W22pI.t() * W22pI;
-    const Matrix<NX, NX, T> rhs = (W12.t() * W11pI + W22pI.t() * W21) * T{-1};
+    //! Stack A_s = [W₁₂; W₂₂+I] and b_s = −[W₁₁+I; W₂₁], both M×NX (M = 2·NX).
+    Matrix<M, NX, T> A_s{};
+    Matrix<M, NX, T> b_s{};
+    for (size_t i = 0; i < NX; ++i) {
+        for (size_t j = 0; j < NX; ++j) {
+            A_s(i, j) = W12(i, j);
+            A_s(NX + i, j) = W22pI(i, j);
+            b_s(i, j) = -W11pI(i, j);
+            b_s(NX + i, j) = -W21(i, j);
+        }
+    }
 
-    const auto X_opt = mat::lu_solve(lhs, rhs);
+    //! A_s = Q·R (Householder). The least-squares solution solves the leading
+    //! upper-triangular block R₁ X = (Qᵀ b_s)₁ from the first NX rows.
+    const auto             qr = mat::full_qr(A_s);
+    const Matrix<M, NX, T> Qtb = qr.Q.t() * b_s;
+    Matrix<NX, NX, T>      R1{};
+    Matrix<NX, NX, T>      c1{};
+    for (size_t i = 0; i < NX; ++i) {
+        for (size_t j = 0; j < NX; ++j) {
+            R1(i, j) = qr.R(i, j);
+            c1(i, j) = Qtb(i, j);
+        }
+    }
+
+    const auto X_opt = mat::solve(R1, c1);
     if (!X_opt) {
         return wet::nullopt;
     }

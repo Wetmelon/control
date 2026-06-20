@@ -27,8 +27,10 @@
  */
 
 #include <cstddef>
+#include <limits>
 
 #include "wet/backend.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 
@@ -121,7 +123,7 @@ template<size_t NX, size_t NU, typename T = double>
         // complement of the others (trailing column of their full-Q); the new
         // x_j is q⊥ projected onto S_j and normalized.
         constexpr size_t max_sweeps = 40;
-        constexpr T      tol = T{1e-14};
+        const T          tol = T{64} * std::numeric_limits<T>::epsilon();
         for (size_t sweep = 0; sweep < max_sweeps; ++sweep) {
             T max_change = T{0};
             for (size_t j = 0; j < NX; ++j) {
@@ -437,18 +439,8 @@ template<size_t NX, typename T = double>
     const Matrix<NX, 1, T>&                B,
     const wet::array<wet::complex<T>, NX>& poles
 ) {
-    // Controllability matrix Co = [B, AB, …, A^{NX-1}B].
-    Matrix<NX, NX, T> Co;
-    Matrix<NX, 1, T>  AB = B;
-    for (size_t r = 0; r < NX; ++r) {
-        Co(r, 0) = AB(r, 0);
-    }
-    for (size_t i = 1; i < NX; ++i) {
-        AB = A * AB;
-        for (size_t r = 0; r < NX; ++r) {
-            Co(r, i) = AB(r, 0);
-        }
-    }
+    // Controllability matrix Co = [B, AB, …, A^{NX-1}B] (NU = 1 ⇒ NX×NX).
+    const Matrix<NX, NX, T> Co = stability::controllability_matrix(A, B);
 
     // Desired characteristic polynomial φ(s) = Π(s − pᵢ), built in complex so
     // conjugate pairs cancel to real coefficients.

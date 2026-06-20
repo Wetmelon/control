@@ -63,10 +63,9 @@ TEST_SUITE("Relay Autotune Design") {
         static_assert(!cfg.valid());
     }
 
-    TEST_CASE("config validation rejects measure_cycles > kMaxMeasureCycles") {
-        constexpr design::RelayAutotuneConfig<double> cfg{
-            .measure_cycles = design::RelayAutotuneConfig<double>::kMaxMeasureCycles + 1
-        };
+    TEST_CASE("config validation rejects hysteresis >= amplitude") {
+        // ε ≥ d cannot sustain a limit cycle (Kᵤ = 4d/(π√(a²−ε²)) ill-defined).
+        constexpr design::RelayAutotuneConfig<double> cfg{.amplitude = 1.0, .hysteresis = 1.0};
         static_assert(!cfg.valid());
     }
 

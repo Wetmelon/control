@@ -63,7 +63,6 @@
 #include "wet/trajectory/trapezoidal.hpp"    // IWYU pragma: export
 
 // --- Controller design tools ------------------------------------------------
-#include "wet/design/pid_autotune.hpp"   // IWYU pragma: keep
 #include "wet/design/pid_design.hpp"     // IWYU pragma: keep
 #include "wet/design/pole_placement.hpp" // IWYU pragma: keep
 #include "wet/design/relay_autotune.hpp" // IWYU pragma: keep

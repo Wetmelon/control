@@ -194,52 +194,51 @@ template<typename T, size_t N>
 }
 
 /**
- * @brief Matrix rank using Gaussian elimination
- * @tparam T Element type
- * @tparam N Matrix dimension
- * @param A Square matrix
+ * @brief Matrix rank via Gaussian elimination with partial pivoting
+ *
+ * Works for rectangular and square matrices, real or complex scalars (the
+ * pivot magnitude uses wet::abs, which is defined for both). Single source for
+ * the structural rank tests in stability.hpp and riccati.hpp.
+ *
+ * @tparam R   Rows
+ * @tparam C   Columns
+ * @tparam T   Element type (float/double or wet::complex thereof)
+ * @param M    Input matrix
+ * @param tol  Magnitude below which a pivot is treated as zero
  * @return Rank of the matrix (number of linearly independent rows/columns)
  */
-template<typename T, size_t N>
-[[nodiscard]] constexpr size_t rank(const Matrix<N, N, T>& A) {
-    // Create a copy for Gaussian elimination
-    Matrix<N, N, T> temp = A;
-    size_t          rank = 0;
-    constexpr T     epsilon = default_tol<T>();
-
-    for (size_t col = 0; col < N; ++col) {
-        // Find pivot row
-        size_t pivot_row = rank;
-        for (size_t row = rank; row < N; ++row) {
-            if (wet::abs(temp(row, col)) > wet::abs(temp(pivot_row, col))) {
-                pivot_row = row;
+template<size_t R, size_t C, typename T>
+[[nodiscard]] constexpr size_t rank(const Matrix<R, C, T>& M, scalar_type_t<T> tol = default_tol<T>()) {
+    Matrix<R, C, T> work = M;
+    size_t          r = 0;
+    for (size_t col = 0; col < C && r < R; ++col) {
+        // Find the largest-magnitude pivot in this column at or below row r.
+        size_t pivot = r;
+        auto   max_val = wet::abs(work(r, col));
+        for (size_t i = r + 1; i < R; ++i) {
+            const auto val = wet::abs(work(i, col));
+            if (val > max_val) {
+                max_val = val;
+                pivot = i;
             }
         }
-
-        // If pivot is zero, skip this column
-        if (wet::abs(temp(pivot_row, col)) < epsilon) {
-            continue;
+        if (max_val < tol) {
+            continue; // column is dependent on the ones already pivoted
         }
-
-        // Swap rows if needed
-        if (pivot_row != rank) {
-            for (size_t j = 0; j < N; ++j) {
-                wet::swap(temp(rank, j), temp(pivot_row, j));
+        if (pivot != r) {
+            for (size_t j = 0; j < C; ++j) {
+                wet::swap(work(r, j), work(pivot, j));
             }
         }
-
-        // Eliminate below
-        for (size_t row = rank + 1; row < N; ++row) {
-            T factor = temp(row, col) / temp(rank, col);
-            for (size_t j = col; j < N; ++j) {
-                temp(row, j) -= factor * temp(rank, j);
+        for (size_t i = r + 1; i < R; ++i) {
+            const T factor = work(i, col) / work(r, col);
+            for (size_t j = col; j < C; ++j) {
+                work(i, j) -= factor * work(r, j);
             }
         }
-
-        ++rank;
+        ++r;
     }
-
-    return rank;
+    return r;
 }
 
 /**

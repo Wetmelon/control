@@ -8,6 +8,12 @@
  * step response characteristics, or desired closed-loop bandwidth) to compute
  * PID gains. All functions return PIDResult structs compatible with PIDController.
  *
+ * @note These are unchecked closed-form formulas (PIDResult carries no success
+ *       flag). The model parameters must be physical: static gain K ≠ 0, time
+ *       constant tau > 0, dead time L > 0, and Ts > 0 for the discrete
+ *       pole-placement rules. Degenerate inputs (e.g. K = 0 ⇒ b = K(1−a) = 0,
+ *       or Ts → 0 ⇒ a → 1) divide by zero and yield inf/nan gains.
+ *
  * Includes:
  * - Ziegler-Nichols (ultimate gain method and step response method)
  * - Cohen-Coon (first-order plus dead-time models)

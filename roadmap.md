@@ -233,6 +233,28 @@ dead zone → `expo` → scale), `deadband`/`scaled_deadband`/`expo`, and
 - **Elevon / aileron (flight, low priority):** combine pitch+roll into two control surfaces.
 - Acceptance (per piece): straight-line command yields equal wheel outputs; a saturating combined command preserves the turn/throttle *ratio* after normalization (no clip distortion); zero input → zero output; mecanum recovers pure translation/rotation on the cardinal inputs.
 
+### ☐ Worked examples for every library feature (#27)
+
+Every shipped feature needs one clear, runnable usage example — the "how do I actually
+call this" that turns the inventory into something a new user can adopt. Examples double
+as living documentation and as exercise of the public API surface.
+
+- **Two acceptable forms.** (1) A standalone program in `examples/` (`example_*.cpp`) for
+  end-to-end / multi-block workflows. (2) An *example-grade* unit test in `tests/test_*.cpp`
+  — named and commented so a reader learns the API from it. The bar: a commented
+  build→design→run sequence counts; a bare `CHECK(gain == Approx(...))` assertion dump does not.
+- **Coverage target:** every public `design::` factory and every runtime
+  controller/filter/estimator/kinematics type has at least one worked example (standalone or
+  example-grade test). Track the gap as a feature→example checklist against the README inventory.
+- **Header `@code` blocks must not rot:** wire each Doxygen `@code` snippet into the
+  build/test (compiled-snippet harness or extraction into example-grade tests) so a
+  signature change that breaks an example fails the build.
+- Relates to the documentation standard (Doxygen + math + MATLAB equivalent + reference +
+  worked example) already applied per-header; this item makes that example coverage
+  *complete and enforced* rather than per-review.
+- Acceptance: a feature→example inventory with no gaps; every header `@code` block compiles
+  in CI; `make` builds all of `examples/`.
+
 Tracked in [decisions.md](decisions.md): O1 (ESC perturbation policy for MPPT, #8),
 O2 (anti-chatter update strategy, #9), O3 (error-reporting under the ETL backend, #21),
 O4 (promote `geometry.hpp` out of `utility/`, #22).

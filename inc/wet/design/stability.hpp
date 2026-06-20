@@ -6,6 +6,14 @@
  *
  * For continuous systems: stable if all eigenvalues have Re(λ) < 0 (left half plane)
  * For discrete systems: stable if all eigenvalues have |λ| < 1 (inside unit circle)
+ *
+ * @note The eigenvalue-based routines (is_stable_discrete, stability_margin_*,
+ *       closed_loop_poles) are capped at N ≤ 4. They use the closed-form
+ *       mat::compute_eigenvalues, which returns fully-resolved complex
+ *       eigenvalues. The N > 4 QR path (mat::compute_eigenvalues_qr, used by
+ *       riccati.hpp) only yields the real Schur diagonal — it does not resolve
+ *       complex conjugate pairs, so it cannot report pole locations or |λ|
+ *       accurately. Lift the cap only once a full eigen-solver exists.
  */
 #include <cstddef>
 
@@ -89,41 +97,7 @@ observability_matrix(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noe
  */
 template<size_t R, size_t C, typename T>
 [[nodiscard]] constexpr size_t rank(const Matrix<R, C, T>& M, T tol = T{1e-10}) noexcept {
-    // Work on a copy
-    Matrix<R, C, T> work = M;
-    size_t          r = 0;
-    for (size_t col = 0; col < C && r < R; ++col) {
-        // Find pivot
-        size_t pivot = r;
-        T      max_val = wet::abs(work(r, col));
-        for (size_t i = r + 1; i < R; ++i) {
-            T val = wet::abs(work(i, col));
-            if (val > max_val) {
-                max_val = val;
-                pivot = i;
-            }
-        }
-        if (max_val < tol) {
-            continue;
-        }
-        // Swap rows
-        if (pivot != r) {
-            for (size_t j = 0; j < C; ++j) {
-                T tmp = work(r, j);
-                work(r, j) = work(pivot, j);
-                work(pivot, j) = tmp;
-            }
-        }
-        // Eliminate below
-        for (size_t i = r + 1; i < R; ++i) {
-            T factor = work(i, col) / work(r, col);
-            for (size_t j = col; j < C; ++j) {
-                work(i, j) -= factor * work(r, j);
-            }
-        }
-        ++r;
-    }
-    return r;
+    return mat::rank(M, tol);
 }
 
 /**
@@ -230,7 +204,7 @@ template<size_t N, typename T = double>
     static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
-        return T{1}; // Return unstable indicator
+        return T{-1}; // Negative margin signals "not provably stable"
     }
 
     T max_real = eigen.values[0].real();
@@ -265,9 +239,7 @@ template<size_t N, typename T = double>
 
     T max_mag = T{0};
     for (size_t i = 0; i < N; ++i) {
-        T magnitude = wet::sqrt(
-            eigen.values[i].real() * eigen.values[i].real() + eigen.values[i].imag() * eigen.values[i].imag()
-        );
+        const T magnitude = eigen.values[i].abs();
         if (magnitude > max_mag) {
             max_mag = magnitude;
         }
