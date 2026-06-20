@@ -28,6 +28,51 @@ struct LQGIResult {
             success
         };
     }
+
+    /**
+     * @brief Convert the LQGI compensator to a discrete state-space block
+     *
+     * Realizes the dynamic compensator mapping the exogenous inputs [r; y] to the
+     * control u, with internal state [x̂; xi] (estimator state stacked on the
+     * integral-of-error state). Lets the closed loop drop into Bode/`feedback`/
+     * `series` analysis. The prediction-form estimator uses the steady-state
+     * Kalman gain L; the integrator advances xi[k+1] = xi[k] + (r − y).
+     *
+     * Partition K = [Kx | Ki]. With Bl = B − L·D:
+     * @f[
+     *   A_c = \begin{bmatrix} A - LC - B_l K_x & -B_l K_i \\ 0 & I \end{bmatrix},\;
+     *   B_c = \begin{bmatrix} 0 & L \\ I & -I \end{bmatrix},\;
+     *   C_c = [-K_x\; -K_i],\; D_c = 0.
+     * @f]
+     *
+     * @return StateSpace with NX+NY states, 2·NY inputs ([r; y]), NU outputs (u)
+     */
+    [[nodiscard]] constexpr StateSpace<NX + NY, 2 * NY, NU, 0, 0, T> to_ss() const {
+        const auto& A = kalman.sys.A;
+        const auto& B = kalman.sys.B;
+        const auto& C = kalman.sys.C;
+        const auto& D = kalman.sys.D;
+        const auto& L = kalman.L;
+
+        const Matrix<NU, NX, T> Kx = lqi.K.template block<NU, NX>(0, 0);
+        const Matrix<NU, NY, T> Ki = lqi.K.template block<NU, NY>(0, NX);
+        const Matrix<NX, NU, T> Bl = B - L * D;
+
+        StateSpace<NX + NY, 2 * NY, NU, 0, 0, T> ss{};
+        ss.A.template block<NX, NX>(0, 0) = A - L * C - Bl * Kx;
+        ss.A.template block<NX, NY>(0, NX) = -(Bl * Ki);
+        ss.A.template block<NY, NY>(NX, NX) = Matrix<NY, NY, T>::identity();
+
+        ss.B.template block<NX, NY>(0, NY) = L;                               // y → x̂
+        ss.B.template block<NY, NY>(NX, 0) = Matrix<NY, NY, T>::identity();   // r → xi
+        ss.B.template block<NY, NY>(NX, NY) = -Matrix<NY, NY, T>::identity(); // y → xi
+
+        ss.C.template block<NU, NX>(0, 0) = -Kx;
+        ss.C.template block<NU, NY>(0, NX) = -Ki;
+
+        ss.Ts = kalman.sys.Ts;
+        return ss;
+    }
 };
 
 /**
@@ -97,9 +142,27 @@ struct LQGI {
      *              the integral-of-tracking-error state (size NX + NY).
      * @return Control input u = −K·x_aug
      */
-    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX + NY, T>& x_aug) {
+    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX + NY, T>& x_aug) const {
         return lqi.control(x_aug);
     }
+
+    /**
+     * @brief Compute control using the estimate and the controller's own integrator
+     *
+     * Pulls the plant estimate from the Kalman filter and the integral state from
+     * the embedded LQI, so the caller only supplies the reference and measurement:
+     * u = -[Kx Ki]·[x̂; xi], then xi advances by (r − y).
+     *
+     * @param r Output reference
+     * @param y Measured output
+     * @return Control input u
+     */
+    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NY, T>& r, const ColVec<NY, T>& y) {
+        return lqi.control(kf.state(), r, y);
+    }
+
+    /// Clear the integral state (the Kalman estimate is left untouched).
+    constexpr void reset() { lqi.reset(); }
 };
 
 } // namespace wet

@@ -32,6 +32,36 @@ struct LQGResult {
             success
         };
     }
+
+    /**
+     * @brief Convert the LQG regulator to a discrete state-space block
+     *
+     * Realizes the dynamic output-feedback compensator mapping measurement y to
+     * control u, with estimator state x̂. Lets the regulator drop into Bode/
+     * `feedback`/`series` analysis. Prediction-form estimator with the
+     * steady-state Kalman gain L and feedback u = −K·x̂:
+     * @f[
+     *   A_c = A - BK - LC + LDK,\quad B_c = L,\quad C_c = -K,\quad D_c = 0.
+     * @f]
+     *
+     * @return StateSpace with NX states, NY inputs (y), NU outputs (u)
+     */
+    [[nodiscard]] constexpr StateSpace<NX, NY, NU, 0, 0, T> to_ss() const {
+        const auto& A = kalman.sys.A;
+        const auto& B = kalman.sys.B;
+        const auto& C = kalman.sys.C;
+        const auto& D = kalman.sys.D;
+        const auto& L = kalman.L;
+        const auto& K = lqr.K;
+
+        return StateSpace<NX, NY, NU, 0, 0, T>{
+            .A = A - (B * K) - (L * C) + (L * D * K),
+            .B = L,
+            .C = -K,
+            .D = Matrix<NU, NY, T>{},
+            .Ts = kalman.sys.Ts,
+        };
+    }
 };
 
 /**

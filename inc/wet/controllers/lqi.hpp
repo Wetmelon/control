@@ -110,29 +110,53 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
  */
 template<size_t NX, size_t NU, size_t NY, typename T = double>
 struct LQI {
-private:
-    Matrix<NU, NX + NY, T> K{};
+    Matrix<NU, NX + NY, T> K{};  ///< Optimal gain: u = -K*[x; xi]
+    ColVec<NY, T>          xi{}; ///< Integral of tracking error, owned by the controller
 
-public:
     constexpr LQI() = default;
     constexpr LQI(const Matrix<NU, NX + NY, T>& K_) : K(K_) {} // NOLINT
 
     constexpr LQI(const design::LQIResult<NX, NU, NY, T>& result) : K(result.K) {} // NOLINT
 
     template<typename U>
-    constexpr LQI(const LQI<NX, NU, NY, U>& other) : K(other.getK()) {} // NOLINT
+    constexpr LQI(const LQI<NX, NU, NY, U>& other) : K(other.K.template as<T>()), xi(other.xi.template as<T>()) {} // NOLINT
 
     /**
-     * @brief Compute control with integral action
+     * @brief Compute control from a caller-supplied augmented state
      *
-     * Computes u = -K * x_aug where x_aug = [x; xi]
+     * Computes u = -K * x_aug where x_aug = [x; xi]. Use this when you maintain
+     * the integral state yourself; it does not touch the internal integrator.
      *
      * @param x_aug Augmented state vector [x; xi]
      * @return Control input vector u
      */
-    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX + NY, T>& x_aug) {
+    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX + NY, T>& x_aug) const {
         return ColVec<NU, T>(-K * x_aug);
     }
+
+    /**
+     * @brief Compute control with the controller's own integral action
+     *
+     * Uses the internal integrator state: u = -[Kx Ki]·[x; xi] with the current
+     * xi, then advances xi[k+1] = xi[k] + (r - y) (matching the −C augmentation
+     * sign convention). Gives zero steady-state error to constant references
+     * without the caller tracking the integral.
+     *
+     * @param x Current (estimated or measured) plant state
+     * @param r Output reference
+     * @param y Measured output
+     * @return Control input vector u
+     */
+    [[nodiscard]] constexpr ColVec<NU, T> control(const ColVec<NX, T>& x, const ColVec<NY, T>& r, const ColVec<NY, T>& y) {
+        const auto    Kx = K.template block<NU, NX>(0, 0);
+        const auto    Ki = K.template block<NU, NY>(0, NX);
+        ColVec<NU, T> u = ColVec<NU, T>(-(Kx * x + Ki * xi));
+        xi = ColVec<NY, T>(xi + (r - y));
+        return u;
+    }
+
+    /// Clear the integral state.
+    constexpr void reset() { xi = ColVec<NY, T>{}; }
 
     [[nodiscard]] constexpr const Matrix<NU, NX + NY, T>& getK() const { return K; }
 };

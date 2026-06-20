@@ -104,4 +104,31 @@ TEST_SUITE("LQG") {
         CHECK(combined.lqr.K(0, 0) == lqr.K(0, 0));
         CHECK(combined.kalman.L(0, 0) == kf.L(0, 0));
     }
+
+    TEST_CASE("LQGResult::to_ss regulator state-space stabilizes the plant") {
+        // Validates the prediction-form realization (steady-state L) by closing the
+        // loop: y -> compensator -> u -> plant. A correct realization regulates the
+        // plant to zero from a displaced start.
+        const auto sys = make_plant();
+        const auto result = design::discrete_lqg(
+            sys, Matrix<2, 2>::identity(), Matrix<1, 1>{{0.1}},
+            Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}}
+        );
+        REQUIRE(result.success);
+
+        const auto ss = result.to_ss();            // StateSpace<2,1,1>: in y, out u, state x̂
+        CHECK(ss.D(0, 0) == doctest::Approx(0.0)); // strictly proper compensator
+        CHECK(ss.Ts == doctest::Approx(sys.Ts));
+
+        ColVec<2> xc{{0.0}, {0.0}}; // compensator (estimator) state
+        ColVec<2> xp{{1.0}, {0.0}}; // true plant, displaced
+        for (int k = 0; k < 200; ++k) {
+            const ColVec<1> y{{xp[0]}};
+            const ColVec<1> u = ColVec<1>(ss.C * xc + ss.D * y);
+            xp = sys.A * xp + sys.B * u;
+            xc = ColVec<2>(ss.A * xc + ss.B * y);
+        }
+        CHECK(xp[0] == doctest::Approx(0.0).epsilon(0.02));
+        CHECK(xp[1] == doctest::Approx(0.0).epsilon(0.02));
+    }
 }

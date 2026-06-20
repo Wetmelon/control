@@ -88,6 +88,49 @@ TEST_SUITE("LQGI") {
         CHECK(x[0] == doctest::Approx(r).epsilon(0.02)); // output reaches the reference
     }
 
+    TEST_CASE("runtime LQGI tracks via the controller's own integrator (control(r, y))") {
+        const auto sys = make_plant();
+        const auto result = design::discrete_lqgi(sys, make_Q_aug(), Matrix<1, 1>{{0.1}}, Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}});
+        REQUIRE(result.success);
+
+        LQGI<2, 1, 1, 2, 1> controller{result};
+        const ColVec<1>     r{{1.0}};
+        ColVec<2>           x{{0.0}, {0.0}};
+        for (int k = 0; k < 600; ++k) {
+            const ColVec<1> y{{x[0]}};
+            controller.update(y);
+            const ColVec<1> u = controller.control(r, y); // pulls x̂ and owns xi
+            x = sys.A * x + sys.B * u;
+            controller.predict(u);
+        }
+        CHECK(x[0] == doctest::Approx(r[0]).epsilon(0.02));
+
+        controller.reset();
+        CHECK(controller.lqi.xi[0] == doctest::Approx(0.0));
+    }
+
+    TEST_CASE("LQGIResult::to_ss compensator tracks a reference") {
+        // Validates the [r; y] -> u realization (steady-state L) by closing the loop.
+        const auto sys = make_plant();
+        const auto result = design::discrete_lqgi(sys, make_Q_aug(), Matrix<1, 1>{{0.1}}, Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}});
+        REQUIRE(result.success);
+
+        const auto ss = result.to_ss(); // StateSpace<3, 2, 1>: in [r;y], out u, state [x̂;xi]
+        CHECK(ss.D(0, 0) == doctest::Approx(0.0));
+        CHECK(ss.Ts == doctest::Approx(sys.Ts));
+
+        ColVec<3>    xc{{0.0}, {0.0}, {0.0}}; // [x̂; xi]
+        ColVec<2>    xp{{0.0}, {0.0}};        // plant
+        const double ref = 1.0;
+        for (int k = 0; k < 600; ++k) {
+            const ColVec<2> in{{ref}, {xp[0]}}; // [r; y]
+            const ColVec<1> u = ColVec<1>(ss.C * xc + ss.D * in);
+            xp = sys.A * xp + sys.B * u;
+            xc = ColVec<3>(ss.A * xc + ss.B * in);
+        }
+        CHECK(xp[0] == doctest::Approx(ref).epsilon(0.02));
+    }
+
     TEST_CASE("LQGIResult::as<float>() preserves the design") {
         const auto sys = make_plant();
         const auto result = design::discrete_lqgi(sys, make_Q_aug(), Matrix<1, 1>{{0.1}}, Matrix<2, 2>{{0.01, 0.0}, {0.0, 0.01}}, Matrix<1, 1>{{0.1}});
