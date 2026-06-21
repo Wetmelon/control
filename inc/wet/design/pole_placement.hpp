@@ -27,12 +27,15 @@
  */
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "wet/backend.hpp"
 #include "wet/design/stability.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/matrix/svd.hpp"
 
 namespace wet {
 
@@ -412,6 +415,559 @@ template<size_t NX, size_t NU, typename T = double>
         }
         return *K;
     }
+}
+
+/**
+ * @brief One Jordan mini-block of a desired closed-loop spectrum.
+ *
+ * A block contributes `size` consecutive eigenvalues equal to `eigenvalue`,
+ * coupled into a single Jordan chain of that order. `size == 1` is an ordinary
+ * (semisimple) eigenvalue; `size > 1` is a defective block requiring generalized
+ * eigenvectors. Complex eigenvalues must be supplied as conjugate-pair blocks of
+ * equal size (e.g. one block at σ+jω and one at σ−jω).
+ */
+template<typename T = double>
+struct JordanBlock {
+    wet::complex<T> eigenvalue; ///< The eigenvalue λ this block places.
+    size_t          size;       ///< Mini-block order pᵢₖ (chain length).
+};
+
+namespace detail {
+
+/**
+ * @brief Precomputed, K-independent data for the Klein–Moore construction.
+ *
+ * For each distinct processed eigenvalue (reals and the +imaginary member of each
+ * conjugate pair) it stores the kernel basis N and pseudoinverse M of the pencil
+ * [A − λI | B] — neither depends on the free parameter K — plus the mini-block
+ * layout. assemble_vw() then turns any K into the eigenvector/input matrices,
+ * which lets an optimizer sweep K without recomputing any SVDs.
+ */
+template<size_t NX, size_t NU, size_t NB, typename T>
+struct JordanPlan {
+    using C = wet::complex<T>;
+    static constexpr size_t NS = NX + NU;
+
+    size_t                                 ndistinct = 0; ///< Processed eigenvalues.
+    size_t                                 total_pos = 0; ///< Chain positions (used K columns).
+    wet::array<bool, NB>                   is_real{};
+    wet::array<size_t, NB>                 g{};          ///< Mini-blocks per eigenvalue.
+    wet::array<wet::array<size_t, NU>, NB> orders{};     ///< Block orders.
+    wet::array<size_t, NB>                 pos_offset{}; ///< First K column for eigenvalue.
+    wet::array<size_t, NB>                 npos{};       ///< Positions (= multiplicity).
+    wet::array<Matrix<NS, NU, C>, NB>      N{};          ///< Kernel bases.
+    wet::array<Matrix<NS, NX, C>, NB>      M{};          ///< Pseudoinverses.
+};
+
+/// Build the K-independent plan, or nullopt if the requested structure is inadmissible.
+template<size_t NX, size_t NU, size_t NB, typename T>
+[[nodiscard]] constexpr wet::optional<JordanPlan<NX, NU, NB, T>> prepare_jordan_plan(
+    const Matrix<NX, NX, T>&              A,
+    const Matrix<NX, NU, T>&              B,
+    const wet::array<JordanBlock<T>, NB>& blocks
+) {
+    using C = wet::complex<T>;
+    constexpr size_t NS = NX + NU;
+    const T          tol_eq = T{1e-7};
+
+    size_t total = 0;
+    for (size_t b = 0; b < NB; ++b) {
+        total += blocks[b].size;
+    }
+    if (total != NX) {
+        return wet::nullopt; // block sizes must place exactly NX eigenvalues
+    }
+
+    const Matrix<NX, NX, C> Ac = A.template as<C>();
+    const Matrix<NX, NU, C> Bc = B.template as<C>();
+
+    JordanPlan<NX, NU, NB, T> plan;
+    size_t                    col = 0;
+    wet::array<bool, NB>      consumed{};
+    for (size_t bi = 0; bi < NB; ++bi) {
+        if (consumed[bi]) {
+            continue;
+        }
+        const C    lam = blocks[bi].eigenvalue;
+        const bool is_real = (wet::abs(lam.imag()) <= tol_eq);
+        if (!is_real && lam.imag() < T{0}) {
+            continue; // negative-imaginary member is realified with its partner
+        }
+
+        // Count then gather this eigenvalue's mini-blocks.
+        size_t cnt = 0;
+        for (size_t bj = 0; bj < NB; ++bj) {
+            if (!consumed[bj] && wet::abs(blocks[bj].eigenvalue - lam) <= tol_eq) {
+                ++cnt;
+            }
+        }
+        if (cnt > NU) {
+            return wet::nullopt; // more chains than the kernel dimension allows
+        }
+        const size_t           e = plan.ndistinct;
+        wet::array<size_t, NU> ords{};
+        size_t                 g = 0;
+        size_t                 mult = 0;
+        for (size_t bj = 0; bj < NB; ++bj) {
+            if (!consumed[bj] && wet::abs(blocks[bj].eigenvalue - lam) <= tol_eq) {
+                ords[g] = blocks[bj].size;
+                mult += blocks[bj].size;
+                ++g;
+                consumed[bj] = true;
+            }
+        }
+        // A complex eigenvalue needs a matching conjugate of equal multiplicity.
+        if (!is_real) {
+            size_t conj_mult = 0;
+            for (size_t bj = 0; bj < NB; ++bj) {
+                if (!consumed[bj] && wet::abs(blocks[bj].eigenvalue - wet::conj(lam)) <= tol_eq) {
+                    conj_mult += blocks[bj].size;
+                    consumed[bj] = true;
+                }
+            }
+            if (conj_mult != mult) {
+                return wet::nullopt; // unmatched conjugate pair
+            }
+        }
+
+        // Pencil S = [A − λI | B]: kernel basis N (last NU columns of the null
+        // space) and pseudoinverse M; both independent of K.
+        Matrix<NX, NS, C> S;
+        for (size_t i = 0; i < NX; ++i) {
+            for (size_t c = 0; c < NX; ++c) {
+                S(i, c) = Ac(i, c) - (i == c ? lam : C{0});
+            }
+            for (size_t c = 0; c < NU; ++c) {
+                S(i, NX + c) = Bc(i, c);
+            }
+        }
+        const auto ns = mat::null_space(S);
+        if (ns.dim != NU) {
+            return wet::nullopt; // (A,B) not reachable at λ
+        }
+        Matrix<NS, NU, C> N;
+        for (size_t i = 0; i < NS; ++i) {
+            for (size_t k = 0; k < NU; ++k) {
+                N(i, k) = ns.vectors(i, NX + k);
+            }
+        }
+
+        plan.is_real[e] = is_real;
+        plan.g[e] = g;
+        plan.orders[e] = ords;
+        plan.N[e] = N;
+        plan.M[e] = mat::pseudo_inverse(S);
+        plan.pos_offset[e] = col;
+        plan.npos[e] = mult;
+        col += mult;
+        ++plan.ndistinct;
+    }
+    plan.total_pos = col;
+    if (col == 0) {
+        return wet::nullopt;
+    }
+    return plan;
+}
+
+/// Eigenvector matrix V (state parts, real) and input matrix W (input parts) for a given K.
+template<size_t NX, size_t NU, size_t NB, typename T>
+constexpr void assemble_vw(
+    const JordanPlan<NX, NU, NB, T>&       plan,
+    const Matrix<NU, NX, wet::complex<T>>& K,
+    Matrix<NX, NX, T>&                     V,
+    Matrix<NU, NX, T>&                     W
+) {
+    using C = wet::complex<T>;
+    constexpr size_t NS = NX + NU;
+    V = Matrix<NX, NX, T>::zeros();
+    W = Matrix<NU, NX, T>::zeros();
+    size_t col = 0;
+
+    for (size_t e = 0; e < plan.ndistinct; ++e) {
+        const bool        is_real = plan.is_real[e];
+        const auto&       N = plan.N[e];
+        const auto&       M = plan.M[e];
+        size_t            pcol = plan.pos_offset[e]; // K-column cursor
+        Matrix<NS, NX, C> chains{};
+        size_t            nchain = 0;
+        for (size_t k = 0; k < plan.g[e]; ++k) {
+            wet::array<C, NS> prev{};
+            for (size_t l = 0; l < plan.orders[e][k]; ++l) {
+                wet::array<C, NS> h{};
+                for (size_t i = 0; i < NS; ++i) {
+                    C acc{0};
+                    for (size_t r = 0; r < NU; ++r) {
+                        acc += N(i, r) * K(r, pcol); // N · K(l)
+                    }
+                    h[i] = acc;
+                }
+                if (l > 0) {
+                    for (size_t i = 0; i < NS; ++i) {
+                        C acc{0};
+                        for (size_t r = 0; r < NX; ++r) {
+                            acc += M(i, r) * prev[r]; // + M · overp(prev)
+                        }
+                        h[i] += acc;
+                    }
+                }
+                ++pcol;
+                if (is_real) {
+                    for (size_t i = 0; i < NX; ++i) {
+                        V(i, col) = h[i].real();
+                    }
+                    for (size_t i = 0; i < NU; ++i) {
+                        W(i, col) = h[NX + i].real();
+                    }
+                    ++col;
+                } else {
+                    for (size_t i = 0; i < NS; ++i) {
+                        chains(i, nchain) = h[i];
+                    }
+                    ++nchain;
+                }
+                prev = h;
+            }
+        }
+        if (!is_real) {
+            // Realify: real parts then imaginary parts of the chain columns.
+            for (size_t t = 0; t < nchain; ++t) {
+                for (size_t i = 0; i < NX; ++i) {
+                    V(i, col) = chains(i, t).real();
+                }
+                for (size_t i = 0; i < NU; ++i) {
+                    W(i, col) = chains(NX + i, t).real();
+                }
+                ++col;
+            }
+            for (size_t t = 0; t < nchain; ++t) {
+                for (size_t i = 0; i < NX; ++i) {
+                    V(i, col) = chains(i, t).imag();
+                }
+                for (size_t i = 0; i < NU; ++i) {
+                    W(i, col) = chains(NX + i, t).imag();
+                }
+                ++col;
+            }
+        }
+    }
+}
+
+/// The canonical (minimum-norm) parameter: chain k starts from kernel column k.
+template<size_t NX, size_t NU, size_t NB, typename T>
+[[nodiscard]] constexpr Matrix<NU, NX, wet::complex<T>> canonical_kparams(
+    const JordanPlan<NX, NU, NB, T>& plan
+) {
+    using C = wet::complex<T>;
+    Matrix<NU, NX, C> K = Matrix<NU, NX, C>::zeros();
+    for (size_t e = 0; e < plan.ndistinct; ++e) {
+        size_t pcol = plan.pos_offset[e];
+        for (size_t k = 0; k < plan.g[e]; ++k) {
+            K(k, pcol) = C{1}; // h(1) = N·e_k = kernel column k
+            pcol += plan.orders[e][k];
+        }
+    }
+    return K;
+}
+
+} // namespace detail
+
+/**
+ * @ingroup pole_placement
+ * @brief Exact pole placement with an arbitrary Jordan structure
+ *        (Schmid–Ntogramatzidis–Nguyen–Pandey / Klein–Moore parametric form).
+ *
+ * Unlike place(), which assigns a non-defective spectrum (each eigenvalue with
+ * independent eigenvectors), this assigns *any* admissible eigenstructure: any
+ * eigenvalues with any algebraic multiplicities and any Jordan mini-block
+ * orders — including fully defective blocks and closed-loop poles that coincide
+ * with open-loop ones. It computes a real gain K such that A − B·K has exactly
+ * the requested Jordan structure (same A − B·K convention as place()).
+ *
+ * The method builds each Jordan chain from the kernel and Moore–Penrose
+ * pseudoinverse of the matrix pencil S(λ) = [A − λI | B]: the chain head is a
+ * kernel vector (a closed-loop eigenvector) and each successor solves
+ * S(λ)·h = v_prev for the generalized eigenvector, which the pseudoinverse does
+ * directly since S(λ) has full row rank for a reachable (A, B). Stacking the
+ * state parts gives the eigenvector matrix V and the input parts W; the gain is
+ * K = −W·V⁻¹. Conjugate eigenpairs are realified (Re/Im columns) so K is real.
+ *
+ * This uses the canonical minimum-norm chain parameter, which places the
+ * structure exactly but does not optimize robustness or gain. For the paper's
+ * robust/minimum-gain selection of the free parameter, use place_jordan_optimal.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of inputs (NU ≤ NX)
+ * @tparam NB Number of Jordan blocks supplied
+ * @param A      State matrix (NX×NX)
+ * @param B      Input matrix (NX×NU), assumed full column rank and (A,B) reachable
+ * @param blocks Desired Jordan structure; block sizes must sum to NX, complex
+ *               eigenvalues given as equal-size conjugate pairs
+ * @return Gain K (NU×NX) with A − B·K in the requested Jordan form, or
+ *         wet::nullopt if the structure is inadmissible (block sizes do not sum
+ *         to NX, an eigenvalue is asked for more mini-blocks than NU, (A,B) is
+ *         not reachable at some λ, or the canonical parameter yields a singular
+ *         eigenvector matrix).
+ *
+ * @see R. Schmid, L. Ntogramatzidis, T. Nguyen, A. Pandey, "A unified method for
+ *      optimal arbitrary pole placement," Automatica 50(8), 2014,
+ *      https://doi.org/10.1016/j.automatica.2014.05.020
+ * @see G. Klein, B. C. Moore, "Eigenvalue-generalized eigenvector assignment
+ *      with state feedback," IEEE TAC 22(1), 1977.
+ * @see place for the non-defective (distinct/semisimple) robust path.
+ */
+template<size_t NX, size_t NU, size_t NB, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NU, NX, T>> place_jordan(
+    const Matrix<NX, NX, T>&              A,
+    const Matrix<NX, NU, T>&              B,
+    const wet::array<JordanBlock<T>, NB>& blocks
+) {
+    static_assert(NU <= NX, "place_jordan requires NU <= NX (no more inputs than states)");
+
+    const auto plan_opt = detail::prepare_jordan_plan(A, B, blocks);
+    if (!plan_opt) {
+        return wet::nullopt;
+    }
+    const auto&       plan = plan_opt.value();
+    const auto        K = detail::canonical_kparams(plan);
+    Matrix<NX, NX, T> V;
+    Matrix<NU, NX, T> W;
+    detail::assemble_vw(plan, K, V, W);
+
+    const auto Vinv = V.inverse();
+    if (!Vinv) {
+        return wet::nullopt; // canonical parameter gave dependent eigenvectors
+    }
+    // A − B·K = V·Λ·V⁻¹ ⇒ closed loop has the Jordan form, with K = −W·V⁻¹.
+    return Matrix<NU, NX, T>(T{-1} * (W * Vinv.value()));
+}
+
+/// Robustness objective for place_jordan_optimal (the paper's two methods).
+enum class JordanObjective : std::uint8_t {
+    ConditionNumber,        ///< Method 1: minimize the Frobenius condition number of V.
+    DepartureFromNormality, ///< Method 2: minimize the departure from normality of A − B·K.
+};
+
+/// Result of optimized arbitrary pole placement (place_jordan_optimal).
+template<size_t NU, size_t NX, typename T = double>
+struct OptimalJordanPlacement {
+    Matrix<NU, NX, T> gain;          ///< K, with the A − B·K convention.
+    T                 cond_fro;      ///< Achieved κ_F(V) = ‖V‖_F·‖V⁻¹‖_F (eigenvalue robustness).
+    T                 gain_fro;      ///< Achieved ‖K‖_F (control effort).
+    T                 departure_fro; ///< Achieved δ_F(A − B·K) (departure from normality).
+    size_t            iterations;    ///< Gradient-descent iterations taken.
+    bool              converged;     ///< Search reached a stationary point.
+};
+
+/**
+ * @ingroup pole_placement
+ * @brief Robust / minimum-gain arbitrary pole placement (Schmid et al., Methods 1–2).
+ *
+ * Places the same arbitrary Jordan structure as place_jordan, but spends the free
+ * parameter K of the Klein–Moore parameterization to optimize a weighted blend of
+ * eigenvalue robustness and control effort. Every K in the family places the
+ * structure *exactly* (Theorem 2.1), so the search only trades robustness against
+ * gain — the assigned poles never move.
+ *
+ * The objective is f(K) = α·R(K) + (1 − α)·‖K‖²_F, with the robustness term R
+ * selected by @p objective:
+ *  - ConditionNumber (Method 1): R = ‖V‖²_F + ‖V⁻¹‖²_F, the Byers–Nash proxy for
+ *    the Frobenius condition number κ_F(V) (the eigenvalue sensitivity).
+ *  - DepartureFromNormality (Method 2): R = δ²_F(A − B·K) = ‖A − B·K‖²_F − Σ|λᵢ|²,
+ *    a closed form since the closed-loop eigenvalues are exactly the targets.
+ *
+ * α = 1 is the pure robust problem (REPP), α = 0 the pure minimum-gain problem
+ * (MGEPP). The unconstrained nonconvex objective is minimized by gradient descent
+ * (central finite differences, Armijo backtracking) from the canonical parameter;
+ * as the paper notes, the result is a local minimum dependent on that start. The
+ * kernel/pseudoinverse factors are precomputed once, so each step is cheap.
+ *
+ * @tparam NX Number of states
+ * @tparam NU Number of inputs (NU ≤ NX)
+ * @tparam NB Number of Jordan blocks supplied
+ * @param A         State matrix (NX×NX)
+ * @param B         Input matrix (NX×NU), full column rank and (A,B) reachable
+ * @param blocks    Desired Jordan structure (see place_jordan)
+ * @param alpha     Robustness/gain weight in [0,1]; 1 = robust, 0 = minimum gain
+ * @param objective Which robustness measure to minimize (Method 1 or 2)
+ * @param max_iter  Maximum gradient-descent iterations
+ * @return OptimalJordanPlacement with the gain and achieved metrics, or
+ *         wet::nullopt if the structure is inadmissible (as in place_jordan).
+ *
+ * @see place_jordan for the unoptimized (canonical-parameter) placement.
+ * @see R. Schmid et al., "A unified method for optimal arbitrary pole placement,"
+ *      Automatica 50(8), 2014.
+ */
+template<size_t NX, size_t NU, size_t NB, typename T = double>
+[[nodiscard]] wet::optional<OptimalJordanPlacement<NU, NX, T>> place_jordan_optimal(
+    const Matrix<NX, NX, T>&              A,
+    const Matrix<NX, NU, T>&              B,
+    const wet::array<JordanBlock<T>, NB>& blocks,
+    T                                     alpha = T{1},
+    JordanObjective                       objective = JordanObjective::ConditionNumber,
+    size_t                                max_iter = 200
+) {
+    static_assert(NU <= NX, "place_jordan_optimal requires NU <= NX");
+    using C = wet::complex<T>;
+
+    const auto plan_opt = detail::prepare_jordan_plan(A, B, blocks);
+    if (!plan_opt) {
+        return wet::nullopt;
+    }
+    const auto& plan = plan_opt.value();
+
+    // Σ|λ|² over all eigenvalues, for the departure-from-normality measure.
+    T sum_lambda_sq = T{0};
+    for (size_t b = 0; b < NB; ++b) {
+        const C lam = blocks[b].eigenvalue;
+        sum_lambda_sq += static_cast<T>(blocks[b].size) * ((lam.real() * lam.real()) + (lam.imag() * lam.imag()));
+    }
+
+    // Real degrees of freedom: NU per real-eigenvalue chain position, 2·NU per
+    // complex one (the conjugate is determined). Laid out into a flat θ vector.
+    constexpr size_t MaxDof = 2 * NU * NX;
+    size_t           dof = 0;
+    for (size_t e = 0; e < plan.ndistinct; ++e) {
+        dof += plan.npos[e] * (plan.is_real[e] ? NU : (2 * NU));
+    }
+
+    const auto theta_to_k = [&](const wet::array<T, MaxDof>& th) {
+        Matrix<NU, NX, C> K = Matrix<NU, NX, C>::zeros();
+        size_t            idx = 0;
+        for (size_t e = 0; e < plan.ndistinct; ++e) {
+            size_t pcol = plan.pos_offset[e];
+            for (size_t p = 0; p < plan.npos[e]; ++p) {
+                for (size_t r = 0; r < NU; ++r) {
+                    if (plan.is_real[e]) {
+                        K(r, pcol) = C{th[idx], T{0}};
+                        idx += 1;
+                    } else {
+                        K(r, pcol) = C{th[idx], th[idx + 1]};
+                        idx += 2;
+                    }
+                }
+                ++pcol;
+            }
+        }
+        return K;
+    };
+
+    // Objective value for a θ; returns a large penalty when V is singular.
+    const T    penalty = T{1e30};
+    const auto eval = [&](const wet::array<T, MaxDof>& th) -> T {
+        Matrix<NX, NX, T> V;
+        Matrix<NU, NX, T> W;
+        detail::assemble_vw(plan, theta_to_k(th), V, W);
+        const auto Vinv = V.inverse();
+        if (!Vinv) {
+            return penalty;
+        }
+        const Matrix<NU, NX, T> F = Matrix<NU, NX, T>(W * Vinv.value()); // paper's F = −K
+        const T                 gain2 = F.norm() * F.norm();
+        if (objective == JordanObjective::ConditionNumber) {
+            const T vn = V.norm();
+            const T vin = Vinv.value().norm();
+            return (alpha * ((vn * vn) + (vin * vin))) + ((T{1} - alpha) * gain2);
+        }
+        const Matrix<NX, NX, T> M = Matrix<NX, NX, T>(A + (B * F)); // closed loop A + B·F
+        T                       dep2 = (M.norm() * M.norm()) - sum_lambda_sq;
+        if (dep2 < T{0}) {
+            dep2 = T{0};
+        }
+        return (alpha * dep2) + ((T{1} - alpha) * gain2);
+    };
+
+    // Start from the canonical parameter.
+    wet::array<T, MaxDof> theta{};
+    {
+        const auto Kc = detail::canonical_kparams(plan);
+        size_t     idx = 0;
+        for (size_t e = 0; e < plan.ndistinct; ++e) {
+            size_t pcol = plan.pos_offset[e];
+            for (size_t p = 0; p < plan.npos[e]; ++p) {
+                for (size_t r = 0; r < NU; ++r) {
+                    theta[idx] = Kc(r, pcol).real();
+                    idx += plan.is_real[e] ? 1 : 2;
+                    if (!plan.is_real[e]) {
+                        theta[idx - 1] = Kc(r, pcol).imag();
+                    }
+                }
+                ++pcol;
+            }
+        }
+    }
+
+    T f0 = eval(theta);
+    if (f0 >= penalty) {
+        return wet::nullopt; // canonical parameter already gives a singular V
+    }
+
+    // Gradient descent: central finite-difference gradient + Armijo backtracking.
+    const T h = T{1e-6};
+    const T c1 = T{1e-4};
+    const T ftol = T{1e-10}; // relative function-decrease stop
+    bool    converged = false;
+    size_t  iter = 0;
+    for (; iter < max_iter; ++iter) {
+        wet::array<T, MaxDof> grad{};
+        T                     gnorm2 = T{0};
+        for (size_t i = 0; i < dof; ++i) {
+            wet::array<T, MaxDof> tp = theta;
+            wet::array<T, MaxDof> tm = theta;
+            tp[i] += h;
+            tm[i] -= h;
+            grad[i] = (eval(tp) - eval(tm)) / (T{2} * h);
+            gnorm2 += grad[i] * grad[i];
+        }
+        if (gnorm2 == T{0}) {
+            converged = true;
+            break;
+        }
+        const T f_before = f0;
+        T       step = T{1};
+        bool    improved = false;
+        for (size_t ls = 0; ls < 40; ++ls) {
+            wet::array<T, MaxDof> tn = theta;
+            for (size_t i = 0; i < dof; ++i) {
+                tn[i] -= step * grad[i];
+            }
+            const T fn = eval(tn);
+            if (fn < (f0 - (c1 * step * gnorm2))) {
+                theta = tn;
+                f0 = fn;
+                improved = true;
+                break;
+            }
+            step *= T{0.5};
+        }
+        // Stop when the line search stalls or the relative decrease is negligible.
+        if (!improved || ((f_before - f0) <= ftol * (wet::abs(f_before) + T{1}))) {
+            converged = true;
+            break;
+        }
+    }
+
+    // Assemble the final gain and metrics.
+    Matrix<NX, NX, T> V;
+    Matrix<NU, NX, T> W;
+    detail::assemble_vw(plan, theta_to_k(theta), V, W);
+    const auto Vinv = V.inverse();
+    if (!Vinv) {
+        return wet::nullopt;
+    }
+    const Matrix<NU, NX, T> F = Matrix<NU, NX, T>(W * Vinv.value());
+    const Matrix<NX, NX, T> M = Matrix<NX, NX, T>(A + (B * F));
+    T                       dep2 = (M.norm() * M.norm()) - sum_lambda_sq;
+    if (dep2 < T{0}) {
+        dep2 = T{0};
+    }
+    OptimalJordanPlacement<NU, NX, T> result;
+    result.gain = Matrix<NU, NX, T>(T{-1} * F);
+    result.cond_fro = V.norm() * Vinv.value().norm();
+    result.gain_fro = F.norm();
+    result.departure_fro = wet::sqrt(dep2);
+    result.iterations = iter;
+    result.converged = converged;
+    return result;
 }
 
 /**

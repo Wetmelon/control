@@ -13,6 +13,7 @@
 #include "wet/design/pole_placement.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/matrix/svd.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
@@ -206,6 +207,42 @@ constexpr auto ones() noexcept {
         row.fill(T{1});
     }
     return result;
+}
+
+/**
+ * @brief MATLAB short alias for the singular value decomposition.
+ *
+ * Returns a mat::SVDResult{singular_U, singular_values, singular_V} rather than
+ * the MATLAB [U, S, V] tuple; the singular values are a descending array, not a
+ * diagonal matrix.
+ *
+ * @note Compare with MATLAB's [U, S, V] = svd(A).
+ */
+template<size_t M, size_t N, typename T>
+[[nodiscard]] constexpr auto svd(const Matrix<M, N, T>& A) {
+    return mat::svd(A);
+}
+
+/**
+ * @brief MATLAB short alias for the Moore–Penrose pseudoinverse.
+ * @note Compare with MATLAB's pinv(A).
+ */
+template<size_t M, size_t N, typename T>
+[[nodiscard]] constexpr Matrix<N, M, T> pinv(const Matrix<M, N, T>& A) {
+    return mat::pseudo_inverse(A);
+}
+
+/**
+ * @brief MATLAB short alias for an orthonormal null-space basis.
+ *
+ * Returns a mat::NullSpace whose trailing `dim` columns are the kernel basis
+ * (MATLAB's null returns those columns directly as an N×dim matrix).
+ *
+ * @note Compare with MATLAB's null(A).
+ */
+template<size_t M, size_t N, typename T>
+[[nodiscard]] constexpr mat::NullSpace<N, T> null(const Matrix<M, N, T>& A) {
+    return mat::null_space(A);
 }
 
 /**
