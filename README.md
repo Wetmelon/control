@@ -65,7 +65,7 @@ design rationale and [inc/wet/roadmap.md](inc/wet/roadmap.md) for planned work.
 - Spectral primitives — Goertzel single-bin DFT + harmonic analyzer/THD (`spectral.hpp`)
 - Robust exact (Levant super-twisting) differentiator (`differentiator.hpp`)
 - SOGI / MSTOGI and SOGI-FLL self-tuning tracker (`sogi.hpp`)
-- Single-phase PLL (`pll.hpp`) and three-phase DSOGI sequence PLL (`dsogi_pll.hpp`)
+- PLLs and sensorless PMSM flux/position estimator, incl. three-phase DSOGI sequence PLL (`pll.hpp`)
 
 ### Trajectory and motion planning (`trajectory/`)
 
@@ -172,7 +172,7 @@ inc/wet/
                    linearization, stability, synthesis
   estimation/      kalman, ekf, eskf, ukf, observer, disturbance_observer,
                    sensor_fusion, recursive_least_squares, excitation, identification
-  filters/         filters, spectral, differentiator, sogi, pll, dsogi_pll
+  filters/         filters, spectral, differentiator, sogi, pll (incl. DSOGI + sensorless)
   trajectory/      trapezoidal, scurve, polynomial, spline, input_shaper,
                    cartesian_move, topp
   kinematics/      pose, motion_maps, stewart, serial_arm, scara

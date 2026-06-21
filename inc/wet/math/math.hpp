@@ -191,7 +191,8 @@ constexpr T tan(T x) {
  * @brief Exponential function.
  *
  * Compile time: ln2 argument reduction + Taylor series, with over/underflow
- * guarded to ±inf / 0. Runtime: MathBackend<T>::exp.
+ * saturated to max() / 0 (no ±inf — the library builds under -ffinite-math-only).
+ * Runtime: MathBackend<T>::exp.
  *
  * @tparam T Numeric type (floating-point)
  */
@@ -239,7 +240,8 @@ constexpr T pow(T base, T exponent) {
  * @brief Integer power, base^up, via binary exponentiation.
  *
  * Exact and backend-independent (the same implementation at compile and run
- * time), so it is not routed through MathBackend.
+ * time), so it is not routed through MathBackend. base == 0 returns 0 for any
+ * exponent (including negative — no ±inf under -ffinite-math-only).
  *
  * @param base Base value
  * @param up   Integer exponent
@@ -287,6 +289,20 @@ constexpr T ceil(T x) {
         return detail::ceil(x);
     }
     return MathBackend<T>::ceil(x);
+}
+
+/**
+ * @brief Round to nearest integer. Runtime follows the backend (round half to
+ *        even); the compile-time path rounds ties away from zero — immaterial for
+ *        range reduction.
+ * @tparam T Numeric type (floating-point)
+ */
+template<typename T>
+constexpr T nearbyint(T x) {
+    if (std::is_constant_evaluated()) {
+        return detail::nearbyint(x);
+    }
+    return MathBackend<T>::nearbyint(x);
 }
 
 /**
@@ -363,34 +379,67 @@ constexpr bool isfinite(T x) {
     return MathBackend<T>::isfinite(x);
 }
 
+/**
+ * @brief Magnitude to decibels, 20·log10(mag).
+ * @note Compare with MATLAB's mag2db(mag).
+ * @tparam T Numeric type (floating-point)
+ */
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T mag2db(T mag) {
     return T{20} * wet::log10(mag);
 }
 
+/**
+ * @brief Decibels to magnitude, 10^(db/20).
+ * @note Compare with MATLAB's db2mag(db).
+ * @tparam T Numeric type (floating-point)
+ */
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T db2mag(T db) {
     return wet::pow(T{10}, db / T{20});
 }
 
+/**
+ * @brief Radians to degrees, rad·180/π.
+ * @note Compare with MATLAB's rad2deg(rad).
+ * @tparam T Numeric type (floating-point)
+ */
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T rad2deg(T rad) {
     return rad * (T{180} / wet::numbers::pi_v<T>);
 }
 
+/**
+ * @brief Degrees to radians, deg·π/180.
+ * @note Compare with MATLAB's deg2rad(deg).
+ * @tparam T Numeric type (floating-point)
+ */
 template<typename T = double>
     requires std::is_floating_point_v<T>
 constexpr T deg2rad(T deg) {
     return deg * (wet::numbers::pi_v<T> / T{180});
 }
 
+/**
+ * @brief Wrap @p x into the half-open interval [min, max) (period max − min).
+ *
+ * Round-to-nearest reduction about the interval midpoint: `x − range·nearbyint((x
+ * − mid)/range)`. For the common angle case `wrap(θ, −π, π)` this is the cheap
+ * phase-reduction kernel — when the bounds are compile-time constants (e.g. ±π)
+ * the inlined form folds to one multiply by a constant reciprocal plus one
+ * round-to-nearest, with no runtime divide.
+ *
+ * @tparam T Numeric type (floating-point)
+ */
 template<typename T>
     requires std::is_floating_point_v<T>
 constexpr T wrap(T x, T min, T max) {
-    return x - ((max - min) * wet::floor((x - min) / (max - min)));
+    const T range = max - min;
+    const T midpoint = min + (range / T{2});
+    return x - (range * wet::nearbyint((x - midpoint) / range));
 }
 
 } // namespace wet

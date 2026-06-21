@@ -259,11 +259,12 @@ constexpr T tan(T x) {
 }
 
 /// exp via ln2 argument reduction (exp(x) = 2^k · exp(r), |r| ≤ ln2/2) and a
-/// Taylor series on the remainder. Guards over/underflow to ±inf / 0.
+/// Taylor series on the remainder. Saturates over/underflow to max() / 0 (the
+/// library builds under -ffinite-math-only, so ±inf must never be produced).
 template<typename T>
 constexpr T exp(T x) {
     if (x > T{709.782712893384}) {
-        return std::numeric_limits<T>::infinity();
+        return std::numeric_limits<T>::max();
     }
     if (x < T{-745.133219101941}) {
         return T{0};
@@ -364,6 +365,13 @@ constexpr T ceil(T x) {
         int_part += T{1};
     }
     return int_part;
+}
+
+/// Round to nearest integer (ties away from zero). Differs from std::nearbyint
+/// only in tie-breaking, which is immaterial for angle range reduction.
+template<typename T>
+constexpr T nearbyint(T x) {
+    return x >= T{0} ? floor(x + T{0.5}) : ceil(x - T{0.5});
 }
 
 /// Floating-point remainder core (truncated-quotient convention), assumes

@@ -52,9 +52,12 @@ struct MathBackend;
 // Default: the std:: (<cmath>) backend — StdMathFallback unmodified.
 #include "std_fallback.hpp" // IWYU pragma: keep
 namespace wet {
+
 template<>
 struct MathBackend<float> : StdMathFallback<float> {};
+
 template<>
 struct MathBackend<double> : StdMathFallback<double> {};
+
 } // namespace wet
 #endif

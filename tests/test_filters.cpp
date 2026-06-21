@@ -172,3 +172,47 @@ TEST_CASE("LowPass general") {
 
     LowPass<1, float> lpf(tf1, 0.001f);
 }
+
+TEST_SUITE("Coeff <-> StateSpace conversion") {
+    TEST_CASE("First-order coeffs round-trip through a discrete state space") {
+        const design::FirstOrderCoeffs<double> c{0.3, 0.2, -0.5};
+        const auto                             sys = c.to_state_space(0.001);
+        CHECK(sys.is_discrete());
+
+        const auto c2 = design::to_coeffs(sys); // sys already discrete: no re-discretization
+        CHECK(c2.b0 == doctest::Approx(c.b0));
+        CHECK(c2.b1 == doctest::Approx(c.b1));
+        CHECK(c2.a1 == doctest::Approx(c.a1));
+    }
+
+    TEST_CASE("Second-order coeffs round-trip with D != 0") {
+        // notch has b0 != 0, so the D-dependent numerator terms (b1's −D·trace and
+        // the full b2) must be correct — the case the old to_coeffs got wrong.
+        const auto c = design::notch<double>(50.0, 5.0, 1.0 / 1000.0);
+        REQUIRE(c.b0 != doctest::Approx(0.0));
+
+        const auto sys = c.to_state_space(0.001);
+        const auto c2 = design::to_coeffs(sys);
+        CHECK(c2.b0 == doctest::Approx(c.b0));
+        CHECK(c2.b1 == doctest::Approx(c.b1));
+        CHECK(c2.b2 == doctest::Approx(c.b2));
+        CHECK(c2.a1 == doctest::Approx(c.a1));
+        CHECK(c2.a2 == doctest::Approx(c.a2));
+    }
+
+    TEST_CASE("Biquad coeffs and their state-space realization share an impulse response") {
+        const double   Ts = 1.0 / 2000.0;
+        const auto     c = design::peaking<double>(100.0, 2.0, 6.0, Ts); // D != 0
+        Biquad<double> bq{c};
+        const auto     sys = c.to_state_space(Ts);
+
+        ColVec<2, double> x{};
+        for (int k = 0; k < 32; ++k) {
+            const double u = (k == 0) ? 1.0 : 0.0; // impulse
+            const double y_bq = bq(u);
+            const double y_ss = (sys.C * x)(0, 0) + (sys.D(0, 0) * u);
+            x = (sys.A * x) + (sys.B * u);
+            CHECK(y_ss == doctest::Approx(y_bq).epsilon(1e-9));
+        }
+    }
+}

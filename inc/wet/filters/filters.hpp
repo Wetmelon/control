@@ -26,6 +26,23 @@ struct FirstOrderCoeffs {
     [[nodiscard]] constexpr FirstOrderCoeffs<U> as() const {
         return {static_cast<U>(b0), static_cast<U>(b1), static_cast<U>(a1)};
     }
+
+    /**
+     * @brief Discrete state-space realization (controllable canonical form).
+     *
+     * Returns the z-domain biquad H(z) = (b0 + b1·z⁻¹)/(1 + a1·z⁻¹) as a discrete
+     * StateSpace<1,1,1> (Ts > 0) so the design drops into the discrete analysis /
+     * simulation tooling. Inverse of `to_coeffs`.
+     */
+    [[nodiscard]] constexpr StateSpace<1, 1, 1, 0, 0, T> to_state_space(T Ts) const {
+        return StateSpace<1, 1, 1, 0, 0, T>{
+            .A = Matrix<1, 1, T>{{-a1}},
+            .B = Matrix<1, 1, T>{{T{1}}},
+            .C = Matrix<1, 1, T>{{b1 - (a1 * b0)}},
+            .D = Matrix<1, 1, T>{{b0}},
+            .Ts = Ts,
+        };
+    }
 };
 
 /**
@@ -43,6 +60,24 @@ struct SecondOrderCoeffs {
     template<typename U>
     [[nodiscard]] constexpr SecondOrderCoeffs<U> as() const {
         return {static_cast<U>(b0), static_cast<U>(b1), static_cast<U>(b2), static_cast<U>(a1), static_cast<U>(a2)};
+    }
+
+    /**
+     * @brief Discrete state-space realization (controllable canonical form).
+     *
+     * Returns the z-domain biquad H(z) = (b0 + b1·z⁻¹ + b2·z⁻²)/(1 + a1·z⁻¹ +
+     * a2·z⁻²) as a discrete StateSpace<2,1,1> (Ts > 0) so any biquad design
+     * (notch/bandpass/peaking/shelf/…) drops into the discrete analysis /
+     * simulation tooling. Inverse of `to_coeffs`.
+     */
+    [[nodiscard]] constexpr StateSpace<2, 1, 1, 0, 0, T> to_state_space(T Ts) const {
+        return StateSpace<2, 1, 1, 0, 0, T>{
+            .A = Matrix<2, 2, T>{{-a1, -a2}, {T{1}, T{0}}},
+            .B = Matrix<2, 1, T>{{T{1}}, {T{0}}},
+            .C = Matrix<1, 2, T>{{b1 - (a1 * b0), b2 - (a2 * b0)}},
+            .D = Matrix<1, 1, T>{{b0}},
+            .Ts = Ts,
+        };
     }
 };
 
@@ -362,12 +397,26 @@ template<typename T = float>
         sys_d = discretize(sys, Ts, DiscretizationMethod::Tustin);
     }
 
+    const T A00 = sys_d.A(0, 0);
+    const T A01 = sys_d.A(0, 1);
+    const T A10 = sys_d.A(1, 0);
+    const T A11 = sys_d.A(1, 1);
+    const T B0 = sys_d.B(0, 0);
+    const T B1 = sys_d.B(1, 0);
+    const T C0 = sys_d.C(0, 0);
+    const T C1 = sys_d.C(0, 1);
+    const T D0 = sys_d.D(0, 0);
+
+    // H(z) = D + C·adj(zI−A)·B / det(zI−A). Denominator is the characteristic
+    // polynomial (a1 = −trace, a2 = det); the numerator is the full expansion,
+    // not just C·B — the D·trace / D·det and cross terms matter whenever D ≠ 0
+    // (e.g. any Tustin-discretized system).
     SecondOrderCoeffs<T> coeffs;
-    coeffs.b0 = sys_d.D(0, 0);
-    coeffs.b1 = sys_d.C(0, 0) * sys_d.B(0, 0) + sys_d.C(0, 1) * sys_d.B(1, 0);
-    coeffs.b2 = sys_d.C(0, 1) * sys_d.B(1, 0);
-    coeffs.a1 = -(sys_d.A(0, 0) + sys_d.A(1, 1));
-    coeffs.a2 = sys_d.A(0, 0) * sys_d.A(1, 1) - sys_d.A(0, 1) * sys_d.A(1, 0);
+    coeffs.a1 = -(A00 + A11);
+    coeffs.a2 = (A00 * A11) - (A01 * A10);
+    coeffs.b0 = D0;
+    coeffs.b1 = (C0 * B0) + (C1 * B1) + (D0 * coeffs.a1);
+    coeffs.b2 = (D0 * coeffs.a2) + (C0 * ((A01 * B1) - (A11 * B0))) + (C1 * ((A10 * B0) - (A00 * B1)));
     return coeffs;
 }
 
@@ -554,6 +603,8 @@ template<typename T = float>
  */
 template<size_t N, typename T = float>
 class LowPass {
+    static_assert(N >= 1, "LowPass needs N >= 1");
+
 private:
     wet::array<T, N + 1> b{};      //!< Numerator coefficients
     wet::array<T, N>     a{};      //!< Denominator coefficients
@@ -576,7 +627,7 @@ public:
         *this = LowPass<1, T>(design::lowpass_1st<T>(fc, Ts_sample));
     }
 
-    constexpr LowPass(const TransferFunction<N + 1, N + 1, T> tf, T Ts_sample) {
+    constexpr LowPass(const TransferFunction<N + 1, N + 1, T>& tf, T Ts_sample) {
         auto sys_c = tf.to_state_space();
         auto sys_d = discretize(sys_c, Ts_sample, DiscretizationMethod::Tustin);
 
@@ -610,10 +661,12 @@ public:
                 }
                 v(i, 0) = -h[N + 1 + i];
             }
-            // Solve M·a = v directly (assume invertible for valid systems).
-            auto a_vec = *mat::solve(M, v);
-            for (size_t j = 0; j < N; ++j) {
-                a[j] = a_vec(j, 0);
+            // Solve M·a = v. A singular Hankel matrix (degenerate / non-realizable
+            // TF) leaves the denominator a = 0 rather than dereferencing nullopt.
+            if (const auto a_vec = mat::solve(M, v)) {
+                for (size_t j = 0; j < N; ++j) {
+                    a[j] = (*a_vec)(j, 0);
+                }
             }
         }
     }
@@ -794,7 +847,7 @@ public:
      * @param delay_samples Number of samples to delay (must be <= MaxDelay)
      */
     constexpr void init(size_t delay_samples) {
-        delay_samples_ = delay_samples;
+        delay_samples_ = delay_samples > MaxDelay ? MaxDelay : delay_samples;
         reset();
     }
 
@@ -897,7 +950,18 @@ public:
         const T old = buffer_[idx_];
         buffer_[idx_] = x;
         idx_ = (idx_ + 1) % n_;
-        sum_ += x - old;
+        if (idx_ == 0) {
+            // Exact resum once per full window bounds float round-off drift to a
+            // single window. A plain sum (not Kahan, which -ffast-math defeats);
+            // O(N) here is amortized O(1) and the WCET is O(N) either way.
+            T s = T{0};
+            for (size_t i = 0; i < n_; ++i) {
+                s += buffer_[i];
+            }
+            sum_ = s;
+        } else {
+            sum_ += x - old;
+        }
         return sum_ / static_cast<T>(n_);
     }
 

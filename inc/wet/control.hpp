@@ -88,7 +88,6 @@
 
 // --- Signal filters ---------------------------------------------------------
 #include "wet/filters/differentiator.hpp" // IWYU pragma: keep
-#include "wet/filters/dsogi_pll.hpp"      // IWYU pragma: keep
 #include "wet/filters/filters.hpp"        // IWYU pragma: keep
 #include "wet/filters/pll.hpp"            // IWYU pragma: keep
 #include "wet/filters/sogi.hpp"           // IWYU pragma: keep

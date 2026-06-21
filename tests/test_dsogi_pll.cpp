@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/filters/dsogi_pll.hpp"
+#include "wet/filters/pll.hpp"
 #include "wet/utility/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
@@ -40,7 +40,7 @@ TEST_SUITE("DSOGI-PLL") {
         const float Ts = 1.0f / 10000.0f; // 10 kHz
         const float w = 2.0f * std::numbers::pi_v<float> * f0;
 
-        DsogiPll<float> pll(f0, Ts);
+        DsogiPll<float> pll(f0);
 
         // Run for ~0.5 s to settle.
         float wt = 0.0f;
@@ -62,7 +62,7 @@ TEST_SUITE("DSOGI-PLL") {
         const float Ts = 1.0f / 10000.0f;
         const float w = 2.0f * std::numbers::pi_v<float> * f0;
 
-        DsogiPll<float> pll(f0, Ts);
+        DsogiPll<float> pll(f0);
 
         // Unbalanced: inject a negative-sequence component by scaling one phase.
         const float tp = 2.0f * std::numbers::pi_v<float> / 3.0f;

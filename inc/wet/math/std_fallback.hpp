@@ -47,6 +47,7 @@ struct StdMathFallback {
     static T log10(T x) { return std::log10(x); }
     static T floor(T x) { return std::floor(x); }
     static T ceil(T x) { return std::ceil(x); }
+    static T nearbyint(T x) { return std::nearbyint(x); }
 
     static T    pow(T base, T exponent) { return std::pow(base, exponent); }
     static T    fmod(T x, T y) { return std::fmod(x, y); }

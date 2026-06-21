@@ -271,8 +271,9 @@ TEST_SUITE("constexpr_math") {
         CEXPR_APPROX(wet::exp(700.0), std::exp(700.0), 1e-11);
         CEXPR_APPROX(wet::exp(-700.0), std::exp(-700.0), 1e-11);
 
-        // Overflow / underflow guards
-        static_assert(wet::exp(800.0) == std::numeric_limits<double>::infinity());
+        // Overflow / underflow guards: saturate to max() / 0 (no ±inf under
+        // -ffinite-math-only).
+        static_assert(wet::exp(800.0) == std::numeric_limits<double>::max());
         static_assert(wet::exp(-800.0) == 0.0);
 
         // float specialization stays finite/zero past its narrower range
@@ -414,6 +415,57 @@ TEST_SUITE("constexpr_math") {
         CHECK(fmod_val == doctest::Approx(1.0));
         CHECK(csign_val == doctest::Approx(-3.0));
         CHECK(finite_val);
+    }
+
+    TEST_CASE("wet::nearbyint dispatch: runtime ties-to-even, compile-time ties-away") {
+        // Non-tie values agree on every path and with std::nearbyint.
+        for (double x : {-3.4, -1.6, -0.2, 0.2, 1.6, 3.4, 100.7, -100.7}) {
+            CHECK(wet::nearbyint(x) == std::nearbyint(x));
+        }
+
+        // Runtime path follows the backend rounding mode (round half to even).
+        CHECK(wet::nearbyint(2.5) == 2.0);
+        CHECK(wet::nearbyint(3.5) == 4.0);
+        CHECK(wet::nearbyint(-2.5) == -2.0);
+
+        // Compile-time path rounds ties away from zero — a documented divergence
+        // from the runtime backend, immaterial for range reduction where exact
+        // half-integer quotients are measure-zero.
+        static_assert(wet::nearbyint(2.5) == 3.0);
+        static_assert(wet::nearbyint(-2.5) == -3.0);
+        static_assert(wet::nearbyint(2.4) == 2.0);
+        static_assert(wet::nearbyint(2.6) == 3.0);
+    }
+
+    TEST_CASE("wet::wrap folds into the half-open interval") {
+        constexpr double pi = std::numbers::pi;
+
+        // Values already inside [min, max) are returned unchanged.
+        CHECK(wet::wrap(0.0, -pi, pi) == doctest::Approx(0.0));
+        CHECK(wet::wrap(1.0, -pi, pi) == doctest::Approx(1.0));
+        CHECK(wet::wrap(-1.0, -pi, pi) == doctest::Approx(-1.0));
+
+        // Out-of-range angles fold back by whole periods.
+        CHECK(wet::wrap(pi + 0.5, -pi, pi) == doctest::Approx(0.5 - pi));
+        CHECK(wet::wrap(-pi - 0.5, -pi, pi) == doctest::Approx(pi - 0.5));
+        CHECK(wet::wrap(7.0, -pi, pi) == doctest::Approx(7.0 - (2.0 * pi)));
+
+        // Non-symmetric interval (degrees).
+        CHECK(wet::wrap(370.0, 0.0, 360.0) == doctest::Approx(10.0));
+        CHECK(wet::wrap(-10.0, 0.0, 360.0) == doctest::Approx(350.0));
+
+        // Equivalent to the atan2(sin, cos) phase reduction the PLL relies on.
+        for (int i = -50; i <= 50; ++i) {
+            const double a = i * 0.37;
+            CHECK(wet::wrap(a, -pi, pi) == doctest::Approx(std::atan2(std::sin(a), std::cos(a))).epsilon(1e-12));
+        }
+
+        // Result always lands in [min, max).
+        for (int i = -100; i <= 100; ++i) {
+            const double w = wet::wrap(i * 1.1, -pi, pi);
+            CHECK(w >= -pi);
+            CHECK(w < pi);
+        }
     }
 }
 

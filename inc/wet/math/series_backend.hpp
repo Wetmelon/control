@@ -39,6 +39,7 @@ struct SeriesMathBackend {
     static constexpr T log10(T x) { return detail::log10(x); }
     static constexpr T floor(T x) { return detail::floor(x); }
     static constexpr T ceil(T x) { return detail::ceil(x); }
+    static constexpr T nearbyint(T x) { return detail::nearbyint(x); }
 
     static constexpr T    pow(T base, T exponent) { return detail::pow(base, exponent); }
     static constexpr T    fmod(T x, T y) { return (y == T{0}) ? T{0} : detail::fmod(x, y); }

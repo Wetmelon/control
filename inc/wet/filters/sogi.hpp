@@ -249,15 +249,17 @@ public:
 
         const auto u = (in - x(1)) * alpha;
 
-        y = sys.C * x;
+        const ColVec<2, T> y = sys.C * x;
         x = (sys.A * x) + (sys.B * u);
 
         return {y(0), y(1)};
     }
 
+    /// Clear the resonator state.
+    constexpr void reset() { x = {}; }
+
 private:
     ColVec<2, T> x = {};
-    ColVec<2, T> y = {};
 };
 
 /**
@@ -317,15 +319,20 @@ public:
         togi_state += (u - togi_state) * wT;
 
         // Update internal state
-        y = sys.C * x;
+        const ColVec<2, T> y = sys.C * x;
         x = (sys.A * x) + (sys.B * u);
 
         return {y(0), y(1) - togi_state};
     }
 
+    /// Clear the resonator and washout state.
+    constexpr void reset() {
+        x = {};
+        togi_state = {};
+    }
+
 private:
     ColVec<2, T> x = {};
-    ColVec<2, T> y = {};
 
     T togi_state = {};
 };

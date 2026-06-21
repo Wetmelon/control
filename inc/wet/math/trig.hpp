@@ -6,9 +6,7 @@
  * @brief Fast float sine and cosine with full-range wrapping
  */
 
-#include <cmath>
 #include <cstddef>
-#include <limits>
 
 #include "wet/backend.hpp"
 
@@ -22,6 +20,7 @@ inline float atan(float x);
 inline float atan2(float y, float x);
 
 inline float sqrt(float x);
+inline float nearbyint(float x);
 
 inline wet::pair<float, float> sincos(float angle_rad);
 
@@ -96,7 +95,31 @@ inline float sqrt(float x) {
     asm("vsqrt.f32 %0, %1" : "=t"(result) : "t"(x));
     return result;
 #else
-    return std::sqrt(x);
+    return __builtin_sqrtf(x);
+#endif
+}
+
+/**
+ * @brief Fast round-to-nearest (ties to even) for single-precision float
+ *
+ * On ARM VFP, converts float→int→float through the FPU using the default
+ * round-to-nearest-even mode (vcvtr/vcvt), avoiding the libcall std::nearbyint
+ * carries. Valid for |x| within the int32 range, which covers the range-reduction
+ * quotients this is used for. Non-ARM targets fall back to std::nearbyint.
+ *
+ * @param x  Input value
+ * @return Nearest integer to x (ties to even)
+ */
+inline float nearbyint(float x) {
+#if defined(__ARM_FP)
+    float result;
+    asm("vcvtr.s32.f32 %0, %1\n\t" // float -> int32 in S-reg, round per FPSCR (nearest-even)
+        "vcvt.f32.s32 %0, %0"      // int32 -> float
+        : "=&t"(result)
+        : "t"(x));
+    return result;
+#else
+    return __builtin_nearbyintf(x);
 #endif
 }
 
@@ -128,7 +151,7 @@ inline float sin(float angle_rad) {
  */
 inline float cos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
-    float c = detail::sin_poly(0.5f - std::fabs(frac));
+    float c = detail::sin_poly(0.5f - __builtin_fabsf(frac));
 
     return ((period_index & 1) != 0) ? -c : c;
 }
@@ -146,7 +169,7 @@ inline wet::pair<float, float> sincos(float angle_rad) {
     auto [frac, period_index] = detail::wrap(angle_rad);
 
     float s = detail::sin_poly(frac);
-    float c = detail::sin_poly(0.5f - std::fabs(frac));
+    float c = detail::sin_poly(0.5f - __builtin_fabsf(frac));
 
     if ((period_index & 1) != 0) {
         s = -s;
@@ -219,7 +242,7 @@ inline float atan(float x) {
         negate = true;
     }
 
-    if (std::abs(x) > 1.0f) {
+    if (__builtin_fabsf(x) > 1.0f) {
         x = 1.0f / x;
         complement = true;
     }
@@ -244,16 +267,20 @@ inline float atan(float x) {
  * @return atan2(y, x)
  */
 inline float atan2(float y, float x) {
-    float ax = std::fabs(x);
-    float ay = std::fabs(y);
-    float lo = std::fmin(ax, ay);
-    float hi = std::fmax(ax, ay) + std::numeric_limits<float>::min();
+    // Smallest normal float, added to the denominator so the 0/0 (x == y == 0)
+    // case yields a finite ratio instead of a NaN.
+    constexpr float min_normal = 1.17549435082228750797e-38f;
+
+    float ax = __builtin_fabsf(x);
+    float ay = __builtin_fabsf(y);
+    float lo = wet::min(ax, ay);
+    float hi = wet::max(ax, ay) + min_normal;
     float t = detail::estrin_eval(lo / hi, detail::atan_coeffs);
 
     float r = (ay > ax) ? ((wet::numbers::pi_v<float> / 2.0f) - t) : t;
     r = (x >= 0.0f) ? r : (wet::numbers::pi_v<float> - r);
 
-    return std::copysign(r, y);
+    return __builtin_copysignf(r, y);
 }
 
 } // namespace wet
@@ -294,7 +321,7 @@ static inline Reduced wrap(float x) {
     constexpr float PI_LO = 9.6765358467e-04f;  // pi - PI_HI
     constexpr float PI_LO2 = 5.1265658385e-12f; // pi - PI_HI - PI_LO
 
-    float n = std::nearbyint(x * inv_pi);
+    float n = wet::nearbyint(x * inv_pi);
     int   period_index = static_cast<int>(n);
 
     float r = reassoc_barrier(x - (n * PI_HI));

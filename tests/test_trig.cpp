@@ -207,4 +207,22 @@ TEST_SUITE("trig") {
         }
     }
 
+    TEST_CASE("sqrt - matches std::sqrt") {
+        for (float x : {0.0f, 1e-6f, 0.25f, 1.0f, 2.0f, 9.0f, 1234.5f, 1e6f}) {
+            CHECK(wet::sqrt(x) == doctest::Approx(std::sqrt(x)).epsilon(kEps));
+        }
+    }
+
+    TEST_CASE("nearbyint - rounds to nearest, ties to even") {
+        // Exact integers and clear non-ties match std exactly (no rounding slack).
+        for (float x : {-3.4f, -1.6f, -0.2f, 0.0f, 0.2f, 1.6f, 3.4f, 100.0f, -100.0f}) {
+            CHECK(wet::nearbyint(x) == std::nearbyint(x));
+        }
+        // Half-integer ties round to even (FPSCR default / __builtin_nearbyintf).
+        CHECK(wet::nearbyint(2.5f) == 2.0f);
+        CHECK(wet::nearbyint(3.5f) == 4.0f);
+        CHECK(wet::nearbyint(-2.5f) == -2.0f);
+        CHECK(wet::nearbyint(0.5f) == 0.0f);
+    }
+
 } // TEST_SUITE("trig")
