@@ -138,8 +138,8 @@ template<typename T = double>
  *          referenced voltage is @f$ f\,\hat e_{phase} @f$: peak line-line
  *          (@f$ f=\sqrt3 @f$) → 8.27, RMS line-line (@f$ f=\sqrt{3/2} @f$) → 11.70
  *          (=√2·8.27), peak phase (@f$ f=1 @f$) → 14.32, RMS phase → 20.25. This
- *          function assumes the hobby/RC peak-line-line (per-bus-volt) sense — the
- *          same one ODrive uses. If a @f$ K_v @f$/@f$ K_e @f$ is specified per RMS
+ *          function assumes the hobby/RC peak-line-line (per-bus-volt) sense. If a
+ *          @f$ K_v @f$/@f$ K_e @f$ is specified per RMS
  *          line-to-line (common on industrial servos), use 11.70/@f$ K_v @f$, or
  *          invert @f$ K_e @f$ directly.
  *

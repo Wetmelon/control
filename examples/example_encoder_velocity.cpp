@@ -19,8 +19,8 @@ using namespace wet;
 //   2nd-order PLL observer    : critically-damped tracking loop -> smooth, model-light
 //   Levant differentiator     : robust exact differentiator     -> tuning-light, robust
 //
-// The PLL mirrors ODrive's `Encoder::update`: predict position from the velocity
-// estimate, then correct both states from the position error with gains kp = 2·bw,
+// The PLL is the classic encoder tracking observer: predict position from the
+// velocity estimate, then correct both states from the position error with gains kp = 2·bw,
 // ki = 0.25·kp² (critically-damped repeated pole at −bw). It is a linear observer,
 // so it trades noise for phase lag, and its bandwidth must be tuned to the encoder.
 // The Levant differentiator is model-free and finite-time exact, needs no bandwidth
@@ -33,7 +33,7 @@ using namespace wet;
 // The PLL and the Levant differentiator stay neck-and-neck across both (within
 // ~15%, the winner swapping with the regime); raw differencing and an LPF fall
 // well behind. Positions are in turns (revolutions) and velocities in turns/s,
-// matching ODrive's own units.
+// the usual servo-drive units.
 
 constexpr double dt = 1.0 / 8000.0; // 8 kHz current-loop rate [s]
 
@@ -52,7 +52,7 @@ struct Scenario {
     const char* plot_file;
 };
 
-// 2nd-order critically-damped PLL position/velocity tracking observer (ODrive).
+// 2nd-order critically-damped PLL position/velocity tracking observer.
 struct PllObserver {
     double kp;
     double ki;
@@ -145,7 +145,7 @@ void run_scenario(const Scenario& s) {
     fmt::print("  {:<26} {:>16} {:>18}\n", "estimator", "RMS err [turns/s]", "near-reversal");
     fmt::print("  {:<26} {:>16.4f} {:>18.4f}\n", "raw finite difference", rms(sum_fd, n), rms(rev_fd, n_rev));
     fmt::print("  {:<26} {:>16.4f} {:>18.4f}\n", "LPF'd diff", rms(sum_lpf, n), rms(rev_lpf, n_rev));
-    fmt::print("  {:<26} {:>16.4f} {:>18.4f}\n", "PLL observer (ODrive)", rms(sum_pll, n), rms(rev_pll, n_rev));
+    fmt::print("  {:<26} {:>16.4f} {:>18.4f}\n", "PLL observer", rms(sum_pll, n), rms(rev_pll, n_rev));
     fmt::print("  {:<26} {:>16.4f} {:>18.4f}\n\n", "Levant differentiator", rms(sum_red, n), rms(rev_red, n_rev));
 
     // ----- Plot -----
@@ -203,7 +203,7 @@ void run_scenario(const Scenario& s) {
 
 int main() {
     fmt::print("===== Servo Encoder Velocity Estimation =====\n");
-    fmt::print("8 kHz loop. PLL = ODrive critically-damped tracking observer.\n\n");
+    fmt::print("8 kHz loop. PLL = critically-damped tracking observer.\n\n");
 
     // A) Smooth, high-resolution: a well-tuned PLL is excellent here.
     run_scenario({"14-bit absolute, bw=1000", 16384.0, 1000.0, 0.25, 1.0, 3.0e-3, 0.02, "encoder_velocity_absolute.html"});

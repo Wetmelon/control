@@ -23,7 +23,7 @@ using namespace wet;
 // motor through the same gear ratio automatically.
 
 int main() {
-    fmt::print("===== Trajectory → ODrive command stream (3 axes) =====\n\n");
+    fmt::print("===== Trajectory → servo drive command stream (3 axes) =====\n\n");
 
     // Three joints, each its own reduction and kinematic limits {v, a, d, j} (rad).
     struct Axis {
@@ -77,8 +77,8 @@ int main() {
     }
 
     fmt::print("Each row is ready to write straight to a drive:\n");
-    fmt::print("  odrv[i].controller.input_pos = cmds[i].position;   // turns\n");
-    fmt::print("  odrv[i].controller.input_vel = cmds[i].velocity;   // turns/s (vel_ff)\n");
-    fmt::print("  odrv[i].controller.input_torque = cmds[i].torque;  // Nm (torque_ff)\n");
+    fmt::print("  drive[i].controller.input_pos = cmds[i].position;   // turns\n");
+    fmt::print("  drive[i].controller.input_vel = cmds[i].velocity;   // turns/s (vel_ff)\n");
+    fmt::print("  drive[i].controller.input_torque = cmds[i].torque;  // Nm (torque_ff)\n");
     return 0;
 }

@@ -189,8 +189,6 @@ private:
  * A nonlinear flux observer in the stationary @f$\alpha\beta@f$ frame estimates
  * the permanent-magnet flux vector; a second-order tracking PLL then locks onto
  * its angle, yielding a smooth electrical angle and speed with no shaft sensor.
- * This is the ODrive sensorless estimator rebuilt on the @ref wet primitives
- * (@ref AlphaBeta, @ref wet::wrap, @ref wet::atan2).
  *
  * **Flux observer** (paper eqns 4, 6, 8). With stator voltage @f$v@f$, current
  * @f$i@f$, resistance @f$R@f$, inductance @f$L@f$ and PM flux @f$\lambda@f$, the

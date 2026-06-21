@@ -8,9 +8,8 @@
  * @ref wet/trajectory/polynomial.hpp, and the task-space planners in
  * @ref wet/trajectory/cartesian_move.hpp / @ref wet/trajectory/topp.hpp) all emit
  * motion in **SI joint units** — position in rad (or m for a prismatic/linear axis),
- * velocity in rad/s, acceleration in rad/s². A field servo drive such as an
- * <a href="https://docs.odriverobotics.com">ODrive</a> instead wants a per-axis
- * setpoint triple in its **own mechanical units**: `input_pos` [turns],
+ * velocity in rad/s, acceleration in rad/s². A field servo drive instead wants a
+ * per-axis setpoint triple in its **own mechanical units**: `input_pos` [turns],
  * `input_vel` / vel_ff [turns/s], and `input_torque` / torque_ff [Nm at the motor].
  *
  * This header is the thin, allocation-free glue between the two:
@@ -22,8 +21,8 @@
  *   described by one number.
  * - @ref ConstantInertiaFeedforward — the per-axis torque-feedforward policy that
  *   matches a decoupled drivetrain (single actuators, Cartesian / CoreXY / gantry /
- *   polar): `τ = J·a + b·v + τ_c·sign(v) + g`. This is exactly the model behind
- *   ODrive's `controller.config.inertia`, extended with viscous + Coulomb friction
+ *   polar): `τ = J·a + b·v + τ_c·sign(v) + g`. This is the standard inertia
+ *   feedforward model, extended with viscous + Coulomb friction
  *   and a settable gravity term. Coupled rigid-body torque for a serial arm (the
  *   configuration-dependent mass matrix `M(q)`, Coriolis, gravity) is a separate
  *   future dynamics policy — it is *not* a per-axis constant and is out of scope here.
@@ -69,7 +68,7 @@ namespace wet {
 /**
  * @brief A drive-native servoactuator setpoint: position, velocity, torque.
  *
- * Units are the drive's own — for an ODrive that is {turns, turns/s, Nm}. Stream
+ * Units are the drive's own — typically {turns, turns/s, Nm}. Stream
  * these to the three feedforward inputs of a closed-loop position drive
  * (`input_pos`, `vel_ff`, `torque_ff`).
  *
@@ -172,7 +171,7 @@ template<typename T = double>
  *   \tau_i = J_i\,\ddot q_i + b_i\,\dot q_i + \tau_{c,i}\,\operatorname{sign}(\dot q_i) + g_i .
  * @f]
  * @ref inertia (@f$J_i@f$, the joint-side reflected inertia incl. reflected rotor
- * inertia) reproduces ODrive's `controller.config.inertia`; @ref viscous and
+ * inertia) is the standard inertia feedforward term; @ref viscous and
  * @ref coulomb add the friction terms an inertia-only model misses; @ref gravity is
  * a per-axis hold-torque you update each tick (default 0). Effort is returned in
  * joint-side units (Nm for a rotary joint, N for a linear one) — the owning
@@ -211,9 +210,9 @@ struct ConstantInertiaFeedforward {
  *   auto states = bank.step(dt);            // array<TrajectoryState, N> in SI joint units
  *   auto cmds   = servos.command(states, ff); // array<ServoCommand, N> in drive units
  *   for (size_t i = 0; i < N; ++i) {
- *       odrive[i].input_pos    = cmds[i].position;   // turns
- *       odrive[i].vel_ff       = cmds[i].velocity;   // turns/s
- *       odrive[i].torque_ff    = cmds[i].torque;     // Nm
+ *       drive[i].input_pos    = cmds[i].position;   // turns
+ *       drive[i].vel_ff       = cmds[i].velocity;   // turns/s
+ *       drive[i].torque_ff    = cmds[i].torque;     // Nm
  *   }
  * @endcode
  *

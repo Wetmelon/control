@@ -258,7 +258,7 @@ template<typename T = double>
     return p;
 }
 
-/// Rest-to-rest convenience overload (Vi = Vf = 0), matching ODrive `planTrapezoidal`.
+/// Rest-to-rest convenience overload (Vi = Vf = 0).
 template<typename T = double>
 [[nodiscard]] constexpr TrapezoidalProfile<T> synthesize_trapezoidal(
     T Xi, T Xf, const TrajectoryLimits<T>& limits

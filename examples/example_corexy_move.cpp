@@ -1,8 +1,8 @@
 // ===== CoreXY straight-line move -> time-optimal timing -> servo commands =====
 //
 // A complete, copy-pasteable motion pipeline for a CoreXY machine (the belt
-// layout used by many 3D printers and pen plotters) driven by two servo drives
-// such as ODrives. What it does, in plain English:
+// layout used by many 3D printers and pen plotters) driven by two servo drives.
+// What it does, in plain English:
 //
 //   1. You ask for a straight line from point A to point B on the bed.
 //   2. CoreXY math turns each (X, Y) point into the two belt-motor positions.
@@ -104,10 +104,11 @@ int main() {
         // ...and one line turns it into drive-ready commands (with torque FF).
         const auto cmds = servos.command(states, torque_ff);
 
-        // Send cmds[0] to motor A and cmds[1] to motor B. On an ODrive that is:
-        //   odrvA.input_pos = cmds[0].position;     // turns
-        //   odrvA.input_vel = cmds[0].velocity;     // turns/s  (velocity FF)
-        //   odrvA.input_torque = cmds[0].torque;    // Nm       (torque FF)
+        // Send cmds[0] to motor A and cmds[1] to motor B. On a typical position
+        // drive that is:
+        //   driveA.input_pos = cmds[0].position;     // turns
+        //   driveA.input_vel = cmds[0].velocity;     // turns/s  (velocity FF)
+        //   driveA.input_torque = cmds[0].torque;    // Nm       (torque FF)
 
         // Print a few rows so you can see it work (every ~8th tick).
         const bool show = (t < 1e-9) || (t + control_dt > move.duration()) || (static_cast<int>(t / control_dt) % 8 == 0);
