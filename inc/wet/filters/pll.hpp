@@ -62,8 +62,13 @@ struct SinglePhasePLL {
         const auto [bp, quadrature] = sogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
         (void)bp;
 
-        // Phase error is the product of input and quadrature signal.
-        const T phase_error = input * quadrature;
+        // Phase error from the SOGI quadrature mixer. qv' lags the input by 90° at
+        // the SOGI centre, so for an input above the current estimate the DC of
+        // input·qv' is negative — the loop must move the estimate by −(input·qv')
+        // to chase it (same sign convention as the SOGI-FLL's ω̇ = −Γ·ε·qv', see
+        // SogiFll). The earlier +input·qv' was positive feedback and ran the
+        // estimate to a frequency rail.
+        const T phase_error = -(input * quadrature);
 
         // Optional leaky integrator: bleed any parked offset toward zero (skip on a
         // non-positive Ts, which would bleed with the wrong sign).

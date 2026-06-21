@@ -48,6 +48,27 @@ TEST_SUITE("Single-Phase PLL") {
         CHECK(pll.frequency() == doctest::Approx(Fnom).epsilon(0.25f));
     }
 
+    TEST_CASE("Tracks an off-nominal tone in the correct direction") {
+        // Regression guard for the SOGI-mixer phase-detector sign: a faster input
+        // must drive the estimate UP toward it, not down to the lower frequency
+        // rail (the bug the +input·quadrature sign produced).
+        constexpr float Fnom = 50.0f;
+        constexpr float Fin = 55.0f; // above nominal
+        constexpr float Ts = 0.001f;
+        const float     two_pi = 2.0f * std::numbers::pi_v<float>;
+
+        SinglePhasePLL<float> pll(Fnom);
+
+        float phase = 0.0f;
+        for (int i = 0; i < 30000; ++i) {
+            phase += two_pi * Fin * Ts;
+            pll.step(std::sin(phase), Ts);
+        }
+
+        CHECK(pll.frequency() > Fnom + 1.0f); // moved toward the input, not the rail
+        CHECK(pll.frequency() == doctest::Approx(Fin).epsilon(0.1f));
+    }
+
     TEST_CASE("Integrator leak defaults to zero (pure integrator)") {
         constexpr float Fnom = 50.0f;
 
@@ -71,7 +92,7 @@ TEST_SUITE("Single-Phase PLL") {
             pll.step(std::sin(phase), Ts);
         }
         const float freq_charged = pll.frequency();
-        CHECK(wet::abs(freq_charged - Fnom) > 0.5f); // an offset was actually parked
+        CHECK(freq_charged > Fnom + 0.5f); // offset parked, and in the correct direction
 
         // Phase 2: enable the leak and remove excitation. phase_error → 0, so the
         // only dynamics are the leak, which pulls the estimate back to nominal.
