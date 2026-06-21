@@ -196,7 +196,7 @@ private:
  * @f$i@f$, resistance @f$R@f$, inductance @f$L@f$ and PM flux @f$\lambda@f$, the
  * total flux state @f$x@f$ and the PM-flux estimate @f$\eta@f$ evolve as
  * @f[
- *   \dot x = v - R\,i + \tfrac12 g\,\frac{\lambda^2 - |\eta|^2}{\lambda^2}\,\eta,
+ *   \dot x = v - R\,i + \frac{g}{2}\,\frac{\lambda^2 - |\eta|^2}{\lambda^2}\,\eta,
  *   \qquad \eta = x - L\,i ,
  * @f]
  * where @f$g@f$ is the observer gain. The correction term pulls @f$|\eta|@f$ onto
@@ -204,7 +204,7 @@ private:
  * back-EMF integrator would accumulate.
  *
  * **Tracking PLL.** Gains follow from the desired bandwidth @f$\omega_b@f$ as
- * @f$k_p = 2\omega_b@f$, @f$k_i = \tfrac14 k_p^2@f$ (critically damped). The angle
+ * @f$k_p = 2\omega_b@f$, @f$k_i = \frac{1}{4} k_p^2@f$ (critically damped). The angle
  * is predicted with the velocity estimate and corrected from the wrapped angle
  * innovation; the velocity is the integral path.
  *

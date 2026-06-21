@@ -46,7 +46,7 @@ namespace wet {
  *
  * Selects the magnitude normalisation of the αβ(0)/dq(0) transforms:
  *   - **AmplitudeInvariant** (2/3): αβ/dq magnitude equals the peak phase
- *     amplitude. The default; three-phase power is @f$ \tfrac32(v_\alpha i_\alpha
+ *     amplitude. The default; three-phase power is @f$ \frac{3}{2}(v_\alpha i_\alpha
  *     + v_\beta i_\beta) @f$.
  *   - **PowerInvariant** (√(2/3), "Concordia"): the transform is orthonormal, so
  *     power is preserved directly — @f$ p = v_\alpha i_\alpha + v_\beta i_\beta @f$
@@ -236,9 +236,9 @@ struct DirectQuadratureZero {
  * The full rank-3 Clarke transform, adding the zero-sequence (common-mode)
  * channel to αβ. Amplitude-invariant (default):
  * @f[
- *   \alpha = \tfrac{2a - b - c}{3}, \quad
+ *   \alpha = \frac{2a - b - c}{3}, \quad
  *   \beta  = \frac{b - c}{\sqrt{3}}, \quad
- *   v_0    = \tfrac{a + b + c}{3}
+ *   v_0    = \frac{a + b + c}{3}
  * @f]
  * Power-invariant (Concordia) applies orthonormal √(2/3) scaling on αβ and 1/√3
  * on the zero row. Common-mode content (equal on all three phases — shared sensor
@@ -316,7 +316,7 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * clarke_zero_transform(). The zero channel is computed and discarded, which the
  * optimiser eliminates wherever it is unused. Amplitude-invariant by default:
  * @f[
- *   \alpha = \tfrac{2a - b - c}{3}, \qquad \beta = \frac{b - c}{\sqrt{3}}
+ *   \alpha = \frac{2a - b - c}{3}, \qquad \beta = \frac{b - c}{\sqrt{3}}
  * @f]
  *
  * MATLAB: `clarke()`
@@ -406,7 +406,7 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * Maps three-phase stationary quantities directly to the rotor frame in a single
  * pass (one sincos() call); the usual measurement-side step of an FOC loop.
  * @f[
- *   \alpha = \tfrac{2a - b - c}{3}, \quad \beta = \frac{b - c}{\sqrt{3}}, \qquad
+ *   \alpha = \frac{2a - b - c}{3}, \quad \beta = \frac{b - c}{\sqrt{3}}, \qquad
  *   d =  \alpha\cos\theta + \beta\sin\theta, \quad
  *   q = -\alpha\sin\theta + \beta\cos\theta
  * @f]
@@ -437,8 +437,8 @@ template<typename T = float, Convention C = Convention::AmplitudeInvariant>
  * @f[
  *   \alpha = d\cos\theta - q\sin\theta, \quad \beta = d\sin\theta + q\cos\theta, \qquad
  *   a = \alpha, \quad
- *   b = -\tfrac{\alpha}{2} + \tfrac{\sqrt{3}}{2}\beta, \quad
- *   c = -\tfrac{\alpha}{2} - \tfrac{\sqrt{3}}{2}\beta
+ *   b = -\frac{\alpha}{2} + \frac{\sqrt{3}}{2}\beta, \quad
+ *   c = -\frac{\alpha}{2} - \frac{\sqrt{3}}{2}\beta
  * @f]
  *
  * @param dq    dq components

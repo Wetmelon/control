@@ -28,7 +28,7 @@ namespace design {
  *
  * One dq current axis is the series R–L plant @f$ G(s) = 1/(Ls+R) @f$ regulated
  * by a PI @f$ K_p + K_i/s @f$. Matching the closed-loop characteristic polynomial
- * @f$ s^2 + \tfrac{R+K_p}{L}s + \tfrac{K_i}{L} @f$ to the canonical form
+ * @f$ s^2 + \frac{R+K_p}{L}s + \frac{K_i}{L} @f$ to the canonical form
  * @f$ s^2 + 2\zeta\omega_n s + \omega_n^2 @f$ gives
  * @f[
  *   K_p = 2\zeta\omega_n L - R, \qquad K_i = L\,\omega_n^2 .
@@ -80,7 +80,7 @@ current_loop_pi(T L, T R, T omega_bw, T zeta = T{1}, T b = T{1}) {
  * @ingroup foc_design
  *
  * With the amplitude-invariant Clarke/Park scaling the electromagnetic torque of
- * a non-salient machine is @f$ T_e = \tfrac{3}{2} p\,\lambda\,i_q @f$, so
+ * a non-salient machine is @f$ T_e = \frac{3}{2} p\,\lambda\,i_q @f$, so
  * @f[
  *   K_t = \frac{3}{2}\,p\,\lambda \qquad [\mathrm{Nm/A}] .
  * @f]
@@ -101,7 +101,7 @@ template<typename T = double>
  * Inverse of torque_constant_from_flux(): a datasheet usually quotes @f$ K_t @f$
  * rather than the flux linkage the plant model needs, so
  * @f[
- *   \lambda = \frac{K_t}{\tfrac{3}{2}\,p} \qquad [\mathrm{Wb}] .
+ *   \lambda = \frac{K_t}{\frac{3}{2}\,p} \qquad [\mathrm{Wb}] .
  * @f]
  *
  * @note @p Kt must be the amplitude (peak per-phase) torque constant that matches
@@ -144,7 +144,7 @@ template<typename T = double>
  *          invert @f$ K_e @f$ directly.
  *
  * @see P. Pillay & R. Krishnan, "Modeling, simulation and analysis of PM motor
- *      drives, Part I: PMSM drive," IEEE T-IA 25(2), 1989 — @f$ T_e=\tfrac32 p\lambda i_q @f$.
+ *      drives, Part I: PMSM drive," IEEE T-IA 25(2), 1989 — @f$ T_e=\frac{3}{2} p\lambda i_q @f$.
  * @see R. Krishnan, "Permanent Magnet Synchronous and Brushless DC Motor Drives,"
  *      CRC Press, 2010, Ch. 9 — @f$ K_t @f$/@f$ K_e @f$ equivalence and referencing.
  *
@@ -163,7 +163,7 @@ template<typename T = double>
  * @ingroup foc_design
  *
  * Composes torque_constant_from_Kv() with flux_from_torque_constant():
- * @f$ \lambda = K_t(K_v) / (\tfrac32 p) @f$. See torque_constant_from_Kv() for the
+ * @f$ \lambda = K_t(K_v) / (\frac{3}{2} p) @f$. See torque_constant_from_Kv() for the
  * @f$ K_v @f$ convention and its caveats.
  *
  * @param pole_pairs @f$ p @f$ Number of pole pairs
