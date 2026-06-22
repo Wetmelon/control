@@ -4,10 +4,12 @@
 #endif
 #include <cmath>
 #include <cstring>
+#include <span>
 
 #include "servo_sim.h"
 #include "wet/controllers/pid.hpp"
 #include "wet/utility/foc.hpp"
+
 
 using namespace wet;
 
@@ -60,7 +62,7 @@ struct ServoSim {
     double ref_filt_wn = 0.0;  // natural frequency [rad/s]
 
     // Compute dx/dt given state and voltage inputs
-    void dynamics(const double* state, double vd, double vq, double* dxdt) const {
+    void dynamics(const std::span<double> state, double vd, double vq, std::span<double> dxdt) const {
         const double id = state[0];
         const double iq = state[1];
         const double omega_m = state[2];
@@ -71,49 +73,53 @@ struct ServoSim {
         const double omega_e = mp.pole_pairs * omega_m;
 
         // Electrical dynamics (dq frame)
-        dxdt[0] = (vd - mp.Rs * id + omega_e * mp.Ls * iq) / mp.Ls;
-        dxdt[1] = (vq - mp.Rs * iq - omega_e * mp.Ls * id - omega_e * mp.lambda_pm) / mp.Ls;
+        dxdt[0] = (vd - (mp.Rs * id) + (omega_e * mp.Ls * iq)) / mp.Ls;
+        dxdt[1] = (vq - (mp.Rs * iq) - (omega_e * mp.Ls * id) - (omega_e * mp.lambda_pm)) / mp.Ls;
 
         // Electromagnetic torque
         const double Te = 1.5 * mp.pole_pairs * mp.lambda_pm * iq;
 
         // Shaft coupling
         const double twist = theta_m - theta_L;
-        const double Tshaft = mp.Ks * twist + mp.Bs * (omega_m - omega_L);
+        const double Tshaft = (mp.Ks * twist) + (mp.Bs * (omega_m - omega_L));
 
         // Motor mechanical
-        dxdt[2] = (Te - mp.Bm * omega_m - Tshaft) / mp.Jm;
+        dxdt[2] = (Te - (mp.Bm * omega_m) - Tshaft) / mp.Jm;
         dxdt[3] = omega_m;
 
         // Load mechanical (smooth Coulomb friction)
         const double T_coulomb = mp.Tc * std::tanh(omega_L * 100.0);
-        dxdt[4] = (Tshaft - mp.BL * omega_L - T_coulomb - T_load_ext) / mp.JL;
+        dxdt[4] = (Tshaft - (mp.BL * omega_L) - T_coulomb - T_load_ext) / mp.JL;
         dxdt[5] = omega_L;
     }
 
     // Single RK4 step
     void rk4_step(double dt) {
-        double k1[6], k2[6], k3[6], k4[6], tmp[6];
+        double k1[6]{};
+        double k2[6]{};
+        double k3[6]{};
+        double k4[6]{};
+        double tmp[6]{};
 
         dynamics(x, vd_out, vq_out, k1);
 
         for (int i = 0; i < 6; ++i) {
-            tmp[i] = x[i] + 0.5 * dt * k1[i];
+            tmp[i] = x[i] + (0.5 * dt * k1[i]);
         }
         dynamics(tmp, vd_out, vq_out, k2);
 
         for (int i = 0; i < 6; ++i) {
-            tmp[i] = x[i] + 0.5 * dt * k2[i];
+            tmp[i] = x[i] + (0.5 * dt * k2[i]);
         }
         dynamics(tmp, vd_out, vq_out, k3);
 
         for (int i = 0; i < 6; ++i) {
-            tmp[i] = x[i] + dt * k3[i];
+            tmp[i] = x[i] + (dt * k3[i]);
         }
         dynamics(tmp, vd_out, vq_out, k4);
 
         for (int i = 0; i < 6; ++i) {
-            x[i] += dt / 6.0 * (k1[i] + 2.0 * k2[i] + 2.0 * k3[i] + k4[i]);
+            x[i] += dt / 6.0 * (k1[i] + (2.0 * k2[i]) + (2.0 * k3[i]) + k4[i]);
         }
 
         t += dt;
@@ -132,18 +138,18 @@ struct ServoSim {
             // x_{k+1} = (I - h/2*A)^{-1} * ((I + h/2*A)*x_k + h*B*u_k)
             const double a = h * 0.5;
             // (I - a*A) = [[1, -a], [a*wn2, 1+2*a*wn]]
-            const double d = 1.0 + 2.0 * a * wn + a * a * wn2; // determinant
+            const double d = 1.0 + (2.0 * a * wn) + (a * a * wn2); // determinant
             const double inv_d = 1.0 / d;
             // (I + a*A) = [[1, a], [-a*wn2, 1-2*a*wn]]
             const double x1 = ref_filt_x1;
             const double x2 = ref_filt_x2;
             const double u = theta_ref;
             // rhs = (I + a*A)*x + h*B*u
-            const double r1 = x1 + a * x2 + 0.0;
-            const double r2 = -a * wn2 * x1 + (1.0 - 2.0 * a * wn) * x2 + h * wn2 * u;
+            const double r1 = x1 + (a * x2) + 0.0;
+            const double r2 = (-a * wn2 * x1) + ((1.0 - (2.0 * a * wn)) * x2) + (h * wn2 * u);
             // x_new = (I - a*A)^{-1} * rhs
-            ref_filt_x1 = inv_d * ((1.0 + 2.0 * a * wn) * r1 + a * r2);
-            ref_filt_x2 = inv_d * (-a * wn2 * r1 + 1.0 * r2);
+            ref_filt_x1 = inv_d * (((1.0 + (2.0 * a * wn)) * r1) + (a * r2));
+            ref_filt_x2 = inv_d * ((-a * wn2 * r1) + (1.0 * r2));
             ref_filt_out = ref_filt_x1;
         } else {
             ref_filt_out = theta_ref;
@@ -155,18 +161,11 @@ struct ServoSim {
         const double theta_L = x[5];
 
         // Position loop (decimated relative to speed loop)
-        if (cp.position_mode) {
+        if (cp.position_mode != 0) {
             if (++pos_decim >= cp.position_ratio) {
                 pos_decim = 0;
-                double pos_err = ref_filt_out - theta_L;
-                double cmd = Kp_pos * pos_err + omega_ref;
-                // Clamp speed command
-                if (cmd > cp.speed_max) {
-                    cmd = cp.speed_max;
-                }
-                if (cmd < -cp.speed_max) {
-                    cmd = -cp.speed_max;
-                }
+                const double pos_err = ref_filt_out - theta_L;
+                const double cmd = std::clamp((Kp_pos * pos_err) + omega_ref, -cp.speed_max, cp.speed_max);
                 omega_ref_cmd = cmd;
             }
         } else {
@@ -189,13 +188,13 @@ struct ServoSim {
 
         // Compute observable torques before integrating
         Te_out = 1.5 * mp.pole_pairs * mp.lambda_pm * iq;
-        Tshaft_out = mp.Ks * (x[3] - x[5]) + mp.Bs * (x[2] - x[4]);
+        Tshaft_out = (mp.Ks * (x[3] - x[5])) + (mp.Bs * (x[2] - x[4]));
 
         // Auto-compute plant sub-steps to keep |λ|*dt_sub ≤ target_courant
         // Electrical eigenvalue: |λ_elec| = sqrt((R/L)^2 + ω_e^2)
         const double sigma_e = mp.Rs / mp.Ls;
         const double omega_e_abs = std::abs(mp.pole_pairs * omega_m);
-        const double lambda_elec = std::sqrt(sigma_e * sigma_e + omega_e_abs * omega_e_abs);
+        const double lambda_elec = std::sqrt((sigma_e * sigma_e) + (omega_e_abs * omega_e_abs));
         // Shaft resonance eigenvalue: ω_shaft = sqrt(Ks / J_reduced)
         const double J_red = (mp.Jm * mp.JL) / wet::max(mp.Jm + mp.JL, 1e-12);
         const double omega_shaft = std::sqrt(mp.Ks / J_red);
@@ -203,9 +202,7 @@ struct ServoSim {
         // Target: |λ|*dt_sub ≤ 1.0 (well within RK4 stability limit of 2.78)
         constexpr double target_courant = 1.0;
         int              substeps = static_cast<int>(std::ceil(lambda_max_now * dt / target_courant));
-        if (substeps < 1) {
-            substeps = 1;
-        }
+        substeps = std::max(substeps, 1);
         last_substeps = substeps;
 
         // Integrate plant with sub-stepping (ZOH on voltages)
@@ -217,29 +214,26 @@ struct ServoSim {
         last_dt = dt;
 
         // Track max derivative for diagnostics
-        double dxdt[6];
+        double dxdt[6]{};
         dynamics(x, vd_out, vq_out, dxdt);
         double max_d = 0.0;
         for (int i = 0; i < 6; ++i) {
-            double a = std::abs(dxdt[i]);
-            if (a > max_d) {
-                max_d = a;
-            }
+            max_d = std::max(max_d, std::abs(dxdt[i]));
         }
         last_max_dxdt = max_d;
     }
 
     void rebuild_controllers() {
         constexpr double pi2 = 2.0 * std::numbers::pi;
-        double           i_lim = cp.i_max;
+        const double     i_lim = cp.i_max;
 
         // Current loop: FOC dq regulator with PI gains placed by closed-loop pole
         // placement on the R-L plant at the requested bandwidth (non-salient: Ld=Lq=Ls).
         foc = FOController<double>{{mp.Ls, mp.Ls}, mp.Rs, mp.lambda_pm, 0.0, pi2 * cp.bw_current};
 
         // Speed loop: explicit gains
-        double Kp_s = cp.Kp_speed;
-        double Ki_s = cp.Ki_speed;
+        const double Kp_s = cp.Kp_speed;
+        const double Ki_s = cp.Ki_speed;
 
         // Position loop: explicit P gain
         Kp_pos = cp.Kp_position;
@@ -368,7 +362,7 @@ SERVO_API ServoState servo_get_state(void* handle) {
 
     // Derived quantities
     s.twist = sim->x[3] - sim->x[5];
-    s.P_elec = 1.5 * (sim->vd_out * sim->x[0] + sim->vq_out * sim->x[1]);
+    s.P_elec = 1.5 * ((sim->vd_out * sim->x[0]) + (sim->vq_out * sim->x[1]));
     s.P_mech = sim->Te_out * sim->x[2];
     s.speed_err = sim->omega_ref_cmd - sim->x[2];
     s.pos_err = sim->ref_filt_out - sim->x[5];
@@ -399,16 +393,16 @@ SERVO_API ServoState servo_get_state(void* handle) {
 
     // Largest eigenvalue magnitude of the electrical subsystem
     // dq dynamics: eigenvalues are -R/L ± j*omega_e
-    double sigma_e = sim->mp.Rs / sim->mp.Ls;
-    double omega_e_abs = std::abs(s.omega_e);
-    double lambda_elec = std::sqrt(sigma_e * sigma_e + omega_e_abs * omega_e_abs);
+    const double sigma_e = sim->mp.Rs / sim->mp.Ls;
+    const double omega_e_abs = std::abs(s.omega_e);
+    const double lambda_elec = std::sqrt((sigma_e * sigma_e) + (omega_e_abs * omega_e_abs));
 
     // Overall max eigenvalue (electrical vs mechanical shaft)
     s.lambda_max = wet::max(lambda_elec, s.omega_shaft);
 
     // RK4 stability diagnostics use the actual sub-step dt
-    double dt = sim->last_dt;
-    double dt_sub = (sim->last_substeps > 0) ? dt / sim->last_substeps : dt;
+    const double dt = sim->last_dt;
+    const double dt_sub = (sim->last_substeps > 0) ? dt / sim->last_substeps : dt;
     s.courant_elec = lambda_elec * dt_sub;
     s.courant_mech = s.omega_shaft * dt_sub;
     s.rk4_margin = (s.lambda_max > 1e-12) ? 2.78 / (s.lambda_max * dt_sub) : 999.0;
