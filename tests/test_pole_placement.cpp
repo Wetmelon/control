@@ -19,11 +19,11 @@ double placement_error(const Matrix<NX, NX>& A, const Matrix<NX, NU>& B, const s
     auto Kopt = design::place(A, B, poles);
     REQUIRE(Kopt.has_value());
     Matrix<NX, NX> ABK = A - (B * Kopt.value());
-    auto           r = mat::compute_eigenvalues_qr(ABK);
+    auto           r = mat::compute_eigenvalues(ABK);
 
     std::array<double, NX> got{};
     for (size_t i = 0; i < NX; ++i) {
-        got[i] = r.eigenvalues_real(i, i);
+        got[i] = r.values[i].real();
     }
     std::array<double, NX> want = poles;
     std::sort(got.begin(), got.end());
@@ -115,12 +115,12 @@ TEST_SUITE("pole_placement") {
         auto Kopt = design::place(A, B, poles);
         REQUIRE(Kopt.has_value());
         Matrix<NX, NX> ABK = A - (B * Kopt.value());
-        auto           r = mat::compute_eigenvalues_qr(ABK);
+        auto           r = mat::compute_eigenvalues(ABK);
 
         std::array<wet::pair<double, double>, NX> got;
         std::array<wet::pair<double, double>, NX> want;
         for (size_t i = 0; i < NX; ++i) {
-            got[i] = {r.eigenvalues_real(i, i), std::abs(r.eigenvalues_imag(i, i))};
+            got[i] = {r.values[i].real(), std::abs(r.values[i].imag())};
             want[i] = {poles[i].real(), std::abs(poles[i].imag())};
         }
         std::sort(got.begin(), got.end());

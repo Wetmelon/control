@@ -10,7 +10,7 @@
  * @note The eigenvalue-based routines (is_stable_discrete, stability_margin_*,
  *       closed_loop_poles) are capped at N ≤ 4. They use the closed-form
  *       mat::compute_eigenvalues, which returns fully-resolved complex
- *       eigenvalues. The N > 4 QR path (mat::compute_eigenvalues_qr, used by
+ *       eigenvalues. The N > 4 QR path (mat::compute_eigenvalues, used by
  *       riccati.hpp) only yields the real Schur diagonal — it does not resolve
  *       complex conjugate pairs, so it cannot report pole locations or |λ|
  *       accurately. Lift the cap only once a full eigen-solver exists.

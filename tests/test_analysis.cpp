@@ -9,6 +9,43 @@
 
 using namespace wet;
 
+TEST_CASE("poles() handles systems larger than 4 states") {
+    // Diagonal A with known eigenvalues -1..-6 (6 states > old NX<=4 limit).
+    Matrix<6, 6, double> A{};
+    const double         expected[6] = {-1.0, -2.0, -3.0, -4.0, -5.0, -6.0};
+    for (size_t i = 0; i < 6; ++i) {
+        A(i, i) = expected[i];
+    }
+    auto p = analysis::poles(A);
+    for (size_t i = 0; i < 6; ++i) {
+        CHECK(p[i].real() == doctest::Approx(expected[i]).epsilon(1e-9));
+        CHECK(p[i].imag() == doctest::Approx(0.0).epsilon(1e-9));
+    }
+    CHECK(analysis::is_stable_continuous(A));
+}
+
+TEST_CASE("step/impulse/initial response of 1/(s+1)") {
+    // 1/(s+1): A=-1, B=1, C=1, D=0
+    TransferFunction<1, 2, double> tf{{1.0}, {1.0, 1.0}};
+    auto                           t = analysis::linspace(0.0, 5.0, 501);
+
+    auto s = analysis::step(tf, t);
+    auto i = analysis::impulse(tf, t);
+    for (size_t k = 0; k < t.size(); ++k) {
+        CHECK(s.y[k] == doctest::Approx(1.0 - std::exp(-t[k])).epsilon(1e-3));
+        CHECK(i.y[k] == doctest::Approx(std::exp(-t[k])).epsilon(1e-3));
+    }
+
+    // initial response from x0=2: y(t) = 2 e^{-t}
+    auto                 ss = tf.to_state_space();
+    Matrix<1, 1, double> x0{};
+    x0(0, 0) = 2.0;
+    auto in = analysis::initial(ss, x0, t);
+    for (size_t k = 0; k < t.size(); ++k) {
+        CHECK(in.y[k] == doctest::Approx(2.0 * std::exp(-t[k])).epsilon(1e-3));
+    }
+}
+
 TEST_CASE("linspace and logspace support float") {
     const auto lin = analysis::linspace(0.0f, 1.0f, 5);
     const auto log = analysis::logspace(1.0f, 100.0f, 3);

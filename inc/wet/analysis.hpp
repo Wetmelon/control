@@ -17,6 +17,7 @@
 #include "wet/math/math.hpp"
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
 #include "wet/systems/zpk.hpp"
@@ -682,7 +683,6 @@ template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
  */
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr ColVec<NX, wet::complex<T>> poles(const Matrix<NX, NX, T>& A) {
-    static_assert(NX <= 4, "Pole computation only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     return eigen.values;
 }
@@ -697,7 +697,6 @@ template<size_t NX, typename T = double>
  */
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr bool is_stable_continuous(const Matrix<NX, NX, T>& A) {
-    static_assert(NX <= 4, "Stability analysis only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
         return false;
@@ -730,7 +729,6 @@ struct PoleInfo {
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr wet::array<PoleInfo<T>, NX>
 damp(const Matrix<NX, NX, T>& A) {
-    static_assert(NX <= 4, "Damp only supported for systems up to 4 states");
     auto                        eigen = mat::compute_eigenvalues(A);
     wet::array<PoleInfo<T>, NX> info{};
     for (size_t i = 0; i < NX; ++i) {
@@ -741,6 +739,139 @@ damp(const Matrix<NX, NX, T>& A) {
         info[i] = PoleInfo<T>{p, wn, zeta, tau};
     }
     return info;
+}
+
+// ============================================================================
+// Time-Domain Responses
+// ============================================================================
+
+/**
+ * @brief SISO time-domain response: output y(t) sampled on a time grid
+ */
+template<typename T = double>
+struct TimeResponse {
+    std::vector<T> t; //!< Time points (s)
+    std::vector<T> y; //!< Output at each time point
+};
+
+namespace detail {
+
+//! Iterate a discrete SISO system y[k]=Cx+Du, x[k+1]=Ax+Bu with constant input u.
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<T> time_response_impl(
+    const StateSpace<NX, 1, 1, NW, NV, T>& dsys,
+    const Matrix<NX, 1, T>&                x0,
+    T                                      u,
+    const std::vector<T>&                  time
+) {
+    TimeResponse<T> r;
+    r.t = time;
+    r.y.reserve(time.size());
+    Matrix<NX, 1, T> x = x0;
+    for (size_t k = 0; k < time.size(); ++k) {
+        r.y.push_back((dsys.C * x)(0, 0) + dsys.D(0, 0) * u);
+        x = dsys.A * x + dsys.B * u;
+    }
+    return r;
+}
+
+//! ZOH-discretize a continuous system onto a uniform time grid (pass-through if already discrete).
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] StateSpace<NX, 1, 1, NW, NV, T> discretize_on_grid(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  time
+) {
+    if (sys.is_discrete()) {
+        return sys;
+    }
+    const T dt = (time.size() > 1) ? time[1] - time[0] : T{1};
+    return wet::discretize(sys, dt, DiscretizationMethod::ZOH);
+}
+
+} // namespace detail
+
+/**
+ * @brief Unit step response of a SISO system
+ *
+ * Computes y(t) for a unit step input u(t)=1, t≥0, from zero initial state.
+ * Continuous systems are ZOH-discretized on the (uniform) time grid; discrete
+ * systems are iterated directly. MATLAB equivalent: `step(sys, t)`.
+ *
+ * @param sys  SISO state-space system (continuous or discrete)
+ * @param time Uniformly spaced time vector (e.g. analysis::linspace(0, tf, n))
+ * @return TimeResponse with time and output history
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<T> step(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  time
+) {
+    auto dsys = detail::discretize_on_grid(sys, time);
+    return detail::time_response_impl(dsys, Matrix<NX, 1, T>{}, T{1}, time);
+}
+
+/**
+ * @brief Impulse response of a SISO system
+ *
+ * Computes the response to a unit impulse. Implemented as the free response
+ * from initial state x₀ = B, giving y(t) = C·e^{At}·B (the strictly-proper
+ * part; the D·δ(t) feedthrough term is not plotted). MATLAB equivalent:
+ * `impulse(sys, t)`.
+ *
+ * @param sys  SISO state-space system
+ * @param time Uniformly spaced time vector
+ * @return TimeResponse with time and output history
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<T> impulse(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  time
+) {
+    auto dsys = detail::discretize_on_grid(sys, time);
+    return detail::time_response_impl(dsys, sys.B, T{0}, time);
+}
+
+/**
+ * @brief Initial-condition (free) response of a SISO system
+ *
+ * Computes y(t) = C·e^{At}·x₀ for the unforced system (u=0). MATLAB
+ * equivalent: `initial(sys, x0, t)`.
+ *
+ * @param sys  SISO state-space system
+ * @param x0   Initial state
+ * @param time Uniformly spaced time vector
+ * @return TimeResponse with time and output history
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<T> initial(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const Matrix<NX, 1, T>&                x0,
+    const std::vector<T>&                  time
+) {
+    auto dsys = detail::discretize_on_grid(sys, time);
+    return detail::time_response_impl(dsys, x0, T{0}, time);
+}
+
+/**
+ * @brief Step response of a SISO transfer function (MATLAB `step(tf, t)`)
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] TimeResponse<T> step(
+    const TransferFunction<Nnum, Nden, T>& tf,
+    const std::vector<T>&                  time
+) {
+    return step(tf.to_state_space(), time);
+}
+
+/**
+ * @brief Impulse response of a SISO transfer function (MATLAB `impulse(tf, t)`)
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] TimeResponse<T> impulse(
+    const TransferFunction<Nnum, Nden, T>& tf,
+    const std::vector<T>&                  time
+) {
+    return impulse(tf.to_state_space(), time);
 }
 
 // ============================================================================

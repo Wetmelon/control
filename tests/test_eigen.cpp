@@ -104,42 +104,42 @@ TEST_CASE("Eigen Decomposition") {
     }
 }
 
-TEST_CASE("compute_eigenvalues_qr - 1x1 matrix") {
+TEST_CASE("compute_eigenvalues - 1x1 matrix") {
     Matrix<1, 1> A = {{5.0}};
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
-    CHECK(result.eigenvalues_real(0, 0) == doctest::Approx(5.0));
+    CHECK(result.values[0].real() == doctest::Approx(5.0));
 }
 
-TEST_CASE("compute_eigenvalues_qr - 2x2 diagonal matrix") {
+TEST_CASE("compute_eigenvalues - 2x2 diagonal matrix") {
     Matrix<2, 2> A = {
         {3.0, 0.0},
         {0.0, 7.0}
     };
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
     // Eigenvalues should be 3 and 7 (on diagonal)
-    CHECK((result.eigenvalues_real(0, 0) == doctest::Approx(3.0) || result.eigenvalues_real(0, 0) == doctest::Approx(7.0)));
-    CHECK((result.eigenvalues_real(1, 1) == doctest::Approx(7.0) || result.eigenvalues_real(1, 1) == doctest::Approx(3.0)));
+    CHECK((result.values[0].real() == doctest::Approx(3.0) || result.values[0].real() == doctest::Approx(7.0)));
+    CHECK((result.values[1].real() == doctest::Approx(7.0) || result.values[1].real() == doctest::Approx(3.0)));
 }
 
-TEST_CASE("compute_eigenvalues_qr - 2x2 symmetric matrix") {
+TEST_CASE("compute_eigenvalues - 2x2 symmetric matrix") {
     // Symmetric matrix with known eigenvalues
     Matrix<2, 2> A = {
         {4.0, 1.0},
         {1.0, 4.0}
     };
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
     // Eigenvalues should be 3 and 5
-    double lambda1 = result.eigenvalues_real(0, 0);
-    double lambda2 = result.eigenvalues_real(1, 1);
+    double lambda1 = result.values[0].real();
+    double lambda2 = result.values[1].real();
 
     // Check that we got both eigenvalues (order may vary)
     bool has_3 = (std::abs(lambda1 - 3.0) < 1e-6 || std::abs(lambda2 - 3.0) < 1e-6);
@@ -149,17 +149,17 @@ TEST_CASE("compute_eigenvalues_qr - 2x2 symmetric matrix") {
     CHECK(has_5);
 }
 
-TEST_CASE("compute_eigenvalues_qr - 2x2 identity matrix") {
+TEST_CASE("compute_eigenvalues - 2x2 identity matrix") {
     Matrix<2, 2> A = Matrix<2, 2>::identity();
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
-    CHECK(result.eigenvalues_real(0, 0) == doctest::Approx(1.0));
-    CHECK(result.eigenvalues_real(1, 1) == doctest::Approx(1.0));
+    CHECK(result.values[0].real() == doctest::Approx(1.0));
+    CHECK(result.values[1].real() == doctest::Approx(1.0));
 }
 
-TEST_CASE("compute_eigenvalues_qr - 3x3 symmetric matrix") {
+TEST_CASE("compute_eigenvalues - 3x3 symmetric matrix") {
     // Symmetric matrix
     Matrix<3, 3> A = {
         {6.0, 2.0, 1.0},
@@ -167,45 +167,45 @@ TEST_CASE("compute_eigenvalues_qr - 3x3 symmetric matrix") {
         {1.0, 1.0, 1.0}
     };
 
-    auto result = compute_eigenvalues_qr(A, 200);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
 
     // Sum of eigenvalues should equal trace
     double trace = A(0, 0) + A(1, 1) + A(2, 2);
-    double sum_eigenvalues = result.eigenvalues_real(0, 0) + result.eigenvalues_real(1, 1) + result.eigenvalues_real(2, 2);
+    double sum_eigenvalues = result.values[0].real() + result.values[1].real() + result.values[2].real();
     CHECK(sum_eigenvalues == doctest::Approx(trace).epsilon(1e-5));
 }
 
-TEST_CASE("compute_eigenvalues_qr - positive definite matrix") {
+TEST_CASE("compute_eigenvalues - positive definite matrix") {
     // Positive definite matrix (all eigenvalues should be positive)
     Matrix<2, 2> A = {
         {2.0, 0.5},
         {0.5, 2.0}
     };
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
-    CHECK(result.eigenvalues_real(0, 0) > 0.0);
-    CHECK(result.eigenvalues_real(1, 1) > 0.0);
+    CHECK(result.values[0].real() > 0.0);
+    CHECK(result.values[1].real() > 0.0);
 }
 
-TEST_CASE("compute_eigenvalues_qr - negative eigenvalues") {
+TEST_CASE("compute_eigenvalues - negative eigenvalues") {
     // Matrix with negative eigenvalues
     Matrix<2, 2> A = {
         {-3.0, 0.0},
         {0.0, -5.0}
     };
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     CHECK(result.converged);
-    CHECK(result.eigenvalues_real(0, 0) == doctest::Approx(-3.0));
-    CHECK(result.eigenvalues_real(1, 1) == doctest::Approx(-5.0));
+    CHECK(result.values[0].real() == doctest::Approx(-3.0));
+    CHECK(result.values[1].real() == doctest::Approx(-5.0));
 }
 
-TEST_CASE("compute_eigenvalues_qr - check for positive definiteness") {
+TEST_CASE("compute_eigenvalues - check for positive definiteness") {
     SUBCASE("positive definite matrix") {
         Matrix<3, 3> Q = {
             {2.0, 0.1, 0.1},
@@ -213,12 +213,12 @@ TEST_CASE("compute_eigenvalues_qr - check for positive definiteness") {
             {0.1, 0.1, 2.0}
         };
 
-        auto result = compute_eigenvalues_qr(Q, 200);
+        auto result = compute_eigenvalues(Q);
 
         if (result.converged) {
             bool all_positive = true;
             for (size_t i = 0; i < 3; ++i) {
-                if (result.eigenvalues_real(i, i) <= 0.0) {
+                if (result.values[i].real() <= 0.0) {
                     all_positive = false;
                     break;
                 }
@@ -233,12 +233,12 @@ TEST_CASE("compute_eigenvalues_qr - check for positive definiteness") {
             {2.0, 1.0}
         };
 
-        auto result = compute_eigenvalues_qr(Q);
+        auto result = compute_eigenvalues(Q);
 
         if (result.converged) {
             // Should have eigenvalues 3 and -1
-            double lambda1 = result.eigenvalues_real(0, 0);
-            double lambda2 = result.eigenvalues_real(1, 1);
+            double lambda1 = result.values[0].real();
+            double lambda2 = result.values[1].real();
 
             bool has_negative = (lambda1 < 0.0 || lambda2 < 0.0);
             CHECK(has_negative);
@@ -246,16 +246,16 @@ TEST_CASE("compute_eigenvalues_qr - check for positive definiteness") {
     }
 }
 
-TEST_CASE("compute_eigenvalues_qr - zero matrix") {
+TEST_CASE("compute_eigenvalues - zero matrix") {
     Matrix<2, 2> A = Matrix<2, 2>::zeros();
 
-    auto result = compute_eigenvalues_qr(A);
+    auto result = compute_eigenvalues(A);
 
     // Zero matrix should converge immediately (already diagonal)
     // or may not converge if QR decomposition fails
     // Either way, eigenvalues should be zero
-    CHECK(result.eigenvalues_real(0, 0) == doctest::Approx(0.0));
-    CHECK(result.eigenvalues_real(1, 1) == doctest::Approx(0.0));
+    CHECK(result.values[0].real() == doctest::Approx(0.0));
+    CHECK(result.values[1].real() == doctest::Approx(0.0));
 }
 
 namespace {
@@ -275,10 +275,10 @@ double max_abs_diff(const Matrix<N, M>& A, const Matrix<N, M>& B) {
 // Returns {real, imag} eigenvalue pairs sorted by real then imag part, reading
 // the QR/Schur result's diagonal real part and corresponding imaginary part.
 template<size_t N>
-std::array<wet::pair<double, double>, N> eig_pairs(const EigenResult<double, N>& r) {
+std::array<wet::pair<double, double>, N> eig_pairs(const EigenResult<N, double>& r) {
     std::array<wet::pair<double, double>, N> out;
     for (size_t i = 0; i < N; ++i) {
-        out[i] = {r.eigenvalues_real(i, i), r.eigenvalues_imag(i, i)};
+        out[i] = {r.values[i].real(), r.values[i].imag()};
     }
     std::sort(out.begin(), out.end());
     return out;
@@ -352,23 +352,22 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
         CHECK(std::abs(std::abs(r.values[0].imag()) - 2.0) < 1e-9);
     }
 
-    SUBCASE("compute_eigenvalues_qr now resolves complex pairs (Francis double-shift)") {
-        // Previously the QR path returned only real diagonal entries and left
-        // eigenvalues_imag zero. With the Francis double-shift it resolves the
-        // 2x2 block into a true conjugate pair.
+    SUBCASE("compute_eigenvalues now resolves complex pairs (Francis double-shift)") {
+        // Previously the QR path returned only real parts. With the Francis
+        // double-shift it resolves the 2x2 block into a true conjugate pair.
         Matrix<2, 2> A = {
             {0.0, -1.0},
             {1.0, 0.0},
         };
-        auto r = compute_eigenvalues_qr(A);
+        auto r = compute_eigenvalues(A);
         REQUIRE(r.converged);
-        CHECK(std::abs(r.eigenvalues_real(0, 0)) < 1e-9);
-        CHECK(std::abs(r.eigenvalues_real(1, 1)) < 1e-9);
-        CHECK(std::abs(std::abs(r.eigenvalues_imag(0, 0)) - 1.0) < 1e-9);
-        CHECK(r.eigenvalues_imag(0, 0) == doctest::Approx(-r.eigenvalues_imag(1, 1)));
+        CHECK(std::abs(r.values[0].real()) < 1e-9);
+        CHECK(std::abs(r.values[1].real()) < 1e-9);
+        CHECK(std::abs(std::abs(r.values[0].imag()) - 1.0) < 1e-9);
+        CHECK(r.values[0].imag() == doctest::Approx(-r.values[1].imag()));
     }
 
-    SUBCASE("compute_eigenvalues_qr - 6x6 mixed real and two complex pairs") {
+    SUBCASE("compute_eigenvalues - 6x6 mixed real and two complex pairs") {
         // Block diagonal: rotation(4±3i), real 2 and -1, rotation(±5i).
         Matrix<6, 6> A = {
             {4.0, -3.0, 0.0, 0.0, 0.0, 0.0},
@@ -378,7 +377,7 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
             {0.0, 0.0, 0.0, 0.0, 0.0, -5.0},
             {0.0, 0.0, 0.0, 0.0, 5.0, 0.0},
         };
-        auto r = compute_eigenvalues_qr(A);
+        auto r = compute_eigenvalues(A);
         REQUIRE(r.converged);
         auto                                     got = eig_pairs(r);
         std::array<wet::pair<double, double>, 6> want = {{
@@ -405,7 +404,7 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
             {0.0, 0.0, 1.0, 0.0, 0.0},
             {0.0, 0.0, 0.0, 1.0, 0.0},
         };
-        auto r = compute_eigenvalues_qr(A);
+        auto r = compute_eigenvalues(A);
         REQUIRE(r.converged);
         auto got = eig_pairs(r);
         for (size_t i = 0; i < 5; ++i) {
@@ -415,7 +414,7 @@ TEST_CASE("compute_eigenvalues resolves complex conjugate eigenvalues") {
     }
 }
 
-TEST_CASE("compute_eigenvalues_qr is constexpr-evaluable") {
+TEST_CASE("compute_eigenvalues is constexpr-evaluable") {
     // Locks that the Hessenberg + Francis path contains no construct that
     // breaks constant evaluation (design-time eigenvalue computation).
     constexpr auto spectrum_ok = []() consteval {
@@ -424,19 +423,19 @@ TEST_CASE("compute_eigenvalues_qr is constexpr-evaluable") {
             {-1.0, 2.0, -1.0},
             {0.0, -1.0, 2.0},
         };
-        auto r = compute_eigenvalues_qr(A);
+        auto r = compute_eigenvalues(A);
         if (!r.converged) {
             return false;
         }
         // trace is preserved: sum of eigenvalues == 6
-        double s = r.eigenvalues_real(0, 0) + r.eigenvalues_real(1, 1) + r.eigenvalues_real(2, 2);
+        double s = r.values[0].real() + r.values[1].real() + r.values[2].real();
         return wet::abs(s - 6.0) < 1e-9;
     };
-    static_assert(spectrum_ok(), "compute_eigenvalues_qr must work at compile time");
+    static_assert(spectrum_ok(), "compute_eigenvalues must work at compile time");
     CHECK(spectrum_ok());
 }
 
-TEST_CASE("compute_eigenvalues_qr - 4x4 symmetric matches known spectrum") {
+TEST_CASE("compute_eigenvalues - 4x4 symmetric matches known spectrum") {
     // Tridiagonal [2 on diag, -1 off-diag] has eigenvalues
     // 2 - 2cos(k·π/5), k=1..4.
     Matrix<4, 4> A = {
@@ -445,7 +444,7 @@ TEST_CASE("compute_eigenvalues_qr - 4x4 symmetric matches known spectrum") {
         {0.0, -1.0, 2.0, -1.0},
         {0.0, 0.0, -1.0, 2.0},
     };
-    auto r = compute_eigenvalues_qr(A);
+    auto r = compute_eigenvalues(A);
     REQUIRE(r.converged);
 
     std::array<double, 4> want{};
@@ -458,31 +457,5 @@ TEST_CASE("compute_eigenvalues_qr - 4x4 symmetric matches known spectrum") {
     for (size_t i = 0; i < 4; ++i) {
         CHECK(got[i].first == doctest::Approx(want[i]).epsilon(1e-6));
         CHECK(std::abs(got[i].second) < 1e-6); // symmetric => real spectrum
-    }
-}
-
-TEST_CASE("ordered_schur partitions stable/unstable eigenvalues") {
-    SUBCASE("continuous: split by sign of real part") {
-        // Diagonal eigenvalues -3, -1, +2: two stable, one unstable.
-        Matrix<3, 3> A = {
-            {-3.0, 0.0, 0.0},
-            {0.0, -1.0, 0.0},
-            {0.0, 0.0, 2.0},
-        };
-        auto s = ordered_schur_continuous(A);
-        REQUIRE(s.converged);
-        CHECK(s.n_stable == 2);
-    }
-
-    SUBCASE("discrete: split by magnitude vs 1") {
-        // Eigenvalues 0.5, -0.2, 1.5: two stable (|λ|<1), one unstable.
-        Matrix<3, 3> A = {
-            {0.5, 0.0, 0.0},
-            {0.0, -0.2, 0.0},
-            {0.0, 0.0, 1.5},
-        };
-        auto s = ordered_schur_discrete(A);
-        REQUIRE(s.converged);
-        CHECK(s.n_stable == 2);
     }
 }

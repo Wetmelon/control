@@ -12,6 +12,7 @@
 #include "wet/design/linearization.hpp"
 #include "wet/design/pole_placement.hpp"
 #include "wet/math/complex.hpp"
+#include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/matrix/svd.hpp"
 #include "wet/systems/discretization.hpp"
@@ -244,6 +245,20 @@ template<size_t M, size_t N, typename T>
 template<size_t M, size_t N, typename T>
 [[nodiscard]] constexpr mat::NullSpace<N, T> null(const Matrix<M, N, T>& A) {
     return mat::null_space(A);
+}
+
+/**
+ * @brief MATLAB short alias for the eigenvalues of a square matrix.
+ *
+ * Returns the eigenvalues as a complex column vector. Closed-form for N ≤ 4,
+ * Francis double-shift QR for larger systems. For eigenvectors and the
+ * convergence flag, call mat::compute_eigenvalues() directly.
+ *
+ * @note Compare with MATLAB's e = eig(A).
+ */
+template<size_t N, typename T>
+[[nodiscard]] constexpr ColVec<N, wet::complex<T>> eig(const Matrix<N, N, T>& A) {
+    return mat::compute_eigenvalues(A).values;
 }
 
 /**

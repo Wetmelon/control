@@ -179,6 +179,16 @@ TEST_CASE("MATLAB structural analysis aliases") {
     CHECK(Ob_short == Ob_core);
 }
 
+TEST_CASE("MATLAB eig alias") {
+    // A = [0 1; -2 -3] has eigenvalues -1 and -2.
+    Matrix<2, 2> A{{0.0, 1.0}, {-2.0, -3.0}};
+    auto         e = matlab::eig(A);
+    // the 2x2 closed form returns (trace+sqrt)/2 first → -1, then -2
+    CHECK(e[0].real() == doctest::Approx(-1.0));
+    CHECK(e[1].real() == doctest::Approx(-2.0));
+    CHECK(e[0].imag() == doctest::Approx(0.0));
+}
+
 TEST_CASE("MATLAB tf helper") {
     auto tf_sys = matlab::tf(
         std::array<double, 2>{1.0, 1.0},

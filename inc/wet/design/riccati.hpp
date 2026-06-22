@@ -32,7 +32,8 @@ constexpr bool is_stabilizable(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B
 ) {
-    // Compute eigenvalues of A — use direct formulas for N ≤ 4, QR algorithm for N > 4
+    // For N ≤ 4 form the test matrix in complex arithmetic (exact magnitude);
+    // for larger N fall back to a real-part-only conservative check.
     if constexpr (NX <= 4) {
         auto eigen = mat::compute_eigenvalues(A);
         if (!eigen.converged) {
@@ -74,8 +75,9 @@ constexpr bool is_stabilizable(
 
         return true;
     } else {
-        // N > 4: use QR algorithm which returns real eigenvalues on diagonal
-        auto eigen = mat::compute_eigenvalues_qr(A);
+        // N > 4: real-part-only check (conservative — avoids the larger complex
+        // rank test on big matrices).
+        auto eigen = mat::compute_eigenvalues(A);
         if (!eigen.converged) {
             // If QR didn't converge, skip the stabilizability check — let the
             // SDA loop itself detect divergence via its iteration limit.
@@ -85,10 +87,7 @@ constexpr bool is_stabilizable(
         const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
 
         for (size_t i = 0; i < NX; ++i) {
-            T lambda_real = eigen.eigenvalues_real(i, i);
-            // QR returns real parts; for real eigenvalues |λ| = |λ_real|
-            // This is conservative — complex eigenvalues from 2x2 blocks are not
-            // individually resolved, but their magnitude is bounded by max|diagonal|.
+            T lambda_real = eigen.values[i].real();
             if (wet::abs(lambda_real) < T{1}) {
                 continue;
             }
