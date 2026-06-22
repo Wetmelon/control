@@ -118,9 +118,9 @@ template<size_t NX, size_t NU, size_t NY, typename T = double, typename Dynamics
     T                    epsilon = T{0}
 ) {
     if (epsilon > T{0}) {
-        return analysis::linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op, epsilon).to_state_space();
+        return linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op, epsilon).to_state_space();
     }
-    return analysis::linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op).to_state_space();
+    return linearize<NX, NU, NY, T>(dynamics, output, x_op, u_op).to_state_space();
 }
 
 /**

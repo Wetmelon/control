@@ -23,7 +23,6 @@
 #include "wet/systems/state_space.hpp"
 
 namespace wet {
-namespace analysis {
 
 /**
  * @brief Result of nonlinear operating-point linearization
@@ -204,5 +203,4 @@ template<size_t NX, size_t NU, typename T = double, typename Dynamics>
     return linearize<NX, NU, NX, T>(dynamics, output, x_op, u_op, epsilon);
 }
 
-} // namespace analysis
 } // namespace wet

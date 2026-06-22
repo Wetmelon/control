@@ -10,7 +10,6 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/utility/foc.hpp"
 
-
 using namespace wet;
 
 // ===== Internal simulation state =====

@@ -34,7 +34,7 @@ int main() {
     // 1) Linearize around operating point
     const ColVec<2> x_op{0.0, 0.0};
     const ColVec<1> u_op{0.0};
-    const auto      lin = analysis::linearize<2, 1, 1>(plant_nonlinear, output, x_op, u_op);
+    const auto      lin = linearize<2, 1, 1>(plant_nonlinear, output, x_op, u_op);
 
     StateSpace<2, 1, 1, 2, 1> sys_c{
         .A = lin.A,

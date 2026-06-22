@@ -282,7 +282,7 @@ struct SensorlessEstimator {
     [[nodiscard]] constexpr T mechanical_velocity() const {
         return omega_ / wet::max(params.pole_pairs, T{1});
     }
-    
+
     /// PM-flux estimate η [Wb] (αβ); its magnitude tracks λ at lock.
     [[nodiscard]] constexpr AlphaBeta<T> pm_flux() const { return eta_; }
 
