@@ -33,6 +33,7 @@
 #include "wet/systems/discretization.hpp"    // IWYU pragma: keep
 #include "wet/systems/state_space.hpp"       // IWYU pragma: keep
 #include "wet/systems/transfer_function.hpp" // IWYU pragma: keep
+#include "wet/systems/zpk.hpp"               // IWYU pragma: keep
 
 // --- Structural analysis (allocation-free) ----------------------------------
 #include "wet/design/linearization.hpp" // IWYU pragma: keep
