@@ -297,4 +297,16 @@ TEST_SUITE("place_jordan_optimal") {
         const wet::array<JordanBlock<>, 1> too_few = {{{{-1, 0}, 2}}}; // 2 ≠ 4
         CHECK_FALSE(place_jordan_optimal(A, B, too_few).has_value());
     }
+
+    TEST_CASE("Runs at compile time (constexpr)") {
+        // The analytic-gradient BFGS fits the constexpr op budget for small
+        // systems, so a robust gain can be baked in at compile time.
+        constexpr Matrix<2, 2, double>         Ac = {{0, 1}, {0, 0}};
+        constexpr Matrix<2, 1, double>         Bc = {{0}, {1}};
+        constexpr wet::array<JordanBlock<>, 2> pc = {{{{-1, 0}, 1}, {{-2, 0}, 1}}};
+        constexpr auto                         r = place_jordan_optimal(Ac, Bc, pc, 1.0);
+        static_assert(r.has_value());
+        static_assert(r->converged);
+        static_assert(r->cond_fro < 10.0);
+    }
 }

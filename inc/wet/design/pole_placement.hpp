@@ -776,10 +776,14 @@ struct OptimalJordanPlacement {
  *    a closed form since the closed-loop eigenvalues are exactly the targets.
  *
  * α = 1 is the pure robust problem (REPP), α = 0 the pure minimum-gain problem
- * (MGEPP). The unconstrained nonconvex objective is minimized by gradient descent
- * (central finite differences, Armijo backtracking) from the canonical parameter;
- * as the paper notes, the result is a local minimum dependent on that start. The
- * kernel/pseudoinverse factors are precomputed once, so each step is cheap.
+ * (MGEPP). The unconstrained nonconvex objective is minimized by BFGS with an
+ * Armijo line search from the canonical parameter; as the paper notes, the result
+ * is a local minimum dependent on that start. Because the eigenvector/input
+ * matrices are *linear* in K, the gradient is analytic (one V⁻¹ per iteration via
+ * the adjoint, reused from the line search, not a finite-difference sweep), and
+ * the kernel/pseudoinverse factors are precomputed once — so each iteration is
+ * cheap. This keeps it `constexpr`-evaluable for small systems; constant
+ * evaluation of larger ones may need `-fconstexpr-ops-limit` raised.
  *
  * @tparam NX Number of states
  * @tparam NU Number of inputs (NU ≤ NX)
@@ -798,7 +802,7 @@ struct OptimalJordanPlacement {
  *      Automatica 50(8), 2014.
  */
 template<size_t NX, size_t NU, size_t NB, typename T = double>
-[[nodiscard]] wet::optional<OptimalJordanPlacement<NU, NX, T>> place_jordan_optimal(
+[[nodiscard]] constexpr wet::optional<OptimalJordanPlacement<NU, NX, T>> place_jordan_optimal(
     const Matrix<NX, NX, T>&              A,
     const Matrix<NX, NU, T>&              B,
     const wet::array<JordanBlock<T>, NB>& blocks,
@@ -851,29 +855,101 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
         return K;
     };
 
-    // Objective value for a θ; returns a large penalty when V is singular.
-    const T    penalty = T{1e30};
-    const auto eval = [&](const wet::array<T, MaxDof>& th) -> T {
-        Matrix<NX, NX, T> V;
-        Matrix<NU, NX, T> W;
+    // Squared Frobenius norm (sum of squares — no sqrt round-trip).
+    const auto fro2 = [](const auto& Mx) {
+        T s = T{0};
+        for (size_t i = 0; i < Mx.rows(); ++i) {
+            for (size_t j = 0; j < Mx.cols(); ++j) {
+                s += Mx(i, j) * Mx(i, j);
+            }
+        }
+        return s;
+    };
+
+    // assemble_vw is *linear* in K, so ∂V/∂θⱼ and ∂W/∂θⱼ are the constant matrices
+    // produced by a unit parameter at component j. Precompute them once; the
+    // analytic gradient is then a Frobenius product with these directions.
+    wet::array<Matrix<NX, NX, T>, MaxDof> dV{};
+    wet::array<Matrix<NU, NX, T>, MaxDof> dW{};
+    {
+        size_t j = 0;
+        for (size_t e = 0; e < plan.ndistinct; ++e) {
+            size_t pcol = plan.pos_offset[e];
+            for (size_t p = 0; p < plan.npos[e]; ++p) {
+                for (size_t r = 0; r < NU; ++r) {
+                    Matrix<NU, NX, C> Kr = Matrix<NU, NX, C>::zeros();
+                    Kr(r, pcol) = C{T{1}, T{0}};
+                    detail::assemble_vw(plan, Kr, dV[j], dW[j]);
+                    ++j;
+                    if (!plan.is_real[e]) {
+                        Matrix<NU, NX, C> Ki = Matrix<NU, NX, C>::zeros();
+                        Ki(r, pcol) = C{T{0}, T{1}};
+                        detail::assemble_vw(plan, Ki, dV[j], dW[j]);
+                        ++j;
+                    }
+                }
+                ++pcol;
+            }
+        }
+    }
+
+    // Assemble V, W and invert V at θ. Returns false when V is singular. Split
+    // from the objective/gradient so the gradient can reuse the line search's
+    // accepted inverse instead of recomputing it.
+    const auto solve = [&](const wet::array<T, MaxDof>& th, Matrix<NX, NX, T>& V, Matrix<NU, NX, T>& W,
+                           Matrix<NX, NX, T>& P) -> bool {
         detail::assemble_vw(plan, theta_to_k(th), V, W);
-        const auto Vinv = V.inverse();
-        if (!Vinv) {
-            return penalty;
+        const auto Pinv = V.inverse();
+        if (!Pinv) {
+            return false;
         }
-        const Matrix<NU, NX, T> F = Matrix<NU, NX, T>(W * Vinv.value()); // paper's F = −K
-        const T                 gain2 = F.norm() * F.norm();
+        P = Pinv.value();
+        return true;
+    };
+
+    // Objective value from a solved (V, W, P = V⁻¹). Squared Frobenius (sqrt-free).
+    const auto objective_value = [&](const Matrix<NX, NX, T>& V, const Matrix<NU, NX, T>& W,
+                                     const Matrix<NX, NX, T>& P) -> T {
+        const Matrix<NU, NX, T> F = Matrix<NU, NX, T>(W * P);
+        const T                 gain2 = fro2(F);
+        const T                 ga = T{1} - alpha;
         if (objective == JordanObjective::ConditionNumber) {
-            const T vn = V.norm();
-            const T vin = Vinv.value().norm();
-            return (alpha * ((vn * vn) + (vin * vin))) + ((T{1} - alpha) * gain2);
+            return (alpha * (fro2(V) + fro2(P))) + (ga * gain2);
         }
-        const Matrix<NX, NX, T> M = Matrix<NX, NX, T>(A + (B * F)); // closed loop A + B·F
-        T                       dep2 = (M.norm() * M.norm()) - sum_lambda_sq;
+        const Matrix<NX, NX, T> M = Matrix<NX, NX, T>(A + (B * F));
+        T                       dep2 = fro2(M) - sum_lambda_sq;
         if (dep2 < T{0}) {
             dep2 = T{0};
         }
-        return (alpha * dep2) + ((T{1} - alpha) * gain2);
+        return (alpha * dep2) + (ga * gain2);
+    };
+
+    // Analytic gradient from a solved (V, W, P) via the adjoint matrices
+    // GV = ∂f/∂V, GW = ∂f/∂W; gradⱼ = ⟨GV, ∂V/∂θⱼ⟩ + ⟨GW, ∂W/∂θⱼ⟩.
+    const auto gradient_at = [&](const Matrix<NX, NX, T>& V, const Matrix<NU, NX, T>& W,
+                                 const Matrix<NX, NX, T>& P, wet::array<T, MaxDof>& grad_out) {
+        const Matrix<NX, NX, T> Pt = Matrix<NX, NX, T>(P.transpose());
+        const Matrix<NU, NX, T> F = Matrix<NU, NX, T>(W * P); // paper's F = −K
+        const Matrix<NX, NU, T> Ft = Matrix<NX, NU, T>(F.transpose());
+        const T                 ga = T{1} - alpha;
+        Matrix<NX, NX, T>       GV;
+        Matrix<NU, NX, T>       GW;
+        if (objective == JordanObjective::ConditionNumber) {
+            const Matrix<NX, NX, T> Gb = Matrix<NX, NX, T>(Matrix<NX, NX, T>(Pt * P) * Pt);    // Pᵀ P Pᵀ
+            const Matrix<NX, NX, T> FtFPt = Matrix<NX, NX, T>(Matrix<NX, NX, T>(Ft * F) * Pt); // Fᵀ F Pᵀ
+            GV = Matrix<NX, NX, T>(((T{2} * alpha) * V) - ((T{2} * alpha) * Gb) - ((T{2} * ga) * FtFPt));
+            GW = Matrix<NU, NX, T>((T{2} * ga) * Matrix<NU, NX, T>(F * Pt));
+        } else {
+            const Matrix<NX, NX, T> M = Matrix<NX, NX, T>(A + (B * F));                                                      // closed loop A + B·F
+            const Matrix<NU, NX, T> BtMPt = Matrix<NU, NX, T>(Matrix<NU, NX, T>(Matrix<NU, NX, T>(B.transpose()) * M) * Pt); // Bᵀ M Pᵀ
+            const Matrix<NX, NX, T> FtBtMPt = Matrix<NX, NX, T>(Ft * BtMPt);                                                 // Fᵀ Bᵀ M Pᵀ
+            const Matrix<NX, NX, T> FtFPt = Matrix<NX, NX, T>(Matrix<NX, NX, T>(Ft * F) * Pt);                               // Fᵀ F Pᵀ
+            GV = Matrix<NX, NX, T>(((T{-2} * alpha) * FtBtMPt) - ((T{2} * ga) * FtFPt));
+            GW = Matrix<NU, NX, T>(((T{2} * alpha) * BtMPt) + ((T{2} * ga) * Matrix<NU, NX, T>(F * Pt)));
+        }
+        for (size_t j = 0; j < dof; ++j) {
+            grad_out[j] = GV.dot(dV[j]) + GW.dot(dW[j]);
+        }
     };
 
     // Start from the canonical parameter.
@@ -896,57 +972,136 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
         }
     }
 
-    T f0 = eval(theta);
-    if (f0 >= penalty) {
+    wet::array<T, MaxDof> grad{};
+    Matrix<NX, NX, T>     Vcur;
+    Matrix<NU, NX, T>     Wcur;
+    Matrix<NX, NX, T>     Pcur;
+    if (!solve(theta, Vcur, Wcur, Pcur)) {
         return wet::nullopt; // canonical parameter already gives a singular V
     }
+    T f0 = objective_value(Vcur, Wcur, Pcur);
+    gradient_at(Vcur, Wcur, Pcur, grad);
 
-    // Gradient descent: central finite-difference gradient + Armijo backtracking.
-    const T h = T{1e-6};
+    // BFGS with an Armijo backtracking line search warm-started at the unit
+    // (quasi-Newton) step. H approximates the inverse Hessian. The accepted
+    // line-search inverse is reused for the gradient (one V⁻¹ per step).
+    wet::array<wet::array<T, MaxDof>, MaxDof> H{};
+    for (size_t i = 0; i < dof; ++i) {
+        H[i][i] = T{1};
+    }
     const T c1 = T{1e-4};
-    const T ftol = T{1e-10}; // relative function-decrease stop
+    const T ftol = T{1e-12};
+    const T gtol = T{1e-8};
     bool    converged = false;
     size_t  iter = 0;
     for (; iter < max_iter; ++iter) {
-        wet::array<T, MaxDof> grad{};
-        T                     gnorm2 = T{0};
+        T gnorm2 = T{0};
         for (size_t i = 0; i < dof; ++i) {
-            wet::array<T, MaxDof> tp = theta;
-            wet::array<T, MaxDof> tm = theta;
-            tp[i] += h;
-            tm[i] -= h;
-            grad[i] = (eval(tp) - eval(tm)) / (T{2} * h);
             gnorm2 += grad[i] * grad[i];
         }
-        if (gnorm2 == T{0}) {
+        if (wet::sqrt(gnorm2) < gtol) {
             converged = true;
             break;
         }
-        const T f_before = f0;
-        T       step = T{1};
-        bool    improved = false;
-        for (size_t ls = 0; ls < 40; ++ls) {
-            wet::array<T, MaxDof> tn = theta;
-            for (size_t i = 0; i < dof; ++i) {
-                tn[i] -= step * grad[i];
+
+        // Search direction p = −H·g; fall back to steepest descent if not a descent.
+        wet::array<T, MaxDof> p{};
+        T                     gp = T{0};
+        for (size_t i = 0; i < dof; ++i) {
+            T acc = T{0};
+            for (size_t k = 0; k < dof; ++k) {
+                acc += H[i][k] * grad[k];
             }
-            const T fn = eval(tn);
-            if (fn < (f0 - (c1 * step * gnorm2))) {
-                theta = tn;
-                f0 = fn;
-                improved = true;
-                break;
+            p[i] = -acc;
+            gp += grad[i] * p[i];
+        }
+        if (gp >= T{0}) {
+            for (size_t i = 0; i < dof; ++i) {
+                for (size_t k = 0; k < dof; ++k) {
+                    H[i][k] = (i == k) ? T{1} : T{0};
+                }
+                p[i] = -grad[i];
+            }
+            gp = -gnorm2;
+        }
+
+        // Line search; cache the accepted (V, W, P) for the gradient.
+        T                     step = T{1};
+        bool                  ok = false;
+        wet::array<T, MaxDof> theta_new{};
+        T                     f_new = f0;
+        Matrix<NX, NX, T>     Va;
+        Matrix<NU, NX, T>     Wa;
+        Matrix<NX, NX, T>     Pa;
+        for (size_t ls = 0; ls < 40; ++ls) {
+            for (size_t i = 0; i < dof; ++i) {
+                theta_new[i] = theta[i] + (step * p[i]);
+            }
+            Matrix<NX, NX, T> Vt;
+            Matrix<NU, NX, T> Wt;
+            Matrix<NX, NX, T> Pt2;
+            if (solve(theta_new, Vt, Wt, Pt2)) {
+                const T ft = objective_value(Vt, Wt, Pt2);
+                if (ft <= (f0 + (c1 * step * gp))) {
+                    Va = Vt;
+                    Wa = Wt;
+                    Pa = Pt2;
+                    f_new = ft;
+                    ok = true;
+                    break;
+                }
             }
             step *= T{0.5};
         }
-        // Stop when the line search stalls or the relative decrease is negligible.
-        if (!improved || ((f_before - f0) <= ftol * (wet::abs(f_before) + T{1}))) {
+        if (!ok) {
+            converged = true; // stalled at a stationary point
+            break;
+        }
+
+        // Gradient at the accepted point reuses the cached inverse (no new solve).
+        wet::array<T, MaxDof> grad_new{};
+        gradient_at(Va, Wa, Pa, grad_new);
+
+        // BFGS inverse-Hessian update.
+        wet::array<T, MaxDof> sv{};
+        wet::array<T, MaxDof> yv{};
+        T                     sy = T{0};
+        for (size_t i = 0; i < dof; ++i) {
+            sv[i] = theta_new[i] - theta[i];
+            yv[i] = grad_new[i] - grad[i];
+            sy += sv[i] * yv[i];
+        }
+        if (sy > T{1e-12}) {
+            wet::array<T, MaxDof> Hy{};
+            T                     yHy = T{0};
+            for (size_t i = 0; i < dof; ++i) {
+                T acc = T{0};
+                for (size_t k = 0; k < dof; ++k) {
+                    acc += H[i][k] * yv[k];
+                }
+                Hy[i] = acc;
+                yHy += yv[i] * Hy[i];
+            }
+            const T rho = T{1} / sy;
+            const T coef = rho * (T{1} + (rho * yHy));
+            for (size_t i = 0; i < dof; ++i) {
+                for (size_t k = 0; k < dof; ++k) {
+                    H[i][k] += (coef * sv[i] * sv[k]) - (rho * ((Hy[i] * sv[k]) + (sv[i] * Hy[k])));
+                }
+            }
+        }
+
+        const T f_prev = f0;
+        theta = theta_new;
+        grad = grad_new;
+        f0 = f_new;
+        if ((f_prev - f0) <= (ftol * (wet::abs(f_prev) + T{1}))) {
             converged = true;
             break;
         }
     }
 
-    // Assemble the final gain and metrics.
+    // Assemble the final gain and metrics (reported as true norms).
     Matrix<NX, NX, T> V;
     Matrix<NU, NX, T> W;
     detail::assemble_vw(plan, theta_to_k(theta), V, W);
