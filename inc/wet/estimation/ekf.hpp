@@ -190,6 +190,16 @@ struct ExtendedKalmanFilter {
     constexpr void set_covariance(const Matrix<NX, NX, T>& P_new) { P = P_new; }
     constexpr void set_process_noise_covariance(const Matrix<NX, NX, T>& Q_new) { Q = Q_new; }
 
+    // Re-initialize the estimate and clear the innovation (Q is kept).
+    constexpr void reset(
+        const ColVec<NX, T>&     x0 = ColVec<NX, T>{},
+        const Matrix<NX, NX, T>& P0 = Matrix<NX, NX, T>::identity()
+    ) {
+        x = x0;
+        P = P0;
+        innov = ColVec<NY, T>{};
+    }
+
 private:
     ColVec<NX, T>     x{};
     Matrix<NX, NX, T> P{};

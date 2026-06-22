@@ -107,3 +107,19 @@ using std::tuple;
 } // namespace wet
 
 #endif
+
+namespace wet {
+
+/**
+ * @brief Ordered {min, max} pair returned by value.
+ *
+ * Unlike std::minmax (which returns a pair of *references* to its arguments and
+ * dangles on temporaries, and lives in the non-freestanding <algorithm>), this
+ * returns by value and is backend-agnostic. Ties return {a, b}.
+ */
+template<typename T>
+[[nodiscard]] constexpr pair<T, T> minmax(const T& a, const T& b) {
+    return b < a ? pair<T, T>{b, a} : pair<T, T>{a, b};
+}
+
+} // namespace wet

@@ -54,6 +54,28 @@ constexpr T abs(T x) {
 }
 
 /**
+ * @brief Euclidean distance hypot(x, y) = √(x² + y²), without overflow.
+ *
+ * Scales by the larger magnitude before squaring, so it stays finite when x² or
+ * y² would overflow (and is exact at the axes). Backend-independent — built on
+ * wet::sqrt/abs, so the same body serves compile and run time.
+ *
+ * @note Compare with MATLAB's hypot(x, y).
+ * @tparam T Numeric type (floating-point)
+ */
+template<typename T>
+constexpr T hypot(T x, T y) {
+    const T ax = wet::abs(x);
+    const T ay = wet::abs(y);
+    const auto [lo, hi] = wet::minmax(ax, ay);
+    if (hi == T{0}) {
+        return T{0};
+    }
+    const T r = lo / hi;
+    return hi * wet::sqrt(T{1} + (r * r));
+}
+
+/**
  * @brief Cube root (preserves sign for negative x).
  * @tparam T Numeric type (floating-point)
  */

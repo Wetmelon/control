@@ -62,8 +62,12 @@ struct DisturbanceObserverResult {
     using scalar_type = scalar_type_t<T>;
 
     DisturbanceObserverConfig<T> config{};
-    T                            steady_state_gain{};
-    bool                         success{false};
+
+    /// Constant-innovation steady-state gain d_hat_ss/innovation = gain/leak.
+    /// Sentinel 0 means "no finite steady state": leak == 0 is a pure integrator
+    /// whose estimate grows without bound under constant innovation.
+    T    steady_state_gain{};
+    bool success{false};
 
     template<typename U>
     [[nodiscard]] constexpr auto as() const {

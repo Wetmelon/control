@@ -41,6 +41,18 @@ TEST_SUITE("constexpr_math") {
         CHECK(wet::abs(-1e15) == std::abs(-1e15));
     }
 
+    TEST_CASE("wet::hypot matches std::hypot and avoids overflow") {
+        CHECK(wet::hypot(3.0, 4.0) == doctest::Approx(5.0));
+        CHECK(wet::hypot(0.0, 0.0) == doctest::Approx(0.0));
+        CHECK(wet::hypot(-3.0, 4.0) == doctest::Approx(5.0));
+        CHECK(wet::hypot(5.0, 0.0) == doctest::Approx(5.0)); // exact on the axis
+        CHECK(wet::hypot(1.0, 1.0) == doctest::Approx(std::sqrt(2.0)));
+        // Overflow guard: 1e200^2 would overflow double, hypot must stay finite.
+        CHECK(wet::hypot(1e200, 1e200) == doctest::Approx(std::hypot(1e200, 1e200)));
+        // constexpr usable (consteval design path).
+        static_assert(wet::hypot(3.0, 4.0) == 5.0);
+    }
+
     TEST_CASE("wet::cbrt matches std::cbrt") {
         // Positive values
         CHECK(wet::cbrt(0.0) == doctest::Approx(std::cbrt(0.0)));

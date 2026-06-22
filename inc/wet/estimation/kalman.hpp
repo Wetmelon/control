@@ -72,9 +72,10 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
 ) {
     KalmanResult<NX, NU, NY, NW, NV, T> result{sys, Q, R};
 
-    // Compute effective noise covariances accounting for G and H
-    const Matrix<NW, NW, T> Q_eff = sys.G * Q * sys.G.t();
-    const Matrix<NV, NV, T> R_eff = sys.H * R * sys.H.t();
+    // Compute effective noise covariances accounting for G and H. The result
+    // dimensions (NX×NX and NY×NY) follow from the matrix ops, so let them deduce.
+    const auto Q_eff = sys.G * Q * sys.G.t();
+    const auto R_eff = sys.H * R * sys.H.t();
 
     // Fast path: R_eff ≈ 0 with square, invertible C → analytical solution
     const T r_eps = std::is_same_v<T, float> ? T{1e-6} : T{1e-10};
@@ -219,6 +220,17 @@ struct KalmanFilter {
     constexpr void set_state(const ColVec<NX, T>& x_new) { x = x_new; }
     constexpr void set_state(size_t i, T value) { x[i] = value; }
     constexpr void set_covariance(const Matrix<NX, NX, T>& P_new) { P = P_new; }
+
+    // Re-initialize the estimate and clear the innovation (model and noise
+    // covariances are kept). Restores the filter to a known starting belief.
+    constexpr void reset(
+        const ColVec<NX, T>&     x0 = ColVec<NX, T>{},
+        const Matrix<NX, NX, T>& P0 = Matrix<NX, NX, T>::identity()
+    ) {
+        x = x0;
+        P = P0;
+        innov = ColVec<NY, T>{};
+    }
 
 private:
     StateSpace<NX, NU, NY, NW, NV, T> sys{};

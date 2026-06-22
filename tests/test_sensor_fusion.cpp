@@ -221,4 +221,87 @@ TEST_SUITE("Sensor Fusion Filters") {
         }
     }
 
+    // --- Convergence / observability tests for the orientation filters -------
+    // The cases above only check unit-norm; these check the filters actually
+    // recover a known tilt (gravity) and heading (magnetometer).
+
+    TEST_CASE("Complementary filter recovers a static tilt") {
+        // Body rotated 25 deg about X relative to the world.
+        auto        q_true = Quaternion<float>::from_axis_angle(Vec3<float>{1.0f, 0.0f, 0.0f}, 0.4363f).value();
+        Vec3<float> accel = q_true.rotate(Vec3<float>{0.0f, 0.0f, -9.81f});
+
+        ComplementaryFilter<float> filter(0.9f);
+        for (int i = 0; i < 4000; ++i) {
+            filter.update(accel, Vec3<float>{0.0f, 0.0f, 0.0f}, 0.005f);
+        }
+
+        // Predicted up axis must align with the true up axis.
+        Vec3<float> up_est = filter.orientation().rotate(Vec3<float>{0.0f, 0.0f, 1.0f});
+        Vec3<float> up_true = q_true.rotate(Vec3<float>{0.0f, 0.0f, 1.0f});
+        CHECK((up_est - up_true).norm() < 3e-2f);
+    }
+
+    TEST_CASE("Mahony filter recovers tilt and heading from accel+mag") {
+        // 25 deg about X then 40 deg about Z (yaw): heading needs the magnetometer.
+        auto              qx = Quaternion<float>::from_axis_angle(Vec3<float>{1.0f, 0.0f, 0.0f}, 0.4363f).value();
+        auto              qz = Quaternion<float>::from_axis_angle(Vec3<float>{0.0f, 0.0f, 1.0f}, 0.6981f).value();
+        Quaternion<float> q_true = (qz * qx).normalized();
+
+        Vec3<float> accel = q_true.rotate(Vec3<float>{0.0f, 0.0f, -9.81f});
+        Vec3<float> mag = q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f}); // north = +Y
+
+        MahonyFilter<float> filter(8.0f, 0.0f); // strong proportional gain for the test
+        for (int i = 0; i < 6000; ++i) {
+            filter.update(accel, Vec3<float>{0.0f, 0.0f, 0.0f}, mag, 0.005f);
+        }
+
+        Vec3<float> up_est = filter.orientation().rotate(Vec3<float>{0.0f, 0.0f, 1.0f});
+        Vec3<float> north_est = filter.orientation().rotate(Vec3<float>{0.0f, 1.0f, 0.0f});
+        CHECK((up_est - q_true.rotate(Vec3<float>{0.0f, 0.0f, 1.0f})).norm() < 5e-2f);
+        CHECK((north_est - q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f})).norm() < 5e-2f);
+    }
+
+    TEST_CASE("Madgwick filter recovers tilt and heading from accel+mag") {
+        auto              qx = Quaternion<float>::from_axis_angle(Vec3<float>{1.0f, 0.0f, 0.0f}, 0.3491f).value(); // 20 deg
+        auto              qz = Quaternion<float>::from_axis_angle(Vec3<float>{0.0f, 0.0f, 1.0f}, 0.5236f).value(); // 30 deg
+        Quaternion<float> q_true = (qz * qx).normalized();
+
+        Vec3<float> accel = q_true.rotate(Vec3<float>{0.0f, 0.0f, -9.81f});
+        Vec3<float> mag = q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f});
+
+        MadgwickFilter<float> filter(5.0f); // large beta for fast test convergence
+        for (int i = 0; i < 8000; ++i) {
+            filter.update(accel, Vec3<float>{0.0f, 0.0f, 0.0f}, mag, 0.005f);
+        }
+
+        Vec3<float> up_est = filter.orientation().rotate(Vec3<float>{0.0f, 0.0f, 1.0f});
+        Vec3<float> north_est = filter.orientation().rotate(Vec3<float>{0.0f, 1.0f, 0.0f});
+        CHECK((up_est - q_true.rotate(Vec3<float>{0.0f, 0.0f, 1.0f})).norm() < 5e-2f);
+        CHECK((north_est - q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f})).norm() < 5e-2f);
+    }
+
+    TEST_CASE("ESKF orientation filter recovers tilt and heading") {
+        // The ESKF measurement Jacobian must observe all three attitude-error
+        // components (a truncated H leaves yaw unobservable). Feed a constant
+        // tilted+yawed accel/mag and check the nominal quaternion converges.
+        auto              qx = Quaternion<float>::from_axis_angle(Vec3<float>{1.0f, 0.0f, 0.0f}, 0.3491f).value(); // 20 deg
+        auto              qz = Quaternion<float>::from_axis_angle(Vec3<float>{0.0f, 0.0f, 1.0f}, 0.5236f).value(); // 30 deg
+        Quaternion<float> q_true = (qz * qx).normalized();
+
+        Vec3<float> accel = q_true.rotate(Vec3<float>{0.0f, 0.0f, -9.81f});
+        Vec3<float> mag = q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f});
+
+        ESKFOrientationFilter<float> filter;
+        for (int i = 0; i < 20000; ++i) {
+            filter.update(accel, Vec3<float>{0.0f, 0.0f, 0.0f}, mag, 0.01f);
+        }
+
+        // Both axes must converge — in particular yaw (north), which is only
+        // observable if the measurement Jacobian spans all three attitude errors.
+        Vec3<float> up_est = filter.orientation().rotate(Vec3<float>{0.0f, 0.0f, 1.0f});
+        Vec3<float> north_est = filter.orientation().rotate(Vec3<float>{0.0f, 1.0f, 0.0f});
+        CHECK((up_est - q_true.rotate(Vec3<float>{0.0f, 0.0f, 1.0f})).norm() < 5e-2f);
+        CHECK((north_est - q_true.rotate(Vec3<float>{0.0f, 1.0f, 0.0f})).norm() < 8e-2f);
+    }
+
 } // TEST_SUITE

@@ -194,19 +194,23 @@ public:
             return false;
         }
 
-        const T denom = static_cast<T>(config_.lambda) + phi * state_.covariance * phi;
+        // Hermitian form (conj(phi)) so the complex scalar case matches the
+        // vector path's phi^H and keeps the denominator real; conj is the identity
+        // for real T.
+        const T phi_h = wet::conj(phi);
+        const T denom = static_cast<T>(config_.lambda) + phi_h * state_.covariance * phi;
         if (wet::abs(denom) <= default_tol<T>()) {
             valid_ = false;
             return false;
         }
 
         state_.gain = (state_.covariance * phi) / denom;
-        state_.predicted_output = phi * state_.theta;
+        state_.predicted_output = phi_h * state_.theta;
         state_.residual = y - state_.predicted_output;
         state_.theta = state_.theta + state_.gain * state_.residual;
 
         const T one_over_lambda = T{1} / static_cast<T>(config_.lambda);
-        state_.covariance = (state_.covariance - state_.gain * phi * state_.covariance) * one_over_lambda;
+        state_.covariance = (state_.covariance - state_.gain * phi_h * state_.covariance) * one_over_lambda;
 
         if constexpr (!is_complex_v<T>) {
             if (config_.projection_enabled) {
@@ -229,7 +233,7 @@ public:
     }
 
     [[nodiscard]] constexpr T predict(T phi) const {
-        return phi * state_.theta;
+        return wet::conj(phi) * state_.theta;
     }
 
     constexpr void reset(T theta0 = T{}) {
