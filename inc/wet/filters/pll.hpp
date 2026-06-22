@@ -274,12 +274,15 @@ struct SensorlessEstimator {
 
     /// Estimated electrical angle [rad], wrapped to [-π, π).
     [[nodiscard]] constexpr T phase() const { return phase_; }
+
     /// Estimated electrical velocity [elec rad/s].
     [[nodiscard]] constexpr T electrical_velocity() const { return omega_; }
+
     /// Estimated mechanical velocity [mech rad/s].
     [[nodiscard]] constexpr T mechanical_velocity() const {
         return omega_ / wet::max(params.pole_pairs, T{1});
     }
+    
     /// PM-flux estimate η [Wb] (αβ); its magnitude tracks λ at lock.
     [[nodiscard]] constexpr AlphaBeta<T> pm_flux() const { return eta_; }
 

@@ -93,6 +93,17 @@ tidy:
 profile-compile:
 	@python analysis/compile_profile/profile.py $(FILES)
 
+# Windows venvs live under Scripts/, POSIX under bin/; call the venv python by
+# path rather than sourcing activate (no cross-platform activate script). PYTHON
+# is the bootstrap interpreter (override with `make gui PYTHON=...` if needed).
+ifeq ($(OS),Windows_NT)
+PYTHON ?= python
+VENV_PY := .venv/Scripts/python.exe
+else
+PYTHON ?= python3
+VENV_PY := .venv/bin/python
+endif
+
 gui:
 ifeq ($(OS),Windows_NT)
 	@cd examples/servo_drive && g++ -std=c++20 -O3 -shared -DBUILD_DLL -static-libgcc -static-libstdc++ -I../../inc servo_sim.cpp -o servo_sim.dll
@@ -101,4 +112,4 @@ else ifeq ($(shell uname -s),Darwin)
 else
 	@cd examples/servo_drive && g++ -std=c++20 -O3 -shared -fPIC -DBUILD_DLL -I../../inc servo_sim.cpp -o libservo_sim.so
 endif
-	@cd examples/servo_drive && (test -d .venv || python3 -m venv .venv) && . .venv/bin/activate && pip install dearpygui plotly && python servo_gui.py
+	@cd examples/servo_drive && (test -d .venv || $(PYTHON) -m venv .venv) && $(VENV_PY) -m pip install dearpygui && $(VENV_PY) servo_gui.py

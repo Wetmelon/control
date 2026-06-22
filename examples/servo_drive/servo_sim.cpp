@@ -7,6 +7,7 @@
 
 #include "servo_sim.h"
 #include "wet/controllers/pid.hpp"
+#include "wet/utility/foc.hpp"
 
 using namespace wet;
 
@@ -30,14 +31,14 @@ struct ServoSim {
     double T_load_ext = 0.0;
 
     // Controller internals
-    PIDController<double> pi_d{};
-    PIDController<double> pi_q{};
+    FOController<double>  foc{}; // dq current loop: PI + decoupling + voltage circle
     PIDController<double> pi_speed{};
-    double                Kp_pos = 0.0; // Position P gain
-    int                   speed_decim = 0;
-    int                   pos_decim = 0;
-    double                iq_ref = 0.0;
-    double                omega_ref_cmd = 0.0; // Speed command (from position loop or direct)
+
+    double Kp_pos = 0.0; // Position P gain
+    int    speed_decim = 0;
+    int    pos_decim = 0;
+    double iq_ref = 0.0;
+    double omega_ref_cmd = 0.0; // Speed command (from position loop or direct)
 
     // Last computed outputs (for state readback)
     double vd_out = 0.0;
@@ -172,23 +173,19 @@ struct ServoSim {
             omega_ref_cmd = omega_ref;
         }
 
-        // Speed loop (decimated)
+        // Speed loop (decimated). Effective sample time is dt*speed_ratio.
         if (++speed_decim >= cp.speed_ratio) {
             speed_decim = 0;
-            iq_ref = pi_speed.control(omega_ref_cmd - omega_m);
+            iq_ref = pi_speed.control(omega_ref_cmd, omega_m, dt * cp.speed_ratio);
         }
 
-        // Current loops
-        double vd = pi_d.control(0.0 - id);
-        double vq = pi_q.control(iq_ref - iq);
-
-        // Decoupling feedforward
-        const double omega_e = mp.pole_pairs * omega_m;
-        vd -= omega_e * mp.Ls * iq;
-        vq += omega_e * mp.Ls * id + omega_e * mp.lambda_pm;
-
-        vd_out = vd;
-        vq_out = vq;
+        // Current loop: library FOC dq regulator — PI feedback plus cross-axis
+        // and back-EMF decoupling, held inside the circular SVPWM voltage limit
+        // (Vdc/√3) with integrator anti-windup. id_ref = 0 (no field weakening).
+        foc.omega = mp.pole_pairs * omega_m;
+        const auto cmd = foc.current_controller({0.0, iq_ref}, {id, iq}, dt, design::voltage_circle_radius(mp.Vdc));
+        vd_out = cmd.Vdq.d;
+        vq_out = cmd.Vdq.q;
 
         // Compute observable torques before integrating
         Te_out = 1.5 * mp.pole_pairs * mp.lambda_pm * iq;
@@ -232,15 +229,13 @@ struct ServoSim {
         last_max_dxdt = max_d;
     }
 
-    void rebuild_controllers(double dt) {
+    void rebuild_controllers() {
         constexpr double pi2 = 2.0 * std::numbers::pi;
-        double           v_lim = mp.Vdc / 2.0;
         double           i_lim = cp.i_max;
 
-        // Current loop: PI from bandwidth
-        double wc_i = pi2 * cp.bw_current;
-        double Kp_i = wc_i * mp.Ls;
-        double Ki_i = wc_i * mp.Rs;
+        // Current loop: FOC dq regulator with PI gains placed by closed-loop pole
+        // placement on the R-L plant at the requested bandwidth (non-salient: Ld=Lq=Ls).
+        foc = FOController<double>{{mp.Ls, mp.Ls}, mp.Rs, mp.lambda_pm, 0.0, pi2 * cp.bw_current};
 
         // Speed loop: explicit gains
         double Kp_s = cp.Kp_speed;
@@ -252,14 +247,8 @@ struct ServoSim {
         // Reference filter
         ref_filt_wn = (cp.ref_filter_bw > 0.0) ? pi2 * cp.ref_filter_bw : 0.0;
 
-        pi_d = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / wet::max(Ki_i, 1e-6), v_lim / wet::max(Ki_i, 1e-6), Ki_i)
-        };
-        pi_q = PIDController<double>{
-            design::pid(Kp_i, Ki_i, 0.0, dt, -v_lim, v_lim, -v_lim / wet::max(Ki_i, 1e-6), v_lim / wet::max(Ki_i, 1e-6), Ki_i)
-        };
         pi_speed = PIDController<double>{
-            design::pid(Kp_s, Ki_s, 0.0, dt * cp.speed_ratio, -i_lim, i_lim, -i_lim / wet::max(Ki_s, 1e-6), i_lim / wet::max(Ki_s, 1e-6), Ki_s)
+            design::pid(Kp_s, Ki_s, 0.0, -i_lim, i_lim, -i_lim / wet::max(Ki_s, 1e-6), i_lim / wet::max(Ki_s, 1e-6), Ki_s)
         };
 
         speed_decim = 0;
@@ -310,7 +299,7 @@ SERVO_API void* servo_create(void) {
     auto* sim = new ServoSim();
     sim->mp = default_motor_params();
     sim->cp = default_control_params();
-    sim->rebuild_controllers(100e-6);
+    sim->rebuild_controllers();
     return sim;
 }
 
@@ -321,12 +310,18 @@ SERVO_API void servo_destroy(void* handle) {
 SERVO_API void servo_set_motor_params(void* handle, const ServoMotorParams* params) {
     auto* sim = static_cast<ServoSim*>(handle);
     sim->mp = *params;
+    // Track the plant model into the FOC decoupling / gains live, without resetting
+    // integrators (re-tune recomputes Kp,Ki from the new R-L; omega is set per step).
+    sim->foc.Ldq = {sim->mp.Ls, sim->mp.Ls};
+    sim->foc.R = sim->mp.Rs;
+    sim->foc.lambda = sim->mp.lambda_pm;
+    sim->foc.tune(2.0 * std::numbers::pi * sim->cp.bw_current);
 }
 
 SERVO_API void servo_set_control_params(void* handle, const ServoControlParams* params) {
     auto* sim = static_cast<ServoSim*>(handle);
     sim->cp = *params;
-    sim->rebuild_controllers(100e-6);
+    sim->rebuild_controllers();
 }
 
 SERVO_API void servo_set_speed_ref(void* handle, double omega_ref) {
@@ -380,8 +375,8 @@ SERVO_API ServoState servo_get_state(void* handle) {
     s.omega_e = sim->mp.pole_pairs * sim->x[2];
 
     // Controller integrator states
-    s.int_id = sim->pi_d.integral;
-    s.int_iq = sim->pi_q.integral;
+    s.int_id = sim->foc.dctrl.integral;
+    s.int_iq = sim->foc.qctrl.integral;
     s.int_spd = sim->pi_speed.integral;
 
     // Timing
@@ -439,7 +434,7 @@ SERVO_API void servo_reset(void* handle) {
     sim->pos_decim = 0;
     sim->step_count = 0;
     sim->last_max_dxdt = 0.0;
-    sim->rebuild_controllers(100e-6);
+    sim->rebuild_controllers();
 }
 
 } // extern "C"
