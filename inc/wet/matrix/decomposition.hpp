@@ -249,82 +249,91 @@ template<typename T, size_t N, size_t M>
 /**
  * @brief Result of a full (complete) QR factorization.
  *
- * A = Q·R with Q an N×N orthogonal matrix and R N×M upper-triangular. Unlike
- * qr_decompose (thin modified-Gram-Schmidt, N×M Q), this retains the *full*
- * orthogonal factor: its leading rank columns span the range of A and its
- * trailing columns span the left null space (orthogonal complement). Those
- * complement columns are what robust pole placement (#16) needs from B.
+ * A = Q·R with Q an N×N unitary (orthogonal, for real T) matrix and R N×M
+ * upper-triangular. Unlike qr_decompose (thin modified-Gram-Schmidt, N×M Q),
+ * this retains the *full* unitary factor: its leading rank columns span the
+ * range of A and its trailing columns span the orthogonal complement (the kernel
+ * of Aᴴ). Those complement columns are what robust pole placement needs.
  */
 template<typename T, size_t N, size_t M>
 struct FullQR {
-    Matrix<N, N, T> Q{}; ///< Orthogonal factor (full N×N).
+    Matrix<N, N, T> Q{}; ///< Unitary factor (full N×N).
     Matrix<N, M, T> R{}; ///< Upper-triangular factor (N×M).
 };
 
 /**
- * @brief Full QR factorization via Householder reflections (real T).
+ * @brief Full QR factorization via Householder reflections (real or complex T).
  *
- * Numerically robust (orthogonal reflections, not Gram-Schmidt). For A with
- * full column rank M ≤ N, columns 0..M−1 of Q form an orthonormal basis of
- * range(A) and columns M..N−1 form an orthonormal basis of its complement
- * (Qᵀ_⊥·A = 0).
+ * Numerically robust (unitary reflections, not Gram-Schmidt). For A with full
+ * column rank M ≤ N, columns 0..M−1 of Q form an orthonormal basis of range(A)
+ * and columns M..N−1 an orthonormal basis of its complement (Qᴴ_⊥·A = 0). The
+ * Householder vector uses a complex phase so v[k] avoids cancellation; for real
+ * T this reduces to the usual sign choice and the reflector to I − 2·v·vᵀ/(vᵀv).
  *
- * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §5.2
+ * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §5.2 and §5.1.13
+ *      (complex Householder)
  */
 template<typename T, size_t N, size_t M>
 [[nodiscard]] constexpr FullQR<T, N, M> full_qr(const Matrix<N, M, T>& A) {
+    using real_t = scalar_type_t<T>;
     FullQR<T, N, M> out;
     out.Q = Matrix<N, N, T>::identity();
     out.R = A;
 
     constexpr size_t steps = (M < N) ? M : (N - 1); // columns to reflect
     for (size_t k = 0; k < steps; ++k) {
-        // Householder vector v that zeroes R(k+1.., k).
-        T norm_sq = T{0};
+        // Householder vector v that zeroes R(k+1.., k). The reflector is the
+        // Hermitian unitary H = I − β·v·vᴴ with real β = 2/‖v‖².
+        real_t norm_sq = real_t{0};
         for (size_t i = k; i < N; ++i) {
-            norm_sq += out.R(i, k) * out.R(i, k);
+            const real_t a = wet::abs(out.R(i, k));
+            norm_sq += a * a;
         }
-        T alpha = wet::sqrt(norm_sq);
-        if (alpha == T{0}) {
+        const real_t nrm = wet::sqrt(norm_sq);
+        if (nrm == real_t{0}) {
             continue; // column already zero below the diagonal
         }
-        if (out.R(k, k) > T{0}) {
-            alpha = -alpha; // choose sign to avoid cancellation in v[k]
-        }
+        // Reflect R(k,k) onto α·e_k with |α| = ‖x‖; the phase −R(k,k)/|R(k,k)|
+        // maximizes |v[k]| (avoids cancellation). For real T this is the sign.
+        const real_t r0 = wet::abs(out.R(k, k));
+        const T      phase = (r0 > real_t{0}) ? (out.R(k, k) / r0) : T{1};
+        const T      alpha = -(phase * nrm);
 
         wet::array<T, N> v{};
         v[k] = out.R(k, k) - alpha;
         for (size_t i = k + 1; i < N; ++i) {
             v[i] = out.R(i, k);
         }
-        T vtv = T{0};
+        real_t vhv = real_t{0};
         for (size_t i = k; i < N; ++i) {
-            vtv += v[i] * v[i];
+            const real_t a = wet::abs(v[i]);
+            vhv += a * a;
         }
-        if (vtv == T{0}) {
+        if (vhv == real_t{0}) {
             continue;
         }
+        const real_t beta = real_t{2} / vhv;
 
-        // Apply H = I − 2·v·vᵀ/(vᵀv) to R from the left: R −= (2/vᵀv)·v·(vᵀR).
+        // Apply H from the left: R −= β·v·(vᴴR).
         for (size_t j = 0; j < M; ++j) {
             T dot = T{0};
             for (size_t i = k; i < N; ++i) {
-                dot += v[i] * out.R(i, j);
+                dot += wet::conj(v[i]) * out.R(i, j);
             }
-            const T s = (T{2} * dot) / vtv;
+            const T s = beta * dot;
             for (size_t i = k; i < N; ++i) {
                 out.R(i, j) -= s * v[i];
             }
         }
-        // Accumulate Q = Q·H from the right: Q −= (2/vᵀv)·(Q·v)·vᵀ.
+        // Accumulate Q = Q·H from the right: Q −= β·(Q·v)·vᴴ.
         for (size_t i = 0; i < N; ++i) {
             T dot = T{0};
             for (size_t j = k; j < N; ++j) {
                 dot += out.Q(i, j) * v[j];
             }
-            const T s = (T{2} * dot) / vtv;
+            const T s = beta * dot;
             for (size_t j = k; j < N; ++j) {
-                out.Q(i, j) -= s * v[j];
+                out.Q(i, j) -= s * wet::conj(v[j]);
             }
         }
     }

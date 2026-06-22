@@ -681,4 +681,68 @@ TEST_SUITE("full_qr") {
         static_assert(ortho_ok(), "full_qr complement must be constexpr-correct");
         CHECK(ortho_ok());
     }
+
+    TEST_CASE("full_qr factors complex matrices with a unitary Q") {
+        using C = complex<double>;
+
+        // Largest |·| deviation of a complex matrix from a reference.
+        auto worst = []<size_t R, size_t Cc>(const Matrix<R, Cc, C>& X, const Matrix<R, Cc, C>& Y) {
+            double w = 0.0;
+            for (size_t i = 0; i < R; ++i) {
+                for (size_t j = 0; j < Cc; ++j) {
+                    w = wet::abs(X(i, j) - Y(i, j)) > w ? wet::abs(X(i, j) - Y(i, j)) : w;
+                }
+            }
+            return w;
+        };
+
+        SUBCASE("square 3x3") {
+            const Matrix<3, 3, C> A = {
+                {{2, 1}, {0, -1}, {1, 0}},
+                {{1, 1}, {3, 0}, {0, 2}},
+                {{0, 1}, {1, -1}, {2, 1}},
+            };
+            const auto qr = mat::full_qr(A);
+            CHECK(worst(Matrix<3, 3, C>(qr.Q * qr.R), A) < 1e-9);                                                 // A = Q·R
+            CHECK(worst(Matrix<3, 3, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, C>::identity()) < 1e-9); // Qᴴ·Q = I
+            CHECK(wet::abs(qr.R(1, 0)) < 1e-9);                                                                   // R upper-triangular
+            CHECK(wet::abs(qr.R(2, 0)) < 1e-9);
+            CHECK(wet::abs(qr.R(2, 1)) < 1e-9);
+        }
+
+        SUBCASE("tall 5x3 — trailing Q columns span ker(Aᴴ)") {
+            // This is the [A−λI | B]ᴴ shape that arbitrary pole placement uses.
+            const Matrix<5, 3, C> A = {
+                {{1, 1}, {2, -1}, {0, 2}},
+                {{0, 2}, {1, 0}, {3, -1}},
+                {{3, 0}, {-1, 1}, {2, 2}},
+                {{-1, 1}, {0, 3}, {1, 0}},
+                {{2, -2}, {1, 1}, {0, 1}},
+            };
+            const auto qr = mat::full_qr(A);
+            CHECK(worst(Matrix<5, 3, C>(qr.Q * qr.R), A) < 1e-9);
+            CHECK(worst(Matrix<5, 5, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<5, 5, C>::identity()) < 1e-9);
+            // Columns 3..4 of Q are orthogonal to range(A): Qᴴ_⊥·A = 0.
+            for (size_t c = 3; c < 5; ++c) {
+                for (size_t j = 0; j < 3; ++j) {
+                    C d{0, 0};
+                    for (size_t i = 0; i < 5; ++i) {
+                        d += wet::conj(qr.Q(i, c)) * A(i, j);
+                    }
+                    CHECK(wet::abs(d) < 1e-9);
+                }
+            }
+        }
+
+        SUBCASE("leading-zero pivot exercises the phase guard") {
+            const Matrix<3, 3, C> A = {
+                {{0, 0}, {1, 0}, {2, 1}},
+                {{1, 1}, {0, 0}, {1, 0}},
+                {{2, 0}, {1, 1}, {0, 0}},
+            };
+            const auto qr = mat::full_qr(A);
+            CHECK(worst(Matrix<3, 3, C>(qr.Q * qr.R), A) < 1e-9);
+            CHECK(worst(Matrix<3, 3, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, C>::identity()) < 1e-9);
+        }
+    }
 }
