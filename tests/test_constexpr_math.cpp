@@ -66,32 +66,32 @@ TEST_SUITE("constexpr_math") {
     }
 
     TEST_CASE("wet::sqrt matches std::sqrt for complex") {
-        using Complex = wet::complex<double>;
+        using Cplx = wet::complex<double>;
         using StdComplex = std::complex<double>;
 
         // Real positive
-        CHECK(wet::sqrt(Complex(4.0, 0.0)).real() == doctest::Approx(std::sqrt(StdComplex(4.0, 0.0)).real()));
-        CHECK(wet::sqrt(Complex(4.0, 0.0)).imag() == doctest::Approx(std::sqrt(StdComplex(4.0, 0.0)).imag()));
+        CHECK(wet::sqrt(Cplx(4.0, 0.0)).real() == doctest::Approx(std::sqrt(StdComplex(4.0, 0.0)).real()));
+        CHECK(wet::sqrt(Cplx(4.0, 0.0)).imag() == doctest::Approx(std::sqrt(StdComplex(4.0, 0.0)).imag()));
 
         // Real negative (pure imaginary result)
-        CHECK(wet::sqrt(Complex(-4.0, 0.0)).real() == doctest::Approx(std::sqrt(StdComplex(-4.0, 0.0)).real()));
-        CHECK(wet::sqrt(Complex(-4.0, 0.0)).imag() == doctest::Approx(std::sqrt(StdComplex(-4.0, 0.0)).imag()));
+        CHECK(wet::sqrt(Cplx(-4.0, 0.0)).real() == doctest::Approx(std::sqrt(StdComplex(-4.0, 0.0)).real()));
+        CHECK(wet::sqrt(Cplx(-4.0, 0.0)).imag() == doctest::Approx(std::sqrt(StdComplex(-4.0, 0.0)).imag()));
 
         // Pure imaginary
-        CHECK(wet::sqrt(Complex(0.0, 4.0)).real() == doctest::Approx(std::sqrt(StdComplex(0.0, 4.0)).real()));
-        CHECK(wet::sqrt(Complex(0.0, 4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(0.0, 4.0)).imag()));
+        CHECK(wet::sqrt(Cplx(0.0, 4.0)).real() == doctest::Approx(std::sqrt(StdComplex(0.0, 4.0)).real()));
+        CHECK(wet::sqrt(Cplx(0.0, 4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(0.0, 4.0)).imag()));
 
         // General complex
-        CHECK(wet::sqrt(Complex(3.0, 4.0)).real() == doctest::Approx(std::sqrt(StdComplex(3.0, 4.0)).real()));
-        CHECK(wet::sqrt(Complex(3.0, 4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(3.0, 4.0)).imag()));
+        CHECK(wet::sqrt(Cplx(3.0, 4.0)).real() == doctest::Approx(std::sqrt(StdComplex(3.0, 4.0)).real()));
+        CHECK(wet::sqrt(Cplx(3.0, 4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(3.0, 4.0)).imag()));
 
         // Negative imaginary
-        CHECK(wet::sqrt(Complex(3.0, -4.0)).real() == doctest::Approx(std::sqrt(StdComplex(3.0, -4.0)).real()));
-        CHECK(wet::sqrt(Complex(3.0, -4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(3.0, -4.0)).imag()));
+        CHECK(wet::sqrt(Cplx(3.0, -4.0)).real() == doctest::Approx(std::sqrt(StdComplex(3.0, -4.0)).real()));
+        CHECK(wet::sqrt(Cplx(3.0, -4.0)).imag() == doctest::Approx(std::sqrt(StdComplex(3.0, -4.0)).imag()));
 
         // Zero
-        CHECK(wet::sqrt(Complex(0.0, 0.0)).real() == doctest::Approx(0.0));
-        CHECK(wet::sqrt(Complex(0.0, 0.0)).imag() == doctest::Approx(0.0));
+        CHECK(wet::sqrt(Cplx(0.0, 0.0)).real() == doctest::Approx(0.0));
+        CHECK(wet::sqrt(Cplx(0.0, 0.0)).imag() == doctest::Approx(0.0));
     }
 
     TEST_CASE("wet::atan2 matches std::atan2") {

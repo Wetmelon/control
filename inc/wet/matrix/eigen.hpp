@@ -351,13 +351,13 @@ constexpr bool francis_qr(
  */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr EigenResult<N, T> compute_eigenvalues(const Matrix<N, N, T>& A) {
-    using Complex = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     EigenResult<N, T> result;
 
     if constexpr (N == 1) {
         // Scalar: the lone entry is the eigenvalue.
-        result.values[0] = Complex{A(0, 0), T{0}};
-        result.vectors(0, 0) = Complex{T{1}, T{0}};
+        result.values[0] = Cplx{A(0, 0), T{0}};
+        result.vectors(0, 0) = Cplx{T{1}, T{0}};
         result.converged = true;
     } else if constexpr (N == 2) {
         // A 2×2 is already its own real Schur form (Schur vectors = I); solve the
@@ -373,14 +373,14 @@ template<size_t N, typename T = double>
         const T disc = (trace * trace) - (T{4} * det);
         if (disc >= T{0}) {
             const T s = wet::sqrt(disc);
-            result.values[0] = Complex{(trace + s) / T{2}, T{0}};
-            result.values[1] = Complex{(trace - s) / T{2}, T{0}};
+            result.values[0] = Cplx{(trace + s) / T{2}, T{0}};
+            result.values[1] = Cplx{(trace - s) / T{2}, T{0}};
         } else {
             const T s = wet::sqrt(-disc);
-            result.values[0] = Complex{trace / T{2}, s / T{2}};
-            result.values[1] = Complex{trace / T{2}, -s / T{2}};
+            result.values[0] = Cplx{trace / T{2}, s / T{2}};
+            result.values[1] = Cplx{trace / T{2}, -s / T{2}};
         }
-        result.vectors = Matrix<2, 2, Complex>::identity();
+        result.vectors = Matrix<2, 2, Cplx>::identity();
         result.converged = true;
     } else {
         Matrix<N, N, T> H = A;
@@ -392,9 +392,9 @@ template<size_t N, typename T = double>
         result.converged = detail::francis_qr(H, Z, wr, wi);
 
         for (size_t i = 0; i < N; ++i) {
-            result.values[i] = Complex{wr[i], wi[i]};
+            result.values[i] = Cplx{wr[i], wi[i]};
             for (size_t j = 0; j < N; ++j) {
-                result.vectors(j, i) = Complex{Z(j, i), T{0}};
+                result.vectors(j, i) = Cplx{Z(j, i), T{0}};
             }
         }
     }

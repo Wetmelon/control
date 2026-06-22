@@ -157,11 +157,11 @@ TEST_SUITE("Transforms & Modulation") {
     }
 
     TEST_CASE("Symmetrical components: balanced set is pure positive sequence") {
-        using C = wet::complex<float>;
+        using Cplx = wet::complex<float>;
         // Balanced positive-sequence phasors: a, a·e^{-j120}, a·e^{-j240}
-        const C a = {1.0f, 0.0f};
-        const C b = {-0.5f, -std::numbers::sqrt3_v<float> / 2.0f}; // 1∠-120°
-        const C c = {-0.5f, std::numbers::sqrt3_v<float> / 2.0f};  // 1∠-240°
+        const Cplx a = {1.0f, 0.0f};
+        const Cplx b = {-0.5f, -std::numbers::sqrt3_v<float> / 2.0f}; // 1∠-120°
+        const Cplx c = {-0.5f, std::numbers::sqrt3_v<float> / 2.0f};  // 1∠-240°
 
         const auto seq = symmetrical_components<float>({a, b, c});
 
@@ -172,8 +172,8 @@ TEST_SUITE("Transforms & Modulation") {
     }
 
     TEST_CASE("Symmetrical components: round-trip 012 → abc → 012") {
-        using C = wet::complex<float>;
-        const ColVec<3, C> abc = {C{1.0f, 0.2f}, C{-0.4f, -0.9f}, C{0.1f, 0.7f}};
+        using Cplx = wet::complex<float>;
+        const ColVec<3, Cplx> abc = {Cplx{1.0f, 0.2f}, Cplx{-0.4f, -0.9f}, Cplx{0.1f, 0.7f}};
 
         const auto seq = symmetrical_components<float>(abc);
         const auto rt = inverse_symmetrical_components<float>(seq);

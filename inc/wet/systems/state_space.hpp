@@ -88,16 +88,16 @@ struct StateSpace {
  */
 template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
 [[nodiscard]] constexpr Matrix<NY, NU, wet::complex<T>> eval_frf(const StateSpace<NX, NU, NY, NW, NV, T>& sys, wet::complex<T> s) {
-    using C = wet::complex<T>;
-    auto I = Matrix<NX, NX, C>::identity();
-    auto sI_minus_A = s * I - sys.A.template as<C>();
+    using Cplx = wet::complex<T>;
+    auto I = Matrix<NX, NX, Cplx>::identity();
+    auto sI_minus_A = s * I - sys.A.template as<Cplx>();
     // (sI − A)⁻¹·B by solving (sI − A)·X = B (more accurate than forming the inverse).
-    auto X_opt = mat::solve(sI_minus_A, sys.B.template as<C>());
+    auto X_opt = mat::solve(sI_minus_A, sys.B.template as<Cplx>());
     if (!X_opt) {
-        return Matrix<NY, NU, C>::zeros();
+        return Matrix<NY, NU, Cplx>::zeros();
     }
-    auto temp = sys.C.template as<C>() * (*X_opt);
-    return temp + sys.D.template as<C>();
+    auto temp = sys.C.template as<Cplx>() * (*X_opt);
+    return temp + sys.D.template as<Cplx>();
 }
 
 /**

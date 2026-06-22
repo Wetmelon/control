@@ -10,14 +10,14 @@ using namespace wet;
 using namespace wet::mat;
 
 TEST_CASE("Complex Matrix Support") {
-    using Complex = wet::complex<double>;
+    using Cplx = wet::complex<double>;
 
     SUBCASE("Complex matrix creation") {
-        Matrix<2, 2, Complex> A;
-        A(0, 0) = Complex{1.0, 2.0};
-        A(0, 1) = Complex{3.0, -1.0};
-        A(1, 0) = Complex{-2.0, 1.0};
-        A(1, 1) = Complex{0.0, 1.0};
+        Matrix<2, 2, Cplx> A;
+        A(0, 0) = Cplx{1.0, 2.0};
+        A(0, 1) = Cplx{3.0, -1.0};
+        A(1, 0) = Cplx{-2.0, 1.0};
+        A(1, 1) = Cplx{0.0, 1.0};
 
         CHECK(A(0, 0).real() == 1.0);
         CHECK(A(0, 0).imag() == 2.0);

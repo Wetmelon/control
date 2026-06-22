@@ -245,10 +245,10 @@ TEST_SUITE("robustness") {
     }
 
     TEST_CASE("complex conjugate-transpose and norms") {
-        using C = wet::complex<double>;
-        Matrix<2, 2, C> A = {
-            {C(1.0, 1.0), C(2.0, -1.0)},
-            {C(0.0, 3.0), C(-1.0, 2.0)},
+        using Cplx = wet::complex<double>;
+        Matrix<2, 2, Cplx> A = {
+            {Cplx(1.0, 1.0), Cplx(2.0, -1.0)},
+            {Cplx(0.0, 3.0), Cplx(-1.0, 2.0)},
         };
         auto Ah = A.conjugate_transpose();
         // (Aᴴ)_{ij} = conj(A_{ji})

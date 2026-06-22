@@ -445,7 +445,7 @@ namespace detail {
  */
 template<size_t NX, size_t NU, size_t NB, typename T>
 struct JordanPlan {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     static constexpr size_t NS = NX + NU;
 
     size_t                                 ndistinct = 0; ///< Processed eigenvalues.
@@ -455,8 +455,8 @@ struct JordanPlan {
     wet::array<wet::array<size_t, NU>, NB> orders{};     ///< Block orders.
     wet::array<size_t, NB>                 pos_offset{}; ///< First K column for eigenvalue.
     wet::array<size_t, NB>                 npos{};       ///< Positions (= multiplicity).
-    wet::array<Matrix<NS, NU, C>, NB>      N{};          ///< Kernel bases.
-    wet::array<Matrix<NS, NX, C>, NB>      M{};          ///< Pseudoinverses.
+    wet::array<Matrix<NS, NU, Cplx>, NB>   N{};          ///< Kernel bases.
+    wet::array<Matrix<NS, NX, Cplx>, NB>   M{};          ///< Pseudoinverses.
 };
 
 /// Build the K-independent plan, or nullopt if the requested structure is inadmissible.
@@ -466,7 +466,7 @@ template<size_t NX, size_t NU, size_t NB, typename T>
     const Matrix<NX, NU, T>&              B,
     const wet::array<JordanBlock<T>, NB>& blocks
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     constexpr size_t NS = NX + NU;
     const T          tol_eq = T{1e-7};
 
@@ -478,8 +478,8 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         return wet::nullopt; // block sizes must place exactly NX eigenvalues
     }
 
-    const Matrix<NX, NX, C> Ac = A.template as<C>();
-    const Matrix<NX, NU, C> Bc = B.template as<C>();
+    const Matrix<NX, NX, Cplx> Ac = A.template as<Cplx>();
+    const Matrix<NX, NU, Cplx> Bc = B.template as<Cplx>();
 
     JordanPlan<NX, NU, NB, T> plan;
     size_t                    col = 0;
@@ -488,7 +488,7 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         if (consumed[bi]) {
             continue;
         }
-        const C    lam = blocks[bi].eigenvalue;
+        const Cplx lam = blocks[bi].eigenvalue;
         const bool is_real = (wet::abs(lam.imag()) <= tol_eq);
         if (!is_real && lam.imag() < T{0}) {
             continue; // negative-imaginary member is realified with its partner
@@ -534,10 +534,10 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         // inverse M come from one QR of Sᴴ. Reachability makes S full row rank
         // for *every* λ (PBH test), so this single path also covers λ ∈ spec(A)
         // with no special case — unlike a factorization of (A − λI) alone.
-        Matrix<NX, NS, C> S;
+        Matrix<NX, NS, Cplx> S;
         for (size_t i = 0; i < NX; ++i) {
             for (size_t c = 0; c < NX; ++c) {
-                S(i, c) = Ac(i, c) - (i == c ? lam : C{0});
+                S(i, c) = Ac(i, c) - (i == c ? lam : Cplx{0});
             }
             for (size_t c = 0; c < NU; ++c) {
                 S(i, NX + c) = Bc(i, c);
@@ -545,8 +545,8 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         }
         // Sᴴ = Q·R: Q (NS×NS) unitary, R (NS×NX) upper-triangular with leading
         // NX×NX block R1 invertible iff S is full row rank.
-        const auto        qr = mat::full_qr(Matrix<NS, NX, C>(S.conjugate_transpose()));
-        Matrix<NX, NX, C> R1;
+        const auto           qr = mat::full_qr(Matrix<NS, NX, Cplx>(S.conjugate_transpose()));
+        Matrix<NX, NX, Cplx> R1;
         for (size_t i = 0; i < NX; ++i) {
             for (size_t j = 0; j < NX; ++j) {
                 R1(i, j) = qr.R(i, j);
@@ -558,9 +558,9 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         }
 
         // Kernel N = trailing NU columns of Q (orthonormal basis of ker S).
-        Matrix<NS, NU, C> N;
+        Matrix<NS, NU, Cplx> N;
         // Q1 = leading NX columns of Q, used for the pseudoinverse S⁺ = Q1·(R1⁻¹)ᴴ.
-        Matrix<NS, NX, C> Q1;
+        Matrix<NS, NX, Cplx> Q1;
         for (size_t i = 0; i < NS; ++i) {
             for (size_t j = 0; j < NX; ++j) {
                 Q1(i, j) = qr.Q(i, j);
@@ -574,7 +574,7 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         plan.g[e] = g;
         plan.orders[e] = ords;
         plan.N[e] = N;
-        plan.M[e] = Matrix<NS, NX, C>(Q1 * R1inv.value().conjugate_transpose());
+        plan.M[e] = Matrix<NS, NX, Cplx>(Q1 * R1inv.value().conjugate_transpose());
         plan.pos_offset[e] = col;
         plan.npos[e] = mult;
         col += mult;
@@ -595,25 +595,25 @@ constexpr void assemble_vw(
     Matrix<NX, NX, T>&                     V,
     Matrix<NU, NX, T>&                     W
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     constexpr size_t NS = NX + NU;
     V = Matrix<NX, NX, T>::zeros();
     W = Matrix<NU, NX, T>::zeros();
     size_t col = 0;
 
     for (size_t e = 0; e < plan.ndistinct; ++e) {
-        const bool        is_real = plan.is_real[e];
-        const auto&       N = plan.N[e];
-        const auto&       M = plan.M[e];
-        size_t            pcol = plan.pos_offset[e]; // K-column cursor
-        Matrix<NS, NX, C> chains{};
-        size_t            nchain = 0;
+        const bool           is_real = plan.is_real[e];
+        const auto&          N = plan.N[e];
+        const auto&          M = plan.M[e];
+        size_t               pcol = plan.pos_offset[e]; // K-column cursor
+        Matrix<NS, NX, Cplx> chains{};
+        size_t               nchain = 0;
         for (size_t k = 0; k < plan.g[e]; ++k) {
-            wet::array<C, NS> prev{};
+            wet::array<Cplx, NS> prev{};
             for (size_t l = 0; l < plan.orders[e][k]; ++l) {
-                wet::array<C, NS> h{};
+                wet::array<Cplx, NS> h{};
                 for (size_t i = 0; i < NS; ++i) {
-                    C acc{0};
+                    Cplx acc{0};
                     for (size_t r = 0; r < NU; ++r) {
                         acc += N(i, r) * K(r, pcol); // N · K(l)
                     }
@@ -621,7 +621,7 @@ constexpr void assemble_vw(
                 }
                 if (l > 0) {
                     for (size_t i = 0; i < NS; ++i) {
-                        C acc{0};
+                        Cplx acc{0};
                         for (size_t r = 0; r < NX; ++r) {
                             acc += M(i, r) * prev[r]; // + M · overp(prev)
                         }
@@ -675,12 +675,12 @@ template<size_t NX, size_t NU, size_t NB, typename T>
 [[nodiscard]] constexpr Matrix<NU, NX, wet::complex<T>> canonical_kparams(
     const JordanPlan<NX, NU, NB, T>& plan
 ) {
-    using C = wet::complex<T>;
-    Matrix<NU, NX, C> K = Matrix<NU, NX, C>::zeros();
+    using Cplx = wet::complex<T>;
+    Matrix<NU, NX, Cplx> K = Matrix<NU, NX, Cplx>::zeros();
     for (size_t e = 0; e < plan.ndistinct; ++e) {
         size_t pcol = plan.pos_offset[e];
         for (size_t k = 0; k < plan.g[e]; ++k) {
-            K(k, pcol) = C{1}; // h(1) = N·e_k = kernel column k
+            K(k, pcol) = Cplx{1}; // h(1) = N·e_k = kernel column k
             pcol += plan.orders[e][k];
         }
     }
@@ -829,7 +829,7 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
     size_t                                max_iter = 200
 ) {
     static_assert(NU <= NX, "place_jordan_optimal requires NU <= NX");
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
 
     const auto plan_opt = detail::prepare_jordan_plan(A, B, blocks);
     if (!plan_opt) {
@@ -840,7 +840,7 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
     // Σ|λ|² over all eigenvalues, for the departure-from-normality measure.
     T sum_lambda_sq = T{0};
     for (size_t b = 0; b < NB; ++b) {
-        const C lam = blocks[b].eigenvalue;
+        const Cplx lam = blocks[b].eigenvalue;
         sum_lambda_sq += static_cast<T>(blocks[b].size) * ((lam.real() * lam.real()) + (lam.imag() * lam.imag()));
     }
 
@@ -853,17 +853,17 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
     }
 
     const auto theta_to_k = [&](const wet::array<T, MaxDof>& th) {
-        Matrix<NU, NX, C> K = Matrix<NU, NX, C>::zeros();
-        size_t            idx = 0;
+        Matrix<NU, NX, Cplx> K = Matrix<NU, NX, Cplx>::zeros();
+        size_t               idx = 0;
         for (size_t e = 0; e < plan.ndistinct; ++e) {
             size_t pcol = plan.pos_offset[e];
             for (size_t p = 0; p < plan.npos[e]; ++p) {
                 for (size_t r = 0; r < NU; ++r) {
                     if (plan.is_real[e]) {
-                        K(r, pcol) = C{th[idx], T{0}};
+                        K(r, pcol) = Cplx{th[idx], T{0}};
                         idx += 1;
                     } else {
-                        K(r, pcol) = C{th[idx], th[idx + 1]};
+                        K(r, pcol) = Cplx{th[idx], th[idx + 1]};
                         idx += 2;
                     }
                 }
@@ -895,13 +895,13 @@ template<size_t NX, size_t NU, size_t NB, typename T = double>
             size_t pcol = plan.pos_offset[e];
             for (size_t p = 0; p < plan.npos[e]; ++p) {
                 for (size_t r = 0; r < NU; ++r) {
-                    Matrix<NU, NX, C> Kr = Matrix<NU, NX, C>::zeros();
-                    Kr(r, pcol) = C{T{1}, T{0}};
+                    Matrix<NU, NX, Cplx> Kr = Matrix<NU, NX, Cplx>::zeros();
+                    Kr(r, pcol) = Cplx{T{1}, T{0}};
                     detail::assemble_vw(plan, Kr, dV[j], dW[j]);
                     ++j;
                     if (!plan.is_real[e]) {
-                        Matrix<NU, NX, C> Ki = Matrix<NU, NX, C>::zeros();
-                        Ki(r, pcol) = C{T{0}, T{1}};
+                        Matrix<NU, NX, Cplx> Ki = Matrix<NU, NX, Cplx>::zeros();
+                        Ki(r, pcol) = Cplx{T{0}, T{1}};
                         detail::assemble_vw(plan, Ki, dV[j], dW[j]);
                         ++j;
                     }

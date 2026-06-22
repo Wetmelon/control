@@ -134,48 +134,48 @@ TEST_SUITE("pole_placement") {
     };
 
     TEST_CASE("complex-conjugate placement assigns the spectrum exactly") {
-        using C = wet::complex<double>;
+        using Cplx = wet::complex<double>;
         SUBCASE("3x2: one complex pair + one real") {
             Matrix<3, 3> A = {{1.0, 2.0, 0.0}, {0.0, 1.0, 1.0}, {0.0, 0.0, 1.0}};
             Matrix<3, 2> B = {{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
-            CHECK(placement_error_cplx(A, B, std::array<C, 3>{C(-1, 2), C(-1, -2), C(-3, 0)}) < 1e-6);
+            CHECK(placement_error_cplx(A, B, std::array<Cplx, 3>{Cplx(-1, 2), Cplx(-1, -2), Cplx(-3, 0)}) < 1e-6);
         }
         SUBCASE("4x2: two complex pairs") {
             Matrix<4, 4> A = {{0.0, 1.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}, {1.0, 2.0, 3.0, 4.0}};
             Matrix<4, 2> B = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}};
-            CHECK(placement_error_cplx(A, B, std::array<C, 4>{C(-1, 1), C(-1, -1), C(-2, 3), C(-2, -3)}) < 1e-6);
+            CHECK(placement_error_cplx(A, B, std::array<Cplx, 4>{Cplx(-1, 1), Cplx(-1, -1), Cplx(-2, 3), Cplx(-2, -3)}) < 1e-6);
         }
         SUBCASE("4x2: mixed real + complex pair") {
             Matrix<4, 4> A = {{0.0, 1.0, 0.0, 0.0}, {0.0, 0.0, 1.0, 0.0}, {0.0, 0.0, 0.0, 1.0}, {1.0, 2.0, 3.0, 4.0}};
             Matrix<4, 2> B = {{0.0, 0.0}, {1.0, 0.0}, {0.0, 0.0}, {0.0, 1.0}};
-            CHECK(placement_error_cplx(A, B, std::array<C, 4>{C(-1, 2), C(-1, -2), C(-3, 0), C(-4, 0)}) < 1e-6);
+            CHECK(placement_error_cplx(A, B, std::array<Cplx, 4>{Cplx(-1, 2), Cplx(-1, -2), Cplx(-3, 0), Cplx(-4, 0)}) < 1e-6);
         }
         SUBCASE("square 2x2 complex pair") {
             Matrix<2, 2> A = {{1.0, 2.0}, {3.0, 4.0}};
             Matrix<2, 2> B = Matrix<2, 2>::identity();
-            CHECK(placement_error_cplx(A, B, std::array<C, 2>{C(-1, 2), C(-1, -2)}) < 1e-9);
+            CHECK(placement_error_cplx(A, B, std::array<Cplx, 2>{Cplx(-1, 2), Cplx(-1, -2)}) < 1e-9);
         }
         SUBCASE("all-real array forwards to the real (conditioned) path") {
             // Exercise the complex overload with an all-real spectrum.
             Matrix<3, 3> A3 = {{1.0, 2.0, 0.0}, {0.0, 1.0, 1.0}, {0.0, 0.0, 1.0}};
             Matrix<3, 2> B = {{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
-            CHECK(placement_error_cplx(A3, B, std::array<C, 3>{C(-1, 0), C(-2, 0), C(-3, 0)}) < 1e-8);
+            CHECK(placement_error_cplx(A3, B, std::array<Cplx, 3>{Cplx(-1, 0), Cplx(-2, 0), Cplx(-3, 0)}) < 1e-8);
         }
     }
 
     TEST_CASE("place rejects a dangling (unpaired) complex pole") {
-        using C = wet::complex<double>;
+        using Cplx = wet::complex<double>;
         Matrix<3, 3> A = {{1.0, 2.0, 0.0}, {0.0, 1.0, 1.0}, {0.0, 0.0, 1.0}};
         Matrix<3, 2> B = {{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
         // -1+2j without its conjugate is not a real closed-loop spectrum.
-        CHECK_FALSE(design::place(A, B, std::array<C, 3>{C(-1, 2), C(-3, 0), C(-4, 0)}).has_value());
+        CHECK_FALSE(design::place(A, B, std::array<Cplx, 3>{Cplx(-1, 2), Cplx(-3, 0), Cplx(-4, 0)}).has_value());
     }
 
     TEST_CASE("matlab::place forwards to design::place") {
-        using C = wet::complex<double>;
-        Matrix<3, 3>     A = {{1.0, 2.0, 0.0}, {0.0, 1.0, 1.0}, {0.0, 0.0, 1.0}};
-        Matrix<3, 2>     B = {{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
-        std::array<C, 3> poles = {C(-1, 2), C(-1, -2), C(-3, 0)};
+        using Cplx = wet::complex<double>;
+        Matrix<3, 3>        A = {{1.0, 2.0, 0.0}, {0.0, 1.0, 1.0}, {0.0, 0.0, 1.0}};
+        Matrix<3, 2>        B = {{1.0, 0.0}, {0.0, 1.0}, {1.0, 1.0}};
+        std::array<Cplx, 3> poles = {Cplx(-1, 2), Cplx(-1, -2), Cplx(-3, 0)};
 
         auto Km = matlab::place(A, B, poles);
         auto Kd = design::place(A, B, poles);

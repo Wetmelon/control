@@ -491,14 +491,14 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
  */
 template<size_t NX, typename T = double>
 [[nodiscard]] constexpr auto pidtune(const StateSpace<NX, 1, 1, 0, 0, T>& sys, T wc) noexcept {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     constexpr T pi = wet::numbers::pi_v<T>;
-    C           jwc{0, wc};
+    Cplx        jwc{0, wc};
     auto        G_frf = eval_frf(sys, jwc);
     // Assume SISO
-    C G = G_frf(0, 0);
-    T mag_G = wet::abs(G);
-    T arg_G = wet::arg(G);
+    Cplx G = G_frf(0, 0);
+    T    mag_G = wet::abs(G);
+    T    arg_G = wet::arg(G);
     // Desired phase margin: 60 degrees = pi/3 radians
     T desired_phase = -pi + pi / 3 - arg_G;
     T mag_C = 1 / mag_G;

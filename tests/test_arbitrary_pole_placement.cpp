@@ -32,8 +32,8 @@ bool has_jordan_structure(
     const wet::array<JordanBlock<>, NB>& blocks,
     double                               rank_tol = 1e-7
 ) {
-    using C = complex<double>;
-    const Matrix<N, N, C> Ac = Acl.template as<C>();
+    using Cplx = complex<double>;
+    const Matrix<N, N, Cplx> Ac = Acl.template as<Cplx>();
     // Operator scale for the rank threshold: tie it to the closed-loop matrix,
     // not to (Acl − λI), which can be the zero matrix for a semisimple λ.
     const double         acl_scale = mat::svd(Ac).singular_values[0];
@@ -43,7 +43,7 @@ bool has_jordan_structure(
         if (done[bi]) {
             continue;
         }
-        const C lam = blocks[bi].eigenvalue;
+        const Cplx lam = blocks[bi].eigenvalue;
 
         // Gather all mini-block orders for this eigenvalue.
         wet::array<size_t, NB> orders{};
@@ -59,14 +59,14 @@ bool has_jordan_structure(
         }
 
         // Shifted pencil (Acl − λI); its powers scale at most as (‖Acl‖+|λ|)ᵏ.
-        Matrix<N, N, C> shifted = Ac;
+        Matrix<N, N, Cplx> shifted = Ac;
         for (size_t i = 0; i < N; ++i) {
             shifted(i, i) -= lam;
         }
         const double base = acl_scale + wet::abs(lam);
 
         // Kernel dimension of each power, thresholded at rank_tol·baseᵏ.
-        Matrix<N, N, C> power = Matrix<N, N, C>::identity();
+        Matrix<N, N, Cplx> power = Matrix<N, N, Cplx>::identity();
         for (size_t k = 1; k <= max_p; ++k) {
             power = power * shifted;
             const auto   s = mat::svd(power);

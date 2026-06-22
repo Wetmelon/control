@@ -315,10 +315,10 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("LU decomposition - complex matrix") {
-        using C = complex<double>;
-        Matrix<2, 2, C> A = {
-            {C{4.0, 1.0}, C{2.0, 0.5}},
-            {C{2.0, 0.5}, C{3.0, 2.0}}
+        using Cplx = complex<double>;
+        Matrix<2, 2, Cplx> A = {
+            {Cplx{4.0, 1.0}, Cplx{2.0, 0.5}},
+            {Cplx{2.0, 0.5}, Cplx{3.0, 2.0}}
         };
 
         auto lu_opt = lu_decomposition(A);
@@ -405,14 +405,14 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("Solve function - complex matrix") {
-        using C = complex<double>;
-        Matrix<2, 2, C> A = {
-            {C{4.0, 1.0}, C{2.0, 0.5}},
-            {C{2.0, 0.5}, C{3.0, 2.0}}
+        using Cplx = complex<double>;
+        Matrix<2, 2, Cplx> A = {
+            {Cplx{4.0, 1.0}, Cplx{2.0, 0.5}},
+            {Cplx{2.0, 0.5}, Cplx{3.0, 2.0}}
         };
-        Matrix<2, 1, C> B = {
-            {C{8.0, 2.0}},
-            {C{7.0, 1.5}}
+        Matrix<2, 1, Cplx> B = {
+            {Cplx{8.0, 2.0}},
+            {Cplx{7.0, 1.5}}
         };
 
         auto X_opt = solve(A, B);
@@ -527,12 +527,12 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("Cholesky decomposition - complex Hermitian positive-definite") {
-        using C = complex<double>;
+        using Cplx = complex<double>;
         // Hermitian PD matrix: A = [[2, 1-j], [1+j, 3]]
         // Diagonal is real, A(0,1) == conj(A(1,0))
-        Matrix<2, 2, C> A{
-            {C{2.0, 0.0}, C{1.0, -1.0}},
-            {C{1.0, 1.0}, C{3.0, 0.0}}
+        Matrix<2, 2, Cplx> A{
+            {Cplx{2.0, 0.0}, Cplx{1.0, -1.0}},
+            {Cplx{1.0, 1.0}, Cplx{3.0, 0.0}}
         };
 
         auto L_opt = cholesky(A);
@@ -549,11 +549,11 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("Cholesky decomposition - complex non-Hermitian rejected") {
-        using C = complex<double>;
+        using Cplx = complex<double>;
         // Non-Hermitian: diagonal has imaginary component
-        Matrix<2, 2, C> A{
-            {C{2.0, 0.5}, C{1.0, -1.0}},
-            {C{1.0, 1.0}, C{3.0, 0.0}}
+        Matrix<2, 2, Cplx> A{
+            {Cplx{2.0, 0.5}, Cplx{1.0, -1.0}},
+            {Cplx{1.0, 1.0}, Cplx{3.0, 0.0}}
         };
 
         auto L_opt = cholesky(A);
@@ -561,14 +561,14 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("Cholesky solve - complex Hermitian system") {
-        using C = complex<double>;
-        Matrix<2, 2, C> A{
-            {C{4.0, 0.0}, C{1.0, -1.0}},
-            {C{1.0, 1.0}, C{3.0, 0.0}}
+        using Cplx = complex<double>;
+        Matrix<2, 2, Cplx> A{
+            {Cplx{4.0, 0.0}, Cplx{1.0, -1.0}},
+            {Cplx{1.0, 1.0}, Cplx{3.0, 0.0}}
         };
-        Matrix<2, 1, C> B{
-            {C{3.0, 1.0}},
-            {C{2.0, -1.0}}
+        Matrix<2, 1, Cplx> B{
+            {Cplx{3.0, 1.0}},
+            {Cplx{2.0, -1.0}}
         };
 
         auto X_opt = cholesky_solve(A, B);
@@ -582,22 +582,22 @@ TEST_SUITE("cholesky") {
     }
 
     TEST_CASE("Hermitian check - 1x1 complex with imaginary part rejected") {
-        using C = complex<double>;
+        using Cplx = complex<double>;
         // A 1x1 complex matrix with nonzero imaginary part is NOT Hermitian
-        Matrix<1, 1, C> A{{C{1.0, 0.5}}};
+        Matrix<1, 1, Cplx> A{{Cplx{1.0, 0.5}}};
         CHECK_FALSE(is_symmetric_or_hermitian(A));
     }
 
     TEST_CASE("LU solve - complex non-Hermitian system") {
-        using C = complex<double>;
+        using Cplx = complex<double>;
         // Non-Hermitian complex matrix — must use LU path
-        Matrix<2, 2, C> A{
-            {C{1.0, 1.0}, C{2.0, 0.0}},
-            {C{0.0, 1.0}, C{3.0, -1.0}}
+        Matrix<2, 2, Cplx> A{
+            {Cplx{1.0, 1.0}, Cplx{2.0, 0.0}},
+            {Cplx{0.0, 1.0}, Cplx{3.0, -1.0}}
         };
-        Matrix<2, 1, C> B{
-            {C{5.0, 1.0}},
-            {C{3.0, 2.0}}
+        Matrix<2, 1, Cplx> B{
+            {Cplx{5.0, 1.0}},
+            {Cplx{3.0, 2.0}}
         };
 
         auto X_opt = lu_solve(A, B);
@@ -683,10 +683,10 @@ TEST_SUITE("full_qr") {
     }
 
     TEST_CASE("full_qr factors complex matrices with a unitary Q") {
-        using C = complex<double>;
+        using Cplx = complex<double>;
 
         // Largest |·| deviation of a complex matrix from a reference.
-        auto worst = []<size_t R, size_t Cc>(const Matrix<R, Cc, C>& X, const Matrix<R, Cc, C>& Y) {
+        auto worst = []<size_t R, size_t Cc>(const Matrix<R, Cc, Cplx>& X, const Matrix<R, Cc, Cplx>& Y) {
             double w = 0.0;
             for (size_t i = 0; i < R; ++i) {
                 for (size_t j = 0; j < Cc; ++j) {
@@ -697,22 +697,22 @@ TEST_SUITE("full_qr") {
         };
 
         SUBCASE("square 3x3") {
-            const Matrix<3, 3, C> A = {
+            const Matrix<3, 3, Cplx> A = {
                 {{2, 1}, {0, -1}, {1, 0}},
                 {{1, 1}, {3, 0}, {0, 2}},
                 {{0, 1}, {1, -1}, {2, 1}},
             };
             const auto qr = mat::full_qr(A);
-            CHECK(worst(Matrix<3, 3, C>(qr.Q * qr.R), A) < 1e-9);                                                 // A = Q·R
-            CHECK(worst(Matrix<3, 3, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, C>::identity()) < 1e-9); // Qᴴ·Q = I
-            CHECK(wet::abs(qr.R(1, 0)) < 1e-9);                                                                   // R upper-triangular
+            CHECK(worst(Matrix<3, 3, Cplx>(qr.Q * qr.R), A) < 1e-9);                                                    // A = Q·R
+            CHECK(worst(Matrix<3, 3, Cplx>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, Cplx>::identity()) < 1e-9); // Qᴴ·Q = I
+            CHECK(wet::abs(qr.R(1, 0)) < 1e-9);                                                                         // R upper-triangular
             CHECK(wet::abs(qr.R(2, 0)) < 1e-9);
             CHECK(wet::abs(qr.R(2, 1)) < 1e-9);
         }
 
         SUBCASE("tall 5x3 — trailing Q columns span ker(Aᴴ)") {
             // This is the [A−λI | B]ᴴ shape that arbitrary pole placement uses.
-            const Matrix<5, 3, C> A = {
+            const Matrix<5, 3, Cplx> A = {
                 {{1, 1}, {2, -1}, {0, 2}},
                 {{0, 2}, {1, 0}, {3, -1}},
                 {{3, 0}, {-1, 1}, {2, 2}},
@@ -720,12 +720,12 @@ TEST_SUITE("full_qr") {
                 {{2, -2}, {1, 1}, {0, 1}},
             };
             const auto qr = mat::full_qr(A);
-            CHECK(worst(Matrix<5, 3, C>(qr.Q * qr.R), A) < 1e-9);
-            CHECK(worst(Matrix<5, 5, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<5, 5, C>::identity()) < 1e-9);
+            CHECK(worst(Matrix<5, 3, Cplx>(qr.Q * qr.R), A) < 1e-9);
+            CHECK(worst(Matrix<5, 5, Cplx>(qr.Q.conjugate_transpose() * qr.Q), Matrix<5, 5, Cplx>::identity()) < 1e-9);
             // Columns 3..4 of Q are orthogonal to range(A): Qᴴ_⊥·A = 0.
             for (size_t c = 3; c < 5; ++c) {
                 for (size_t j = 0; j < 3; ++j) {
-                    C d{0, 0};
+                    Cplx d{0, 0};
                     for (size_t i = 0; i < 5; ++i) {
                         d += wet::conj(qr.Q(i, c)) * A(i, j);
                     }
@@ -735,14 +735,14 @@ TEST_SUITE("full_qr") {
         }
 
         SUBCASE("leading-zero pivot exercises the phase guard") {
-            const Matrix<3, 3, C> A = {
+            const Matrix<3, 3, Cplx> A = {
                 {{0, 0}, {1, 0}, {2, 1}},
                 {{1, 1}, {0, 0}, {1, 0}},
                 {{2, 0}, {1, 1}, {0, 0}},
             };
             const auto qr = mat::full_qr(A);
-            CHECK(worst(Matrix<3, 3, C>(qr.Q * qr.R), A) < 1e-9);
-            CHECK(worst(Matrix<3, 3, C>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, C>::identity()) < 1e-9);
+            CHECK(worst(Matrix<3, 3, Cplx>(qr.Q * qr.R), A) < 1e-9);
+            CHECK(worst(Matrix<3, 3, Cplx>(qr.Q.conjugate_transpose() * qr.Q), Matrix<3, 3, Cplx>::identity()) < 1e-9);
         }
     }
 }

@@ -298,20 +298,20 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     const StateSpace<NX, 1, 1, NW, NV, T>& sys,
     const std::vector<T>&                  omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     BodeResult<T> result;
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        const C s_or_z = sys.is_discrete()
-                           ? C{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
-                           : C{T{0}, w};
-        auto    G_frf = eval_frf(sys, s_or_z);
-        C       G = G_frf(0, 0);
-        T       mag = wet::abs(G);
-        T       phase_rad = wet::arg(G);
-        T       mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T       phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
+        const Cplx s_or_z = sys.is_discrete()
+                              ? Cplx{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
+                              : Cplx{T{0}, w};
+        auto       G_frf = eval_frf(sys, s_or_z);
+        Cplx       G = G_frf(0, 0);
+        T          mag = wet::abs(G);
+        T          phase_rad = wet::arg(G);
+        T          mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
+        T          phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
@@ -333,34 +333,34 @@ template<size_t Nnum, size_t Nden, typename T>
     const wet::array<T, Nden>& den,
     const std::vector<T>&      omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     BodeResult<T> result;
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        C jw{T{0}, w};
+        Cplx jw{T{0}, w};
 
         // Evaluate numerator polynomial at jw (ascending powers)
-        C num_val{T{0}, T{0}};
-        C jw_power{T{1}, T{0}};
+        Cplx num_val{T{0}, T{0}};
+        Cplx jw_power{T{1}, T{0}};
         for (size_t i = 0; i < Nnum; ++i) {
             num_val = num_val + num[i] * jw_power;
             jw_power = jw_power * jw;
         }
 
         // Evaluate denominator polynomial at jw (ascending powers)
-        C den_val{T{0}, T{0}};
-        jw_power = C{T{1}, T{0}};
+        Cplx den_val{T{0}, T{0}};
+        jw_power = Cplx{T{1}, T{0}};
         for (size_t i = 0; i < Nden; ++i) {
             den_val = den_val + den[i] * jw_power;
             jw_power = jw_power * jw;
         }
 
-        C G = num_val / den_val;
-        T mag = wet::abs(G);
-        T phase_rad = wet::arg(G);
-        T mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
-        T phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
+        Cplx G = num_val / den_val;
+        T    mag = wet::abs(G);
+        T    phase_rad = wet::arg(G);
+        T    mag_db = mag > T{0} ? T{20} * wet::log10(mag) : T{-300};
+        T    phase_deg = phase_rad * T{180} / wet::numbers::pi_v<T>;
         result.points.push_back({w, mag, mag_db, phase_deg});
     }
     return result;
@@ -530,17 +530,17 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     const StateSpace<NX, 1, 1, NW, NV, T>& sys,
     const std::vector<T>&                  omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     NyquistResult<T> result;
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        const C         s_or_z = sys.is_discrete()
-                                   ? C{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
-                                   : C{T{0}, w};
+        const Cplx      s_or_z = sys.is_discrete()
+                                   ? Cplx{wet::cos(w * sys.Ts), wet::sin(w * sys.Ts)}
+                                   : Cplx{T{0}, w};
         const auto      G_frf = eval_frf(sys, s_or_z);
-        const C         G = G_frf(0, 0);
-        const T         dist = wet::abs(C{T{1}, T{0}} + G);
+        const Cplx      G = G_frf(0, 0);
+        const T         dist = wet::abs(Cplx{T{1}, T{0}} + G);
         NyquistPoint<T> point{};
         point.omega = w;
         point.value = G;
@@ -578,7 +578,7 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     const StateSpace<NX, 1, 1, NW, NV, T>& loop,
     const std::vector<T>&                  omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
 
     LoopResponseResult<T> result;
     result.open_loop.points.reserve(omega.size());
@@ -587,15 +587,15 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     result.nyquist.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        const C s_or_z = loop.is_discrete()
-                           ? C{wet::cos(w * loop.Ts), wet::sin(w * loop.Ts)}
-                           : C{T{0}, w};
+        const Cplx s_or_z = loop.is_discrete()
+                              ? Cplx{wet::cos(w * loop.Ts), wet::sin(w * loop.Ts)}
+                              : Cplx{T{0}, w};
 
         const auto L_frf = eval_frf(loop, s_or_z);
-        const C    L = L_frf(0, 0);
-        const C    one{T{1}, T{0}};
-        const C    S = one / (one + L);
-        const C    Tresp = L / (one + L);
+        const Cplx L = L_frf(0, 0);
+        const Cplx one{T{1}, T{0}};
+        const Cplx S = one / (one + L);
+        const Cplx Tresp = L / (one + L);
 
         const T L_mag = wet::abs(L);
         const T L_mag_db = L_mag > T{0} ? T{20} * wet::log10(L_mag) : T{-300};
@@ -996,15 +996,15 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     const StateSpace<NX, 1, 1, NW, NV, T>& admittance_sys,
     const std::vector<T>&                  omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     ImpedanceResult<T> result;
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        C    jw{T{0}, w};
+        Cplx jw{T{0}, w};
         auto G = eval_frf(admittance_sys, jw);
-        C    Y = G(0, 0);           // Admittance Y(jω) = I/V
-        C    Z = C{T{1}, T{0}} / Y; // Impedance Z = 1/Y
+        Cplx Y = G(0, 0);              // Admittance Y(jω) = I/V
+        Cplx Z = Cplx{T{1}, T{0}} / Y; // Impedance Z = 1/Y
 
         T mag = wet::abs(Z);
         T phase_rad = wet::arg(Z);
@@ -1031,14 +1031,14 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     const StateSpace<NX, 1, 1, NW, NV, T>& impedance_sys,
     const std::vector<T>&                  omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     ImpedanceResult<T> result;
     result.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        C    jw{T{0}, w};
+        Cplx jw{T{0}, w};
         auto G = eval_frf(impedance_sys, jw);
-        C    Z = G(0, 0);
+        Cplx Z = G(0, 0);
 
         T mag = wet::abs(Z);
         T phase_rad = wet::arg(Z);
@@ -1071,27 +1071,27 @@ template<size_t NX_S, size_t NW_S, size_t NV_S, size_t NX_L, size_t NW_L, size_t
     const StateSpace<NX_L, 1, 1, NW_L, NV_L, T>& load_admittance,
     const std::vector<T>&                        omega
 ) {
-    using C = wet::complex<T>;
+    using Cplx = wet::complex<T>;
     MiddlebrookResult<T> result;
     result.minor_loop_gain.points.reserve(omega.size());
     result.source_impedance.points.reserve(omega.size());
     result.load_impedance.points.reserve(omega.size());
 
     for (const auto& w : omega) {
-        C jw{T{0}, w};
+        Cplx jw{T{0}, w};
 
         // Source impedance: Z_s = 1/Y_s
         auto G_s = eval_frf(source_admittance, jw);
-        C    Y_s = G_s(0, 0);
-        C    Z_s = C{T{1}, T{0}} / Y_s;
+        Cplx Y_s = G_s(0, 0);
+        Cplx Z_s = Cplx{T{1}, T{0}} / Y_s;
 
         // Load impedance: Z_L = 1/Y_L
         auto G_L = eval_frf(load_admittance, jw);
-        C    Y_L = G_L(0, 0);
-        C    Z_L = C{T{1}, T{0}} / Y_L;
+        Cplx Y_L = G_L(0, 0);
+        Cplx Z_L = Cplx{T{1}, T{0}} / Y_L;
 
         // Minor loop gain: T_m = Z_s / Z_L = Y_L / Y_s
-        C Tm = Z_s / Z_L;
+        Cplx Tm = Z_s / Z_L;
 
         // Source impedance point
         T zs_mag = wet::abs(Z_s);

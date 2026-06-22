@@ -32,7 +32,7 @@ constexpr bool is_stabilizable(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B
 ) {
-    using Complex = wet::complex<T>;
+    using Cplx = wet::complex<T>;
 
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
@@ -48,12 +48,12 @@ constexpr bool is_stabilizable(
         }
 
         // Form [λI - A, B] in complex arithmetic and check rank.
-        Matrix<NX, NX + NU, Complex> test_mat{};
+        Matrix<NX, NX + NU, Cplx> test_mat{};
 
         // λI - A
         for (size_t r = 0; r < NX; ++r) {
             for (size_t c = 0; c < NX; ++c) {
-                test_mat(r, c) = Complex(-A(r, c), T{0});
+                test_mat(r, c) = Cplx(-A(r, c), T{0});
             }
             test_mat(r, r) = test_mat(r, r) + eigen.values[i];
         }
@@ -61,7 +61,7 @@ constexpr bool is_stabilizable(
         // B
         for (size_t r = 0; r < NX; ++r) {
             for (size_t c = 0; c < NU; ++c) {
-                test_mat(r, NX + c) = Complex(B(r, c), T{0});
+                test_mat(r, NX + c) = Cplx(B(r, c), T{0});
             }
         }
 

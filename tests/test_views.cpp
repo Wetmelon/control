@@ -172,10 +172,10 @@ TEST_CASE("Lower triangle view const correctness") {
 }
 
 TEST_CASE("Views with complex numbers") {
-    using C = wet::complex<double>;
-    Matrix<2, 2, C> mat = {
-        {C{1, 1}, C{2, 2}},
-        {C{3, 3}, C{4, 4}}
+    using Cplx = wet::complex<double>;
+    Matrix<2, 2, Cplx> mat = {
+        {Cplx{1, 1}, Cplx{2, 2}},
+        {Cplx{3, 3}, Cplx{4, 4}}
     };
 
     // Test diagonal view with complex
@@ -326,10 +326,10 @@ TEST_CASE("ColView const correctness") {
 }
 
 TEST_CASE("Views with complex numbers") {
-    using C = wet::complex<double>;
-    Matrix<2, 2, C> mat = {
-        {C{1, 1}, C{2, 2}},
-        {C{3, 3}, C{4, 4}}
+    using Cplx = wet::complex<double>;
+    Matrix<2, 2, Cplx> mat = {
+        {Cplx{1, 1}, Cplx{2, 2}},
+        {Cplx{3, 3}, Cplx{4, 4}}
     };
 
     auto diag = mat.diagonal();
