@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "fmt/core.h"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/trajectory/trajectory.hpp"
 
 using namespace wet;

@@ -6,7 +6,7 @@
 
 #include "fmt/core.h"
 #include "wet/kinematics/motion_maps.hpp"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/trajectory/trajectory.hpp"
 
 using namespace wet;

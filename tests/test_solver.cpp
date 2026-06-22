@@ -1,6 +1,6 @@
 #include <algorithm>
 
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/solver.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

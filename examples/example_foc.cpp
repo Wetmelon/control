@@ -28,7 +28,7 @@
 #include <vector>
 
 #include "fmt/core.h"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/utility/foc.hpp"
 
 using namespace wet;

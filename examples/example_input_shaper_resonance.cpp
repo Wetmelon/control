@@ -4,7 +4,7 @@
 
 #include "fmt/core.h"
 #include "wet/filters/spectral.hpp"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/trajectory/input_shaper.hpp"
 
 using namespace wet;

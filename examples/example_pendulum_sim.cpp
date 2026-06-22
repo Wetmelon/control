@@ -1,7 +1,7 @@
 ﻿#include "fmt/core.h"
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/math.hpp"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 

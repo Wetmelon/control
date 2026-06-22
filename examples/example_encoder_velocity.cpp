@@ -4,7 +4,7 @@
 
 #include "fmt/core.h"
 #include "wet/filters/differentiator.hpp"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 
 using namespace wet;
 

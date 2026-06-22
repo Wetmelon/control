@@ -4,7 +4,7 @@
 
 #include "fmt/core.h"
 #include "wet/controllers/pid.hpp"
-#include "wet/plotting/plot_plotly.hpp"
+#include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 #include "wet/utility/foc.hpp"

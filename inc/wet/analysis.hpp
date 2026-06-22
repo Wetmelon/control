@@ -20,7 +20,6 @@
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
-#include "wet/systems/zpk.hpp"
 
 namespace wet {
 namespace analysis {

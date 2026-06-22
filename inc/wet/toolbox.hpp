@@ -13,7 +13,7 @@
  * meant for embedded targets — deploy with @ref control.hpp and keep the
  * analysis here on the host.
  *
- * @note The Plotly/SVG backend (`wet/plotting/plot_plotly.hpp`) is intentionally
+ * @note The Plotly/SVG backend (`wet/simulation/plot_plotly.hpp`) is intentionally
  *       not pulled in here: it requires plotlypp and nlohmann-json on the
  *       include path. Include it directly when you need it.
  *

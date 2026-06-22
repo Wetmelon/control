@@ -188,7 +188,7 @@ Planning docs live alongside the code: [inc/wet/roadmap.md](inc/wet/roadmap.md)
 
 The one-call synthesis helpers live in `design::` (e.g. `design::synthesize_lqgi`) — design + analysis models + a ready-to-deploy runtime bundle in a single constexpr call.
 
-No build step, no linking, no dependencies beyond a C++20 compiler (GCC 10+, Clang 12+, MSVC 2022+). The Plotly plotting backend (`wet/plotting/plot_plotly.hpp`) additionally needs plotlypp and nlohmann-json.
+No build step, no linking, no dependencies beyond a C++20 compiler (GCC 10+, Clang 12+, MSVC 2022+). The Plotly plotting backend (`wet/simulation/plot_plotly.hpp`) additionally needs plotlypp and nlohmann-json.
 
 ## Building Examples
 
