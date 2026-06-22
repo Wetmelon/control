@@ -32,88 +32,46 @@ constexpr bool is_stabilizable(
     const Matrix<NX, NX, T>& A,
     const Matrix<NX, NU, T>& B
 ) {
-    // For N ≤ 4 form the test matrix in complex arithmetic (exact magnitude);
-    // for larger N fall back to a real-part-only conservative check.
-    if constexpr (NX <= 4) {
-        auto eigen = mat::compute_eigenvalues(A);
-        if (!eigen.converged) {
+    using Complex = wet::complex<T>;
+
+    auto eigen = mat::compute_eigenvalues(A);
+    if (!eigen.converged) {
+        return false;
+    }
+
+    const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
+
+    for (size_t i = 0; i < NX; ++i) {
+        // Only check unstable eigenvalues (|λ| >= 1)
+        if (eigen.values[i].abs() < T{1}) {
+            continue;
+        }
+
+        // Form [λI - A, B] in complex arithmetic and check rank.
+        Matrix<NX, NX + NU, Complex> test_mat{};
+
+        // λI - A
+        for (size_t r = 0; r < NX; ++r) {
+            for (size_t c = 0; c < NX; ++c) {
+                test_mat(r, c) = Complex(-A(r, c), T{0});
+            }
+            test_mat(r, r) = test_mat(r, r) + eigen.values[i];
+        }
+
+        // B
+        for (size_t r = 0; r < NX; ++r) {
+            for (size_t c = 0; c < NU; ++c) {
+                test_mat(r, NX + c) = Complex(B(r, c), T{0});
+            }
+        }
+
+        // Uncontrollable unstable mode ⇒ not stabilizable.
+        if (mat::rank(test_mat, tol) < NX) {
             return false;
         }
-
-        const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
-
-        for (size_t i = 0; i < NX; ++i) {
-            // Only check unstable eigenvalues (|λ| >= 1)
-            if (eigen.values[i].abs() < T{1}) {
-                continue;
-            }
-
-            // Form [λI - A, B] and check rank
-            using Complex = wet::complex<T>;
-            Matrix<NX, NX + NU, Complex> test_mat{};
-
-            // λI - A
-            for (size_t r = 0; r < NX; ++r) {
-                for (size_t c = 0; c < NX; ++c) {
-                    test_mat(r, c) = Complex(-A(r, c), T{0});
-                }
-                test_mat(r, r) = test_mat(r, r) + eigen.values[i];
-            }
-
-            // B
-            for (size_t r = 0; r < NX; ++r) {
-                for (size_t c = 0; c < NU; ++c) {
-                    test_mat(r, NX + c) = Complex(B(r, c), T{0});
-                }
-            }
-
-            // Uncontrollable unstable mode ⇒ not stabilizable.
-            if (mat::rank(test_mat, tol) < NX) {
-                return false;
-            }
-        }
-
-        return true;
-    } else {
-        // N > 4: real-part-only check (conservative — avoids the larger complex
-        // rank test on big matrices).
-        auto eigen = mat::compute_eigenvalues(A);
-        if (!eigen.converged) {
-            // If QR didn't converge, skip the stabilizability check — let the
-            // SDA loop itself detect divergence via its iteration limit.
-            return true;
-        }
-
-        const T tol = std::is_same_v<T, float> ? T{1e-5} : T{1e-10};
-
-        for (size_t i = 0; i < NX; ++i) {
-            T lambda_real = eigen.values[i].real();
-            if (wet::abs(lambda_real) < T{1}) {
-                continue;
-            }
-
-            // Form [λI - A, B] with real λ and check rank
-            Matrix<NX, NX + NU, T> test_mat{};
-            for (size_t r = 0; r < NX; ++r) {
-                for (size_t c = 0; c < NX; ++c) {
-                    test_mat(r, c) = -A(r, c);
-                }
-                test_mat(r, r) += lambda_real;
-            }
-            for (size_t r = 0; r < NX; ++r) {
-                for (size_t c = 0; c < NU; ++c) {
-                    test_mat(r, NX + c) = B(r, c);
-                }
-            }
-
-            // Uncontrollable unstable mode ⇒ not stabilizable.
-            if (mat::rank(test_mat, tol) < NX) {
-                return false;
-            }
-        }
-
-        return true;
     }
+
+    return true;
 }
 
 namespace detail {

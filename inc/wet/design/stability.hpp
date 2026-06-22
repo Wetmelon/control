@@ -8,12 +8,9 @@
  * For discrete systems: stable if all eigenvalues have |λ| < 1 (inside unit circle)
  *
  * @note The eigenvalue-based routines (is_stable_discrete, stability_margin_*,
- *       closed_loop_poles) are capped at N ≤ 4. They use the closed-form
- *       mat::compute_eigenvalues, which returns fully-resolved complex
- *       eigenvalues. The N > 4 QR path (mat::compute_eigenvalues, used by
- *       riccati.hpp) only yields the real Schur diagonal — it does not resolve
- *       complex conjugate pairs, so it cannot report pole locations or |λ|
- *       accurately. Lift the cap only once a full eigen-solver exists.
+ *       closed_loop_poles) use mat::compute_eigenvalues, which resolves
+ *       fully-complex eigenvalues for any N (closed form for N ≤ 2, Francis QR
+ *       beyond).
  */
 #include <cstddef>
 
@@ -139,7 +136,7 @@ template<size_t NX, size_t NY, typename T = double>
  *
  * A discrete system is stable if all eigenvalues have magnitude less than 1 (inside unit circle).
  *
- * @tparam N   Number of states (must be ≤ 4)
+ * @tparam N   Number of states
  * @tparam T   Numeric type (default: double)
  * @param A    State matrix to check
  *
@@ -147,7 +144,6 @@ template<size_t NX, size_t NY, typename T = double>
  */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr bool is_stable_discrete(const Matrix<N, N, T>& A) {
-    static_assert(N <= 4, "Stability analysis only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
         return false;
@@ -193,7 +189,7 @@ template<size_t NX, size_t NU, typename T = double>
  * Computed as the negative of the most positive real eigenvalue part.
  * Positive values indicate stability; larger values indicate more stability margin.
  *
- * @tparam N   Number of states (must be ≤ 4)
+ * @tparam N   Number of states
  * @tparam T   Numeric type (default: double)
  * @param A    State matrix
  *
@@ -201,7 +197,6 @@ template<size_t NX, size_t NU, typename T = double>
  */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_continuous(const Matrix<N, N, T>& A) {
-    static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
         return T{-1}; // Negative margin signals "not provably stable"
@@ -223,7 +218,7 @@ template<size_t N, typename T = double>
  * Computed as 1 - (maximum magnitude eigenvalue).
  * Positive values indicate stability; larger values indicate more stability margin.
  *
- * @tparam N   Number of states (must be ≤ 4)
+ * @tparam N   Number of states
  * @tparam T   Numeric type (default: double)
  * @param A    State matrix
  *
@@ -231,7 +226,6 @@ template<size_t N, typename T = double>
  */
 template<size_t N, typename T = double>
 [[nodiscard]] constexpr T stability_margin_discrete(const Matrix<N, N, T>& A) {
-    static_assert(N <= 4, "Stability margin only supported for systems up to 4 states");
     auto eigen = mat::compute_eigenvalues(A);
     if (!eigen.converged) {
         return T{-1}; // Return unstable indicator
@@ -253,7 +247,7 @@ template<size_t N, typename T = double>
  * Computes the eigenvalues of the closed-loop state matrix A_cl = A - B*K.
  * These poles determine the closed-loop system dynamics.
  *
- * @tparam NX  Number of states (must be ≤ 4)
+ * @tparam NX  Number of states
  * @tparam NU  Number of inputs
  * @tparam T   Numeric type (default: double)
  * @param A    State matrix
@@ -268,7 +262,6 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NX, NU, T>& B,
     const Matrix<NU, NX, T>& K
 ) {
-    static_assert(NX <= 4, "Pole computation only supported for systems up to 4 states");
     Matrix<NX, NX, T> A_cl = A - B * K;
     auto              eigen = mat::compute_eigenvalues(A_cl);
     return eigen.values;

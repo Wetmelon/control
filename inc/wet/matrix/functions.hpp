@@ -124,9 +124,12 @@ template<typename T, size_t N>
 }
 
 /**
- * @brief Matrix determinant using cofactor expansion
+ * @brief Matrix determinant
+ *
+ * Cofactor expansion for N ≤ 4 (exact, fast); LU decomposition for larger N.
+ *
  * @tparam T Element type
- * @tparam N Matrix dimension (must be small, ≤4)
+ * @tparam N Matrix dimension
  * @param A Square matrix
  * @return Determinant of the matrix
  */
