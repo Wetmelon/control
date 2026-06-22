@@ -34,8 +34,8 @@
 #include "wet/design/stability.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/decomposition.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/matrix/svd.hpp"
 
 namespace wet {
 
@@ -530,8 +530,10 @@ template<size_t NX, size_t NU, size_t NB, typename T>
             }
         }
 
-        // Pencil S = [A − λI | B]: kernel basis N (last NU columns of the null
-        // space) and pseudoinverse M; both independent of K.
+        // Pencil S = [A − λI | B] (NX × NS). Its kernel basis N and a right
+        // inverse M come from one QR of Sᴴ. Reachability makes S full row rank
+        // for *every* λ (PBH test), so this single path also covers λ ∈ spec(A)
+        // with no special case — unlike a factorization of (A − λI) alone.
         Matrix<NX, NS, C> S;
         for (size_t i = 0; i < NX; ++i) {
             for (size_t c = 0; c < NX; ++c) {
@@ -541,14 +543,30 @@ template<size_t NX, size_t NU, size_t NB, typename T>
                 S(i, NX + c) = Bc(i, c);
             }
         }
-        const auto ns = mat::null_space(S);
-        if (ns.dim != NU) {
+        // Sᴴ = Q·R: Q (NS×NS) unitary, R (NS×NX) upper-triangular with leading
+        // NX×NX block R1 invertible iff S is full row rank.
+        const auto        qr = mat::full_qr(Matrix<NS, NX, C>(S.conjugate_transpose()));
+        Matrix<NX, NX, C> R1;
+        for (size_t i = 0; i < NX; ++i) {
+            for (size_t j = 0; j < NX; ++j) {
+                R1(i, j) = qr.R(i, j);
+            }
+        }
+        const auto R1inv = R1.inverse();
+        if (!R1inv) {
             return wet::nullopt; // (A,B) not reachable at λ
         }
+
+        // Kernel N = trailing NU columns of Q (orthonormal basis of ker S).
         Matrix<NS, NU, C> N;
+        // Q1 = leading NX columns of Q, used for the pseudoinverse S⁺ = Q1·(R1⁻¹)ᴴ.
+        Matrix<NS, NX, C> Q1;
         for (size_t i = 0; i < NS; ++i) {
+            for (size_t j = 0; j < NX; ++j) {
+                Q1(i, j) = qr.Q(i, j);
+            }
             for (size_t k = 0; k < NU; ++k) {
-                N(i, k) = ns.vectors(i, NX + k);
+                N(i, k) = qr.Q(i, NX + k);
             }
         }
 
@@ -556,7 +574,7 @@ template<size_t NX, size_t NU, size_t NB, typename T>
         plan.g[e] = g;
         plan.orders[e] = ords;
         plan.N[e] = N;
-        plan.M[e] = mat::pseudo_inverse(S);
+        plan.M[e] = Matrix<NS, NX, C>(Q1 * R1inv.value().conjugate_transpose());
         plan.pos_offset[e] = col;
         plan.npos[e] = mult;
         col += mult;
