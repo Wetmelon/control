@@ -1,4 +1,4 @@
-.PHONY: all clean tests tidy docs gui embedded-check freestanding-check profile-compile
+.PHONY: all clean tests tidy iwyu fix_includes docs gui embedded-check freestanding-check profile-compile
 
 # Build compiler, derived from tup.config (mirrors Tuprules.lua: path + prefix + g++).
 # tup.config lines are KEY=value, i.e. valid make assignments -- include them
@@ -87,6 +87,44 @@ tidy:
 		| grep '^ ' | sed 's,^ ,-extra-arg=-isystem,'); \
 	run-clang-tidy -p . -fix -header-filter='inc[/\\].*' \
 		-extra-arg=--target=$$TGT $$ISYS '\.cpp$$'
+
+# Run include-what-you-use over every TU in compile_commands.json. The headers
+# are already annotated with IWYU pragmas (keep/export); this drives the tool.
+#
+# IWYU is clang-based but the project builds with mingw-GCC, so we point clang's
+# driver at the GCC toolchain (--gcc-toolchain) to analyze against the SAME
+# libstdc++ the real build uses -- otherwise on Windows clang defaults to the
+# MSVC STL and the include suggestions are wrong. The conda-forge IWYU package
+# ships no clang resource headers (mm_malloc.h / intrinsics) and bakes a dead
+# -resource-dir, so we borrow the system LLVM's resource dir instead.
+#
+# Needs: IWYU on PATH (conda-forge include-what-you-use) and a system clang
+# (the one already used for tidy/format) for -print-resource-dir.
+# Scope to tests/*.cpp: those TUs transitively pull all of inc/, so they cover
+# the library, while keeping examples/'s third-party TUs (fmt/json/plotlypp) out
+# of the sweep. IWYU reports each TU's filename relative to its compile dir
+# (tests/), which is why fix_includes runs with `-p tests` below.
+GCC_ROOT := $(dir $(CONFIG_COMPILER_PATH))
+IWYU_TUS := $(wildcard tests/*.cpp)
+iwyu:
+	@tup --quiet compiledb
+	@export PYTHONUTF8=1; TGT=$$($(GXX) -dumpmachine); \
+	RESDIR=$$(clang -print-resource-dir); \
+	iwyu_tool.py -j 0 -p . $(IWYU_TUS) -- --target=$$TGT --gcc-toolchain="$(GCC_ROOT)" \
+		-resource-dir="$$RESDIR" -Xiwyu --no_fwd_decls -Xiwyu --mapping_file=$(CURDIR)/iwyu.imp
+
+# Same IWYU sweep, but apply the suggestions: pipe IWYU's output straight into
+# fix_includes.py (in place, like clang-tidy --fix -- a make step, not tup).
+# --noreorder leaves include ordering to clang-format; `format` runs after to
+# sort + align the edits.
+fix_includes:
+	@tup --quiet compiledb
+	@export PYTHONUTF8=1; TGT=$$($(GXX) -dumpmachine); \
+	RESDIR=$$(clang -print-resource-dir); \
+	iwyu_tool.py -j 0 -p . $(IWYU_TUS) -- --target=$$TGT --gcc-toolchain="$(GCC_ROOT)" \
+		-resource-dir="$$RESDIR" -Xiwyu --no_fwd_decls -Xiwyu --mapping_file=$(CURDIR)/iwyu.imp \
+		| fix_includes.py --noreorder -p tests
+	@$(MAKE) --no-print-directory format
 
 # Compile-time profiling. Builds the examples with clang's -ftime-trace (GCC 14.2
 # predates -ftime-trace, so we borrow the clang already on PATH for tidy/format),

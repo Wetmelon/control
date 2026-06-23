@@ -1,0 +1,3 @@
+[
+  { include: ["@\"plotlypp/.*impl/.*\\.hpp\"", "private", "\"plotlypp/figure.hpp\"", "public"] }
+]

@@ -26,10 +26,12 @@ Checks: "*,
   -readability-magic-numbers,
   -readability-identifier-length,
   -readability-function-cognitive-complexity,
-  -hicpp-uppercase-literal-suffix,
   -hicpp-avoid-c-arrays,
+  -hicpp-explicit-conversions,
   -hicpp-signed-bitwise,
-  -hicpp-explicit-conversions"
+  -hicpp-uppercase-literal-suffix,
+  -hicpp-use-auto,
+  "
 
 WarningsAsErrors: ""
 HeaderFilterRegex: ""

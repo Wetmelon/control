@@ -107,11 +107,11 @@ template<typename T>
 
 #else // stdlib backend (default)
 
-#include <algorithm>
-#include <array>
-#include <optional>
-#include <tuple>
-#include <utility>
+#include <algorithm> // IWYU pragma: export
+#include <array>     // IWYU pragma: export
+#include <optional>  // IWYU pragma: export
+#include <tuple>     // IWYU pragma: export
+#include <utility>   // IWYU pragma: export
 
 namespace wet {
 using std::array;
