@@ -1,6 +1,10 @@
+#include <array>
 #include <cmath>
+#include <cstddef>
 
 #include "wet/controllers/harmonic_suppression.hpp"
+#include "wet/controllers/pr.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

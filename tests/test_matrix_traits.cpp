@@ -1,3 +1,6 @@
+#include <type_traits>
+
+#include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/matrix/matrix_traits.hpp"
 

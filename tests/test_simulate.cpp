@@ -1,7 +1,15 @@
-﻿#include "wet/controllers/lqr.hpp"
+﻿#include <cmath>
+#include <cstddef>
+#include <vector>
+
+#include "wet/backend.hpp"
+#include "wet/controllers/lqr.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -2,8 +2,12 @@
  * @file test_middlebrook.cpp
  * @brief Tests for Middlebrook impedance stability analysis
  */
+#include <vector>
+
 #include "wet/analysis/analysis.hpp"
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

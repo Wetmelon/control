@@ -1,9 +1,12 @@
-#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 
+#include "wet/backend.hpp"
 #include "wet/kinematics/motion_maps.hpp"
 #include "wet/kinematics/pose.hpp"
+#include "wet/math/geometry.hpp"
+#include "wet/matrix/colvec.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

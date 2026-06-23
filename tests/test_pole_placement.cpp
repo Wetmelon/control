@@ -1,9 +1,11 @@
-#include <algorithm>
-#include <array>
+#include <cstdlib>
 
+#include "wet/backend.hpp"
 #include "wet/design/pole_placement.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matlab.hpp"
-#include "wet/matrix/eigen.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -1,6 +1,10 @@
 #include <cmath>
+#include <limits>
 
+#include "wet/backend.hpp"
+#include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

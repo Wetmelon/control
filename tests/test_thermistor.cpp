@@ -1,3 +1,4 @@
+#include "wet/backend.hpp"
 #include "wet/toolbox/thermistor.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

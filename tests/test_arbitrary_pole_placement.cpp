@@ -1,4 +1,5 @@
 #include <cmath>
+#include <cstddef>
 
 #include "wet/backend.hpp"
 #include "wet/design/pole_placement.hpp"

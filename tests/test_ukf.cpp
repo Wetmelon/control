@@ -1,5 +1,6 @@
+#include <algorithm>
+
 #include "doctest.h"
-#include "wet/estimation/ekf.hpp"
 #include "wet/estimation/ukf.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"

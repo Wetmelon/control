@@ -1,4 +1,4 @@
-#include <cmath>
+#include <initializer_list>
 
 #include "wet/filters/filters.hpp"
 

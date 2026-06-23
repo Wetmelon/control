@@ -28,7 +28,7 @@
 
 #include <initializer_list> // core language facility; freestanding-safe (see @note above)
 
-#include "wet/config.hpp" // pulls the profile's backend-selection macros
+#include "wet/config.hpp" // IWYU pragma: export - pulls the profile's backend-selection macros
 
 namespace wet::numbers {
 

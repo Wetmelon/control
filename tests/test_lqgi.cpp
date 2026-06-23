@@ -1,5 +1,10 @@
 #include "doctest.h"
+#include "wet/backend.hpp"
 #include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/design/riccati.hpp"
+#include "wet/estimation/kalman.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 

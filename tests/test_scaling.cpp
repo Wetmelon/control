@@ -1,4 +1,5 @@
 #include "doctest.h"
+#include "wet/matrix/rowvec.hpp"
 #include "wet/toolbox/scaling.hpp"
 
 using namespace wet;

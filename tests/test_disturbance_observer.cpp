@@ -1,3 +1,6 @@
+#include <array>
+#include <cmath>
+
 #include "wet/estimation/disturbance_observer.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <cstddef>
+#include <type_traits>
 
 #include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"

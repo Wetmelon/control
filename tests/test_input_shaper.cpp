@@ -1,5 +1,8 @@
 #include <cmath>
+#include <cstddef>
 
+#include "wet/backend.hpp"
+#include "wet/math/math.hpp"
 #include "wet/trajectory/input_shaper.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

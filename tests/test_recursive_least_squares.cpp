@@ -1,4 +1,9 @@
+#include <algorithm>
+
 #include "wet/estimation/recursive_least_squares.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

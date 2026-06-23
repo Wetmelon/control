@@ -1,5 +1,15 @@
-#include <algorithm>
+#include <cstdlib>
+#include <filesystem>
+#include <string>
+#include <vector>
 
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/solver.hpp"
 

@@ -1,6 +1,9 @@
 #include <cmath>
+#include <cstddef>
+#include <utility>
 
 #include "wet/filters/spectral.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

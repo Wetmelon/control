@@ -1,7 +1,9 @@
 #include <cmath>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/math/geometry.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

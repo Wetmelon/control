@@ -1,5 +1,6 @@
 #include <cmath>
 
+#include "wet/backend.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"

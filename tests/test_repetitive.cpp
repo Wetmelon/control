@@ -1,7 +1,10 @@
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/controllers/repetitive.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

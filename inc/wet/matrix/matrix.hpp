@@ -982,6 +982,7 @@ template<MatrixLike A, typename Scalar>
 #include "block.hpp"         // IWYU pragma: export
 #include "colvec.hpp"        // IWYU pragma: export
 #include "decomposition.hpp" // IWYU pragma: export
+#include "eigen.hpp"         // IWYU pragma: export
 #include "functions.hpp"     // IWYU pragma: export
 #include "rowvec.hpp"        // IWYU pragma: export
 #include "solve.hpp"         // IWYU pragma: export

@@ -1,7 +1,7 @@
-#include <fmt/format.h>
-#include <fmt/ostream.h>
-
+#include "wet/backend.hpp"
 #include "wet/controllers/lqi.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

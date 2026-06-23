@@ -1,5 +1,8 @@
 
+#include <algorithm>
+
 #include "wet/controllers/smc.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

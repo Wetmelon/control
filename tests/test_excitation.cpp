@@ -1,4 +1,6 @@
 #include <array>
+#include <cstddef>
+#include <cstdint>
 
 #include "wet/estimation/excitation.hpp"
 

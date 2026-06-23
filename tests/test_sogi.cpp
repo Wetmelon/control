@@ -2,7 +2,12 @@
 #include <cmath>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/filters/sogi.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/discretization.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

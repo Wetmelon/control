@@ -3,8 +3,12 @@
 #include <limits>
 #include <numbers>
 
+#include "wet/backend.hpp"
+#include "wet/controllers/pid.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
 #include "wet/power/foc.hpp"
-#include "wet/power/modulation.hpp"
+#include "wet/power/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

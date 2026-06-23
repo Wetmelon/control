@@ -1,7 +1,9 @@
+#include <array>
 #include <numbers>
 
 #include "doctest.h"
 #include "wet/toolbox/actuator.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 using namespace wet;
 

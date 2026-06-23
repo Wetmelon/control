@@ -1,7 +1,11 @@
+#include <cstddef>
 #include <numbers>
 
+#include "wet/backend.hpp"
+#include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/estimation/relay_autotune.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 

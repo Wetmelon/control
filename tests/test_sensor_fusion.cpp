@@ -1,6 +1,12 @@
 
 
+#include <cstdlib>
+
+#include "wet/backend.hpp"
 #include "wet/estimation/sensor_fusion.hpp"
+#include "wet/math/geometry.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

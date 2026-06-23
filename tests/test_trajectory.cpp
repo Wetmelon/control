@@ -1,8 +1,12 @@
 #include <algorithm>
-#include <cmath>
 #include <cstdint>
+#include <cstdlib>
+#include <initializer_list>
 
+#include "wet/backend.hpp"
+#include "wet/math/math.hpp"
 #include "wet/trajectory/trajectory.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

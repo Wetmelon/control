@@ -1,10 +1,14 @@
 
 #include <cmath>
+#include <vector>
 
 #include "wet/analysis/analysis.hpp"
+#include "wet/backend.hpp"
 #include "wet/design/stability.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

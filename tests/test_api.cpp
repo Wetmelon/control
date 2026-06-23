@@ -1,7 +1,14 @@
-﻿#include <cmath>
-
+﻿#include "wet/backend.hpp"
+#include "wet/controllers/lqg.hpp"
+#include "wet/controllers/lqgi.hpp"
+#include "wet/controllers/lqi.hpp"
+#include "wet/controllers/lqr.hpp"
+#include "wet/design/riccati.hpp"
+#include "wet/estimation/kalman.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matlab.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

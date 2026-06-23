@@ -1,8 +1,11 @@
 #include <cmath>
+#include <cstddef>
 
+#include "wet/backend.hpp"
 #include "wet/matrix/colvec.hpp" // Vec3
 #include "wet/trajectory/cartesian_move.hpp"
 #include "wet/trajectory/topp.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

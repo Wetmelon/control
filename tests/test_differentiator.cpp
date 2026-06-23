@@ -1,7 +1,10 @@
+#include <algorithm>
 #include <cmath>
 #include <numbers>
+#include <type_traits>
 
 #include "wet/filters/differentiator.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

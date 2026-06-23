@@ -1,10 +1,15 @@
-﻿#include <algorithm>
-#include <cmath>
+﻿#include <cmath>
+#include <cstddef>
 
+#include "wet/backend.hpp"
 #include "wet/controllers/lqr.hpp"
+#include "wet/design/riccati.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/estimation/kalman.hpp"
-#include "wet/matrix/eigen.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

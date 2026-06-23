@@ -1,4 +1,7 @@
+#include <algorithm>
+
 #include "doctest.h"
+#include "wet/matrix/matrix.hpp"
 #include "wet/toolbox/lookup.hpp"
 
 using namespace wet;

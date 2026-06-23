@@ -1,7 +1,11 @@
-#include <cmath>
+#include <cstddef>
 #include <cstdint>
 
+#include "wet/backend.hpp"
+#include "wet/kinematics/pose.hpp"
 #include "wet/kinematics/stewart.hpp"
+#include "wet/math/geometry.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

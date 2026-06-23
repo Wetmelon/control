@@ -4,7 +4,9 @@
 // umbrella is usable on its own for real controller code. The companion
 // `make embedded-check` target additionally proves no <vector> is reachable
 // from this header, which is the embedded (no-heap) guarantee.
+#include "wet/backend.hpp"
 #include "wet/control.hpp"
+#include "wet/math/math.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -1,4 +1,5 @@
-#include <cmath>
+#include <algorithm>
+#include <cstdint>
 
 #include "wet/toolbox/iec61131.hpp"
 

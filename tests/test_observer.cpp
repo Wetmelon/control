@@ -1,5 +1,10 @@
+#include <cmath>
+
+#include "wet/backend.hpp"
 #include "wet/estimation/observer.hpp"
-#include "wet/matrix/eigen.hpp"
+#include "wet/math/complex.hpp"
+#include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

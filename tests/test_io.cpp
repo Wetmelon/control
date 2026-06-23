@@ -1,4 +1,8 @@
+#include <algorithm>
+
+#include "wet/toolbox/conditioning.hpp"
 #include "wet/toolbox/io.hpp"
+#include "wet/toolbox/scaling.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

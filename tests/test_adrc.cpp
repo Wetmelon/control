@@ -1,3 +1,6 @@
+#include <array>
+#include <cstddef>
+
 #include "wet/controllers/adrc.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

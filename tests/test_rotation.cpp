@@ -1,7 +1,9 @@
 #include <cmath>
 #include <numbers>
+#include <optional>
 
 #include "wet/math/geometry.hpp"
+#include "wet/matrix/colvec.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

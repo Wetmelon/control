@@ -1,7 +1,8 @@
 ﻿#include <cmath>
 
-#include "fmt/core.h"
+#include "wet/backend.hpp"
 #include "wet/controllers/lqr.hpp"
+#include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"

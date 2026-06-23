@@ -1,5 +1,8 @@
 #include <cmath>
+#include <variant>
 
+#include "wet/backend.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/simulation/integrator.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS

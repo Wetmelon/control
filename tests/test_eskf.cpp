@@ -1,8 +1,12 @@
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 
+#include "wet/estimation/ekf.hpp"
 #include "wet/estimation/eskf.hpp"
 #include "wet/math/geometry.hpp"
+#include "wet/matrix/matrix.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

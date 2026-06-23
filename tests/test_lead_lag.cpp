@@ -1,7 +1,11 @@
 #include <cmath>
 #include <numbers>
 
+#include "wet/backend.hpp"
 #include "wet/controllers/lead_lag.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
