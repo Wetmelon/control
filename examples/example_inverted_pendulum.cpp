@@ -32,7 +32,11 @@
 #include "fmt/core.h"
 #include "wet/backend.hpp"
 #include "wet/control.hpp"
+#include "wet/design/stability.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matlab.hpp"
+#include "wet/matrix/functions.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wet;
 
@@ -63,12 +67,12 @@ plotlypp::Scatter line(const std::vector<double>& t, const std::vector<double>& 
 
 int main() {
     // ===== 1. Plant parameters (CTMS values) ================================
-    constexpr double M = 0.5;   // cart mass                       [kg]
-    constexpr double m = 0.2;   // pendulum mass                   [kg]
-    constexpr double b = 0.1;   // cart friction                   [N/(m/s)]
-    constexpr double I = 0.006; // pendulum inertia about its CoM  [kg·m²]
-    constexpr double g = 9.8;   // gravity                         [m/s²]
-    constexpr double l = 0.3;   // CoM distance from pivot         [m]
+    constexpr double M = 0.5;   // [kg] cart mass
+    constexpr double m = 0.2;   // [kg] pendulum mass
+    constexpr double b = 0.1;   // [N/(m/s)] cart friction
+    constexpr double I = 0.006; // [kg·m²] pendulum inertia about its CoM
+    constexpr double g = 9.8;   // [m/s²] gravity
+    constexpr double l = 0.3;   // [m] CoM distance from pivot
 
     constexpr double p = (I * (M + m)) + (M * m * l * l); // common denominator
 
@@ -79,46 +83,53 @@ int main() {
         {0.0, 0.0, 0.0, 1.0},
         {0.0, -(m * l * b) / p, m * g * l * (M + m) / p, 0.0},
     };
+
     const ColVec<4> B{
         0.0,
         (I + (m * l * l)) / p,
         0.0,
         (m * l) / p,
     };
+
     // Outputs: cart position x and pendulum angle φ (both measured).
     const Matrix<2, 4> C{
         {1.0, 0.0, 0.0, 0.0},
         {0.0, 0.0, 1.0, 0.0},
     };
 
+    const auto sys_ss = StateSpace{A, B, C};
+
     fmt::print("===== Inverted Pendulum — Continuous State-Space (CTMS replica) =====\n\n");
     fmt::print("Plant: M={} kg, m={} kg, l={} m, I={} kg·m²  (p = {:.4f})\n\n", M, m, l, I, p);
 
     // ===== 2. Open-loop poles ==============================================
-    const auto ol = mat::compute_eigenvalues(A);
+    const auto poles = mat::compute_eigenvalues(A);
     fmt::print("Open-loop poles (eigenvalues of A):\n");
     for (size_t i = 0; i < 4; ++i) {
-        fmt::print("   {:+.4f} {:+.4f}j\n", ol.values[i].real(), ol.values[i].imag());
+        fmt::print("   {:+.4f} {:+.4f}j\n", poles.values[i].real(), poles.values[i].imag());
     }
     fmt::print("  → one pole in the right half-plane: the upright pendulum is unstable.\n\n");
 
     // ===== 3. Controllability ==============================================
-    const bool ctrl = stability::is_controllable(A, B);
-    fmt::print("Controllable: {}  (full rank → LQR may place the dynamics freely)\n\n", ctrl ? "yes" : "no");
-    assert(ctrl);
+    const auto co = matlab::ctrb(sys_ss);
+    const auto controllability = mat::rank(co);
+    fmt::println("controllability = {}", controllability);
+
+    const bool controllable = stability::is_controllable(sys_ss.A, sys_ss.B);
+    fmt::print("Controllable: {}  (full rank → LQR may place the dynamics freely)\n\n", controllable ? "yes" : "no");
+    assert(controllable);
 
     // ===== 4. LQR design ===================================================
     // CTMS weighting: penalize cart position and pole angle; R = 1.
-    const Matrix<4, 4> Q{
-        {5000.0, 0.0, 0.0, 0.0},
-        {0.0, 0.0, 0.0, 0.0},
-        {0.0, 0.0, 100.0, 0.0},
-        {0.0, 0.0, 0.0, 0.0},
-    };
+    Matrix<4, 4> Q = C.t() * C;
+    Q(0, 0) = 5000; // 0-index matrices
+    Q(2, 2) = 100;  // 0-index matrices
+
     const Matrix<1, 1> R{{1.0}};
 
     const auto lqr = design::continuous_lqr(A, B, Q, R);
     assert(lqr.success);
+
     fmt::print("LQR gain  K = lqr(A, B, Q, R):\n");
     fmt::print("   [{:.4f}  {:.4f}  {:.4f}  {:.4f}]   (x  ẋ  φ  φ̇)\n\n", lqr.K(0, 0), lqr.K(0, 1), lqr.K(0, 2), lqr.K(0, 3));
 

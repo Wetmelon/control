@@ -1,8 +1,11 @@
 ﻿#pragma once
 
 #include <cstddef>
+#include <limits>
 #include <type_traits>
+#include <vector>
 
+#include "design/stability.hpp"
 #include "wet/analysis/analysis.hpp"
 #include "wet/backend.hpp"
 #include "wet/controllers/lqg.hpp"
@@ -12,6 +15,7 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/design/linearization.hpp"
 #include "wet/design/pole_placement.hpp"
+#include "wet/estimation/kalman.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
@@ -19,7 +23,6 @@
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
-#include "wet/systems/zpk.hpp"
 
 namespace wet {
 // MATLAB®-style matrix functions
@@ -67,11 +70,27 @@ template<size_t NX, size_t NU, typename T = double>
 }
 
 /**
+ * @brief MATLAB short alias for controllability_matrix taking StateSpace
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T = double>
+[[nodiscard]] constexpr Matrix<NX, NX * NU, T> ctrb(const StateSpace<NX, NU, NY, NW, NV, T>& sys) noexcept {
+    return stability::controllability_matrix(sys.A, sys.B);
+}
+
+/**
  * @brief MATLAB short alias for observability_matrix
  */
 template<size_t NX, size_t NY, typename T = double>
 [[nodiscard]] constexpr Matrix<NX * NY, NX, T> obsv(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noexcept {
     return stability::observability_matrix(A, C);
+}
+
+/**
+ * @brief MATLAB short alias for observability_matrix
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T = double>
+[[nodiscard]] constexpr Matrix<NX * NY, NX, T> obsv(const StateSpace<NX, NU, NY, NW, NV, T>& sys) noexcept {
+    return stability::observability_matrix(sys.A, sys.C);
 }
 
 /**
@@ -395,7 +414,7 @@ template<size_t NX, size_t NU, typename T = double>
     const Matrix<NU, NU, T>& R,
     const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
 ) {
-    return design::continuous_lqr(A, B, Q, R, N).K;
+    return design::continuous_lqr(A, B, Q, R, N).K; // Only return K
 }
 
 /**
