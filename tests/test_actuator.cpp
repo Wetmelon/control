@@ -1,7 +1,7 @@
 #include <numbers>
 
 #include "doctest.h"
-#include "wet/utility/actuator.hpp"
+#include "wet/toolbox/actuator.hpp"
 
 using namespace wet;
 

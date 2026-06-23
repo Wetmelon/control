@@ -1,4 +1,4 @@
-#include "wet/utility/conditioning.hpp"
+#include "wet/toolbox/conditioning.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

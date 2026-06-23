@@ -26,6 +26,8 @@
  *       container/utility types.
  */
 
+#include <initializer_list> // core language facility; freestanding-safe (see @note above)
+
 #include "wet/config.hpp" // pulls the profile's backend-selection macros
 
 namespace wet::numbers {
@@ -77,6 +79,30 @@ using etl::optional;
 using etl::pair;
 using etl::swap;
 using etl::tuple;
+
+// ETL's min/max are binary-only; supply the initializer_list overloads (by
+// value) so `wet::min({...})` / `wet::max({...})` work on this backend too,
+// matching the std backend's std::min/max(initializer_list).
+template<typename T>
+[[nodiscard]] constexpr T min(std::initializer_list<T> values) {
+    T m = *values.begin();
+    for (const T& v : values) {
+        if (v < m) {
+            m = v;
+        }
+    }
+    return m;
+}
+template<typename T>
+[[nodiscard]] constexpr T max(std::initializer_list<T> values) {
+    T m = *values.begin();
+    for (const T& v : values) {
+        if (m < v) {
+            m = v;
+        }
+    }
+    return m;
+}
 } // namespace wet
 
 #else // stdlib backend (default)
@@ -120,6 +146,29 @@ namespace wet {
 template<typename T>
 [[nodiscard]] constexpr pair<T, T> minmax(const T& a, const T& b) {
     return b < a ? pair<T, T>{b, a} : pair<T, T>{a, b};
+}
+
+/**
+ * @brief Ordered {min, max} of an initializer list, returned by value.
+ *
+ * The by-value, backend-agnostic counterpart to `std::minmax(initializer_list)`
+ * (which `etl::minmax` lacks entirely). Matches the standard's tie behaviour:
+ * leftmost minimum, rightmost maximum. The list must be non-empty (UB otherwise,
+ * as in the standard).
+ */
+template<typename T>
+[[nodiscard]] constexpr pair<T, T> minmax(std::initializer_list<T> values) {
+    T lo = *values.begin();
+    T hi = *values.begin();
+    for (const T& v : values) {
+        if (v < lo) {
+            lo = v;
+        } // leftmost minimum
+        if (!(v < hi)) {
+            hi = v;
+        } // rightmost maximum
+    }
+    return {lo, hi};
 }
 
 } // namespace wet

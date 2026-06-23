@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "wet/analysis.hpp"
+#include "wet/analysis/analysis.hpp"
 #include "wet/design/stability.hpp"
 #include "wet/matrix/matrix.hpp"
 

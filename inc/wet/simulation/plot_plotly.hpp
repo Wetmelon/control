@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-#include "wet/analysis.hpp"
+#include "wet/analysis/analysis.hpp"
 #include "wet/simulation/simulate.hpp"
 
 namespace wet {

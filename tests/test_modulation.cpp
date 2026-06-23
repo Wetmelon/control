@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/utility/modulation.hpp"
+#include "wet/power/modulation.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

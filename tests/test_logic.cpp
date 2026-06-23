@@ -1,4 +1,4 @@
-#include "wet/utility/logic.hpp"
+#include "wet/toolbox/logic.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

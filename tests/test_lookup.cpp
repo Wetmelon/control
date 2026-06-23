@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "wet/utility/lookup.hpp"
+#include "wet/toolbox/lookup.hpp"
 
 using namespace wet;
 

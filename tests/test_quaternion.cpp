@@ -1,7 +1,7 @@
 #include <cmath>
 #include <numbers>
 
-#include "wet/utility/geometry.hpp"
+#include "wet/math/geometry.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

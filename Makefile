@@ -9,6 +9,7 @@ GXX := $(CONFIG_COMPILER_PATH)/$(CONFIG_COMPILER_PREFIX)g++
 all: format build
 	@./tests/build/test_runner.exe
 	@./tests/wet_backend/build/test_wet_backend.exe
+	@./tests/etl_backend/build/test_etl_backend.exe
 # 	@$(MAKE) --no-print-directory embedded-check
 # 	@$(MAKE) --no-print-directory freestanding-check
 
@@ -19,15 +20,16 @@ compiledb:
 	@tup --quiet compiledb
 
 build: format compiledb
-	@tup
+	@tup --quiet
 
 examples: format compiledb
-	@tup examples
+	@tup --quiet examples
 
 tests: format compiledb
-	@tup tests
+	@tup --quiet tests
 	@./tests/build/test_runner.exe
 	@./tests/wet_backend/build/test_wet_backend.exe
+	@./tests/etl_backend/build/test_etl_backend.exe
 
 docs:
 	@mkdir -p docs/html

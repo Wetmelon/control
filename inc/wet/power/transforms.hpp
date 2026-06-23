@@ -86,16 +86,19 @@ struct DirectQuadrature {
         q += o.q;
         return *this;
     }
+
     constexpr DirectQuadrature& operator-=(const DirectQuadrature& o) {
         d -= o.d;
         q -= o.q;
         return *this;
     }
+
     constexpr DirectQuadrature& operator*=(T s) {
         d *= s;
         q *= s;
         return *this;
     }
+
     constexpr DirectQuadrature& operator/=(T s) {
         d /= s;
         q /= s;

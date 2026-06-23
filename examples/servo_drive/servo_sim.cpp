@@ -8,7 +8,7 @@
 
 #include "servo_sim.h"
 #include "wet/controllers/pid.hpp"
-#include "wet/utility/foc.hpp"
+#include "wet/power/foc.hpp"
 
 using namespace wet;
 

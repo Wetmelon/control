@@ -47,7 +47,7 @@
 #include <cstdio>
 #include <numbers>
 
-#include "wet/utility/modulation.hpp"
+#include "wet/power/modulation.hpp"
 
 using namespace wet;
 

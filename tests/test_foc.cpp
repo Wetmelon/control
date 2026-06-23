@@ -3,8 +3,8 @@
 #include <limits>
 #include <numbers>
 
-#include "wet/utility/foc.hpp"
-#include "wet/utility/modulation.hpp"
+#include "wet/power/foc.hpp"
+#include "wet/power/modulation.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

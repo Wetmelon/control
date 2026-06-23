@@ -55,7 +55,7 @@
  *       feedforward inertia.
  *
  * @see wet/trajectory/trajectory_types.hpp for the source @ref wet::TrajectoryState.
- * @see wet/utility/scaling.hpp for the affine-calibration primitives this builds on.
+ * @see wet/toolbox/scaling.hpp for the affine-calibration primitives this builds on.
  */
 
 #include <cstddef>

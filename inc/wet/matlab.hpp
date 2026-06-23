@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <type_traits>
 
+#include "wet/analysis/analysis.hpp"
 #include "wet/backend.hpp"
 #include "wet/controllers/lqg.hpp"
 #include "wet/controllers/lqgi.hpp"
@@ -518,6 +519,88 @@ template<size_t NX, typename T = double>
         -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(),
         Kbc
     };
+}
+
+// ===========================================================================
+// Frequency-domain analysis — MATLAB spellings over wet::analysis
+// ===========================================================================
+
+// These already carry their MATLAB names in analysis::; surface them under
+// matlab:: too so a MATLAB-style call site finds them in one namespace.
+using analysis::bode;
+using analysis::damp;
+using analysis::dcgain;
+using analysis::impulse;
+using analysis::initial;
+using analysis::linspace;
+using analysis::logspace;
+using analysis::nyquist;
+using analysis::step;
+
+/**
+ * @brief MATLAB short alias for the open-loop poles of a system.
+ * @note Compare with MATLAB's p = pole(sys). (analysis names it `poles`.)
+ */
+template<size_t NX, typename T = double>
+[[nodiscard]] constexpr ColVec<NX, wet::complex<T>> pole(const Matrix<NX, NX, T>& A) {
+    return analysis::poles(A);
+}
+
+/**
+ * @brief Gain/phase margins and their crossover frequencies.
+ *
+ * @note Mirrors MATLAB's [Gm, Pm, Wcg, Wcp] = margin(...). Gm is a linear
+ *       ratio (not dB), matching MATLAB; +inf marks a missing crossover.
+ */
+template<typename T = double>
+struct MarginResult {
+    T Gm{};  //!< Gain margin (linear ratio); +inf if phase never crosses -180°
+    T Pm{};  //!< Phase margin (degrees); +inf if gain never crosses 0 dB
+    T Wcg{}; //!< Gain-crossover frequency (rad/s, where phase = -180°)
+    T Wcp{}; //!< Phase-crossover frequency (rad/s, where |G| = 1)
+};
+
+/**
+ * @brief Gain and phase margins of a SISO loop over a frequency grid.
+ *
+ * Thin composition of analysis::bode and BodeResult::gain_margin /
+ * phase_margin. Unlike MATLAB's margin(sys), the grid is explicit — pass
+ * e.g. matlab::logspace(...) — since wet does no automatic frequency gridding.
+ *
+ * @param sys   SISO state-space loop (continuous or discrete)
+ * @param omega Frequency grid (rad/s)
+ * @return MarginResult{Gm, Pm, Wcg, Wcp}
+ *
+ * @note Compare with MATLAB's [Gm, Pm, Wcg, Wcp] = margin(sys, w).
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] MarginResult<T> margin(const StateSpace<NX, 1, 1, NW, NV, T>& sys, const std::vector<T>& omega) {
+    const auto      bode_data = analysis::bode(sys, omega);
+    constexpr T     inf = std::numeric_limits<T>::infinity();
+    MarginResult<T> m{inf, inf, T{0}, T{0}};
+    if (const auto gm = bode_data.gain_margin()) {
+        m.Gm = wet::pow(T{10}, gm->first / T{20}); // dB -> linear ratio
+        m.Wcg = gm->second;
+    }
+    if (const auto pm = bode_data.phase_margin()) {
+        m.Pm = pm->first;
+        m.Wcp = pm->second;
+    }
+    return m;
+}
+
+/**
+ * @brief -3 dB bandwidth of a SISO system over a frequency grid.
+ *
+ * @param sys   SISO state-space system
+ * @param omega Frequency grid (rad/s), ascending from ~DC
+ * @return Bandwidth (rad/s), or nullopt if the response never drops 3 dB.
+ *
+ * @note Compare with MATLAB's fb = bandwidth(sys). Grid is explicit here.
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] wet::optional<T> bandwidth(const StateSpace<NX, 1, 1, NW, NV, T>& sys, const std::vector<T>& omega) {
+    return analysis::bode(sys, omega).bandwidth();
 }
 
 } // namespace matlab

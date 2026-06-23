@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file toolbox.hpp
+ * @file workbench.hpp
  * @brief Host-side superset of wet for design & analysis work.
  *
  * Includes everything in @ref control.hpp plus the tools you use while
@@ -18,7 +18,7 @@
  *       include path. Include it directly when you need it.
  *
  * @code
- * #include "wet/toolbox.hpp"          // host build: design + analyze + simulate
+ * #include "wet/workbench.hpp"          // host build: design + analyze + simulate
  * using namespace wet;
  *
  * const auto omega = analysis::logspace(1.0, 1000.0, 200);
@@ -31,6 +31,7 @@
 #include "wet/control.hpp" // IWYU pragma: keep
 
 // --- Host-only design & analysis tooling (heap-allocating) ------------------
-#include "wet/analysis.hpp"            // IWYU pragma: keep  (Bode/Nyquist/margins/sweeps)
+#include "wet/analysis/analysis.hpp"   // IWYU pragma: keep  (Bode/Nyquist/margins/sweeps)
+#include "wet/matlab.hpp"              // IWYU pragma: keep  (MATLAB-style aliases)
 #include "wet/simulation/simulate.hpp" // IWYU pragma: keep  (closed-loop simulation)
 #include "wet/simulation/solver.hpp"   // IWYU pragma: keep  (RK4/RK45 solvers)

@@ -2,7 +2,7 @@
 #include <numbers>
 
 #include "wet/filters/pll.hpp"
-#include "wet/utility/transforms.hpp"
+#include "wet/power/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -2,7 +2,7 @@
 
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/utility/transforms.hpp"
+#include "wet/power/transforms.hpp"
 
 namespace wet {
 
@@ -49,8 +49,8 @@ namespace wet {
  */
 template<typename T = float>
 [[nodiscard]] constexpr T svpwm_zero_sequence(const ColVec<3, T>& v_abc) {
-    const T v_max = wet::max({v_abc[0], v_abc[1], v_abc[2]});
-    const T v_min = wet::min({v_abc[0], v_abc[1], v_abc[2]});
+    const auto [v_min, v_max] = wet::minmax({v_abc[0], v_abc[1], v_abc[2]});
+
     return -(v_max + v_min) / T{2};
 }
 

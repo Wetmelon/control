@@ -13,7 +13,7 @@
  * parallel mechanisms and report a reachability/validity flag.
  *
  * Convention: these are *geometric* maps in engineering units (mm, rad). Per-axis
- * counts↔mm scaling is the separate concern of utility/scaling.hpp.
+ * counts↔mm scaling is the separate concern of toolbox/scaling.hpp.
  *
  * @see R. Clavel, delta robot (EPFL, 1991); CoreXY mechanism, https://corexy.com.
  */

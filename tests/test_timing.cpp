@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "wet/utility/timing.hpp"
+#include "wet/toolbox/timing.hpp"
 
 using namespace wet;
 

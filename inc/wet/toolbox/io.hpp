@@ -14,9 +14,9 @@
  * @see utility/conditioning.hpp, utility/logic.hpp, utility/scaling.hpp (tier 1).
  */
 
-#include "wet/utility/conditioning.hpp" // RangeMonitor, SignalStatus, is_valid/is_fault
-#include "wet/utility/logic.hpp"        // Debounce, OnDelayTimer
-#include "wet/utility/scaling.hpp"      // AffineCal
+#include "wet/toolbox/conditioning.hpp" // RangeMonitor, SignalStatus, is_valid/is_fault
+#include "wet/toolbox/logic.hpp"        // Debounce, OnDelayTimer
+#include "wet/toolbox/scaling.hpp"      // AffineCal
 
 namespace wet::io {
 

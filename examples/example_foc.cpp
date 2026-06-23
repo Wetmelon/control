@@ -28,8 +28,8 @@
 #include <vector>
 
 #include "fmt/core.h"
+#include "wet/power/foc.hpp"
 #include "wet/simulation/plot_plotly.hpp"
-#include "wet/utility/foc.hpp"
 
 using namespace wet;
 

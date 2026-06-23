@@ -1,5 +1,5 @@
 #include "doctest.h"
-#include "wet/utility/scaling.hpp"
+#include "wet/toolbox/scaling.hpp"
 
 using namespace wet;
 

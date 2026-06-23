@@ -4,7 +4,7 @@
 
 #include "doctest.h"
 #include "wet/backend.hpp"
-#include "wet/utility/encoder.hpp"
+#include "wet/toolbox/encoder.hpp"
 
 using namespace wet;
 

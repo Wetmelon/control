@@ -12,7 +12,7 @@
  * Nothing reachable from this header allocates on the heap or pulls a
  * third-party dependency. Anything that does — frequency-domain analysis
  * (Bode/Nyquist/sweeps), simulation harnesses, plotting, and the MATLAB-style
- * aliases — lives behind @ref toolbox.hpp instead and is opt-in for host builds.
+ * aliases — lives behind @ref workbench.hpp instead and is opt-in for host builds.
  *
  * @code
  * #include "wet/control.hpp"          // one include, embedded-safe
@@ -23,7 +23,7 @@
  * constinit LQI controller{art.runtime.controller};
  * @endcode
  *
- * @see toolbox.hpp for the host-side analysis/simulation/plotting superset.
+ * @see workbench.hpp for the host-side analysis/simulation/plotting superset.
  */
 
 // --- Linear algebra + math core ---------------------------------------------
@@ -97,20 +97,22 @@
 // --- Fixed-step integration (allocation-free) -------------------------------
 #include "wet/simulation/integrator.hpp" // IWYU pragma: keep
 
-// --- Domain helpers ---------------------------------------------------------
-#include "wet/utility/actuator.hpp"   // IWYU pragma: keep
-#include "wet/utility/geometry.hpp"   // IWYU pragma: keep
-#include "wet/utility/iec61131.hpp"   // IWYU pragma: keep
-#include "wet/utility/modulation.hpp" // IWYU pragma: keep
-#include "wet/utility/transforms.hpp" // IWYU pragma: keep
+// --- 3D math types ----------------------------------------------------------
+#include "wet/math/geometry.hpp" // IWYU pragma: keep
 
-// --- Embedded firmware primitives (allocation-free leaf utilities) ----------
-// Controls/DSP-specific helpers only; generic plumbing (containers, CRC, FIFOs)
-// is out of scope — pair with ETL for those.
-#include "wet/utility/conditioning.hpp" // IWYU pragma: keep
-#include "wet/utility/encoder.hpp"      // IWYU pragma: keep
-#include "wet/utility/io.hpp"           // IWYU pragma: keep
-#include "wet/utility/logic.hpp"        // IWYU pragma: keep
-#include "wet/utility/lookup.hpp"       // IWYU pragma: keep
-#include "wet/utility/scaling.hpp"      // IWYU pragma: keep
-#include "wet/utility/timing.hpp"       // IWYU pragma: keep
+// --- Motor / power-electronics drives ---------------------------------------
+#include "wet/power/modulation.hpp" // IWYU pragma: keep
+#include "wet/power/transforms.hpp" // IWYU pragma: keep
+
+// --- Toolbox: allocation-free embedded primitives every controls project ----
+// reaches for. Controls/DSP-specific helpers only; generic plumbing
+// (containers, CRC, FIFOs) is out of scope — pair with ETL for those.
+#include "wet/toolbox/actuator.hpp"     // IWYU pragma: keep
+#include "wet/toolbox/conditioning.hpp" // IWYU pragma: keep
+#include "wet/toolbox/encoder.hpp"      // IWYU pragma: keep
+#include "wet/toolbox/iec61131.hpp"     // IWYU pragma: keep
+#include "wet/toolbox/io.hpp"           // IWYU pragma: keep
+#include "wet/toolbox/logic.hpp"        // IWYU pragma: keep
+#include "wet/toolbox/lookup.hpp"       // IWYU pragma: keep
+#include "wet/toolbox/scaling.hpp"      // IWYU pragma: keep
+#include "wet/toolbox/timing.hpp"       // IWYU pragma: keep

@@ -3,8 +3,8 @@
 #include <string_view>
 
 #include "fmt/core.h"
+#include "wet/toolbox/actuator.hpp"
 #include "wet/trajectory/trajectory.hpp"
-#include "wet/utility/actuator.hpp"
 
 using namespace wet;
 

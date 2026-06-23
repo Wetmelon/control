@@ -1,4 +1,4 @@
-#include "wet/utility/thermistor.hpp"
+#include "wet/toolbox/thermistor.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

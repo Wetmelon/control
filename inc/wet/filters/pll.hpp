@@ -4,7 +4,7 @@
 #include "wet/filters/sogi.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/utility/transforms.hpp"
+#include "wet/power/transforms.hpp"
 
 namespace wet {
 
@@ -59,8 +59,7 @@ struct SinglePhasePLL {
 
     constexpr void step(T input, const T Ts) {
         // Generate bandpass and quadrature signals using SOGI.
-        const auto [bp, quadrature] = mstogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
-        (void)bp;
+        const auto [_, quadrature] = mstogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
 
         // Phase error from the SOGI quadrature mixer. qv' lags the input by 90° at
         // the SOGI centre, so for an input above the current estimate the DC of

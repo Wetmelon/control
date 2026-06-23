@@ -20,7 +20,7 @@
  * @see utility/geometry.hpp for Quaternion / DCM / Euler / Transform4.
  */
 
-#include "wet/utility/geometry.hpp" // Quaternion, Vec3, Transform4
+#include "wet/math/geometry.hpp" // Quaternion, Vec3, Transform4
 
 namespace wet {
 

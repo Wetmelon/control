@@ -16,7 +16,7 @@
  */
 
 #include "eskf.hpp"
-#include "wet/utility/geometry.hpp"
+#include "wet/math/geometry.hpp"
 
 namespace wet {
 

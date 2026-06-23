@@ -1,7 +1,7 @@
 #include <numbers>
 
 #include "fmt/core.h"
-#include "wet/analysis.hpp"
+#include "wet/analysis/analysis.hpp"
 #include "wet/controllers/pr.hpp"
 #include "wet/design/linearization.hpp"
 #include "wet/design/pid_design.hpp"

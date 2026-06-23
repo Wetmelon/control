@@ -18,7 +18,7 @@
 #include <cstddef>
 
 #include "wet/matrix/matrix.hpp"   // Matrix, ColVec
-#include "wet/utility/scaling.hpp" // lerp, inverse_lerp
+#include "wet/toolbox/scaling.hpp" // lerp, inverse_lerp
 
 namespace wet {
 

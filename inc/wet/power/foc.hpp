@@ -5,8 +5,8 @@
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/utility/modulation.hpp"
-#include "wet/utility/transforms.hpp"
+#include "wet/power/modulation.hpp"
+#include "wet/power/transforms.hpp"
 
 namespace wet {
 
