@@ -159,7 +159,10 @@ constexpr bool francis_qr(
 
             T x = H(nn, nn);
             if (l == nn) {
-                // One real eigenvalue has converged.
+                // One real eigenvalue has converged. Restore the accumulated
+                // shift to the diagonal so H stays a valid Schur form (the
+                // recorded eigenvalue already carries t; the matrix must too).
+                H(nn, nn) = x + t;
                 wr[nn] = x + t;
                 wi[nn] = T{0};
                 --nn;
@@ -189,6 +192,10 @@ constexpr bool francis_qr(
                     wi[nn - 1] = z;
                     wi[nn] = -z;
                 }
+                // Restore the accumulated shift to the block diagonal so H stays
+                // a valid real Schur form (off-diagonals are shift-invariant).
+                H(nn - 1, nn - 1) = y + t;
+                H(nn, nn) = x;
                 nn -= 2;
                 deflated = true;
                 break;
@@ -204,6 +211,7 @@ constexpr bool francis_qr(
                 if (its >= max_its) {
                     // Give up on this eigenvalue but keep going (honest convergence flag).
                     converged = false;
+                    H(nn, nn) = x + t;
                     wr[nn] = x + t;
                     wi[nn] = T{0};
                     --nn;
