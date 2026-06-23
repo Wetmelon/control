@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstddef>
+#include <type_traits>
+
 #include "matrix.hpp"
+#include "matrix_traits.hpp"
 
 namespace wet {
 
@@ -53,11 +57,11 @@ public:
     }
 
     [[nodiscard]] constexpr T& operator()(size_t r, size_t c) {
-        return data_ptr[offset + r * ParentCols + c];
+        return data_ptr[offset + (r * ParentCols) + c];
     }
 
     [[nodiscard]] constexpr const T& operator()(size_t r, size_t c) const {
-        return data_ptr[offset + r * ParentCols + c];
+        return data_ptr[offset + (r * ParentCols) + c];
     }
 
     constexpr Block& operator=(const Matrix<Rows, Cols, T>& mat) {
@@ -101,13 +105,13 @@ public:
     // Sub-block access
     template<size_t Brows, size_t Bcols>
     constexpr Block<Brows, Bcols, ParentCols, T> block(size_t start_row, size_t start_col) {
-        return Block<Brows, Bcols, ParentCols, T>(data_ptr, offset + start_row * ParentCols + start_col);
+        return Block<Brows, Bcols, ParentCols, T>(data_ptr, offset + (start_row * ParentCols) + start_col);
     }
 
     template<size_t Brows, size_t Bcols>
     constexpr Block<Brows, Bcols, ParentCols, const T> block(size_t start_row, size_t start_col) const {
         return Block<Brows, Bcols, ParentCols, const T>(
-            const_cast<T*>(data_ptr), offset + start_row * ParentCols + start_col
+            const_cast<T*>(data_ptr), offset + (start_row * ParentCols) + start_col
         );
     }
 
