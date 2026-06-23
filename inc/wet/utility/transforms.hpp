@@ -79,7 +79,7 @@ struct DirectQuadrature {
     [[nodiscard]] constexpr T arg() const { return wet::atan2(q, d); }
 
     /// Magnitude @f$ \sqrt{d^2 + q^2} @f$.
-    [[nodiscard]] constexpr T abs() const { return wet::sqrt((d * d) + (q * q)); }
+    [[nodiscard]] constexpr T abs() const { return wet::hypot(d, q); }
 
     constexpr DirectQuadrature& operator+=(const DirectQuadrature& o) {
         d += o.d;
@@ -144,7 +144,7 @@ struct AlphaBeta {
     [[nodiscard]] constexpr T arg() const { return wet::atan2(beta, alpha); }
 
     /// Magnitude @f$ \sqrt{\alpha^2 + \beta^2} @f$.
-    [[nodiscard]] constexpr T abs() const { return wet::sqrt((alpha * alpha) + (beta * beta)); }
+    [[nodiscard]] constexpr T abs() const { return wet::hypot(alpha, beta); }
 
     constexpr AlphaBeta& operator+=(const AlphaBeta& o) {
         alpha += o.alpha;
@@ -546,7 +546,7 @@ struct InstantaneousPower {
     T q = {}; ///< [VAr] instantaneous reactive (Akagi imaginary) power
 
     /// Apparent power @f$ S = \sqrt{p^2 + q^2} @f$ [VA] — the complex-power magnitude.
-    [[nodiscard]] constexpr T abs() const { return wet::sqrt((p * p) + (q * q)); }
+    [[nodiscard]] constexpr T abs() const { return wet::hypot(p, q); }
 
     /// Power-factor angle @f$ \varphi = \operatorname{atan2}(q, p) @f$ [rad].
     [[nodiscard]] constexpr T arg() const { return wet::atan2(q, p); }

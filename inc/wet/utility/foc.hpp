@@ -259,7 +259,7 @@ template<typename T = double>
 base_speed(T Vmax, const DirectQuadrature<T>& Ldq, T lambda, const DirectQuadrature<T>& Idq = {}) {
     const T flux_q = Ldq.q * Idq.q;
     const T flux_d = (Ldq.d * Idq.d) + lambda;
-    return Vmax / wet::sqrt((flux_q * flux_q) + (flux_d * flux_d));
+    return Vmax / wet::hypot(flux_q, flux_d);
 }
 
 } // namespace design

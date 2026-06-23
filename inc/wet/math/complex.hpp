@@ -338,7 +338,7 @@ constexpr complex<T> sqrt(const complex<T>& z) {
         return complex<T>{T{0}, T{0}};
     }
 
-    T mag = sqrt(re * re + im * im);
+    T mag = wet::hypot(re, im);
     T r = sqrt((mag + re) / T{2});
     T i = sqrt((mag - re) / T{2});
 

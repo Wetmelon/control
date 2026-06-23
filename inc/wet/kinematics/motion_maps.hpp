@@ -90,7 +90,7 @@ struct PolarMap {
     };
 
     [[nodiscard]] static constexpr Axes inverse(T x, T y) {
-        return Axes{wet::sqrt((x * x) + (y * y)), wet::atan2(y, x)};
+        return Axes{wet::hypot(x, y), wet::atan2(y, x)};
     }
 
     [[nodiscard]] static constexpr Point forward(T r, T theta) {

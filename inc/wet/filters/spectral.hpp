@@ -84,7 +84,7 @@ public:
     [[nodiscard]] constexpr bool complete() const { return complete_; }
 
     /// Magnitude of the DFT bin, |X_k|.
-    [[nodiscard]] constexpr T magnitude() const { return wet::sqrt((real_ * real_) + (imag_ * imag_)); }
+    [[nodiscard]] constexpr T magnitude() const { return wet::hypot(real_, imag_); }
 
     /// Power, |X_k|².
     [[nodiscard]] constexpr T power() const { return (real_ * real_) + (imag_ * imag_); }

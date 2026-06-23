@@ -12,7 +12,7 @@ using namespace wet;
 TEST_CASE("SOGI design") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0; // 50 Hz
     constexpr double alpha = 1.414;
-    constexpr auto   sogi_sys = design::sogi_system<double>(omega_0, alpha);
+    constexpr auto   sogi_sys = design::sogi<double>(omega_0, alpha);
 
     // Check matrix dimensions
     CHECK(sogi_sys.A.rows() == 2);
@@ -39,36 +39,37 @@ TEST_CASE("SOGI design") {
     CHECK(sogi_sys.C(1, 1) == doctest::Approx(1.0));
 }
 
-TEST_CASE("SOGI discrete design includes alpha feedback") {
+TEST_CASE("SOGI discrete design is the ZOH of the continuous SOGI and band-passes at w0") {
     constexpr double w0 = 2 * std::numbers::pi * 50.0;
     constexpr double alpha = 1.414;
     constexpr double Ts = 1.0 / 10000.0;
 
-    constexpr auto sys = design::sogi_system<double>(w0, alpha, Ts);
+    constexpr auto sys = design::sogi<double>(w0, alpha, Ts);
 
-    const auto [sin_wt, cos_wt] = wet::sincos(w0 * Ts);
-    const double alpha_one_minus_cos = alpha * (1.0 - cos_wt);
-    const double alpha_sin = alpha * sin_wt;
+    // The discrete overload is exactly discretize(continuous, Ts, ZOH).
+    constexpr auto zoh = discretize(design::sogi<double>(w0, alpha), Ts, DiscretizationMethod::ZOH);
+    CHECK(sys.A(0, 0) == doctest::Approx(zoh.A(0, 0)));
+    CHECK(sys.A(1, 1) == doctest::Approx(zoh.A(1, 1)));
+    CHECK(sys.B(0, 0) == doctest::Approx(zoh.B(0, 0)));
 
-    CHECK(sys.A(0, 0) == doctest::Approx(cos_wt));
-    CHECK(sys.A(0, 1) == doctest::Approx(sin_wt - alpha_one_minus_cos));
-    CHECK(sys.A(1, 0) == doctest::Approx(-sin_wt));
-    CHECK(sys.A(1, 1) == doctest::Approx(cos_wt - alpha_sin));
-
-    CHECK(sys.B(0, 0) == doctest::Approx(alpha_one_minus_cos));
-    CHECK(sys.B(1, 0) == doctest::Approx(alpha_sin));
-
-    // Output order matches runtime API: y0=bandpass, y1=quadrature.
-    CHECK(sys.C(0, 0) == doctest::Approx(0.0));
-    CHECK(sys.C(0, 1) == doctest::Approx(1.0));
-    CHECK(sys.C(1, 0) == doctest::Approx(1.0));
-    CHECK(sys.C(1, 1) == doctest::Approx(0.0));
+    // Step the SS with a 50 Hz tone; the band-pass state (y0) reaches unity gain.
+    wet::ColVec<2, double> x = {};
+    double                 max_bp = 0.0;
+    for (int i = 0; i < 5000; ++i) {
+        const double                 in = std::sin(w0 * Ts * static_cast<double>(i));
+        const wet::ColVec<2, double> y = sys.C * x;
+        x = (sys.A * x) + (sys.B * in);
+        if (i > 2500) {
+            max_bp = wet::max(max_bp, std::abs(y(0)));
+        }
+    }
+    CHECK(max_bp == doctest::Approx(1.0).epsilon(0.05));
 }
 
 TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     constexpr double omega_0 = 2 * std::numbers::pi * 50.0;
     constexpr double alpha = 1.414;
-    constexpr auto   mstogi_sys = design::mstogi_system<double>(omega_0, alpha);
+    constexpr auto   mstogi_sys = design::mstogi<double>(omega_0, alpha);
 
     // Check dimensions
     CHECK(mstogi_sys.A.rows() == 3);
@@ -98,37 +99,37 @@ TEST_CASE("MSTOGI design - TOGI structure with DC-rejecting quadrature") {
     CHECK(mstogi_sys.C(1, 2) == doctest::Approx(-1.0));
 }
 
-TEST_CASE("MSTOGI discrete design includes alpha feedback") {
+TEST_CASE("MSTOGI discrete design is the ZOH of the continuous MSTOGI and band-passes at w0") {
     constexpr double w0 = 2 * std::numbers::pi * 50.0;
     constexpr double alpha = 1.414;
     constexpr double Ts = 1.0 / 10000.0;
 
-    constexpr auto sys = design::mstogi_system<double>(w0, alpha, Ts);
+    constexpr auto sys = design::mstogi<double>(w0, alpha, Ts);
 
-    const auto [sin_wt, cos_wt] = wet::sincos(w0 * Ts);
-    const double a_togi = wet::exp(-w0 * Ts);
-    const double alpha_one_minus_cos = alpha * (1.0 - cos_wt);
-    const double alpha_sin = alpha * sin_wt;
-    const double alpha_one_minus_a = alpha * (1.0 - a_togi);
+    // The discrete overload is exactly discretize(continuous, Ts, ZOH).
+    constexpr auto zoh = discretize(design::mstogi<double>(w0, alpha), Ts, DiscretizationMethod::ZOH);
+    CHECK(sys.A(0, 0) == doctest::Approx(zoh.A(0, 0)));
+    CHECK(sys.A(2, 2) == doctest::Approx(zoh.A(2, 2)));
+    CHECK(sys.B(0, 0) == doctest::Approx(zoh.B(0, 0)));
 
-    CHECK(sys.A(0, 0) == doctest::Approx(cos_wt));
-    CHECK(sys.A(0, 1) == doctest::Approx(sin_wt - alpha_one_minus_cos));
-    CHECK(sys.A(1, 0) == doctest::Approx(-sin_wt));
-    CHECK(sys.A(1, 1) == doctest::Approx(cos_wt - alpha_sin));
-    CHECK(sys.A(2, 1) == doctest::Approx(-alpha_one_minus_a));
-    CHECK(sys.A(2, 2) == doctest::Approx(a_togi));
-
-    CHECK(sys.B(0, 0) == doctest::Approx(alpha_one_minus_cos));
-    CHECK(sys.B(1, 0) == doctest::Approx(alpha_sin));
-    CHECK(sys.B(2, 0) == doctest::Approx(alpha_one_minus_a));
-
-    // Output order matches runtime API: y0=band_pass, y1=quadrature.
-    CHECK(sys.C(0, 0) == doctest::Approx(0.0));
-    CHECK(sys.C(0, 1) == doctest::Approx(1.0));
-    CHECK(sys.C(0, 2) == doctest::Approx(0.0));
-    CHECK(sys.C(1, 0) == doctest::Approx(1.0));
-    CHECK(sys.C(1, 1) == doctest::Approx(0.0));
+    // C/D output map carried through from the continuous design: v_o = v′ (band-pass),
+    // q·v_o = v″ − v‴ (DC-rejecting quadrature).
+    CHECK(sys.C(0, 0) == doctest::Approx(1.0));
+    CHECK(sys.C(1, 1) == doctest::Approx(1.0));
     CHECK(sys.C(1, 2) == doctest::Approx(-1.0));
+
+    // Step the SS with a 50 Hz tone; the band-pass output (y0) reaches unity gain.
+    wet::ColVec<3, double> x = {};
+    double                 max_bp = 0.0;
+    for (int i = 0; i < 5000; ++i) {
+        const double                 in = std::sin(w0 * Ts * static_cast<double>(i));
+        const wet::ColVec<2, double> y = sys.C * x;
+        x = (sys.A * x) + (sys.B * in);
+        if (i > 2500) {
+            max_bp = wet::max(max_bp, std::abs(y(0)));
+        }
+    }
+    CHECK(max_bp == doctest::Approx(1.0).epsilon(0.05));
 }
 
 TEST_CASE("MSTOGI runtime - rejects DC offset on quadrature, tracks fundamental") {
