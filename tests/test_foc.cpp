@@ -161,7 +161,7 @@ TEST_SUITE("FOC Controller") {
         // brace-init slip {Kp, Ki, Kd, Ts} once landed Ts in the u_min slot, which
         // tune() discards (so gains looked fine) but which would silently clamp any
         // PIDController built straight from the result.
-        constexpr double inf = std::numeric_limits<double>::infinity();
+        constexpr double inf = std::numeric_limits<double>::max();
         CHECK(res.u_min == -inf);
         CHECK(res.u_max == inf);
         CHECK(res.i_min == -inf);

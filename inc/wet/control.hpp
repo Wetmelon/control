@@ -108,6 +108,7 @@
 // reaches for. Controls/DSP-specific helpers only; generic plumbing
 // (containers, CRC, FIFOs) is out of scope — pair with ETL for those.
 #include "wet/toolbox/actuator.hpp"     // IWYU pragma: export
+#include "wet/toolbox/bounds.hpp"       // IWYU pragma: export
 #include "wet/toolbox/conditioning.hpp" // IWYU pragma: export
 #include "wet/toolbox/encoder.hpp"      // IWYU pragma: export
 #include "wet/toolbox/iec61131.hpp"     // IWYU pragma: export

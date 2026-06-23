@@ -480,11 +480,11 @@ template<size_t NX, size_t NW, size_t NV, typename T>
  */
 template<typename T = double>
 struct LoopSummary {
-    wet::optional<wet::pair<T, T>> phase_margin;                                             //!< {PM [deg], gain crossover omega [rad/s]}
-    wet::optional<wet::pair<T, T>> gain_margin;                                              //!< {GM [dB], phase crossover omega [rad/s]}
-    wet::optional<T>               bandwidth;                                                //!< Closed-loop bandwidth from T=L/(1+L), rad/s
-    wet::optional<wet::pair<T, T>> min_nyquist_distance;                                     //!< {min|1+L|, omega [rad/s]}
-    T                              peak_sensitivity_db{-std::numeric_limits<T>::infinity()}; //!< max 20*log10|S|
+    wet::optional<wet::pair<T, T>> phase_margin;                                        //!< {PM [deg], gain crossover omega [rad/s]}
+    wet::optional<wet::pair<T, T>> gain_margin;                                         //!< {GM [dB], phase crossover omega [rad/s]}
+    wet::optional<T>               bandwidth;                                           //!< Closed-loop bandwidth from T=L/(1+L), rad/s
+    wet::optional<wet::pair<T, T>> min_nyquist_distance;                                //!< {min|1+L|, omega [rad/s]}
+    T                              peak_sensitivity_db{-std::numeric_limits<T>::max()}; //!< max 20*log10|S|
 };
 
 /**
@@ -734,7 +734,7 @@ damp(const Matrix<NX, NX, T>& A) {
         auto p = eigen.values[i];
         T    wn = wet::abs(p);
         T    zeta = (wn > T{0}) ? -p.real() / wn : T{0};
-        T    tau = (p.real() < T{0}) ? T{-1} / p.real() : std::numeric_limits<T>::infinity();
+        T    tau = (p.real() < T{0}) ? T{-1} / p.real() : std::numeric_limits<T>::max();
         info[i] = PoleInfo<T>{p, wn, zeta, tau};
     }
     return info;
@@ -964,7 +964,7 @@ struct MiddlebrookResult {
      * @return {min_ratio, frequency_of_worst_case}
      */
     [[nodiscard]] constexpr wet::pair<T, T> worst_case_margin() const {
-        T min_ratio = std::numeric_limits<T>::infinity();
+        T min_ratio = std::numeric_limits<T>::max();
         T worst_freq = T{0};
         for (size_t i = 0; i < minor_loop_gain.points.size(); ++i) {
             T ratio = minor_loop_gain.points[i].magnitude;

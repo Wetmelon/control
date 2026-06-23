@@ -108,12 +108,12 @@ namespace design {
  */
 template<typename T = double>
 struct RelayAutotuneConfig {
-    T amplitude{T{1}};                            ///< Relay magnitude d (> 0)
-    T hysteresis{T{0}};                           ///< ε around setpoint (≥ 0)
-    T setpoint{T{0}};                             ///< Operating point r
-    T u_bias{T{0}};                               ///< Baseline command (relay swings around this)
-    T u_min{-std::numeric_limits<T>::infinity()}; ///< Output saturation (lower)
-    T u_max{std::numeric_limits<T>::infinity()};  ///< Output saturation (upper)
+    T amplitude{T{1}};                       ///< Relay magnitude d (> 0)
+    T hysteresis{T{0}};                      ///< ε around setpoint (≥ 0)
+    T setpoint{T{0}};                        ///< Operating point r
+    T u_bias{T{0}};                          ///< Baseline command (relay swings around this)
+    T u_min{-std::numeric_limits<T>::max()}; ///< Output saturation (lower)
+    T u_max{std::numeric_limits<T>::max()};  ///< Output saturation (upper)
 
     std::size_t warmup_cycles{2};  ///< Half-periods discarded as transient
     std::size_t measure_cycles{6}; ///< Half-periods averaged for Tᵤ (≥ 2)
@@ -253,12 +253,12 @@ public:
         warmup_count_ = 0;
         measure_count_ = 0;
         period_sum_ = T{0};
-        period_min_ = std::numeric_limits<T>::infinity();
+        period_min_ = std::numeric_limits<T>::max();
         period_max_ = T{0};
-        peak_pos_ = -std::numeric_limits<T>::infinity();
-        peak_neg_ = std::numeric_limits<T>::infinity();
-        cycle_peak_pos_ = -std::numeric_limits<T>::infinity();
-        cycle_peak_neg_ = std::numeric_limits<T>::infinity();
+        peak_pos_ = -std::numeric_limits<T>::max();
+        peak_neg_ = std::numeric_limits<T>::max();
+        cycle_peak_pos_ = -std::numeric_limits<T>::max();
+        cycle_peak_neg_ = std::numeric_limits<T>::max();
         Ku_ = T{0};
         Tu_ = T{0};
     }
@@ -389,10 +389,10 @@ private:
         status_ = RelayAutotuneStatus::Measuring;
         measure_count_ = 0;
         period_sum_ = T{0};
-        period_min_ = std::numeric_limits<T>::infinity();
+        period_min_ = std::numeric_limits<T>::max();
         period_max_ = T{0};
-        peak_pos_ = -std::numeric_limits<T>::infinity();
-        peak_neg_ = std::numeric_limits<T>::infinity();
+        peak_pos_ = -std::numeric_limits<T>::max();
+        peak_neg_ = std::numeric_limits<T>::max();
         cycle_peak_pos_ = y;
         cycle_peak_neg_ = y;
     }
@@ -425,13 +425,13 @@ private:
     std::size_t measure_count_{0};
 
     T period_sum_{T{0}};
-    T period_min_{std::numeric_limits<T>::infinity()};
+    T period_min_{std::numeric_limits<T>::max()};
     T period_max_{T{0}};
 
-    T peak_pos_{-std::numeric_limits<T>::infinity()};
-    T peak_neg_{std::numeric_limits<T>::infinity()};
-    T cycle_peak_pos_{-std::numeric_limits<T>::infinity()};
-    T cycle_peak_neg_{std::numeric_limits<T>::infinity()};
+    T peak_pos_{-std::numeric_limits<T>::max()};
+    T peak_neg_{std::numeric_limits<T>::max()};
+    T cycle_peak_pos_{-std::numeric_limits<T>::max()};
+    T cycle_peak_neg_{std::numeric_limits<T>::max()};
 
     T Ku_{T{0}};
     T Tu_{T{0}};

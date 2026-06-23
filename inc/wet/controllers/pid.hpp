@@ -29,10 +29,10 @@ struct PIDResult {
     T Kp{};
     T Ki{};
     T Kd{};
-    T u_min = -std::numeric_limits<T>::infinity();
-    T u_max = std::numeric_limits<T>::infinity();
-    T i_min = -std::numeric_limits<T>::infinity();
-    T i_max = std::numeric_limits<T>::infinity();
+    T u_min = -std::numeric_limits<T>::max();
+    T u_max = std::numeric_limits<T>::max();
+    T i_min = -std::numeric_limits<T>::max();
+    T i_max = std::numeric_limits<T>::max();
     T Kbc = T{0}; ///< Back-calculation anti-windup gain
     T b = T{1};   ///< Proportional setpoint weight (0=I-PD, 1=standard PID)
     T c = T{1};   ///< Derivative setpoint weight   (0=PI-D, 1=standard PID)
@@ -89,10 +89,10 @@ struct PIDResult {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T> pid(
     T Kp, T Ki, T Kd,
-    T u_min = -std::numeric_limits<T>::infinity(),
-    T u_max = std::numeric_limits<T>::infinity(),
-    T i_min = -std::numeric_limits<T>::infinity(),
-    T i_max = std::numeric_limits<T>::infinity(),
+    T u_min = -std::numeric_limits<T>::max(),
+    T u_max = std::numeric_limits<T>::max(),
+    T i_min = -std::numeric_limits<T>::max(),
+    T i_max = std::numeric_limits<T>::max(),
     T Kbc = T{0},
     T b = T{1},
     T c = T{1},
@@ -182,10 +182,10 @@ struct PIDController<T, PIDMode::PID> {
     T Kp{};
     T Ki{};
     T Kd{};
-    T u_min = -std::numeric_limits<T>::infinity();
-    T u_max = std::numeric_limits<T>::infinity();
-    T i_min = -std::numeric_limits<T>::infinity();
-    T i_max = std::numeric_limits<T>::infinity();
+    T u_min = -std::numeric_limits<T>::max();
+    T u_max = std::numeric_limits<T>::max();
+    T i_min = -std::numeric_limits<T>::max();
+    T i_max = std::numeric_limits<T>::max();
     T Kbc = T{0}; ///< Back-calculation anti-windup gain
     T b = T{1};   ///< Proportional setpoint weight
     T c = T{1};   ///< Derivative setpoint weight
@@ -358,10 +358,10 @@ template<typename T>
 struct PIDController<T, PIDMode::PI> {
     T Kp{};
     T Ki{};
-    T u_min = -std::numeric_limits<T>::infinity();
-    T u_max = std::numeric_limits<T>::infinity();
-    T i_min = -std::numeric_limits<T>::infinity();
-    T i_max = std::numeric_limits<T>::infinity();
+    T u_min = -std::numeric_limits<T>::max();
+    T u_max = std::numeric_limits<T>::max();
+    T i_min = -std::numeric_limits<T>::max();
+    T i_max = std::numeric_limits<T>::max();
     T Kbc = T{0}; ///< Back-calculation anti-windup gain
     T b = T{1};   ///< Proportional setpoint weight
 
@@ -475,8 +475,8 @@ struct PIDController<T, PIDMode::PI> {
 template<typename T>
 struct PIDController<T, PIDMode::P> {
     T Kp{};
-    T u_min = -std::numeric_limits<T>::infinity();
-    T u_max = std::numeric_limits<T>::infinity();
+    T u_min = -std::numeric_limits<T>::max();
+    T u_max = std::numeric_limits<T>::max();
     T b = T{1}; ///< Proportional setpoint weight
 
     PIDRuntimeMode runtime_mode{PIDRuntimeMode::Auto}; ///< Auto (control) or Tracking (follow u_track)

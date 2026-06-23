@@ -440,7 +440,7 @@ struct FOController {
      * @return DqCommand: the dq voltage target plus is_saturated / v_excess flags
      *         for the caller's anti-windup. Vdq is always valid (clamped).
      */
-    [[nodiscard]] DqCommand<T> current_controller(const DQ& Idq_ref, const DQ& Idq, const T Ts, const T Vmax = std::numeric_limits<T>::infinity()) {
+    [[nodiscard]] DqCommand<T> current_controller(const DQ& Idq_ref, const DQ& Idq, const T Ts, const T Vmax = std::numeric_limits<T>::max()) {
 
         // "Always-On" feedforward terms cancel controller dependence on omega
         DQ Vdq = {

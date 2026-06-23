@@ -168,8 +168,8 @@ public:
     }
 
 private:
-    T    rate_up_{std::numeric_limits<T>::infinity()};
-    T    rate_down_{std::numeric_limits<T>::infinity()};
+    T    rate_up_{std::numeric_limits<T>::max()};
+    T    rate_down_{std::numeric_limits<T>::max()};
     T    y_{T{0}};
     bool init_{false};
 };

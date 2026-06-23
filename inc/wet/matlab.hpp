@@ -515,8 +515,8 @@ template<size_t NX, typename T = double>
 
     return wet::design::PIDResult<T>{
         Kp, Ki, Kd, T{0},
-        -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(),
-        -std::numeric_limits<T>::infinity(), std::numeric_limits<T>::infinity(),
+        -std::numeric_limits<T>::max(), std::numeric_limits<T>::max(),
+        -std::numeric_limits<T>::max(), std::numeric_limits<T>::max(),
         Kbc
     };
 }
@@ -576,7 +576,7 @@ struct MarginResult {
 template<size_t NX, size_t NW, size_t NV, typename T>
 [[nodiscard]] MarginResult<T> margin(const StateSpace<NX, 1, 1, NW, NV, T>& sys, const std::vector<T>& omega) {
     const auto      bode_data = analysis::bode(sys, omega);
-    constexpr T     inf = std::numeric_limits<T>::infinity();
+    constexpr T     inf = std::numeric_limits<T>::max();
     MarginResult<T> m{inf, inf, T{0}, T{0}};
     if (const auto gm = bode_data.gain_margin()) {
         m.Gm = wet::pow(T{10}, gm->first / T{20}); // dB -> linear ratio

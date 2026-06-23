@@ -18,9 +18,13 @@
  * @see R. Clavel, delta robot (EPFL, 1991); CoreXY mechanism, https://corexy.com.
  */
 
-#include "wet/kinematics/pose.hpp" // Pose, Translation3, Vec3
+#include <cstddef>
+
+#include "wet/backend.hpp"
+#include "wet/kinematics/pose.hpp"
 #include "wet/math/complex.hpp"
-#include "wet/math/math.hpp" // wet::sqrt, sin, cos, atan2
+#include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
 
 namespace wet {
 
@@ -73,6 +77,9 @@ struct CoreXY {
 
     [[nodiscard]] static constexpr Motors inverse(T x, T y) { return Motors{x + y, x - y}; }
     [[nodiscard]] static constexpr Point  forward(T a, T b) { return Point{(a + b) / T{2}, (a - b) / T{2}}; }
+
+    /// Vec overload (uses x, y; ignores z) — matches the delta inverse(Vec3) house style.
+    [[nodiscard]] static constexpr Motors inverse(const Vec3<T>& p) { return inverse(p[0], p[1]); }
 };
 
 /**
@@ -97,6 +104,9 @@ struct PolarMap {
         const auto sc = wet::sincos(theta); // {sin, cos}
         return Point{r * sc.second, r * sc.first};
     }
+
+    /// Vec overload (uses x, y; ignores z) — matches the delta inverse(Vec3) house style.
+    [[nodiscard]] static constexpr Axes inverse(const Vec3<T>& p) { return inverse(p[0], p[1]); }
 };
 
 // ---- Delta robots ----------------------------------------------------------
