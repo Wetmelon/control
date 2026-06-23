@@ -1,10 +1,9 @@
 ﻿#pragma once
 
-#include <type_traits>
-
 #include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
+#include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet {
@@ -28,7 +27,7 @@ namespace design {
  * @return StateSpace<2, 1, 2, 0, 0, T> SOGI system
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi_system(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
     return {
         .A = Matrix<2, 2, T>{
             {-alpha * w0, -w0},
@@ -52,7 +51,9 @@ template<typename T = double>
 /**
  * @brief Second-Order Generalized Integrator (SOGI) design (discrete-time)
  *
- * Discrete-time SOGI with bandpass and quadrature outputs.
+ * Exact ZOH discretization of the continuous SOGI for simulation/analysis at a
+ * fixed sample rate. (The runtime @ref SOGI class rebuilds its own resonator each
+ * tick from the live frequency and does not use this.)
  *
  * @param w0 Fundamental frequency [rad/s]
  * @param alpha Damping gain (typically 1.0-2.0)
@@ -61,32 +62,8 @@ template<typename T = double>
  * @return StateSpace<2, 1, 2, 0, 0, T> Discrete-time SOGI system
  */
 template<typename T = float>
-[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi_system(T w0, T alpha, T Ts) {
-    const auto [sin_wt, cos_wt] = wet::sincos(w0 * Ts); // sin(wT), cos(wT)
-
-    // Discrete closed-loop resonator with u_r = alpha * (u - bandpass)
-    // and state x = [quadrature, bandpass]^T.
-    const T alpha_one_minus_cos = alpha * (T{1} - cos_wt);
-    const T alpha_sin = alpha * sin_wt;
-
-    return {
-        .A = Matrix<2, 2, T>{
-            {cos_wt, sin_wt - alpha_one_minus_cos},
-            {-sin_wt, cos_wt - alpha_sin},
-        },
-
-        .B = Matrix<2, 1, T>{
-            {alpha_one_minus_cos},
-            {alpha_sin},
-        },
-
-        .C = Matrix<2, 2, T>{
-            {T{0}, T{1}}, // bandpass
-            {T{1}, T{0}}, // quadrature
-        },
-
-        .D = Matrix<2, 1, T>::zeros(),
-    };
+[[nodiscard]] constexpr StateSpace<2, 1, 2, 0, 0, T> sogi(T w0, T alpha, T Ts) {
+    return discretize(sogi(w0, alpha), Ts, DiscretizationMethod::ZOH);
 }
 
 /**
@@ -115,9 +92,10 @@ template<typename T = float>
  * The q·v_o numerator has a zero at s = 0 (DC rejection) and the pair evaluates
  * to (1∠0°, 1∠−90°) at s = jω₀ — a clean unity-magnitude quadrature pair.
  *
- * @note Discretize with the exact ZOH (`DiscretizationMethod::ZOH`, the
- *       `mstogi_system(omega_0, alpha, Ts)` overload) so the resonant poles land
- *       exactly on the unit circle at z = e^{±jω₀Tₛ}; Tustin warps them.
+ * @note The discrete `mstogi(omega_0, alpha, Ts)` overload is the exact ZOH
+ *       discretization for simulation/analysis. The runtime @ref MSTOGI class uses
+ *       a separate, lighter realization (open-loop resonator + forward-Euler
+ *       washout) and does not share this state-space.
  *
  * @see Rodríguez et al., "Discrete-time implementation of second order
  *      generalized integrators for grid converters," IECON 2008,
@@ -129,7 +107,7 @@ template<typename T = float>
  * @return StateSpace<3, 1, 2, 0, 0, T> MSTOGI system (outputs: v_o, q·v_o)
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
+[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi(T w0, T alpha = wet::numbers::sqrt2_v<T>) {
     const T alpha_omega = alpha * w0;
 
     return {
@@ -157,8 +135,8 @@ template<typename T = double>
 /**
  * @brief Mixed Second/Third-Order Generalized Integrator (MSTOGI) design (discrete-time)
  *
- * Exact-ZOH discretization of the continuous MSTOGI so the resonant poles sit
- * precisely at z = e^{±jω₀Tₛ} (no Tustin frequency warping).
+ * Exact ZOH discretization of the continuous MSTOGI for simulation/analysis at a
+ * fixed sample rate (no Tustin frequency warping).
  *
  * @param omega_0 Fundamental frequency [rad/s]
  * @param alpha Damping gain
@@ -167,46 +145,14 @@ template<typename T = double>
  * @return StateSpace<3, 1, 2, 0, 0, T> Discrete-time MSTOGI system
  */
 template<typename T = float>
-[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi_system(T w0, T alpha, T Ts) {
-    const T omega_tm = w0 * Ts;
-    const auto [sin_wt, cos_wt] = wet::sincos(omega_tm); // sin(wT), cos(wT)
-
-    // Closed-loop discrete realization matching runtime MSTOGI update:
-    // u_r = alpha * (v - band_pass)
-    // x_r1' = cos*x_r1 + (sin - alpha*(1-cos))*x_r2 + alpha*(1-cos)*v
-    // x_r2' = -sin*x_r1 + (cos - alpha*sin)*x_r2 + alpha*sin*v
-    // x_t'  = a*x_t - alpha*(1-a)*x_r2 + alpha*(1-a)*v, where a = exp(-wT)
-    const T a_togi = wet::exp(-omega_tm);
-    const T alpha_one_minus_cos = alpha * (T{1} - cos_wt);
-    const T alpha_one_minus_a = alpha * (T{1} - a_togi);
-    const T alpha_sin = alpha * sin_wt;
-
-    return {
-        .A = Matrix<3, 3, T>{
-            {cos_wt, sin_wt - alpha_one_minus_cos, T{0}},
-            {-sin_wt, cos_wt - alpha_sin, T{0}},
-            {T{0}, -alpha_one_minus_a, a_togi},
-        },
-
-        .B = Matrix<3, 1, T>{
-            {alpha_one_minus_cos},
-            {alpha_sin},
-            {alpha_one_minus_a},
-        },
-
-        .C = Matrix<2, 3, T>{
-            {T{0}, T{1}, T{0}},  // band_pass
-            {T{1}, T{0}, T{-1}}, // quadrature
-        },
-
-        .D = Matrix<2, 1, T>::zeros(),
-    };
+[[nodiscard]] constexpr StateSpace<3, 1, 2, 0, 0, T> mstogi(T w0, T alpha, T Ts) {
+    return discretize(mstogi(w0, alpha), Ts, DiscretizationMethod::ZOH);
 }
 
 } // namespace design
 
 /**
- * @brief Runtime SOGI wrapper around design::sogi_system(w0, alpha, Ts)
+ * @brief Runtime SOGI wrapper around design::sogi(w0, alpha, Ts)
  *
  * This minimal runtime object stores state and performs one-step updates using
  * the discrete design realization each call:
@@ -214,7 +160,7 @@ template<typename T = float>
  *   y = Cx
  *   x = Ax + Bu
  *
- * where A/B/C come from `design::sogi_system(w0, alpha, Ts)` and
+ * where A/B/C come from `design::sogi(w0, alpha, Ts)` and
  * `w0 = 2*pi*freq`.
  *
  * @see "Understanding Digital Signal Processing" (Lyons, 2011), §13.36
@@ -281,7 +227,7 @@ private:
  * This removes the per-sample exp() from the hot path while preserving DC
  * rejection behavior for practical sample rates (w0*Ts << 1).
  *
- * @see design::mstogi_system() for the exact-ZOH design model and transfer functions
+ * @see design::mstogi() for the discrete design model and transfer functions
  * @see Rodríguez et al., IECON 2008, https://doi.org/10.1109/IECON.2008.4757983
  *
  * @tparam T Scalar type (float for embedded deployment)
@@ -430,14 +376,19 @@ public:
 
     /// Locked frequency [Hz].
     [[nodiscard]] constexpr T frequency_hz() const { return omega_ / two_pi(); }
+
     /// Locked frequency [rad/s].
     [[nodiscard]] constexpr T frequency_rad() const { return omega_; }
+
     /// In-phase (band-pass) output — the input filtered to the locked frequency.
     [[nodiscard]] constexpr T in_phase() const { return x1_; }
+
     /// Quadrature output (90° lag).
     [[nodiscard]] constexpr T quadrature() const { return x0_; }
+
     /// Estimated amplitude of the tracked tone.
-    [[nodiscard]] constexpr T amplitude() const { return wet::sqrt((x0_ * x0_) + (x1_ * x1_)); }
+    [[nodiscard]] constexpr T amplitude() const { return wet::hypot(x0_, x1_); }
+
     /// Estimated phase of the tracked tone [rad].
     [[nodiscard]] constexpr T    phase() const { return wet::atan2(x0_, x1_); }
     [[nodiscard]] constexpr bool valid() const { return valid_; }

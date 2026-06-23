@@ -59,7 +59,7 @@ struct SinglePhasePLL {
 
     constexpr void step(T input, const T Ts) {
         // Generate bandpass and quadrature signals using SOGI.
-        const auto [bp, quadrature] = sogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
+        const auto [bp, quadrature] = mstogi(input, frequency_estimate, wet::numbers::sqrt2_v<T>, Ts);
         (void)bp;
 
         // Phase error from the SOGI quadrature mixer. qv' lags the input by 90° at
@@ -97,14 +97,14 @@ struct SinglePhasePLL {
     }
 
     constexpr void reset() {
-        sogi.reset();
+        mstogi.reset();
         loop_filter.reset();
         phase_estimate = T{0};
         frequency_estimate = nominal_frequency;
     }
 
 private:
-    MSTOGI<T> sogi{}; // SOGI for quadrature signal generation
+    MSTOGI<T> mstogi{}; // MSTOGI is used to reject DC offset
 
     T nominal_frequency{};  // Center frequency of the PLL bandpass filter
     T phase_estimate{};     // Estimated phase of the input signal
