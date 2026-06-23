@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "lqi.hpp"
 #include "wet/estimation/kalman.hpp"
 #include "wet/matrix/matrix.hpp"

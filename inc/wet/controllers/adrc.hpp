@@ -2,6 +2,7 @@
 
 #include <cstddef>
 
+#include "wet/backend.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
 

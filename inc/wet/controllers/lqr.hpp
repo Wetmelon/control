@@ -4,6 +4,7 @@
 
 #include "wet/design/riccati.hpp"
 #include "wet/design/stability.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/block.hpp"
 #include "wet/matrix/functions.hpp"
 #include "wet/matrix/matrix.hpp"
@@ -259,6 +260,73 @@ template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename
     const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
 ) {
     return discrete_lqr_from_continuous(sys.A, sys.B, Q, R, Ts, N);
+}
+
+/**
+ * @brief Continuous-time Linear-Quadratic Regulator design
+ *
+ * Computes the optimal state-feedback gain K that minimizes
+ *
+ *     J = ∫₀^∞ ( xᵀQx + uᵀRu + 2xᵀNu ) dt
+ *
+ * subject to the continuous-time dynamics ẋ = Ax + Bu, applied as u = −Kx.
+ * Solves the Continuous Algebraic Riccati Equation (CARE) for the stabilizing
+ * S, then forms the gain K = R⁻¹(BᵀS + Nᵀ).
+ *
+ * @note Compare with MATLAB's [K,S,e] = lqr(A, B, Q, R, N).
+ * @note Unlike @ref discrete_lqr, the returned `e` are *continuous-time*
+ *       (s-plane) closed-loop poles of (A − BK); stability is Re(e) < 0, so
+ *       @ref LQRResult::is_stable (a unit-circle test) does not apply here.
+ *
+ * @see care() for the underlying Riccati solver
+ * @see discrete_lqr_from_continuous() for the sampled-data (digital) design
+ * @see "Optimal Control" (Anderson & Moore, 1990), §3.3
+ *
+ * @param A  State matrix (NX × NX)
+ * @param B  Control input matrix (NX × NU)
+ * @param Q  State cost matrix (NX × NX, positive semidefinite)
+ * @param R  Input cost matrix (NU × NU, positive definite)
+ * @param N  Cross-term cost matrix (NX × NU, default: zero)
+ * @return LQRResult with gain K, CARE solution S, and continuous-time poles
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr LQRResult<NX, NU, T> continuous_lqr(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    LQRResult<NX, NU, T> result{};
+
+    const auto care_opt = care(A, B, Q, R, N);
+    if (!care_opt) {
+        return result;
+    }
+    const Matrix<NX, NX, T> S = care_opt.value();
+
+    // Continuous-time optimal gain K = R⁻¹(BᵀS + Nᵀ), via a decomposition solve
+    // of R·K = BᵀS + Nᵀ rather than forming R⁻¹ explicitly (better conditioned
+    // for NU > 1; matches care_schur's lu_solve usage).
+    const auto K_opt = mat::lu_solve(R, (B.transpose() * S) + N.transpose());
+    if (!K_opt) {
+        return result;
+    }
+    const Matrix<NU, NX, T> K = K_opt.value();
+
+    result = LQRResult<NX, NU, T>{K, S, stability::closed_loop_poles(A, B, K), true};
+    return result;
+}
+
+/// @brief Continuous LQR from a continuous-time @ref StateSpace (uses A, B).
+template<size_t NX, size_t NU, size_t NY, size_t NW = 0, size_t NV = 0, typename T = double>
+[[nodiscard]] constexpr LQRResult<NX, NU, T> continuous_lqr(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const Matrix<NX, NX, T>&                 Q,
+    const Matrix<NU, NU, T>&                 R,
+    const Matrix<NX, NU, T>&                 N = Matrix<NX, NU, T>{}
+) {
+    return continuous_lqr(sys.A, sys.B, Q, R, N);
 }
 
 } // namespace design

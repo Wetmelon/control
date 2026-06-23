@@ -22,6 +22,7 @@
  */
 
 #include <cstddef>
+#include <type_traits>
 
 #include "wet/backend.hpp" // wet::array, wet::numbers
 #include "wet/controllers/pr.hpp"

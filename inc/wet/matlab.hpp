@@ -379,6 +379,26 @@ template<size_t NX, size_t NU, typename T = double>
 }
 
 /**
+ * @brief Continuous-time LQR design (MATLAB's lqr)
+ *
+ * Thin alias for design::continuous_lqr — the optimal gain K for u = −Kx
+ * minimizing ∫(xᵀQx + uᵀRu + 2xᵀNu) dt via the continuous ARE (care()).
+ *
+ * @note Compare with MATLAB's K = lqr(A, B, Q, R, N). For the Riccati solution
+ *       S and the closed-loop poles, call design::continuous_lqr directly.
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr Matrix<NU, NX, T> lqr(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NX, NX, T>& Q,
+    const Matrix<NU, NU, T>& R,
+    const Matrix<NX, NU, T>& N = Matrix<NX, NU, T>{}
+) {
+    return design::continuous_lqr(A, B, Q, R, N).K;
+}
+
+/**
  * @brief Discrete-time Linear-Quadratic Regulator design
  * @note Alias for design::discrete_lqr. Compare with MATLAB's dlqr(A, B, Q, R, N).
  */

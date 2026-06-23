@@ -4,6 +4,7 @@
 
 #include "wet/design/riccati.hpp"
 #include "wet/design/stability.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 

@@ -27,6 +27,7 @@
  */
 
 #include "wet/math/math.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"

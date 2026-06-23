@@ -187,16 +187,19 @@ TEST_SUITE("FOC Controller") {
     TEST_CASE("I-P removes the proportional step-kick") {
         // omega = 0, lambda = 0 -> all feedforward terms vanish, isolating the PI/I-P.
         const float wbw = 2.0f * std::numbers::pi_v<float> * 800.0f;
-        auto        make = [&](float b) {
+
+        auto make_foc = [&](float b) {
             wet::FOController<float> foc({.d = 200e-6f, .q = 200e-6f}, 0.5f, 0.0f, 0.0f);
             foc.tune(wbw, 1.0f, b);
             return foc;
         };
+
         wet::DirectQuadrature<float> ref = {.d = 0.0f, .q = 1.0f};
         wet::DirectQuadrature<float> meas = {.d = 0.0f, .q = 0.0f};
 
-        auto        pi = make(1.0f);
-        auto        ip = make(0.0f);
+        auto pi = make_foc(1.0f);
+        auto ip = make_foc(0.0f);
+
         const float vq_pi = pi.current_controller(ref, meas, Ts).Vdq.q;
         const float vq_ip = ip.current_controller(ref, meas, Ts).Vdq.q;
 
