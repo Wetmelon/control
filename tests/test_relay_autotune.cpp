@@ -1,7 +1,7 @@
 #include <numbers>
 
 #include "wet/design/pid_design.hpp"
-#include "wet/design/relay_autotune.hpp"
+#include "wet/estimation/relay_autotune.hpp"
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 

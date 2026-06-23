@@ -722,9 +722,10 @@ private:
     }
 
     design::ChirpConfig<T> config_{};
-    T                      Ts_{T{0}};
-    T                      t_{T{0}};
-    bool                   valid_{false};
+
+    T    Ts_{T{0}};
+    T    t_{T{0}};
+    bool valid_{false};
 };
 
 /**

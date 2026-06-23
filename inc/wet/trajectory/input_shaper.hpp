@@ -69,9 +69,10 @@ struct InputShaperResult {
     wet::array<T, MaxImpulses>      amplitudes{}; ///< Impulse amplitudes (sum to 1)
     wet::array<T, MaxImpulses>      times{};      ///< Impulse times [s]
     wet::array<size_t, MaxImpulses> delays{};     ///< Sample delays = round(times/Ts)
-    size_t                          count{0};     ///< Number of active impulses
-    T                               Ts{T{0}};
-    bool                            success{false};
+
+    size_t count{0}; ///< Number of active impulses
+    T      Ts{T{0}};
+    bool   success{false};
 
     /// Last impulse delay in samples (the command latency the shaper adds).
     [[nodiscard]] constexpr size_t max_delay() const { return (count == 0) ? 0 : delays[count - 1]; }

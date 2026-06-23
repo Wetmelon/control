@@ -17,9 +17,6 @@
  */
 
 #include <cstddef>
-#include <type_traits>
-
-#include "wet/math/math.hpp"
 
 namespace wet {
 

@@ -10,7 +10,7 @@
 #include <cstdint>
 #include <type_traits>
 
-namespace wet::estimation {
+namespace wet {
 
 /**
  * @brief One time-aligned sample used for closed-loop or open-loop identification.
@@ -235,4 +235,4 @@ concept IdentifiedModelLike = requires(const Model& model) {
     { model.success } -> std::convertible_to<bool>;
 };
 
-} // namespace wet::estimation
+} // namespace wet

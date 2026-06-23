@@ -1,9 +1,9 @@
-#include "wet/estimation/identification.hpp"
+#include "wet/analysis/identification.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
 
-using namespace wet::estimation;
+using namespace wet;
 
 // The only logic in identification.hpp is the IdentifiedModelLike concept; the
 // rest are POD model/handoff structs. Pin the concept's accept/reject behavior.

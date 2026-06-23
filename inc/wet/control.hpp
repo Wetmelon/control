@@ -66,7 +66,6 @@
 // --- Controller design tools ------------------------------------------------
 #include "wet/design/pid_design.hpp"     // IWYU pragma: keep
 #include "wet/design/pole_placement.hpp" // IWYU pragma: keep
-#include "wet/design/relay_autotune.hpp" // IWYU pragma: keep
 #include "wet/design/synthesis.hpp"      // IWYU pragma: keep
 
 // --- Estimators -------------------------------------------------------------
@@ -77,6 +76,7 @@
 #include "wet/estimation/kalman.hpp"                  // IWYU pragma: keep
 #include "wet/estimation/observer.hpp"                // IWYU pragma: keep
 #include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: keep
+#include "wet/estimation/relay_autotune.hpp"          // IWYU pragma: keep
 #include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
 #include "wet/estimation/ukf.hpp"                     // IWYU pragma: keep
 
