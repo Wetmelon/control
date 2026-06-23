@@ -2,7 +2,12 @@
 #include <fmt/core.h>
 #include <fmt/ranges.h>
 
+#include <cstddef>
+
+#include "fmt/base.h"
 #include "wet/controllers/lqr.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
 using namespace wet;
@@ -12,9 +17,6 @@ int main() {
     constexpr double C = 14.7e-6;         // Capacitance in Farads
     constexpr double R = 0.01;            // Series resistance in Ohms
     constexpr double Ts = 1.0 / 128000.0; // Sampling time in seconds
-
-    constexpr ColVec x0 = {0.0, 0.0}; // Initial state: [inductor current; capacitor voltage]
-    ColVec           u = {0.0};       // Input: [input voltage]
 
     constexpr StateSpace sys = {
         .A = Matrix<2, 2>{

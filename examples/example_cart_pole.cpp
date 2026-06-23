@@ -6,9 +6,13 @@
  * cart-pole system - an inherently unstable nonlinear system.
  */
 
+#include "fmt/base.h"
 #include "fmt/core.h"
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wet;
 
@@ -39,15 +43,14 @@ constexpr double b = 0.1;  // Cart friction coefficient (N/m/s)
  * @param theta_dot_0 Pole angular velocity operating point (unused)
  * @return Linearized StateSpace system
  */
-constexpr auto linearize_cart_pole(double /*x_0*/, double /*x_dot_0*/, double theta_0, double /*theta_dot_0*/) {
+static constexpr auto linearize_cart_pole(double /*x_0*/, double /*x_dot_0*/, double theta_0, double /*theta_dot_0*/) {
     // Linearized equations at arbitrary theta_0:
     //
     // For inverted pendulum (theta=0 is upright), the linearization gives:
     //      d/dt [x, x_dot, theta, theta_dot]' = A*[x, x_dot, theta, theta_dot]' + B*u
 
-    const double s = wet::sin(theta_0);
-    const double c = wet::cos(theta_0);
-    const double denom = M + m * (1.0 - c * c); // = M + m*cos^2(theta)
+    const auto [s, c] = wet::sincos(theta_0);
+    const double denom = M + (m * (1.0 - (c * c))); // = M + m*cos^2(theta)
 
     // A matrix elements
     // The (3,2) element is the key: pendulum angular acceleration due to angle deviation
@@ -98,8 +101,8 @@ constexpr auto Q = Matrix<4, 4>{
 constexpr auto Ts = 0.01;               // 100Hz control loop
 constexpr auto R = Matrix<1, 1>{{1.0}}; // Control effort penalty
 
-// Design compile-time discrete LQR controller for cart-pole
-LQR controller_eq = design::discrete_lqr_from_continuous(sys_eq.A, sys_eq.B, Q, R, Ts).as<float>();
+// Design compile-time discrete LQR controller for cart-pole (constinit guarantee)
+static constinit LQR controller_eq = design::discrete_lqr_from_continuous(sys_eq.A, sys_eq.B, Q, R, Ts).as<float>();
 
 /**
  * @brief Main function demonstrating cart-pole LQR control

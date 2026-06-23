@@ -1,13 +1,20 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <string>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "fmt/format.h"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/kinematics/motion_maps.hpp"
-#include "wet/simulation/plot_plotly.hpp"
 #include "wet/trajectory/trajectory.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 using namespace wet;
 

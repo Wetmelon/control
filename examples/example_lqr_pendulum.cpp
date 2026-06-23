@@ -1,6 +1,10 @@
-﻿#include "fmt/core.h"
+﻿#include "fmt/base.h"
+#include "fmt/core.h"
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wet;
 
@@ -13,7 +17,7 @@ constexpr double m = 1.0;  // mass (kg)
 constexpr double b = 0.1;  // damping (N*m*s)
 
 // Linearize pendulum dynamics at operating point (theta_0, theta_dot_0)
-constexpr auto linearize_pendulum(double theta_0, double /*theta_dot_0*/) {
+constexpr static auto linearize_pendulum(double theta_0, double /*theta_dot_0*/) {
     // Linearized A matrix: df/dx evaluated at (theta_0, theta_dot_0)
     // x' = [theta_dot, (g/L)*cos(theta_0)*theta - (b/m*L^2)*theta_dot]
     const double a21 = (g / L) * wet::cos(theta_0); // df2/dtheta

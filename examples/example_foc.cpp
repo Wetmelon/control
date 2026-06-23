@@ -27,9 +27,14 @@
 #include <cmath>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/power/foc.hpp"
-#include "wet/simulation/plot_plotly.hpp"
+#include "wet/power/transforms.hpp"
 
 using namespace wet;
 

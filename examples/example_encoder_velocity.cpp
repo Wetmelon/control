@@ -1,10 +1,16 @@
 #include <cmath>
+#include <cstddef>
 #include <numbers>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "fmt/format.h"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/filters/differentiator.hpp"
-#include "wet/simulation/plot_plotly.hpp"
 
 using namespace wet;
 
@@ -152,7 +158,8 @@ void run_scenario(const Scenario& s) {
     using namespace plotlypp;
     const int  rev_idx = static_cast<int>((1.0 / (4.0 * s.freq)) / dt); // first reversal
     const int  half = static_cast<int>(s.zoom_half_s / dt);
-    const int  z0 = rev_idx - half, z1 = rev_idx + half;
+    const int  z0 = rev_idx - half;
+    const int  z1 = rev_idx + half;
     auto       slice = [&](const std::vector<double>& v) { return std::vector<double>(v.begin() + z0, v.begin() + z1); };
     const auto tz = slice(ts);
     const int  D = 1 + steps / 2500; // decimate full-run traces to ~2500 points

@@ -1,11 +1,17 @@
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <string>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
-#include "wet/simulation/plot_plotly.hpp"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/trajectory/trajectory.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 using namespace wet;
 
@@ -64,15 +70,17 @@ int main() {
     fmt::print("\nT_sync = {:.2f}s — coordinated move; all joints arrive together.\n", Tsync);
 
     // Sample both schemes over a common timeline (a little tail past T_sync).
-    const int                          N = 400;
-    const double                       span = Tsync * 1.06;
-    std::vector<double>                t(N);
+    const int           N = 400;
+    const double        span = Tsync * 1.06;
+    std::vector<double> t(N);
+
     std::array<std::vector<double>, 3> ang_indep, vel_indep, ang_coord, vel_coord;
     for (auto* v : {&ang_indep, &vel_indep, &ang_coord, &vel_coord}) {
         for (auto& s : *v) {
             s.resize(N);
         }
     }
+
     double ang_lo = 1e9, ang_hi = -1e9, vel_lo = 1e9, vel_hi = -1e9;
     for (int i = 0; i < N; ++i) {
         const double tt = (span * i) / (N - 1);

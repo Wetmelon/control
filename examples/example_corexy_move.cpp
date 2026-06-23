@@ -17,24 +17,14 @@
 // Units note: everything here is in metres and seconds (SI), because that makes
 // the torque feedforward come out in real Nm. 0.200 m is just 200 mm.
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "wet/backend.hpp"
 #include "wet/control.hpp"
 
 using namespace wet;
 
-void setup() {
-}
-
-void loop() {
-}
-
 int main() {
-
-    setup();
-
-    for (;;) {
-        loop();
-    }
 
     // ============================ CONFIG ====================================
     // --- The move you want (bed coordinates, in metres) ---
@@ -72,7 +62,7 @@ int main() {
     //     positions {A, B}. TOPP calls this for us; it must return the motor
     //     positions plus a "reachable?" flag (always true for CoreXY).
     auto corexy_ik = [](const Vec3<double>& p) {
-        const auto motors = CoreXY<double>::inverse(p[0], p[1]); // {A, B} belt travel
+        const auto motors = CoreXY<double>::inverse(p); // {A, B} belt travel
         return wet::pair<wet::array<double, 2>, bool>{{motors.a, motors.b}, true};
     };
 

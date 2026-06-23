@@ -1,10 +1,18 @@
+#include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
+#include <utility>
 #include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "fmt/format.h"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/filters/spectral.hpp"
-#include "wet/simulation/plot_plotly.hpp"
 #include "wet/trajectory/input_shaper.hpp"
 
 using namespace wet;

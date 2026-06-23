@@ -47,7 +47,8 @@
 #include <cstdio>
 #include <numbers>
 
-#include "wet/power/modulation.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/power/transforms.hpp"
 
 using namespace wet;
 

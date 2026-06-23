@@ -3,7 +3,7 @@
 
 // Include the library headers (adjust paths as needed for your project structure)
 
-#include "wet/estimation/kalman.hpp"
+#include "wet/estimation/eskf.hpp"
 #include "wet/estimation/sensor_fusion.hpp"
 #include "wet/math/geometry.hpp"
 #include "wet/matrix/matrix.hpp"
@@ -31,14 +31,14 @@ static ErrorStateKalmanFilter<6, 6, float> eksf = design::eskf_design(
     dt       // dt = 10ms
 );
 
-void setup() {
-}
-
 static Euler<float> euler_angles;
 static Quaternion   q_nom = Quaternion<float>::identity();
 static Vec3         gyro_bias = {0.0f, 0.0f, 0.0f}; // Gyro bias
 
-void loop() {
+static void setup() {
+}
+
+static void loop() {
     // Read IMU sensor data (replace with actual sensor reading code)
     Vec3<float> accel_meas = readAccelerometer(); // [m/s^2]
     Vec3<float> gyro_meas = readGyroscope();      // [rad/s]
@@ -62,5 +62,11 @@ void loop() {
 }
 
 int main() {
+    setup();
+
+    for (;;) {
+        loop();
+    }
+
     return 0;
 }

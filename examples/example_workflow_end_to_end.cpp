@@ -1,14 +1,19 @@
+#include <cmath>
 #include <numbers>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
 #include "wet/analysis/analysis.hpp"
 #include "wet/controllers/pr.hpp"
 #include "wet/design/linearization.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/design/synthesis.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
 #include "wet/systems/discretization.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wet;
 using namespace wet::sim;

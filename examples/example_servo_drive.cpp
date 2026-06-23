@@ -1,10 +1,19 @@
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <numbers>
+#include <vector>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "plotlypp/figure.hpp"
+#include "plotlypp/layout/layout.hpp"
+#include "plotlypp/traces/scatter.hpp"
+#include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
+#include "wet/matrix/colvec.hpp"
 #include "wet/power/foc.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"

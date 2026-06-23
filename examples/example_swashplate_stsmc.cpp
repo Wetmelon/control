@@ -1,8 +1,10 @@
 #include <cmath>
 #include <numbers>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
 #include "wet/controllers/stsmc.hpp"
+#include "wet/math/math.hpp"
 
 using namespace wet;
 

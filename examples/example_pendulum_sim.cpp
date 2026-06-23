@@ -1,9 +1,14 @@
-﻿#include "fmt/core.h"
+﻿#include "fmt/base.h"
+#include "fmt/core.h"
 #include "wet/controllers/lqr.hpp"
 #include "wet/math/math.hpp"
+#include "wet/matrix/colvec.hpp"
+#include "wet/matrix/matrix.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"
 #include "wet/simulation/solver.hpp"
+#include "wet/systems/state_space.hpp"
 
 using namespace wet;
 using namespace wet::sim;
@@ -17,7 +22,7 @@ constexpr double m = 1.0;
 constexpr double b_damp = 0.1;
 
 // Linearize at upright equilibrium (theta=0)
-constexpr auto linearize_pendulum() {
+constexpr static auto linearize_pendulum() {
     const double a21 = g / L;
     const double a22 = -b_damp / (m * L * L);
 
@@ -48,9 +53,9 @@ int main() {
         double theta_dot = x(1, 0);
         double torque = u(0, 0);
 
-        double theta_ddot = (g / L) * wet::sin(theta)
-                          - (b_damp / (m * L * L)) * theta_dot
-                          + (1.0 / (m * L * L)) * torque;
+        double theta_ddot = ((g / L) * wet::sin(theta))
+                          - ((b_damp / (m * L * L)) * theta_dot)
+                          + ((1.0 / (m * L * L)) * torque);
 
         return ColVec<2>{theta_dot, theta_ddot};
     };

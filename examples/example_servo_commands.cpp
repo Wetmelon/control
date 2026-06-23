@@ -1,10 +1,14 @@
 #include <array>
 #include <cmath>
+#include <cstddef>
 #include <string_view>
 
+#include "fmt/base.h"
 #include "fmt/core.h"
+#include "wet/backend.hpp"
 #include "wet/toolbox/actuator.hpp"
 #include "wet/trajectory/trajectory.hpp"
+#include "wet/trajectory/trajectory_types.hpp"
 
 using namespace wet;
 

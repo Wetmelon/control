@@ -15,12 +15,16 @@
  * @endcode
  */
 
+#include <cstddef>
 #include <plotlypp/figure.hpp>
+#include <plotlypp/layout/layout.hpp>
 #include <plotlypp/traces/scatter.hpp>
 #include <string>
 #include <vector>
 
 #include "wet/analysis/analysis.hpp"
+#include "wet/backend.hpp"
+#include "wet/matrix/colvec.hpp"
 #include "wet/simulation/simulate.hpp"
 
 namespace wet {
