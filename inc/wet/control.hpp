@@ -27,32 +27,32 @@
  */
 
 // --- Linear algebra + math core ---------------------------------------------
-#include "wet/matrix/matrix.hpp" // IWYU pragma: keep
+#include "wet/matrix/matrix.hpp" // IWYU pragma: export
 
 // --- LTI system types -------------------------------------------------------
-#include "wet/systems/discretization.hpp"    // IWYU pragma: keep
-#include "wet/systems/state_space.hpp"       // IWYU pragma: keep
-#include "wet/systems/transfer_function.hpp" // IWYU pragma: keep
-#include "wet/systems/zpk.hpp"               // IWYU pragma: keep
+#include "wet/systems/discretization.hpp"    // IWYU pragma: export
+#include "wet/systems/state_space.hpp"       // IWYU pragma: export
+#include "wet/systems/transfer_function.hpp" // IWYU pragma: export
+#include "wet/systems/zpk.hpp"               // IWYU pragma: export
 
 // --- Structural analysis (allocation-free) ----------------------------------
-#include "wet/design/linearization.hpp" // IWYU pragma: keep
-#include "wet/design/stability.hpp"     // IWYU pragma: keep
+#include "wet/design/linearization.hpp" // IWYU pragma: export
+#include "wet/design/stability.hpp"     // IWYU pragma: export
 
 // --- Controllers ------------------------------------------------------------
-#include "wet/controllers/adrc.hpp"                 // IWYU pragma: keep
-#include "wet/controllers/esc.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: keep
-#include "wet/controllers/lead_lag.hpp"             // IWYU pragma: keep
-#include "wet/controllers/lqg.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/lqgi.hpp"                 // IWYU pragma: keep
-#include "wet/controllers/lqi.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/lqr.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/pid.hpp"                  // IWYU pragma: keep
-#include "wet/controllers/pr.hpp"                   // IWYU pragma: keep
-#include "wet/controllers/repetitive.hpp"           // IWYU pragma: keep
-#include "wet/controllers/smc.hpp"                  // IWYU pragma: keep
-#include "wet/design/riccati.hpp"                   // IWYU pragma: keep
+#include "wet/controllers/adrc.hpp"                 // IWYU pragma: export
+#include "wet/controllers/esc.hpp"                  // IWYU pragma: export
+#include "wet/controllers/harmonic_suppression.hpp" // IWYU pragma: export
+#include "wet/controllers/lead_lag.hpp"             // IWYU pragma: export
+#include "wet/controllers/lqg.hpp"                  // IWYU pragma: export
+#include "wet/controllers/lqgi.hpp"                 // IWYU pragma: export
+#include "wet/controllers/lqi.hpp"                  // IWYU pragma: export
+#include "wet/controllers/lqr.hpp"                  // IWYU pragma: export
+#include "wet/controllers/pid.hpp"                  // IWYU pragma: export
+#include "wet/controllers/pr.hpp"                   // IWYU pragma: export
+#include "wet/controllers/repetitive.hpp"           // IWYU pragma: export
+#include "wet/controllers/smc.hpp"                  // IWYU pragma: export
+#include "wet/design/riccati.hpp"                   // IWYU pragma: export
 
 // --- Trajectory + motion planning -------------------------------------------
 #include "wet/trajectory/cartesian_move.hpp" // IWYU pragma: export
@@ -64,55 +64,55 @@
 #include "wet/trajectory/trapezoidal.hpp"    // IWYU pragma: export
 
 // --- Controller design tools ------------------------------------------------
-#include "wet/design/pid_design.hpp"     // IWYU pragma: keep
-#include "wet/design/pole_placement.hpp" // IWYU pragma: keep
-#include "wet/design/synthesis.hpp"      // IWYU pragma: keep
+#include "wet/design/pid_design.hpp"     // IWYU pragma: export
+#include "wet/design/pole_placement.hpp" // IWYU pragma: export
+#include "wet/design/synthesis.hpp"      // IWYU pragma: export
 
 // --- Estimators -------------------------------------------------------------
-#include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: keep
-#include "wet/estimation/ekf.hpp"                     // IWYU pragma: keep
-#include "wet/estimation/eskf.hpp"                    // IWYU pragma: keep
-#include "wet/estimation/excitation.hpp"              // IWYU pragma: keep
-#include "wet/estimation/kalman.hpp"                  // IWYU pragma: keep
-#include "wet/estimation/observer.hpp"                // IWYU pragma: keep
-#include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: keep
-#include "wet/estimation/relay_autotune.hpp"          // IWYU pragma: keep
-#include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: keep
-#include "wet/estimation/ukf.hpp"                     // IWYU pragma: keep
+#include "wet/estimation/disturbance_observer.hpp"    // IWYU pragma: export
+#include "wet/estimation/ekf.hpp"                     // IWYU pragma: export
+#include "wet/estimation/eskf.hpp"                    // IWYU pragma: export
+#include "wet/estimation/excitation.hpp"              // IWYU pragma: export
+#include "wet/estimation/kalman.hpp"                  // IWYU pragma: export
+#include "wet/estimation/observer.hpp"                // IWYU pragma: export
+#include "wet/estimation/recursive_least_squares.hpp" // IWYU pragma: export
+#include "wet/estimation/relay_autotune.hpp"          // IWYU pragma: export
+#include "wet/estimation/sensor_fusion.hpp"           // IWYU pragma: export
+#include "wet/estimation/ukf.hpp"                     // IWYU pragma: export
 
 // --- Kinematics (allocation-free) -------------------------------------------
-#include "wet/kinematics/motion_maps.hpp" // IWYU pragma: keep
-#include "wet/kinematics/pose.hpp"        // IWYU pragma: keep
-#include "wet/kinematics/scara.hpp"       // IWYU pragma: keep
-#include "wet/kinematics/serial_arm.hpp"  // IWYU pragma: keep
-#include "wet/kinematics/stewart.hpp"     // IWYU pragma: keep
+#include "wet/kinematics/motion_maps.hpp" // IWYU pragma: export
+#include "wet/kinematics/pose.hpp"        // IWYU pragma: export
+#include "wet/kinematics/scara.hpp"       // IWYU pragma: export
+#include "wet/kinematics/serial_arm.hpp"  // IWYU pragma: export
+#include "wet/kinematics/stewart.hpp"     // IWYU pragma: export
 
 // --- Signal filters ---------------------------------------------------------
-#include "wet/filters/differentiator.hpp" // IWYU pragma: keep
-#include "wet/filters/filters.hpp"        // IWYU pragma: keep
-#include "wet/filters/pll.hpp"            // IWYU pragma: keep
-#include "wet/filters/sogi.hpp"           // IWYU pragma: keep
-#include "wet/filters/spectral.hpp"       // IWYU pragma: keep
+#include "wet/filters/differentiator.hpp" // IWYU pragma: export
+#include "wet/filters/filters.hpp"        // IWYU pragma: export
+#include "wet/filters/pll.hpp"            // IWYU pragma: export
+#include "wet/filters/sogi.hpp"           // IWYU pragma: export
+#include "wet/filters/spectral.hpp"       // IWYU pragma: export
 
 // --- Fixed-step integration (allocation-free) -------------------------------
-#include "wet/simulation/integrator.hpp" // IWYU pragma: keep
+#include "wet/simulation/integrator.hpp" // IWYU pragma: export
 
 // --- 3D math types ----------------------------------------------------------
-#include "wet/math/geometry.hpp" // IWYU pragma: keep
+#include "wet/math/geometry.hpp" // IWYU pragma: export
 
 // --- Motor / power-electronics drives ---------------------------------------
-#include "wet/power/modulation.hpp" // IWYU pragma: keep
-#include "wet/power/transforms.hpp" // IWYU pragma: keep
+#include "wet/power/modulation.hpp" // IWYU pragma: export
+#include "wet/power/transforms.hpp" // IWYU pragma: export
 
 // --- Toolbox: allocation-free embedded primitives every controls project ----
 // reaches for. Controls/DSP-specific helpers only; generic plumbing
 // (containers, CRC, FIFOs) is out of scope — pair with ETL for those.
-#include "wet/toolbox/actuator.hpp"     // IWYU pragma: keep
-#include "wet/toolbox/conditioning.hpp" // IWYU pragma: keep
-#include "wet/toolbox/encoder.hpp"      // IWYU pragma: keep
-#include "wet/toolbox/iec61131.hpp"     // IWYU pragma: keep
-#include "wet/toolbox/io.hpp"           // IWYU pragma: keep
-#include "wet/toolbox/logic.hpp"        // IWYU pragma: keep
-#include "wet/toolbox/lookup.hpp"       // IWYU pragma: keep
-#include "wet/toolbox/scaling.hpp"      // IWYU pragma: keep
-#include "wet/toolbox/timing.hpp"       // IWYU pragma: keep
+#include "wet/toolbox/actuator.hpp"     // IWYU pragma: export
+#include "wet/toolbox/conditioning.hpp" // IWYU pragma: export
+#include "wet/toolbox/encoder.hpp"      // IWYU pragma: export
+#include "wet/toolbox/iec61131.hpp"     // IWYU pragma: export
+#include "wet/toolbox/io.hpp"           // IWYU pragma: export
+#include "wet/toolbox/logic.hpp"        // IWYU pragma: export
+#include "wet/toolbox/lookup.hpp"       // IWYU pragma: export
+#include "wet/toolbox/scaling.hpp"      // IWYU pragma: export
+#include "wet/toolbox/timing.hpp"       // IWYU pragma: export

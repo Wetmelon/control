@@ -979,10 +979,10 @@ template<MatrixLike A, typename Scalar>
 
 } // namespace wet
 
-#include "block.hpp"         // IWYU pragma: keep
-#include "colvec.hpp"        // IWYU pragma: keep
-#include "decomposition.hpp" // IWYU pragma: keep
-#include "functions.hpp"     // IWYU pragma: keep
-#include "rowvec.hpp"        // IWYU pragma: keep
-#include "solve.hpp"         // IWYU pragma: keep
-#include "views.hpp"         // IWYU pragma: keep
+#include "block.hpp"         // IWYU pragma: export
+#include "colvec.hpp"        // IWYU pragma: export
+#include "decomposition.hpp" // IWYU pragma: export
+#include "functions.hpp"     // IWYU pragma: export
+#include "rowvec.hpp"        // IWYU pragma: export
+#include "solve.hpp"         // IWYU pragma: export
+#include "views.hpp"         // IWYU pragma: export

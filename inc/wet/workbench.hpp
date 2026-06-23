@@ -28,10 +28,10 @@
  * @see control.hpp for the embeddable subset.
  */
 
-#include "wet/control.hpp" // IWYU pragma: keep
+#include "wet/control.hpp" // IWYU pragma: export
 
 // --- Host-only design & analysis tooling (heap-allocating) ------------------
-#include "wet/analysis/analysis.hpp"   // IWYU pragma: keep  (Bode/Nyquist/margins/sweeps)
-#include "wet/matlab.hpp"              // IWYU pragma: keep  (MATLAB-style aliases)
-#include "wet/simulation/simulate.hpp" // IWYU pragma: keep  (closed-loop simulation)
-#include "wet/simulation/solver.hpp"   // IWYU pragma: keep  (RK4/RK45 solvers)
+#include "wet/analysis/analysis.hpp"   // IWYU pragma: export  (Bode/Nyquist/margins/sweeps)
+#include "wet/matlab.hpp"              // IWYU pragma: export  (MATLAB-style aliases)
+#include "wet/simulation/simulate.hpp" // IWYU pragma: export  (closed-loop simulation)
+#include "wet/simulation/solver.hpp"   // IWYU pragma: export  (RK4/RK45 solvers)
