@@ -24,6 +24,7 @@
 
 #include "wet/analysis/analysis.hpp"
 #include "wet/backend.hpp"
+#include "wet/math/complex.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/simulation/simulate.hpp"
 
@@ -228,6 +229,236 @@ plotlypp::Figure plot_step(
     const std::string&                               title = "Step Response"
 ) {
     return plot_line(time_values.first, time_values.second, title);
+}
+
+// ============================================================================
+// MATLAB-style plot helpers (thin plotlypp wrappers over analysis:: results)
+// ============================================================================
+
+namespace detail {
+
+/**
+ * @brief Build a time-response figure with one line per (output, input) pair
+ *
+ * Shared implementation for stepplot() and impulseplot(): a `TimeResponse`
+ * stores `y[k](i, j)` (output i from a canonical input on channel j), so this
+ * emits NY·NU traces. Single-input systems are labelled `y<i>`; multi-input
+ * systems `y<i> <- u<j>`.
+ *
+ * @tparam NY Number of outputs
+ * @tparam NU Number of inputs
+ * @param resp  Per-channel time response
+ * @param title Figure title
+ * @return plotlypp::Figure ready for .show() or .writeHtml()
+ */
+template<size_t NY, size_t NU, typename T>
+plotlypp::Figure time_response_figure(const analysis::TimeResponse<NY, NU, T>& resp, const std::string& title) {
+    using namespace plotlypp;
+
+    const auto t = to_double_vector(resp.t);
+    Figure     fig;
+    for (size_t j = 0; j < NU; ++j) {
+        for (size_t i = 0; i < NY; ++i) {
+            std::vector<double> y;
+            y.reserve(resp.y.size());
+            for (const auto& yk : resp.y) {
+                y.push_back(static_cast<double>(yk(i, j)));
+            }
+            const std::string name = (NU > 1) ? ("y" + std::to_string(i) + " <- u" + std::to_string(j)) : ("y" + std::to_string(i));
+            fig.addTrace(Scatter().x(t).y(y).mode({Scatter::Mode::Lines}).name(name));
+        }
+    }
+    fig.setLayout(
+        Layout()
+            .title([&](auto& tt) { tt.text(title); })
+            .xaxis(Layout::Xaxis().title([](auto& tt) { tt.text("Time (s)"); }))
+            .yaxis(Layout::Yaxis().title([](auto& tt) { tt.text("Amplitude"); }))
+    );
+    return fig;
+}
+
+/**
+ * @brief Build a markers-only scatter of complex points (real vs imaginary)
+ *
+ * Used by pzplot() to draw poles and zeros on the complex plane.
+ *
+ * @param pts  Complex values to plot
+ * @param name Trace name (legend label)
+ * @param sym  Marker symbol (e.g. X for poles, CircleOpen for zeros)
+ * @return plotlypp::Scatter trace
+ */
+template<typename T>
+plotlypp::Scatter complex_scatter(const std::vector<wet::complex<T>>& pts, const std::string& name, plotlypp::Scatter::Marker::Symbol sym) {
+    using namespace plotlypp;
+
+    std::vector<double> re, im;
+    re.reserve(pts.size());
+    im.reserve(pts.size());
+    for (const auto& p : pts) {
+        re.push_back(static_cast<double>(p.real()));
+        im.push_back(static_cast<double>(p.imag()));
+    }
+    return Scatter()
+        .x(re)
+        .y(im)
+        .mode({Scatter::Mode::Markers})
+        .name(name)
+        .marker([sym](auto& m) { m.symbol(sym).size(10.0); });
+}
+
+} // namespace detail
+
+/**
+ * @brief Plot a step response, one trace per input/output pair
+ *
+ * MATLAB equivalent: `stepplot(sys)`. Pair with `analysis::step`.
+ *
+ * @tparam NY Number of outputs
+ * @tparam NU Number of inputs
+ * @param resp  Step response from analysis::step()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<size_t NY, size_t NU, typename T>
+plotlypp::Figure stepplot(const analysis::TimeResponse<NY, NU, T>& resp, const std::string& title = "Step Response") {
+    return detail::time_response_figure(resp, title);
+}
+
+/**
+ * @brief Plot an impulse response, one trace per input/output pair
+ *
+ * MATLAB equivalent: `impulseplot(sys)`. Pair with `analysis::impulse`.
+ *
+ * @tparam NY Number of outputs
+ * @tparam NU Number of inputs
+ * @param resp  Impulse response from analysis::impulse()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<size_t NY, size_t NU, typename T>
+plotlypp::Figure impulseplot(const analysis::TimeResponse<NY, NU, T>& resp, const std::string& title = "Impulse Response") {
+    return detail::time_response_figure(resp, title);
+}
+
+/**
+ * @brief Plot a forced (lsim) simulation, one trace per output
+ *
+ * MATLAB equivalent: `lsimplot(sys, u, t)`. Pair with `analysis::lsim`.
+ *
+ * @tparam NX Number of states
+ * @tparam NY Number of outputs
+ * @param resp  Forced response from analysis::lsim()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<size_t NX, size_t NY, typename T>
+plotlypp::Figure lsimplot(const analysis::LsimResult<NX, NY, T>& resp, const std::string& title = "Linear Simulation") {
+    using namespace plotlypp;
+
+    const auto t = to_double_vector(resp.t);
+    Figure     fig;
+    for (size_t i = 0; i < NY; ++i) {
+        fig.addTrace(
+            Scatter()
+                .x(t)
+                .y(extract_channel(resp.y, i))
+                .mode({Scatter::Mode::Lines})
+                .name("y" + std::to_string(i))
+        );
+    }
+    fig.setLayout(
+        Layout()
+            .title([&](auto& tt) { tt.text(title); })
+            .xaxis(Layout::Xaxis().title([](auto& tt) { tt.text("Time (s)"); }))
+            .yaxis(Layout::Yaxis().title([](auto& tt) { tt.text("Amplitude"); }))
+    );
+    return fig;
+}
+
+/**
+ * @brief Plot magnitude and phase Bode subplots
+ *
+ * MATLAB equivalent: `bodeplot(sys)`. Thin alias of plot_bode().
+ *
+ * @param bode  Frequency response from analysis::bode()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<typename T>
+plotlypp::Figure bodeplot(const analysis::BodeResult<T>& bode, const std::string& title = "Bode Plot") {
+    return plot_bode(bode, title);
+}
+
+/**
+ * @brief Plot a magnitude-only Bode diagram (log frequency, dB magnitude)
+ *
+ * MATLAB equivalent: `bodemag(sys)`.
+ *
+ * @param bode  Frequency response from analysis::bode()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<typename T>
+plotlypp::Figure bodemag(const analysis::BodeResult<T>& bode, const std::string& title = "Bode Magnitude") {
+    using namespace plotlypp;
+
+    std::vector<double> omega, mag_db;
+    omega.reserve(bode.points.size());
+    mag_db.reserve(bode.points.size());
+    for (const auto& pt : bode.points) {
+        omega.push_back(static_cast<double>(pt.omega));
+        mag_db.push_back(static_cast<double>(pt.magnitude_db));
+    }
+    return Figure()
+        .addTrace(Scatter().x(omega).y(mag_db).mode({Scatter::Mode::Lines}).name("Magnitude"))
+        .setLayout(Layout().title([&](auto& tt) { tt.text(title); }).xaxis(Layout::Xaxis().title([](auto& tt) { tt.text("Frequency (rad/s)"); }).type(Layout::Xaxis::Type::Log)).yaxis(Layout::Yaxis().title([](auto& tt) { tt.text("Magnitude (dB)"); })));
+}
+
+/**
+ * @brief Plot a Nyquist locus with the -1 critical point marked
+ *
+ * MATLAB equivalent: `nyquistplot(sys)`. Pair with `analysis::nyquist`.
+ *
+ * @param nyq   Nyquist response from analysis::nyquist()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<typename T>
+plotlypp::Figure nyquistplot(const analysis::NyquistResult<T>& nyq, const std::string& title = "Nyquist Plot") {
+    using namespace plotlypp;
+
+    std::vector<double> re, im;
+    re.reserve(nyq.points.size());
+    im.reserve(nyq.points.size());
+    for (const auto& p : nyq.points) {
+        re.push_back(static_cast<double>(p.real));
+        im.push_back(static_cast<double>(p.imag));
+    }
+    Figure fig;
+    fig.addTrace(Scatter().x(re).y(im).mode({Scatter::Mode::Lines}).name("L(jw)"));
+    fig.addTrace(Scatter().x(std::vector<double>{-1.0}).y(std::vector<double>{0.0}).mode({Scatter::Mode::Markers}).name("-1").marker([](auto& m) { m.symbol(Scatter::Marker::Symbol::X).size(10.0); }));
+    fig.setLayout(Layout().title([&](auto& tt) { tt.text(title); }).xaxis(Layout::Xaxis().title([](auto& tt) { tt.text("Real"); })).yaxis(Layout::Yaxis().title([](auto& tt) { tt.text("Imag"); })));
+    return fig;
+}
+
+/**
+ * @brief Plot a pole-zero map on the complex plane (poles as ×, zeros as ○)
+ *
+ * MATLAB equivalent: `pzplot(sys)`. Pair with `analysis::pzmap`.
+ *
+ * @param pz    Pole-zero data from analysis::pzmap()
+ * @param title Figure title
+ * @return plotlypp::Figure
+ */
+template<typename T>
+plotlypp::Figure pzplot(const analysis::PoleZeroMap<T>& pz, const std::string& title = "Pole-Zero Map") {
+    using namespace plotlypp;
+
+    Figure fig;
+    fig.addTrace(detail::complex_scatter(pz.poles, "poles", Scatter::Marker::Symbol::X));
+    fig.addTrace(detail::complex_scatter(pz.zeros, "zeros", Scatter::Marker::Symbol::CircleOpen));
+    fig.setLayout(Layout().title([&](auto& tt) { tt.text(title); }).xaxis(Layout::Xaxis().title([](auto& tt) { tt.text("Real"); })).yaxis(Layout::Yaxis().title([](auto& tt) { tt.text("Imag"); })));
+    return fig;
 }
 
 } // namespace plot
