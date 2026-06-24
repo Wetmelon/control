@@ -13,6 +13,7 @@
 #include <limits>
 #include <vector>
 
+#include "wet/backend.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/eigen.hpp"
@@ -745,40 +746,44 @@ damp(const Matrix<NX, NX, T>& A) {
 // ============================================================================
 
 /**
- * @brief SISO time-domain response: output y(t) sampled on a time grid
+ * @brief Multi-channel time-domain response sampled on a time grid
+ *
+ * For a system with NU inputs and NY outputs, `y[k](i, j)` is output i at time
+ * step k in response to a canonical input (unit step / unit impulse) applied to
+ * input channel j alone. This mirrors MATLAB's (Nt × Ny × Nu) response array.
+ *
+ * @tparam NY Number of outputs
+ * @tparam NU Number of inputs
  */
-template<typename T = double>
+template<size_t NY, size_t NU, typename T = double>
 struct TimeResponse {
-    std::vector<T> t; //!< Time points (s)
-    std::vector<T> y; //!< Output at each time point
+    std::vector<T>                 t; //!< Time points (s)
+    std::vector<Matrix<NY, NU, T>> y; //!< y[k](i,j): output i from a canonical input on channel j
+};
+
+/**
+ * @brief Result of a single-trajectory simulation: time, output, and state history
+ *
+ * Used by `lsim` (forced response to a given input) and `initial` (free
+ * response). `y[k]` is the NY-vector output and `x[k]` the full state at step k.
+ *
+ * @tparam NX Number of states
+ * @tparam NY Number of outputs
+ */
+template<size_t NX, size_t NY, typename T = double>
+struct LsimResult {
+    std::vector<T>             t; //!< Time points (s)
+    std::vector<ColVec<NY, T>> y; //!< Output vector at each time point
+    std::vector<ColVec<NX, T>> x; //!< State vector at each time point
 };
 
 namespace detail {
 
-//! Iterate a discrete SISO system y[k]=Cx+Du, x[k+1]=Ax+Bu with constant input u.
-template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] TimeResponse<T> time_response_impl(
-    const StateSpace<NX, 1, 1, NW, NV, T>& dsys,
-    const Matrix<NX, 1, T>&                x0,
-    T                                      u,
-    const std::vector<T>&                  time
-) {
-    TimeResponse<T> r;
-    r.t = time;
-    r.y.reserve(time.size());
-    Matrix<NX, 1, T> x = x0;
-    for (size_t k = 0; k < time.size(); ++k) {
-        r.y.push_back((dsys.C * x)(0, 0) + dsys.D(0, 0) * u);
-        x = dsys.A * x + dsys.B * u;
-    }
-    return r;
-}
-
 //! ZOH-discretize a continuous system onto a uniform time grid (pass-through if already discrete).
-template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] StateSpace<NX, 1, 1, NW, NV, T> discretize_on_grid(
-    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
-    const std::vector<T>&                  time
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] StateSpace<NX, NU, NY, NW, NV, T> discretize_on_grid(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const std::vector<T>&                    time
 ) {
     if (sys.is_discrete()) {
         return sys;
@@ -787,75 +792,190 @@ template<size_t NX, size_t NW, size_t NV, typename T>
     return wet::discretize(sys, dt, DiscretizationMethod::ZOH);
 }
 
+//! Iterate a discrete system from x0 with constant input u, collecting y[k]=Cx+Du for n steps.
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] std::vector<ColVec<NY, T>> const_input_response(
+    const StateSpace<NX, NU, NY, NW, NV, T>& dsys,
+    const ColVec<NX, T>&                     x0,
+    const ColVec<NU, T>&                     u,
+    size_t                                   n
+) {
+    std::vector<ColVec<NY, T>> y;
+    y.reserve(n);
+    ColVec<NX, T> x = x0;
+    for (size_t k = 0; k < n; ++k) {
+        y.push_back(ColVec<NY, T>(dsys.C * x + dsys.D * u));
+        x = ColVec<NX, T>(dsys.A * x + dsys.B * u);
+    }
+    return y;
+}
+
+//! Scatter a single-channel response (column j) into a multi-channel TimeResponse.
+template<size_t NY, size_t NU, typename T>
+void set_column(TimeResponse<NY, NU, T>& r, size_t j, const std::vector<ColVec<NY, T>>& yj) {
+    for (size_t k = 0; k < yj.size(); ++k) {
+        for (size_t i = 0; i < NY; ++i) {
+            r.y[k](i, j) = yj[k][i];
+        }
+    }
+}
+
 } // namespace detail
 
 /**
- * @brief Unit step response of a SISO system
+ * @brief Step response of a (MIMO) state-space system
  *
- * Computes y(t) for a unit step input u(t)=1, t≥0, from zero initial state.
- * Continuous systems are ZOH-discretized on the (uniform) time grid; discrete
- * systems are iterated directly. MATLAB equivalent: `step(sys, t)`.
+ * Applies a unit step to each input channel in turn (others held at zero) from
+ * zero initial state and records every output, so `y[k](i, j)` is output i at
+ * step k due to a step on input j. Continuous systems are ZOH-discretized on the
+ * (uniform) time grid; discrete systems are iterated directly. MATLAB
+ * equivalent: `step(sys, t)`.
  *
- * @param sys  SISO state-space system (continuous or discrete)
+ * @param sys  State-space system (continuous or discrete)
  * @param time Uniformly spaced time vector (e.g. analysis::linspace(0, tf, n))
- * @return TimeResponse with time and output history
+ * @return TimeResponse with per-channel output history
  */
-template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] TimeResponse<T> step(
-    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
-    const std::vector<T>&                  time
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<NY, NU, T> step(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const std::vector<T>&                    time
 ) {
-    auto dsys = detail::discretize_on_grid(sys, time);
-    return detail::time_response_impl(dsys, Matrix<NX, 1, T>{}, T{1}, time);
+    const auto              dsys = detail::discretize_on_grid(sys, time);
+    TimeResponse<NY, NU, T> r;
+    r.t = time;
+    r.y.assign(time.size(), Matrix<NY, NU, T>{});
+    for (size_t j = 0; j < NU; ++j) {
+        ColVec<NU, T> uj{};
+        uj[j] = T{1};
+        detail::set_column(r, j, detail::const_input_response(dsys, ColVec<NX, T>{}, uj, time.size()));
+    }
+    return r;
 }
 
 /**
- * @brief Impulse response of a SISO system
+ * @brief Impulse response of a (MIMO) state-space system
  *
- * Computes the response to a unit impulse. Implemented as the free response
- * from initial state x₀ = B, giving y(t) = C·e^{At}·B (the strictly-proper
- * part; the D·δ(t) feedthrough term is not plotted). MATLAB equivalent:
- * `impulse(sys, t)`.
+ * For each input channel j, computes the free response from initial state
+ * x₀ = B(:,j), giving y(t) = C·e^{At}·B(:,j) (the strictly-proper part; the
+ * D·δ(t) feedthrough term is not plotted). MATLAB equivalent: `impulse(sys, t)`.
  *
- * @param sys  SISO state-space system
+ * @param sys  State-space system
  * @param time Uniformly spaced time vector
- * @return TimeResponse with time and output history
+ * @return TimeResponse with per-channel output history
  */
-template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] TimeResponse<T> impulse(
-    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
-    const std::vector<T>&                  time
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] TimeResponse<NY, NU, T> impulse(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const std::vector<T>&                    time
 ) {
-    auto dsys = detail::discretize_on_grid(sys, time);
-    return detail::time_response_impl(dsys, sys.B, T{0}, time);
+    const auto              dsys = detail::discretize_on_grid(sys, time);
+    TimeResponse<NY, NU, T> r;
+    r.t = time;
+    r.y.assign(time.size(), Matrix<NY, NU, T>{});
+    for (size_t j = 0; j < NU; ++j) {
+        ColVec<NX, T> x0j{};
+        for (size_t i = 0; i < NX; ++i) {
+            x0j[i] = sys.B(i, j);
+        }
+        detail::set_column(r, j, detail::const_input_response(dsys, x0j, ColVec<NU, T>{}, time.size()));
+    }
+    return r;
 }
 
 /**
- * @brief Initial-condition (free) response of a SISO system
+ * @brief Initial-condition (free) response of a (MIMO) state-space system
  *
  * Computes y(t) = C·e^{At}·x₀ for the unforced system (u=0). MATLAB
  * equivalent: `initial(sys, x0, t)`.
  *
- * @param sys  SISO state-space system
+ * @param sys  State-space system
  * @param x0   Initial state
  * @param time Uniformly spaced time vector
- * @return TimeResponse with time and output history
+ * @return LsimResult with time, output, and state history
  */
-template<size_t NX, size_t NW, size_t NV, typename T>
-[[nodiscard]] TimeResponse<T> initial(
-    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
-    const Matrix<NX, 1, T>&                x0,
-    const std::vector<T>&                  time
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] LsimResult<NX, NY, T> initial(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const ColVec<NX, T>&                     x0,
+    const std::vector<T>&                    time
 ) {
-    auto dsys = detail::discretize_on_grid(sys, time);
-    return detail::time_response_impl(dsys, x0, T{0}, time);
+    const auto            dsys = detail::discretize_on_grid(sys, time);
+    LsimResult<NX, NY, T> r;
+    r.t = time;
+    r.y.reserve(time.size());
+    r.x.reserve(time.size());
+    ColVec<NX, T> x = x0;
+    for (size_t k = 0; k < time.size(); ++k) {
+        r.x.push_back(x);
+        r.y.push_back(ColVec<NY, T>(dsys.C * x));
+        x = ColVec<NX, T>(dsys.A * x);
+    }
+    return r;
+}
+
+/**
+ * @brief Forced time response of a (MIMO) state-space system to an input signal
+ *
+ * Simulates ẋ = Ax + Bu, y = Cx + Du driven by the supplied input samples,
+ * from initial state x₀. Continuous systems are ZOH-discretized on the (uniform)
+ * time grid — exact at the sample points for piecewise-constant input — and
+ * discrete systems are iterated directly. MATLAB equivalent: `lsim(sys, u, t, x0)`.
+ *
+ * @param sys  State-space system (continuous or discrete)
+ * @param u    Input samples, one ColVec<NU> per time point (length == time.size())
+ * @param time Uniformly spaced time vector
+ * @param x0   Initial state (defaults to zero)
+ * @return LsimResult with time, output, and state history
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] LsimResult<NX, NY, T> lsim(
+    const StateSpace<NX, NU, NY, NW, NV, T>& sys,
+    const std::vector<ColVec<NU, T>>&        u,
+    const std::vector<T>&                    time,
+    const ColVec<NX, T>&                     x0 = {}
+) {
+    const T    dt = (time.size() > 1) ? time[1] - time[0] : T{1};
+    const auto dsys = sys.is_discrete() ? sys : wet::discretize(sys, dt, DiscretizationMethod::ZOH);
+
+    LsimResult<NX, NY, T> r;
+    r.t = time;
+    r.y.reserve(time.size());
+    r.x.reserve(time.size());
+
+    ColVec<NX, T> x = x0;
+    for (size_t k = 0; k < time.size(); ++k) {
+        r.x.push_back(x);
+        r.y.push_back(ColVec<NY, T>(dsys.C * x + dsys.D * u[k]));
+        x = ColVec<NX, T>(dsys.A * x + dsys.B * u[k]);
+    }
+    return r;
+}
+
+/**
+ * @brief Single-input convenience overload of lsim taking a scalar input signal
+ *
+ * MATLAB allows `lsim(sys, u, t)` with a plain vector u for single-input systems.
+ */
+template<size_t NX, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] LsimResult<NX, NY, T> lsim(
+    const StateSpace<NX, 1, NY, NW, NV, T>& sys,
+    const std::vector<T>&                   u,
+    const std::vector<T>&                   time,
+    const ColVec<NX, T>&                    x0 = {}
+) {
+    std::vector<ColVec<1, T>> uv;
+    uv.reserve(u.size());
+    for (const T& ui : u) {
+        uv.push_back(ColVec<1, T>{ui});
+    }
+    return lsim(sys, uv, time, x0);
 }
 
 /**
  * @brief Step response of a SISO transfer function (MATLAB `step(tf, t)`)
  */
 template<size_t Nnum, size_t Nden, typename T>
-[[nodiscard]] TimeResponse<T> step(
+[[nodiscard]] TimeResponse<1, 1, T> step(
     const TransferFunction<Nnum, Nden, T>& tf,
     const std::vector<T>&                  time
 ) {
@@ -866,11 +986,300 @@ template<size_t Nnum, size_t Nden, typename T>
  * @brief Impulse response of a SISO transfer function (MATLAB `impulse(tf, t)`)
  */
 template<size_t Nnum, size_t Nden, typename T>
-[[nodiscard]] TimeResponse<T> impulse(
+[[nodiscard]] TimeResponse<1, 1, T> impulse(
     const TransferFunction<Nnum, Nden, T>& tf,
     const std::vector<T>&                  time
 ) {
     return impulse(tf.to_state_space(), time);
+}
+
+// ============================================================================
+// Response Characteristics
+// ============================================================================
+
+/**
+ * @brief Step-response characteristics of a single output signal
+ *
+ * Sample-resolution metrics (no sub-sample interpolation) measured against the
+ * initial value y(0) and the supplied steady-state value. MATLAB equivalent:
+ * `stepinfo`.
+ */
+template<typename T = double>
+struct StepInfo {
+    T rise_time{};     //!< Time to go from 10% to 90% of the total change
+    T settling_time{}; //!< Last time the response stays within the settling band of yfinal
+    T settling_min{};  //!< Minimum value once the response first enters the settling band
+    T settling_max{};  //!< Maximum value once the response first enters the settling band
+    T overshoot{};     //!< Percent overshoot beyond yfinal (0 if none)
+    T undershoot{};    //!< Percent undershoot below the initial value (0 if none)
+    T peak{};          //!< Peak absolute value of the response
+    T peak_time{};     //!< Time of the peak absolute value
+};
+
+/**
+ * @brief Compute step-response characteristics from an output/time signal
+ *
+ * @param y           Output samples
+ * @param t           Matching time samples (same length as y)
+ * @param yfinal      Steady-state value the response settles to
+ * @param settle_frac Settling band as a fraction of |yfinal - y0| (default 0.02 → ±2%)
+ */
+template<typename T = double>
+[[nodiscard]] StepInfo<T> stepinfo(
+    const std::vector<T>& y,
+    const std::vector<T>& t,
+    T                     yfinal,
+    T                     settle_frac = T(0.02)
+) {
+    StepInfo<T> info;
+    if (y.empty()) {
+        return info;
+    }
+    const T y0 = y.front();
+    const T span = yfinal - y0;
+    const T aspan = wet::abs(span);
+
+    // Rise time: first crossing of 10% then 90% of the total change.
+    const T lo = y0 + T(0.1) * span;
+    const T hi = y0 + T(0.9) * span;
+    T       t_lo = t.front();
+    T       t_hi = t.front();
+    bool    got_lo = false;
+    bool    got_hi = false;
+    for (size_t k = 0; k < y.size(); ++k) {
+        const T reach_lo = (span >= T(0)) ? (y[k] >= lo) : (y[k] <= lo);
+        const T reach_hi = (span >= T(0)) ? (y[k] >= hi) : (y[k] <= hi);
+        if (!got_lo && reach_lo) {
+            t_lo = t[k];
+            got_lo = true;
+        }
+        if (!got_hi && reach_hi) {
+            t_hi = t[k];
+            got_hi = true;
+            break;
+        }
+    }
+    info.rise_time = t_hi - t_lo;
+
+    // Settling time: last instant the response is outside the ±settle_frac band.
+    const T band = settle_frac * aspan;
+    info.settling_time = t.front();
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (wet::abs(y[k] - yfinal) > band) {
+            info.settling_time = (k + 1 < t.size()) ? t[k + 1] : t[k];
+        }
+    }
+    // settling_min/max: extremes after first entering the band.
+    info.settling_min = yfinal;
+    info.settling_max = yfinal;
+    bool entered = false;
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (!entered && wet::abs(y[k] - yfinal) <= band) {
+            entered = true;
+            info.settling_min = y[k];
+            info.settling_max = y[k];
+        }
+        if (entered) {
+            info.settling_min = wet::min(info.settling_min, y[k]);
+            info.settling_max = wet::max(info.settling_max, y[k]);
+        }
+    }
+
+    // Peak (absolute), overshoot, undershoot.
+    info.peak = wet::abs(y.front());
+    info.peak_time = t.front();
+    T ymax = y.front();
+    T ymin = y.front();
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (wet::abs(y[k]) > info.peak) {
+            info.peak = wet::abs(y[k]);
+            info.peak_time = t[k];
+        }
+        ymax = wet::max(ymax, y[k]);
+        ymin = wet::min(ymin, y[k]);
+    }
+    if (aspan > T(0)) {
+        const T over = (span >= T(0)) ? (ymax - yfinal) : (yfinal - ymin);
+        const T under = (span >= T(0)) ? (y0 - ymin) : (ymax - y0);
+        info.overshoot = wet::max(T(0), over / aspan * T(100));
+        info.undershoot = wet::max(T(0), under / aspan * T(100));
+    }
+    return info;
+}
+
+/**
+ * @brief Step-response characteristics of a SISO system (MATLAB `stepinfo(sys)`)
+ *
+ * Runs `step(sys, time)` and summarizes the single output. The steady-state
+ * value is taken as the last sample. For MIMO systems, extract the desired
+ * `y[k](i, j)` channel and call the signal overload.
+ */
+template<size_t NX, size_t NW, size_t NV, typename T>
+[[nodiscard]] StepInfo<T> stepinfo(
+    const StateSpace<NX, 1, 1, NW, NV, T>& sys,
+    const std::vector<T>&                  time
+) {
+    const auto     resp = step(sys, time);
+    std::vector<T> y;
+    y.reserve(resp.y.size());
+    for (const auto& yk : resp.y) {
+        y.push_back(yk(0, 0));
+    }
+    return stepinfo(y, resp.t, y.empty() ? T(0) : y.back());
+}
+
+/**
+ * @brief Transient characteristics of an arbitrary response signal
+ *
+ * Like `stepinfo` but makes no step assumption: reports settling relative to a
+ * given final value plus the signal's extremes. MATLAB equivalent: `lsiminfo`.
+ */
+template<typename T = double>
+struct LsimInfo {
+    T settling_time{}; //!< Last time the response leaves the settling band of yfinal
+    T settling_min{};  //!< Minimum after first entering the band
+    T settling_max{};  //!< Maximum after first entering the band
+    T min{};           //!< Global minimum of the signal
+    T max{};           //!< Global maximum of the signal
+    T min_time{};      //!< Time of the global minimum
+    T max_time{};      //!< Time of the global maximum
+};
+
+/**
+ * @brief Compute transient characteristics from an output/time signal
+ *
+ * @param y           Output samples
+ * @param t           Matching time samples
+ * @param yfinal      Reference value for the settling band
+ * @param settle_frac Settling band as a fraction of |yfinal| (default 0.02)
+ */
+template<typename T = double>
+[[nodiscard]] LsimInfo<T> lsiminfo(
+    const std::vector<T>& y,
+    const std::vector<T>& t,
+    T                     yfinal,
+    T                     settle_frac = T(0.02)
+) {
+    LsimInfo<T> info;
+    if (y.empty()) {
+        return info;
+    }
+    const T band = settle_frac * wet::abs(yfinal);
+
+    info.min = y.front();
+    info.max = y.front();
+    info.min_time = t.front();
+    info.max_time = t.front();
+    info.settling_time = t.front();
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (y[k] < info.min) {
+            info.min = y[k];
+            info.min_time = t[k];
+        }
+        if (y[k] > info.max) {
+            info.max = y[k];
+            info.max_time = t[k];
+        }
+        if (wet::abs(y[k] - yfinal) > band) {
+            info.settling_time = (k + 1 < t.size()) ? t[k + 1] : t[k];
+        }
+    }
+
+    info.settling_min = yfinal;
+    info.settling_max = yfinal;
+    bool entered = false;
+    for (size_t k = 0; k < y.size(); ++k) {
+        if (!entered && wet::abs(y[k] - yfinal) <= band) {
+            entered = true;
+            info.settling_min = y[k];
+            info.settling_max = y[k];
+        }
+        if (entered) {
+            info.settling_min = wet::min(info.settling_min, y[k]);
+            info.settling_max = wet::max(info.settling_max, y[k]);
+        }
+    }
+    return info;
+}
+
+// ============================================================================
+// Pole-Zero Maps
+// ============================================================================
+
+/**
+ * @brief Poles and zeros of a system, for pole-zero plotting
+ *
+ * Stored as runtime vectors of complex values (a pole-zero map feeds a scatter
+ * plot, and the zero count is data-dependent). MATLAB equivalent: the data
+ * returned by `pzmap`.
+ */
+template<typename T = double>
+struct PoleZeroMap {
+    std::vector<wet::complex<T>> poles; //!< Pole locations
+    std::vector<wet::complex<T>> zeros; //!< Zero locations
+};
+
+/**
+ * @brief Roots of a polynomial given in ascending powers (MATLAB `roots`, reversed order)
+ *
+ * For coefficients c[0] + c[1]·x + … + c[N-1]·x^{N-1}, returns the N-1 roots as
+ * the eigenvalues of the companion matrix. The highest-order coefficient
+ * c[N-1] must be nonzero (no trailing-zero padding).
+ */
+template<size_t N, typename T>
+[[nodiscard]] std::vector<wet::complex<T>> poly_roots(const wet::array<T, N>& c) {
+    std::vector<wet::complex<T>> out;
+    if constexpr (N >= 2) {
+        constexpr size_t M = N - 1;
+        Matrix<M, M, T>  companion{};
+        for (size_t i = 0; i + 1 < M; ++i) {
+            companion(i, i + 1) = T{1};
+        }
+        for (size_t j = 0; j < M; ++j) {
+            companion(M - 1, j) = -c[j] / c[N - 1];
+        }
+        const auto eig = mat::compute_eigenvalues(companion);
+        out.reserve(M);
+        for (size_t i = 0; i < M; ++i) {
+            out.push_back(eig.values[i]);
+        }
+    }
+    return out;
+}
+
+/**
+ * @brief Pole-zero map of a SISO transfer function (MATLAB `pzmap(tf)`)
+ *
+ * Poles are the roots of the denominator, zeros the roots of the numerator.
+ */
+template<size_t Nnum, size_t Nden, typename T>
+[[nodiscard]] PoleZeroMap<T> pzmap(const TransferFunction<Nnum, Nden, T>& tf) {
+    return {poly_roots(tf.den), poly_roots(tf.num)};
+}
+
+/**
+ * @brief Pole map of a state matrix (MATLAB `pzmap(sys)`, poles only)
+ *
+ * Returns the eigenvalues of A as poles. Transmission zeros are not computed
+ * (they require a generalized/QZ eigensolver, not yet available).
+ */
+template<size_t NX, typename T>
+[[nodiscard]] PoleZeroMap<T> pzmap(const Matrix<NX, NX, T>& A) {
+    PoleZeroMap<T> r;
+    const auto     eig = mat::compute_eigenvalues(A);
+    r.poles.reserve(NX);
+    for (size_t i = 0; i < NX; ++i) {
+        r.poles.push_back(eig.values[i]);
+    }
+    return r;
+}
+
+/**
+ * @brief Pole map of a state-space system (MATLAB `pzmap(sys)`, poles only)
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T>
+[[nodiscard]] PoleZeroMap<T> pzmap(const StateSpace<NX, NU, NY, NW, NV, T>& sys) {
+    return pzmap(sys.A);
 }
 
 // ============================================================================

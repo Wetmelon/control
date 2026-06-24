@@ -573,8 +573,12 @@ using analysis::impulse;
 using analysis::initial;
 using analysis::linspace;
 using analysis::logspace;
+using analysis::lsim;
+using analysis::lsiminfo;
 using analysis::nyquist;
+using analysis::pzmap;
 using analysis::step;
+using analysis::stepinfo;
 
 /**
  * @brief MATLAB short alias for the open-loop poles of a system.

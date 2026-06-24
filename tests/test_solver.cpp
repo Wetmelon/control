@@ -1,17 +1,19 @@
 #include <cstdlib>
 #include <filesystem>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "plotlypp/figure.hpp"
 #include "plotlypp/layout/layout.hpp"
 #include "plotlypp/traces/scatter.hpp"
+#include "wet/analysis/analysis.hpp"
 #include "wet/backend.hpp"
-#include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/simulation/integrator.hpp"
 #include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/solver.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"
@@ -220,4 +222,35 @@ TEST_CASE("FixedStepSolver - Van der Pol oscillator") {
                    .addTrace(Scatter().x(x0_hist).y(x1_hist).mode({Scatter::Mode::Lines}).name("Trajectory").xaxis("x2").yaxis("y2"))
                    .setLayout(Layout().title([](auto& t) { t.text("Van der Pol Oscillator (mu=1)"); }).grid(Layout::Grid().rows(2).columns(1).pattern(Layout::Grid::Pattern::Independent).roworder(Layout::Grid::Roworder::TopToBottom)).xaxis(Layout::Xaxis().title([](auto& t) { t.text("Time (s)"); })).yaxis(Layout::Yaxis().title([](auto& t) { t.text("State"); })).xaxis(2, Layout::Xaxis().title([](auto& t) { t.text("x"); })).yaxis(2, Layout::Yaxis().title([](auto& t) { t.text("x'"); })));
     fig.writeHtml("tests/build/vanderpol.html");
+}
+
+TEST_CASE("MATLAB-style plot wrappers instantiate and render") {
+    // Smoke test: each wrapper must compile against the analysis result types
+    // and emit HTML carrying its title. 1/(s^2+s+1) exercises poles + a Bode/Nyquist sweep.
+    TransferFunction<1, 3, double> tf{{1.0}, {1.0, 1.0, 1.0}};
+    const auto                     ss = tf.to_state_space();
+    const auto                     t = analysis::linspace(0.0, 5.0, 51);
+    const std::vector<double>      u(t.size(), 1.0);
+    const auto                     omega = analysis::logspace(0.1, 100.0, 50);
+
+    const auto s = analysis::step(ss, t);
+    const auto im = analysis::impulse(ss, t);
+    const auto ls = analysis::lsim(ss, u, t);
+    const auto bd = analysis::bode(ss, omega);
+    const auto nq = analysis::nyquist(ss, omega);
+    const auto pz = analysis::pzmap(tf);
+
+    auto carries = [](const plotlypp::Figure& f, const std::string& needle) {
+        std::ostringstream os;
+        f.toHtml(os);
+        return os.str().find(needle) != std::string::npos;
+    };
+
+    CHECK(carries(plot::stepplot(s), "Step Response"));
+    CHECK(carries(plot::impulseplot(im), "Impulse Response"));
+    CHECK(carries(plot::lsimplot(ls), "Linear Simulation"));
+    CHECK(carries(plot::bodeplot(bd), "Bode Plot"));
+    CHECK(carries(plot::bodemag(bd), "Bode Magnitude"));
+    CHECK(carries(plot::nyquistplot(nq), "Nyquist Plot"));
+    CHECK(carries(plot::pzplot(pz), "Pole-Zero Map"));
 }
