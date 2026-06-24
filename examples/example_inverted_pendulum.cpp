@@ -11,7 +11,7 @@
  *   3. Controllability                      → full rank, so LQR can shape it freely
  *   4. LQR design  K = lqr(A,B,Q,R)         → via the continuous ARE (care)
  *   5. Reference scaling  Nbar              → so the cart tracks a position command
- *   6. Step response (full-state feedback)  → RK4 of the closed loop to a 0.2 m step
+ *   6. Step response (full-state feedback)  → lsim of the closed loop to a 0.2 m step
  *   7. Observer design  L = place(A',C',p)' → estimate the state from x and φ only
  *   8. Step response (observer in the loop) → u = Nbar·r − K·x̂
  *
@@ -36,21 +36,12 @@
 #include "wet/math/math.hpp"
 #include "wet/matlab.hpp"
 #include "wet/matrix/functions.hpp"
+#include "wet/simulation/integrator.hpp"
 #include "wet/systems/state_space.hpp"
 
 using namespace wet;
 
 namespace {
-
-// Classic RK4 step for an N-state autonomous closed loop ẋ = f(x).
-template<size_t N, typename F>
-ColVec<N> rk4_step(const ColVec<N>& x, F&& f, double dt) {
-    const ColVec<N> k1 = f(x);
-    const ColVec<N> k2 = f(ColVec<N>(x + (k1 * (dt / 2.0))));
-    const ColVec<N> k3 = f(ColVec<N>(x + (k2 * (dt / 2.0))));
-    const ColVec<N> k4 = f(ColVec<N>(x + (k3 * dt)));
-    return ColVec<N>(x + ((k1 + (k2 * 2.0) + (k3 * 2.0) + k4) * (dt / 6.0)));
-}
 
 constexpr double kR2D = 180.0 / std::numbers::pi_v<double>;
 
@@ -150,33 +141,31 @@ int main() {
     const double Nbar = -1.0 / dc(0, 0);
     fmt::print("Reference precompensator  Nbar = {:.4f}\n\n", Nbar);
 
-    // ===== 6. Step response, full-state feedback (RK4) =====================
+    // ===== 6. Step response, full-state feedback (lsim) ====================
     constexpr double r = 0.2;    // commanded cart position [m]
-    constexpr double dt = 0.005; // integration step        [s]
+    constexpr double dt = 0.005; // sample step              [s]
     constexpr double Tend = 5.0; // horizon                  [s]
     const int        steps = static_cast<int>(Tend / dt);
 
-    // ẋ = (A−BK) x + B·Nbar·r.
-    const auto sf_deriv = [&](const ColVec<4>& x) -> ColVec<4> {
-        return ColVec<4>((Acl * x) + (B * (Nbar * r)));
-    };
+    // Closed loop driven by the reference: ẋ = (A−BK)x + (B·Nbar)·r, y = C x.
+    // MATLAB: [y,t,x] = lsim(sys_cl, r*ones(size(t)), t).
+    const auto                sys_cl = StateSpace{Acl, ColVec<4>(B * Nbar), C};
+    const std::vector<double> ts = analysis::linspace(0.0, Tend, steps + 1);
+    const std::vector<double> rsig(ts.size(), r);
+    const auto                sf = matlab::lsim(sys_cl, rsig, ts);
 
-    std::vector<double> ts, sf_cart, sf_angle;
-    ColVec<4>           x{0.0, 0.0, 0.0, 0.0}; // start upright, cart at origin
+    std::vector<double> sf_cart, sf_angle;
     fmt::print("Step response to r = {:.2f} m (full-state feedback):\n", r);
     fmt::print("    t[s]   cart x[m]   pole φ[deg]\n");
-    for (int k = 0; k <= steps; ++k) {
-        const double t = k * dt;
-        ts.push_back(t);
-        sf_cart.push_back(x[0]);
-        sf_angle.push_back(x[2] * kR2D);
+    for (size_t k = 0; k < ts.size(); ++k) {
+        sf_cart.push_back(sf.y[k][0]);         // output 0: cart position
+        sf_angle.push_back(sf.y[k][1] * kR2D); // output 1: pole angle
         if (k % 50 == 0) {
-            fmt::print("   {:5.2f}  {:9.4f}   {:9.3f}\n", t, x[0], x[2] * kR2D);
+            fmt::print("   {:5.2f}  {:9.4f}   {:9.3f}\n", ts[k], sf.y[k][0], sf.y[k][1] * kR2D);
         }
-        x = rk4_step<4>(x, sf_deriv, dt);
     }
-    assert(wet::abs(x[0] - r) < 0.01); // cart within 1 cm of the command
-    assert(wet::abs(x[2]) < 1e-3);     // pole back upright
+    assert(wet::abs(sf.y.back()[0] - r) < 0.01); // cart within 1 cm of the command
+    assert(wet::abs(sf.y.back()[1]) < 1e-3);     // pole back upright
     fmt::print("  → cart settled at the command with the pole upright. ✓\n\n");
 
     // ===== 7. Observer design (continuous Luenberger) =====================
@@ -205,7 +194,7 @@ int main() {
     //   ẋ   = A x + B u
     //   x̂̇  = A x̂ + B u + L (y − C x̂),   y = C x
     // Seed the estimate with an angle error so the observer's convergence shows.
-    const auto obs_deriv = [&](const ColVec<8>& z) -> ColVec<8> {
+    const auto obs_deriv = [&](double, const ColVec<8>& z) -> ColVec<8> {
         ColVec<4> xp{}, xh{};
         for (size_t i = 0; i < 4; ++i) {
             xp[i] = z[i];
@@ -223,6 +212,8 @@ int main() {
         return dz;
     };
 
+    // RK4 Integrator for the observer sim
+    sim::RK4<8>         rk4_obs;
     std::vector<double> ob_cart, ob_angle, ob_cart_hat, ob_angle_hat;
     ColVec<8>           z{};
     z[6] = 0.05; // x̂ initial angle estimate = 0.05 rad while the true angle is 0
@@ -231,7 +222,7 @@ int main() {
         ob_angle.push_back(z[2] * kR2D);
         ob_cart_hat.push_back(z[4]);
         ob_angle_hat.push_back(z[6] * kR2D);
-        z = rk4_step<8>(z, obs_deriv, dt);
+        z = rk4_obs.evolve(obs_deriv, z, k * dt, dt).x;
     }
     const double err_x = wet::abs(z[0] - z[4]);
     const double err_phi = wet::abs(z[2] - z[6]);
