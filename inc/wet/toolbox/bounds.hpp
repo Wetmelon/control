@@ -39,7 +39,7 @@ struct Bounds {
     wet::array<T, N> lower; //!< lower[i] ≤ x[i]
     wet::array<T, N> upper; //!< x[i] ≤ upper[i]
 
-    /// Default is *unbounded* — the widest finite interval. Uses lowest()/max()
+    /// Default is *unbounded* — the widest finite interval. Uses min()/max()
     /// rather than ±inf because the library builds under -ffinite-math-only
     /// (-ffast-math), where producing ±inf is UB (see math/constexpr_math.hpp).
     /// A zero-initialised box would silently clamp every channel to 0.

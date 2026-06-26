@@ -63,6 +63,35 @@ Design functions are `constexpr` — they work at both compile time and runtime.
 
 All types must support: `float`, `double`, `wet::complex<float>`, `wet::complex<double>`.
 
+### LTI module shape (canonical pattern — read before adding a system/controller/estimator)
+
+Every linear time-invariant module in the library has the *same shape*. Learn it once here
+instead of re-reading the systems headers each time:
+
+- **`StateSpace<NX, NU, NY, NW=0, NV=0, T=double>`** (`systems/state_space.hpp`) — members
+  `A`(NX×NX), `B`(NX×NU), `C`(NY×NX), `D`(NY×NU), noise `G`/`H`, and `Ts`. `Ts == 0` is
+  continuous, `Ts > 0` is discrete: `is_continuous()` / `is_discrete()`. Runtime step is plain
+  algebra — `x = A*x + B*u; y = C*x + D*u` — no per-module integrator.
+- **`TransferFunction<Nnum, Nden, T>`** (`systems/transfer_function.hpp`) — `num`/`den` arrays in
+  **ascending** powers of s (`den[0]` = constant term, `den[Nden-1]` = highest). `.to_state_space()`
+  realizes it (companion form).
+- **The design→discretize→run pipeline.** A `constexpr design::` function emits a **continuous**
+  `StateSpace`; `discretize(sys, Ts, DiscretizationMethod::ZOH)` (`systems/discretization.hpp`)
+  returns the **discrete** one. `ZOH` is exact (matrix exponential), `ForwardEuler` is the cheap
+  approximation, `Tustin` the bilinear map. Prefer ZOH; never hand-roll a forward-Euler step in a
+  module when you can discretize and step the LTI model (it's exact and unconditionally stable).
+  All of this is `constexpr`, so a discretized model can be `constinit`.
+- **Interconnections** are operators on `StateSpace`: `*` series, `+` parallel, `-` differencing,
+  `/` feedback. They preserve the noise matrices `G`/`H` through composition.
+- **Three-tier output.** Design functions return a `…Result` struct (`.as<U>()` + `bool success`);
+  a runtime class consumes it. (See *The Three-Tier Pattern* below.)
+
+So when a module is fundamentally an LTI system (a filter, a thermal network, a plant model),
+express it as `design::*_ss(...) → StateSpace`, discretize with the shared tool, and step the
+matrices — don't invent a bespoke state-update. Example: `power/thermal.hpp` emits a thermal
+`StateSpace` via `design::cauer_thermal_ss` / `foster_thermal_ss` and runs the ZOH-discretized
+model.
+
 ### Folder layout and umbrellas
 
 All headers live under `inc/wet/` in domain folders, so consumers need a single `-I inc` and write namespaced includes:
