@@ -324,6 +324,7 @@ Rules:
 - **Link related functions** with `@see`. Always link the underlying solver, the convenience overload, and any design-to-controller path.
 - **Document matrix requirements** in `@param` — say "positive semidefinite", "positive definite", "must be square", "must be invertible" when applicable. This is the single most common mistake students make.
 - **Don't restate the signature.** `@param A State transition matrix` is useful; `@param A The A matrix` is noise.
+- **Don't editorialize, don't emphasize.** Comments state what the code does and the facts a reader needs — not how clever, robust, or important it is. Cut value judgments ("far more robust", "the right default", "the point of X", "production-grade", "elegant"), self-congratulation, and persuasion. State a tradeoff as a fact ("uses no derivative of the measured current"), not as a sales pitch ("avoids the noisy derivative for far better accuracy"). Avoid inline `**bold**`/`*italic*` emphasis in comments; if a fact matters, state it plainly — emphasis markup is editorializing by another name. Reserve em-dash asides for a short factual gloss, not commentary.
 
 **Result struct documentation:**
 
