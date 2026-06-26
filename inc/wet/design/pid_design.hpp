@@ -28,6 +28,7 @@
 
 #include "wet/controllers/pid.hpp"
 #include "wet/math/math.hpp"
+#include "wet/systems/transfer_function.hpp"
 
 namespace wet {
 
@@ -602,6 +603,91 @@ pid_pole_placement(T K, T tau, T p1, T p2, T p3, T Ts) {
     T Ki = ((-prod_p / b) + Kp - (Kd / Ts)) / Ts;
 
     return PIDResult<T>{Kp, Ki, Kd};
+}
+
+// ============================================================================
+// Continuous PI Pole Placement (first-order plant)
+// ============================================================================
+
+/**
+ * @brief PI gains that place the closed-loop poles of a first-order plant
+ *
+ * The SISO pole-placement special case in which the controller structure is
+ * fixed to a PI. A PI has two free gains, so it can place exactly two closed-loop
+ * poles — which is well-posed precisely when the plant is first-order
+ * @f$ G(s) = 1/(a_1 s + a_0) @f$ (the closed loop is then 2nd order). Matching
+ * @f$ s^2 + \frac{a_0+K_p}{a_1}s + \frac{K_i}{a_1} @f$ to
+ * @f$ s^2 + 2\zeta\omega_n s + \omega_n^2 @f$ gives the closed form
+ * @f[
+ *   K_p = 2\zeta\omega_n a_1 - a_0, \qquad K_i = a_1\,\omega_n^2 ,
+ * @f]
+ * so @p omega_bw is the closed-loop bandwidth and @f$ \zeta = 1 @f$ (default)
+ * places a critically damped double pole at @f$ -\omega_n @f$. This is the kernel
+ * every loop in a motion cascade shares — only the plant changes:
+ * @f$ (a_1,a_0)=(L,R) @f$ for a dq current axis (see @ref current_loop_pi),
+ * @f$ (J,b_{visc}) @f$ for a velocity loop on the inertia plant.
+ *
+ * Equivalent to running Ackermann (@ref place) on the *(plant + integrator)*
+ * augmented single-input system, but the first-order case is analytic. The
+ * back-calculation gain is seeded to @f$ K_p @f$ (tracking time constant
+ * @f$ T_t = K_p/K_i @f$); the setpoint weight @p b leaves the poles fixed and
+ * only moves the reference→output zero (@p b = 1 PI on error, @p b = 0 I-P).
+ *
+ * @note @p omega_bw is bounded by the eventual sample rate — keep it roughly an
+ *       order of magnitude below the control frequency for the continuous
+ *       placement to hold.
+ *
+ * @see place — general MIMO pole placement (full-state feedback A−BK).
+ * @see Åström & Hägglund, "Advanced PID Control", 2006, §4.4 — setpoint weighting.
+ *
+ * @param a1       Plant denominator first-order coefficient (e.g. L, or J)
+ * @param a0       Plant denominator zeroth-order coefficient (e.g. R, or viscous b)
+ * @param omega_bw [rad/s]  Desired closed-loop pole frequency (bandwidth)
+ * @param zeta     [-]      Closed-loop damping ratio (default 1, critically damped)
+ * @param b        [-]      Proportional setpoint weight: 1 = PI, 0 = I-P
+ * @return PIDResult with Kp, Ki, Kbc (= Kp) and the setpoint weight b set
+ */
+template<typename T = double>
+[[nodiscard]] constexpr PIDResult<T>
+pi_pole_placement_first_order(T a1, T a0, T omega_bw, T zeta = T{1}, T b = T{1}) {
+    PIDResult<T> result{};
+    result.Kp = (T{2} * zeta * omega_bw * a1) - a0;
+    result.Ki = a1 * omega_bw * omega_bw;
+    result.Kbc = result.Kp; // T_t = T_i: standard PI anti-windup tracking constant
+    result.b = b;           // 1 = PI (P on error), 0 = I-P (P on measurement)
+    return result;
+}
+
+/**
+ * @brief PI pole placement from a first-order plant transfer function
+ *
+ * Convenience overload for callers working in the systems layer: takes the plant
+ * @f$ G(s) = b_0/(a_1 s + a_0) @f$ as a first-order @ref TransferFunction
+ * (`num = {b₀}`, `den = {a₀, a₁}` in ascending powers) and reduces it to the monic
+ * form by dividing through by the numerator gain @f$ b_0 @f$, then delegates to the
+ * scalar @ref pi_pole_placement_first_order. The static `<1, 2>` shape constrains
+ * the plant to first order with no zero — the only case a PI can pole-place.
+ *
+ * @note A zero numerator gain @f$ b_0 = 0 @f$ is a degenerate plant (no input
+ *       authority — a default-constructed @ref TransferFunction is one), so this
+ *       returns an inert all-zero PI rather than dividing through by zero. Unlike
+ *       the rest of this header's unchecked formulas, the guard is here because
+ *       @f$ b_0 @f$ is a caller-supplied plant property that is easy to leave unset.
+ *
+ * @param plant    First-order plant @f$ b_0/(a_1 s + a_0) @f$
+ * @param omega_bw [rad/s]  Desired closed-loop bandwidth
+ * @param zeta     [-]      Closed-loop damping ratio (default 1)
+ * @param b        [-]      Proportional setpoint weight (default 1 = PI)
+ * @return PIDResult with the placed PI gains, or all-zero gains if @f$ b_0 = 0 @f$
+ */
+template<typename T = double>
+[[nodiscard]] constexpr PIDResult<T>
+pi_pole_placement_first_order(const TransferFunction<1, 2, T>& plant, T omega_bw, T zeta = T{1}, T b = T{1}) {
+    const T b0 = plant.num[0];
+    if (b0 == T{0}) {
+        return PIDResult<T>{}; // degenerate plant (no input gain) -> inert PI
+    }
+    return pi_pole_placement_first_order(plant.den[1] / b0, plant.den[0] / b0, omega_bw, zeta, b);
 }
 
 } // namespace design

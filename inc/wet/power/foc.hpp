@@ -4,6 +4,7 @@
 
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
+#include "wet/design/pid_design.hpp" // design::pi_pole_placement_first_order
 #include "wet/matrix/colvec.hpp"
 #include "wet/power/modulation.hpp"
 #include "wet/power/transforms.hpp"
@@ -26,36 +27,18 @@ namespace design {
  * @brief Current-loop PI gains by closed-loop pole placement on the R–L plant
  * @ingroup foc_design
  *
- * One dq current axis is the series R–L plant @f$ G(s) = 1/(Ls+R) @f$ regulated
- * by a PI @f$ K_p + K_i/s @f$. Matching the closed-loop characteristic polynomial
- * @f$ s^2 + \frac{R+K_p}{L}s + \frac{K_i}{L} @f$ to the canonical form
- * @f$ s^2 + 2\zeta\omega_n s + \omega_n^2 @f$ gives
- * @f[
- *   K_p = 2\zeta\omega_n L - R, \qquad K_i = L\,\omega_n^2 .
- * @f]
- * @f$ \zeta = 1 @f$ (default) places a critically damped double pole at
- * @f$ -\omega_n @f$, so @p omega_bw is the closed-loop current-loop bandwidth.
+ * One dq current axis is the series R–L plant @f$ G(s) = 1/(Ls+R) @f$; this is the
+ * SISO PI pole-placement kernel @ref design::pi_pole_placement_first_order with
+ * @f$ (a_1,a_0)=(L,R) @f$, so @p omega_bw is the closed-loop current-loop
+ * bandwidth and @f$ \zeta = 1 @f$ places a critically damped double pole at
+ * @f$ -\omega_{bw} @f$. I-P feedback (@p b = 0) is the natural pairing on a current
+ * loop whose @f$ i_q @f$ reference steps hard, since the PI proportional kick is
+ * the usual trigger of the SVPWM voltage-circle limit and FOController's
+ * feedforward already supplies the transient.
  *
- * The back-calculation gain is seeded to @f$ K_p @f$ (tracking time constant
- * @f$ T_t = K_p/K_i @f$), the standard anti-windup choice for a PI.
- *
- * The proportional setpoint weight @p b selects the reference structure *without*
- * moving the closed-loop poles — it only repositions the reference→output zero at
- * @f$ -K_i/K_p @f$. @p b = 1 is a standard PI (P acts on the error); @p b = 0 is
- * an **I-P** loop (P acts on the measurement only). I-P removes the PI's
- * proportional step-kick and the reference overshoot from that zero, while leaving
- * disturbance rejection unchanged — useful on a current loop whose @f$ i_q @f$
- * reference steps hard, since the kick is the usual trigger of the SVPWM
- * voltage-circle limit. With FOController's feedforward supplying the transient,
- * I-P feedback is the natural pairing.
- *
- * @note @p omega_bw is bounded by the sampling rate — keep it roughly an order of
- *       magnitude below the PWM/control frequency (@f$ \omega_n \lesssim 2\pi
- *       f_{sw}/10 @f$) for the continuous-time pole placement to hold.
- *
+ * @see design::pi_pole_placement_first_order — the generic placement this delegates to.
  * @see Harnefors & Nee, "Model-based current control of AC machines using the
  *      internal model control method", IEEE T-IA 34(1), 1998.
- * @see Åström & Hägglund, "Advanced PID Control", 2006, §4.4 — setpoint weighting.
  *
  * @param L        [H]      Axis inductance (L_d or L_q)
  * @param R        [ohm]    Phase resistance
@@ -67,12 +50,7 @@ namespace design {
 template<typename T = double>
 [[nodiscard]] constexpr PIDResult<T>
 current_loop_pi(T L, T R, T omega_bw, T zeta = T{1}, T b = T{1}) {
-    PIDResult<T> result{};
-    result.Kp = (T{2} * zeta * omega_bw * L) - R;
-    result.Ki = L * omega_bw * omega_bw;
-    result.Kbc = result.Kp; // T_t = T_i: standard PI anti-windup tracking constant
-    result.b = b;           // 1 = PI (P on error), 0 = I-P (P on measurement)
-    return result;
+    return pi_pole_placement_first_order(L, R, omega_bw, zeta, b);
 }
 
 /**

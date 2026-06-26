@@ -3,9 +3,8 @@
 #include <limits>
 #include <numbers>
 
-#include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
-#include "wet/math/math.hpp"
+#include "wet/design/pid_design.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/power/foc.hpp"
 #include "wet/power/transforms.hpp"
@@ -56,6 +55,16 @@ TEST_SUITE("FOC Controller") {
 
         // q-axis has larger inductance -> larger gains
         CHECK(foc.qctrl.Kp > foc.dctrl.Kp);
+    }
+
+    TEST_CASE("current_loop_pi delegates to pi_pole_placement_first_order") {
+        // current_loop_pi(L,R,...) is exactly the SISO PI pole-placement kernel
+        // with (a1,a0)=(L,R) — verify the delegation rather than a re-derivation.
+        constexpr float L = 200e-6f, R = 0.5f, omega = 6000.0f, zeta = 1.0f, b = 0.0f;
+        constexpr auto  via_current = wet::design::current_loop_pi(L, R, omega, zeta, b);
+        constexpr auto  via_kernel = wet::design::pi_pole_placement_first_order(L, R, omega, zeta, b);
+        static_assert(via_current.Kp == via_kernel.Kp && via_current.Ki == via_kernel.Ki && via_current.b == via_kernel.b);
+        CHECK(via_current.Kp == doctest::Approx(via_kernel.Kp));
     }
 
     TEST_CASE("Voltage-circle limit and anti-windup") {

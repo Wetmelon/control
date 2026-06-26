@@ -1,5 +1,6 @@
 #include <cmath>
 #include <limits>
+#include <numbers>
 
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
@@ -328,5 +329,68 @@ TEST_SUITE("PID Design - Performance Spec Glue") {
         CHECK(result.Kp > 0.0);
         CHECK(result.Ki > 0.0);
         CHECK(result.Kd == doctest::Approx(0.0));
+    }
+}
+
+TEST_SUITE("PID Design - PI Pole Placement (first-order plant)") {
+
+    // Plant 1/(a1 s + a0) under PI closes to a1 s² + (a0+Kp) s + Ki, i.e.
+    //   s² + 2ζω s + ω²  with  ω = √(Ki/a1),  ζ = (a0+Kp)/(2 a1 ω).
+    TEST_CASE("places the closed-loop pole pair at omega_bw") {
+        constexpr double a1 = 1.2e-3; // e.g. inductance L or inertia J
+        constexpr double a0 = 4.0e-4; // e.g. resistance R or viscous b
+        const double     omega = 2.0 * std::numbers::pi * 200.0;
+
+        const auto g = design::pi_pole_placement_first_order(a1, a0, omega);
+
+        CHECK(g.Kp == doctest::Approx((2.0 * omega * a1) - a0));
+        CHECK(g.Ki == doctest::Approx(a1 * omega * omega));
+        CHECK(g.Kbc == doctest::Approx(g.Kp)); // anti-windup tracking = Kp
+
+        const double omega_n = std::sqrt(g.Ki / a1);
+        const double zeta = (a0 + g.Kp) / (2.0 * a1 * omega_n);
+        CHECK(omega_n == doctest::Approx(omega)); // bandwidth as requested
+        CHECK(zeta == doctest::Approx(1.0));      // critically damped (default)
+    }
+
+    TEST_CASE("honors a non-unity damping ratio") {
+        constexpr double a1 = 5.0e-4, a0 = 0.0, omega = 300.0, zeta = 0.7;
+        const auto       g = design::pi_pole_placement_first_order(a1, a0, omega, zeta);
+        const double     omega_n = std::sqrt(g.Ki / a1);
+        const double     z = (a0 + g.Kp) / (2.0 * a1 * omega_n);
+        CHECK(omega_n == doctest::Approx(omega));
+        CHECK(z == doctest::Approx(zeta));
+    }
+
+    // (current_loop_pi's delegation to this kernel is checked in test_foc.cpp,
+    //  where foc.hpp is in scope.)
+
+    // TF overload: b0/(a1 s + a0) reduces to monic by dividing den by b0.
+    TEST_CASE("transfer-function overload matches the scalar form") {
+        constexpr double a1 = 1.0e-3, a0 = 0.8, omega = 1500.0;
+
+        // Unit numerator → identical to the scalar (a1,a0) call.
+        constexpr TransferFunction<1, 2, double> plant_unit{.num = {1.0}, .den = {a0, a1}};
+        const auto                               from_tf = design::pi_pole_placement_first_order(plant_unit, omega);
+        const auto                               from_scalar = design::pi_pole_placement_first_order(a1, a0, omega);
+        CHECK(from_tf.Kp == doctest::Approx(from_scalar.Kp));
+        CHECK(from_tf.Ki == doctest::Approx(from_scalar.Ki));
+
+        // Numerator gain b0 ≠ 1 must divide through: b0/(a1 s+a0) ≡ 1/((a1/b0)s+(a0/b0)).
+        constexpr double                         b0 = 2.5;
+        constexpr TransferFunction<1, 2, double> plant_gain{.num = {b0}, .den = {a0, a1}};
+        const auto                               from_gain = design::pi_pole_placement_first_order(plant_gain, omega);
+        const auto                               expected = design::pi_pole_placement_first_order(a1 / b0, a0 / b0, omega);
+        CHECK(from_gain.Kp == doctest::Approx(expected.Kp));
+        CHECK(from_gain.Ki == doctest::Approx(expected.Ki));
+    }
+
+    // Degenerate plant (zero input gain, e.g. a default-constructed TF) must not
+    // divide by zero — it returns an inert all-zero PI.
+    TEST_CASE("transfer-function overload guards a zero numerator gain") {
+        constexpr TransferFunction<1, 2, double> degenerate{}; // num={0}, den={0,0}
+        const auto                               g = design::pi_pole_placement_first_order(degenerate, 1000.0);
+        CHECK(g.Kp == doctest::Approx(0.0));
+        CHECK(g.Ki == doctest::Approx(0.0));
     }
 }
