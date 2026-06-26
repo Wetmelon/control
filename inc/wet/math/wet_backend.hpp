@@ -1,7 +1,11 @@
 #pragma once
 
-// Not self-contained. Bound by math_backend.hpp after MathBackend<T> is
-// declared. Fast single-precision float math (trig.hpp) over the std:: fallback.
+/**
+ * @file wet_backend.hpp
+ * @brief Fast single-precision float math backend (trig.hpp) over the std:: fallback.
+ */
+
+// Not self-contained. Bound by math_backend.hpp after MathBackend<T> is declared.
 #include "math_backend.hpp"
 #include "std_fallback.hpp"
 #include "trig.hpp"

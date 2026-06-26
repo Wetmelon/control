@@ -35,6 +35,9 @@ docs:
 	@mkdir -p docs/html
 	@doxygen Doxyfile
 
+refs:
+	@py -3 tools/gen_reference.py
+
 # Guard the embedded contract: nothing reachable from the wet/control.hpp
 # umbrella may pull <vector> (or any heap allocation). Fails if it leaks in.
 embedded-check:

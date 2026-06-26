@@ -15,6 +15,11 @@ Supports `float`, `double`, `wet::complex<float>`, and `wet::complex<double>`.
 
 ## Library Contents
 
+For a flat index of every public type and function — categorized,
+one row each with a one-line description — see **[REFERENCE.md](REFERENCE.md)**
+(generated from the headers by `python tools/gen_reference.py`). The prose below is the
+guided tour.
+
 Every header follows the three-tier pattern (constexpr `design::` → result struct with
 `.as<U>()` → allocation-free runtime). See [decisions.md](inc/wet/decisions.md) for the
 design rationale and [inc/wet/roadmap.md](inc/wet/roadmap.md) for planned work.

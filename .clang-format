@@ -65,6 +65,8 @@ EmptyLineAfterAccessModifier: Never
 # AlignArrayOfStructures: Right
 # InsertTrailingCommas: 'Wrapped'
 
+InsertBraces: true
+
 AlwaysBreakAfterReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 9999 # We really hate breaking after return types
 PenaltyBreakAssignment: 999 # Prefer not to break around =
