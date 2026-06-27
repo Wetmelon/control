@@ -94,6 +94,7 @@ design rationale and [inc/wet/roadmap.md](inc/wet/roadmap.md) for planned work.
 - Quadrature encoder + tachometer (`encoder.hpp`), thermistor linearization (`thermistor.hpp`), actuator models (`actuator.hpp`)
 - Geometry/attitude — DCM, Quaternion, Euler, Vec3 (`geometry.hpp`)
 - Motor-control: Clarke/Park transforms (`transforms.hpp`), SVPWM modulation (`modulation.hpp`), field-oriented control (`foc.hpp`)
+- PMAC servo drive — `PmacServo` integrates the FOC current loop, bandwidth-tuned velocity/position cascade, a `[θ,ω,τ_load]` Kalman estimator (encoder / sensorless / load-accel channels), RLS R/L commissioning (`calibration.hpp`), DC-bus + Cauer-network junction-temperature limiting (`limits.hpp`, `thermal.hpp`); `{Iabc,Vdc,θ}` in, duties out (`servo.hpp`). See [examples/example_pmac_servo.cpp](examples/example_pmac_servo.cpp)
 - IEC 61131-3 function blocks for PLC-style logic (`iec61131.hpp`)
 
 ### Analysis, simulation, interop (host-only behind `toolbox.hpp`)

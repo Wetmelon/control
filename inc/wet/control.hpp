@@ -101,8 +101,14 @@
 #include "wet/math/geometry.hpp" // IWYU pragma: export
 
 // --- Motor / power-electronics drives ---------------------------------------
-#include "wet/power/modulation.hpp" // IWYU pragma: export
-#include "wet/power/transforms.hpp" // IWYU pragma: export
+#include "wet/power/calibration.hpp"          // IWYU pragma: export
+#include "wet/power/foc.hpp"                  // IWYU pragma: export
+#include "wet/power/limits.hpp"               // IWYU pragma: export
+#include "wet/power/mechanical_estimator.hpp" // IWYU pragma: export
+#include "wet/power/modulation.hpp"           // IWYU pragma: export
+#include "wet/power/servo.hpp"                // IWYU pragma: export
+#include "wet/power/thermal.hpp"              // IWYU pragma: export
+#include "wet/power/transforms.hpp"           // IWYU pragma: export
 
 // --- Toolbox: allocation-free embedded primitives every controls project ----
 // reaches for. Controls/DSP-specific helpers only; generic plumbing

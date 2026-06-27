@@ -2,6 +2,7 @@
 
 Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python tools/gen_reference.py`.
 
+
 - [API Reference](#api-reference)
   - [Core, configuration \& backend vocabulary](#core-configuration--backend-vocabulary)
   - [Scalar math \& complex](#scalar-math--complex)
@@ -229,13 +230,13 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | Name | Description |
 | ---- | ----------- |
 | [`ackermann`](inc/wet/design/pole_placement.hpp#L1146) | Single-input pole placement via Ackermann's formula |
-| [`bandwidth_from_settling_time`](inc/wet/design/pid_design.hpp#L456) | Map settling-time and damping-ratio targets to a bandwidth estimate |
+| [`bandwidth_from_settling_time`](inc/wet/design/pid_design.hpp#L457) | Map settling-time and damping-ratio targets to a bandwidth estimate |
 | [`care`](inc/wet/design/riccati.hpp#L701) | Solve the Continuous-time Algebraic Riccati Equation (CARE) |
 | [`care_schur`](inc/wet/design/riccati.hpp#L492) | Solve CARE via the ordered real-Schur method (Laub's method) |
 | [`closed_loop_poles`](inc/wet/design/stability.hpp#L244) | Compute closed-loop poles (eigenvalues) with state feedback |
-| [`cohen_coon`](inc/wet/design/pid_design.hpp#L183) | Cohen-Coon tuning from first-order-plus-dead-time model |
+| [`cohen_coon`](inc/wet/design/pid_design.hpp#L184) | Cohen-Coon tuning from first-order-plus-dead-time model |
 | [`controllability_matrix`](inc/wet/design/stability.hpp#L28) | Compute the controllability matrix [B, AB, A²B, ..., A^(N-1)B] |
-| [`damping_ratio_from_overshoot_percent`](inc/wet/design/pid_design.hpp#L393) | Map percent overshoot target to equivalent damping ratio |
+| [`damping_ratio_from_overshoot_percent`](inc/wet/design/pid_design.hpp#L394) | Map percent overshoot target to equivalent damping ratio |
 | [`dare`](inc/wet/design/riccati.hpp#L580) | Solve the Discrete Algebraic Riccati Equation (DARE) |
 | [`dare_rde`](inc/wet/design/riccati.hpp#L169) | Solve DARE via Riccati Difference Equation (RDE) iteration |
 | [`dare_sda`](inc/wet/design/riccati.hpp#L82) | Solve DARE via Structure-Preserving Doubling Algorithm (SDA) |
@@ -244,27 +245,28 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`is_observable`](inc/wet/design/stability.hpp#L117) | Check if a system is observable |
 | [`is_stabilizable`](inc/wet/design/riccati.hpp#L14) | Check if (A, B) is a stabilizable pair |
 | [`is_stable_discrete`](inc/wet/design/stability.hpp#L134) | Check if a discrete-time system matrix A is stable |
-| [`lambda_tuning`](inc/wet/design/pid_design.hpp#L284) | Lambda tuning for FOPDT model |
+| [`lambda_tuning`](inc/wet/design/pid_design.hpp#L285) | Lambda tuning for FOPDT model |
 | [`linearize`](inc/wet/design/linearization.hpp#L110) | Linearize nonlinear dynamics and output maps about an operating point |
 | [`lqr_gain`](inc/wet/design/riccati.hpp#L667) | Optimal LQR state-feedback gain from a Riccati solution |
 | [`observability_matrix`](inc/wet/design/stability.hpp#L58) | Compute the observability matrix [C; CA; CA²; ...; CA^(N-1)] |
-| [`phase_margin_from_damping_ratio`](inc/wet/design/pid_design.hpp#L425) | Approximate phase margin from damping ratio |
-| [`pid_from_bandwidth`](inc/wet/design/pid_design.hpp#L310) | Design PID from desired bandwidth and phase margin |
-| [`pid_from_performance_spec`](inc/wet/design/pid_design.hpp#L489) | Design PID directly from settling-time and overshoot targets |
-| [`pid_pole_placement`](inc/wet/design/pid_design.hpp#L510) | Direct PID pole placement for a first-order-plus-dead-time model |
+| [`phase_margin_from_damping_ratio`](inc/wet/design/pid_design.hpp#L426) | Approximate phase margin from damping ratio |
+| [`pi_pole_placement_first_order`](inc/wet/design/pid_design.hpp#L612) | PI gains that place the closed-loop poles of a first-order plant |
+| [`pid_from_bandwidth`](inc/wet/design/pid_design.hpp#L311) | Design PID from desired bandwidth and phase margin |
+| [`pid_from_performance_spec`](inc/wet/design/pid_design.hpp#L490) | Design PID directly from settling-time and overshoot targets |
+| [`pid_pole_placement`](inc/wet/design/pid_design.hpp#L511) | Direct PID pole placement for a first-order-plus-dead-time model |
 | [`place`](inc/wet/design/pole_placement.hpp#L44) | Robust multi-input pole placement (Kautsky–Nichols–Van Dooren, real poles) |
 | [`place_jordan`](inc/wet/design/pole_placement.hpp#L692) | Exact pole placement with an arbitrary Jordan structure (Schmid–Ntogramatzidis–Nguyen–Pandey / Klein–Moore parametric form) |
 | [`place_jordan_optimal`](inc/wet/design/pole_placement.hpp#L779) | Robust / minimum-gain arbitrary pole placement (Schmid et al., Methods 1–2) |
 | [`rank`](inc/wet/design/stability.hpp#L88) | Compute rank of a matrix via Gaussian elimination with partial pivoting |
 | [`reorder_schur`](inc/wet/design/riccati.hpp#L423) | Reorder a real Schur form so eigenvalues satisfying in_front lead |
-| [`simc`](inc/wet/design/pid_design.hpp#L235) | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |
+| [`simc`](inc/wet/design/pid_design.hpp#L236) | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |
 | [`split_real_2x2`](inc/wet/design/riccati.hpp#L299) | Split a real-eigenvalue 2×2 Schur block into two 1×1 blocks |
 | [`stability_margin_continuous`](inc/wet/design/stability.hpp#L185) | Compute stability margin for continuous system |
 | [`stability_margin_discrete`](inc/wet/design/stability.hpp#L214) | Compute stability margin for discrete system |
 | [`swap_schur_blocks`](inc/wet/design/riccati.hpp#L359) | Swap two adjacent diagonal blocks of a real Schur form |
-| [`tyreus_luyben`](inc/wet/design/pid_design.hpp#L142) | Tyreus-Luyben tuning from ultimate gain and ultimate period |
-| [`ziegler_nichols`](inc/wet/design/pid_design.hpp#L50) | Ziegler-Nichols tuning from ultimate gain and ultimate period |
-| [`ziegler_nichols_step`](inc/wet/design/pid_design.hpp#L93) | Ziegler-Nichols step response method (reaction curve) |
+| [`tyreus_luyben`](inc/wet/design/pid_design.hpp#L143) | Tyreus-Luyben tuning from ultimate gain and ultimate period |
+| [`ziegler_nichols`](inc/wet/design/pid_design.hpp#L51) | Ziegler-Nichols tuning from ultimate gain and ultimate period |
+| [`ziegler_nichols_step`](inc/wet/design/pid_design.hpp#L94) | Ziegler-Nichols step response method (reaction curve) |
 
 ## Observers & estimators
 
@@ -284,8 +286,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ESKFOrientationFilter`](inc/wet/estimation/sensor_fusion.hpp#L312) | ESKF-based orientation estimator (convenience wrapper) |
 | [`ESKFResult`](inc/wet/estimation/eskf.hpp#L23) | Error-State Kalman Filter design result |
 | [`ExtendedKalmanFilter`](inc/wet/estimation/ekf.hpp#L81) | Extended Kalman Filter for nonlinear discrete-time systems |
-| [`KalmanFilter`](inc/wet/estimation/kalman.hpp#L119) | Runtime Kalman filter for embedded systems |
-| [`KalmanResult`](inc/wet/estimation/kalman.hpp#L10) | Steady-state Kalman filter design result |
+| [`KalmanFilter`](inc/wet/estimation/kalman.hpp#L121) | Runtime Kalman filter for embedded systems |
+| [`KalmanResult`](inc/wet/estimation/kalman.hpp#L12) | Steady-state Kalman filter design result |
 | [`MadgwickFilter`](inc/wet/estimation/sensor_fusion.hpp#L79) | Madgwick gradient-descent AHRS filter |
 | [`MahonyFilter`](inc/wet/estimation/sensor_fusion.hpp#L137) | Mahony nonlinear complementary filter with PI correction |
 | [`MeasJacobian`](inc/wet/estimation/ekf.hpp#L53) | Measurement prediction result from the user's observation function |
@@ -320,7 +322,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | ---- | ----------- |
 | [`eskf_design`](inc/wet/estimation/eskf.hpp#L47) | Error-State Kalman Filter design from IMU sensor specifications |
 | [`eskf_update_imu`](inc/wet/estimation/sensor_fusion.hpp#L190) | Full ESKF predict+update+inject cycle for 6-axis IMU fusion |
-| [`kalman`](inc/wet/estimation/kalman.hpp#L42) | Steady-state Kalman filter design |
+| [`kalman`](inc/wet/estimation/kalman.hpp#L44) | Steady-state Kalman filter design |
 | [`requires`](inc/wet/estimation/ekf.hpp#L42) | Concept for EKF state functions |
 | [`synthesize_chirp`](inc/wet/estimation/excitation.hpp#L235) | Build a chirp design payload from a configuration |
 | [`synthesize_classical_dob`](inc/wet/estimation/disturbance_observer.hpp#L327) | Synthesize a classical disturbance observer from a nominal plant and Q-filter |
@@ -462,27 +464,48 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | ---- | ----------- |
 | [`AlphaBeta`](inc/wet/power/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
 | [`AlphaBetaZero`](inc/wet/power/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
+| [`CascadeBandwidths`](inc/wet/power/servo.hpp#L23) | The three bandwidth knobs of the position/velocity/current cascade |
 | [`Convention`](inc/wet/power/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
+| [`DcBusLimiter`](inc/wet/power/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
+| [`DcBusLimits`](inc/wet/power/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
+| [`DcBusState`](inc/wet/power/limits.hpp#L27) | DC-bus state and the torque-current derate it implies |
 | [`DirectQuadrature`](inc/wet/power/transforms.hpp#L62) | Direct-quadrature (rotor-frame) component pair |
 | [`DirectQuadratureZero`](inc/wet/power/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
-| [`DqCommand`](inc/wet/power/foc.hpp#L283) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
-| [`FocResult`](inc/wet/power/foc.hpp#L267) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
+| [`DqCommand`](inc/wet/power/foc.hpp#L261) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
+| [`FetLossModel`](inc/wet/power/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
+| [`FocResult`](inc/wet/power/foc.hpp#L245) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
 | [`InstantaneousPower`](inc/wet/power/transforms.hpp#L525) | Instantaneous active and reactive power |
+| [`JunctionEstimator`](inc/wet/power/thermal.hpp#L176) | FET junction-temperature estimator: case temperature plus a thermal model |
+| [`MechanicalEstimator`](inc/wet/power/mechanical_estimator.hpp#L81) | Cheap-predict mechanical estimator for position, speed, and load torque |
+| [`MechanicalEstimatorConfig`](inc/wet/power/mechanical_estimator.hpp#L56) | Configuration for MechanicalEstimator |
+| [`PhaseCalibrationCommand`](inc/wet/power/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
+| [`PhaseCalibrationConfig`](inc/wet/power/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
+| [`PhaseParameterCalibrator`](inc/wet/power/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
+| [`PmacServo`](inc/wet/power/servo.hpp#L79) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/power/servo.hpp#L44) | Configuration for PmacServo |
+| [`ResistiveLossModel`](inc/wet/power/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
 | [`SequenceComponents`](inc/wet/power/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
+| [`ServoFeedback`](inc/wet/power/servo.hpp#L68) | Sensor feedback for one PmacServo::update tick |
 | [`SvmDuties`](inc/wet/power/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
+| [`ThermalLimiter`](inc/wet/power/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
+| [`ThermalLimits`](inc/wet/power/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
+| [`ThermalState`](inc/wet/power/thermal.hpp#L259) | State from a ThermalLimiter evaluation |
 
 **Functions**
 
 | Name | Description |
 | ---- | ----------- |
-| [`base_speed`](inc/wet/power/foc.hpp#L237) | Base (corner) electrical speed where the voltage circle is first hit |
+| [`base_speed`](inc/wet/power/foc.hpp#L215) | Base (corner) electrical speed where the voltage circle is first hit |
+| [`cauer_thermal_ss`](inc/wet/power/thermal.hpp#L66) | Continuous state-space model of a physical Cauer RC thermal ladder |
 | [`clarke_park_transform`](inc/wet/power/transforms.hpp#L405) | Fused Clarke-Park transform (abc → dq) |
 | [`clarke_park_zero_transform`](inc/wet/power/transforms.hpp#L494) | Fused Clarke-Park transform with zero (abc → dq0) |
 | [`clarke_transform`](inc/wet/power/transforms.hpp#L314) | Clarke transform (abc → αβ) |
 | [`clarke_zero_transform`](inc/wet/power/transforms.hpp#L235) | Zero-retaining Clarke transform (abc → αβ0) |
-| [`current_loop_pi`](inc/wet/power/foc.hpp#L25) | Current-loop PI gains by closed-loop pole placement on the R–L plant |
-| [`flux_from_Kv`](inc/wet/power/foc.hpp#L161) | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
-| [`flux_from_torque_constant`](inc/wet/power/foc.hpp#L97) | PM flux linkage from a motor's torque constant (amplitude-invariant) |
+| [`current_loop_pi`](inc/wet/power/foc.hpp#L26) | Current-loop PI gains by closed-loop pole placement on the R–L plant |
+| [`derate_window`](inc/wet/power/thermal.hpp#L14) | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
+| [`flux_from_Kv`](inc/wet/power/foc.hpp#L139) | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
+| [`flux_from_torque_constant`](inc/wet/power/foc.hpp#L75) | PM flux linkage from a motor's torque constant (amplitude-invariant) |
+| [`foster_thermal_ss`](inc/wet/power/thermal.hpp#L32) | Continuous state-space model of a Foster RC thermal network |
 | [`instantaneous_power`](inc/wet/power/transforms.hpp#L573) | Instantaneous active and reactive power from dq quantities |
 | [`inverse_clarke_transform`](inc/wet/power/transforms.hpp#L336) | Inverse Clarke transform (αβ → abc) |
 | [`inverse_clarke_zero_transform`](inc/wet/power/transforms.hpp#L280) | Inverse zero-retaining Clarke transform (αβ0 → abc) |
@@ -491,16 +514,18 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`inverse_park_transform`](inc/wet/power/transforms.hpp#L380) | Inverse Park transform (dq → αβ) |
 | [`inverse_park_zero_transform`](inc/wet/power/transforms.hpp#L480) | Inverse Park transform with zero passthrough (dq0 → αβ0) |
 | [`inverse_symmetrical_components`](inc/wet/power/transforms.hpp#L646) | Inverse symmetrical-component transform (012 → abc) |
-| [`iq_from_torque`](inc/wet/power/foc.hpp#L200) | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
-| [`motor_constant`](inc/wet/power/foc.hpp#L178) | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
+| [`iq_from_torque`](inc/wet/power/foc.hpp#L178) | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
+| [`mechanical_ss`](inc/wet/power/mechanical_estimator.hpp#L13) | Continuous state-space model of a 1-DOF mechanical drivetrain |
+| [`motor_constant`](inc/wet/power/foc.hpp#L156) | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
 | [`park_transform`](inc/wet/power/transforms.hpp#L353) | Park transform (αβ → dq) |
 | [`park_zero_transform`](inc/wet/power/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
+| [`requires`](inc/wet/power/thermal.hpp#L107) | A loss model usable by JunctionEstimator |
 | [`svm_duty_cycles`](inc/wet/power/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
 | [`svpwm_zero_sequence`](inc/wet/power/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
 | [`symmetrical_components`](inc/wet/power/transforms.hpp#L610) | Forward symmetrical-component (Fortescue) transform (abc → 012) |
-| [`torque_constant_from_flux`](inc/wet/power/foc.hpp#L78) | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
-| [`torque_constant_from_Kv`](inc/wet/power/foc.hpp#L121) | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
-| [`voltage_circle_radius`](inc/wet/power/foc.hpp#L217) | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
+| [`torque_constant_from_flux`](inc/wet/power/foc.hpp#L56) | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
+| [`torque_constant_from_Kv`](inc/wet/power/foc.hpp#L99) | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
+| [`voltage_circle_radius`](inc/wet/power/foc.hpp#L195) | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
 
 ## Utilities & toolbox
 
@@ -524,8 +549,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`DLATCH`](inc/wet/toolbox/iec61131.hpp#L475) | D Latch (level-sensitive / transparent latch) |
 | [`F_TRIG`](inc/wet/toolbox/iec61131.hpp#L132) | F_TRIG (Falling Edge Trigger) |
 | [`Hysteresis`](inc/wet/toolbox/conditioning.hpp#L177) | Hysteresis comparator (Schmitt trigger): bool output with separate on/off thresholds to reject chatter |
-| [`Lut1D`](inc/wet/toolbox/lookup.hpp#L62) | 1-D interpolating lookup table over monotonic breakpoints |
-| [`Lut2D`](inc/wet/toolbox/lookup.hpp#L120) | 2-D bilinear interpolating lookup table over a regular grid |
+| [`Lut1D`](inc/wet/toolbox/lookup.hpp#L64) | 1-D interpolating lookup table over monotonic breakpoints |
+| [`Lut2D`](inc/wet/toolbox/lookup.hpp#L122) | 2-D bilinear interpolating lookup table over a regular grid |
 | [`OffDelayTimer`](inc/wet/toolbox/logic.hpp#L122) | Off-delay timer: output goes true immediately when in is true and stays true until in has been false continuously for delay |
 | [`OnDelayTimer`](inc/wet/toolbox/logic.hpp#L85) | On-delay timer: output goes true once in has been held true continuously for delay; drops immediately when in goes false |
 | [`Periodic`](inc/wet/toolbox/timing.hpp#L102) | Periodic trigger — fires once per elapsed period |
@@ -712,7 +737,7 @@ Internal, compile-time-selected implementations of the `wet::` scalar-math surfa
 
 ## Examples
 
-Runnable programs in `examples/` (22 total). Build with `make` (or `tup --quiet examples`); outputs go to `examples/build/`.
+Runnable programs in `examples/` (25 total). Build with `make` (or `tup --quiet examples`); outputs go to `examples/build/`.
 
 | Example | Description |
 | ------- | ----------- |
@@ -730,11 +755,14 @@ Runnable programs in `examples/` (22 total). Build with `make` (or `tup --quiet 
 | [`example_lqr_pendulum.cpp`](examples/example_lqr_pendulum.cpp) | Lqr pendulum |
 | [`example_math_backend.cpp`](examples/example_math_backend.cpp) | Pluggable math backend example |
 | [`example_pendulum_sim.cpp`](examples/example_pendulum_sim.cpp) | Pendulum sim |
+| [`example_pmac_bus_limit.cpp`](examples/PMAC/example_pmac_bus_limit.cpp) | Leaf demo: DC-bus current/power/regen limiting and the UV/OV gate |
+| [`example_pmac_calibration.cpp`](examples/PMAC/example_pmac_calibration.cpp) | Leaf demo: recover phase R and L by RLS with PRBS injection |
+| [`example_pmac_estimator.cpp`](examples/PMAC/example_pmac_estimator.cpp) | Leaf demo: the [theta, omega, tau_load] Kalman estimator in isolation |
+| [`example_pmac_servo.cpp`](examples/PMAC/example_pmac_servo.cpp) | End-to-end PMAC servo: bandwidth tuning, R/L calibration, and the three control modes on an average dq + mechanical plant |
+| [`example_pmac_thermal.cpp`](examples/PMAC/example_pmac_thermal.cpp) | Leaf demo: FET junction-temperature estimation and thermal derating |
 | [`example_servo_commands.cpp`](examples/example_servo_commands.cpp) | Servo commands |
 | [`example_servo_drive.cpp`](examples/example_servo_drive.cpp) | Servo drive |
 | [`example_swashplate_stsmc.cpp`](examples/example_swashplate_stsmc.cpp) | Swashplate stsmc |
 | [`example_trajectory_gallery.cpp`](examples/example_trajectory_gallery.cpp) | Trajectory gallery |
 | [`example_workflow_end_to_end.cpp`](examples/example_workflow_end_to_end.cpp) | Workflow end to end |
-| [`pmac_average_simulation.cpp`](examples/PMAC/pmac_average_simulation.cpp) | Pmac average simulation |
-| [`pmac_switching_simulation.cpp`](examples/PMAC/pmac_switching_simulation.cpp) | Pmac switching simulation |
 | [`servo_sim.cpp`](examples/servo_drive/servo_sim.cpp) | Servo sim |

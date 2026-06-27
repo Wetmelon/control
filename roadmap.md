@@ -255,6 +255,58 @@ as living documentation and as exercise of the public API surface.
 - Acceptance: a feature→example inventory with no gaps; every header `@code` block compiles
   in CI; `make` builds all of `examples/`.
 
+### ☐ General thermal-network modeling + Kalman observer (#28)
+
+`power/thermal.hpp` already realizes RC thermal networks as `StateSpace`
+(`design::foster_thermal_ss`, `cauer_thermal_ss`) and estimates a node temperature open-loop
+(`JunctionEstimator`). The FET pieces (`FetLossModel`) are the right specialization; the rest is
+general thermal modeling that should be promoted to a domain helper (`toolbox/thermal.hpp`),
+leaving `power/` with the FET loss model and a thin junction alias.
+
+- **Absolute temperatures with ambient as an input.** Model absolute node temps with ambient/
+  coolant as a real input column (`ẋ = Ax + B_P·P + B_amb·T_amb`, per-node leak to ambient),
+  instead of estimating *rise* and adding a boundary offset. Required for multi-boundary networks
+  and a proper absolute-temperature estimator.
+- **MIMO networks.** `NU>1` heat sources at arbitrary nodes (winding copper + stator iron loss;
+  multiple FETs) and `NY>1` measured nodes (NTCs at several locations).
+- **General netlist assembler.** Per-node capacitance + inter-node resistances + node-to-ambient
+  resistances → `StateSpace`; Foster/Cauer become the 1-D special cases, arbitrary 3-D thermal
+  graphs fall out.
+- **Kalman thermal observer (highest value, nearly free).** Drop the discretized thermal SS into
+  the existing `design::kalman(sys, Q, R)` + `KalmanFilter`: predict with known `u = [P_loss;
+  T_ambient]`, update from the measured node(s). Estimates the unmeasured junction from a lagging
+  case NTC + power input and corrects the open-loop model bias `JunctionEstimator` can't. The
+  open-loop estimator becomes the no-measurement degenerate case. Needs the thermal SS's noise
+  structure (`G`, process `Q` from R/C/loss uncertainty, sensor `R`).
+- **`HeatSource` concept** generalizing `ThermalLossModel`; `FetLossModel`, copper-loss `I²R`,
+  iron-loss, friction are instances.
+- Model-order reduction for high-order thermal models is covered by the general balanced-
+  truncation (`balred`) tool (operates on any `StateSpace`) — track there, not here.
+- Acceptance: `toolbox/thermal.hpp` general core + `power/` FET specialization; a worked KF
+  thermal-observer example showing junction estimation that survives a wrong nominal R/C.
+
+### ☐ Two-mass drivetrain estimator (dual-encoder) (#29)
+
+`power/mechanical_estimator.hpp` ships the rigid 1-DOF model `[θ_m, ω_m, τ_load]` — the right
+default for a motor-only encoder, with optional sensorless-angle and load-accelerometer
+measurement channels. The richer two-mass model (motor inertia + spring/damper coupling + load
+inertia) captures shaft compliance and the torsional resonance, but its extra states are only
+**observable with a load-side measurement** — so it's gated on that, not the default.
+
+- **Model.** `design::two_mass_ss(J_m, J_l, k_shaft, d_shaft, b_m, b_l)` → continuous `StateSpace`
+  over `[θ_m, ω_m, θ_l, ω_l]` (input `i_q`); the torsional mode `(θ_m − θ_l)` is the resonance.
+- **Observability gate.** Needs a load encoder (`NY=2`: motor + load angle) **or** a load
+  accelerometer (the existing accel channel can substitute — it senses load-side motion). From a
+  motor encoder alone the load states are weakly observable; keep the rigid model there.
+- **Load friction + gravity (only here).** Once the load side is observed, add load Coulomb/viscous
+  friction and an optional gravity term `m·g·l·sin(θ_l)` (mildly nonlinear → EKF measurement or a
+  scheduled term). These are identifiable only with the load-side observability, which is why they
+  belong on this model, not the rigid one.
+- Reuses the multi-measurement `KalmanFilter::update(y, C, D, R, u)` overload already added for the
+  heterogeneous-sensor case.
+- Acceptance: dual-encoder two-mass estimator with a worked example showing torsional-mode and
+  load-friction estimation; rigid model stays the single-encoder default.
+
 Tracked in [decisions.md](decisions.md): O1 (ESC perturbation policy for MPPT, #8),
 O2 (anti-chatter update strategy, #9), O3 (error-reporting under the ETL backend, #21),
 O4 (promote `geometry.hpp` out of `utility/`, #22).
