@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <cstddef>
+
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/state_space.hpp"
 
@@ -201,6 +203,38 @@ struct KalmanFilter {
         const auto I_KC = Matrix<NX, NX, T>::identity() - K * sys.C;
         const auto KH = K * sys.H;
         P = I_KC * P * I_KC.t() + KH * R * KH.t();
+        return true;
+    }
+
+    // Measurement update with an explicit measurement model (C, D, R), for a sensor
+    // whose output equation differs from the filter's nominal sys.C/sys.D — i.e.
+    // multi-sensor fusion where heterogeneous measurements (e.g. an angle encoder and
+    // a load accelerometer) share one filter. Same dimensions as the nominal update.
+    constexpr bool update(
+        const ColVec<NY, T>&     y,
+        const Matrix<NY, NX, T>& C_meas,
+        const Matrix<NY, NU, T>& D_meas,
+        const Matrix<NV, NV, T>& R_meas,
+        const ColVec<NU, T>&     u = ColVec<NU, T>{}
+    ) {
+        const auto y_pred = C_meas * x + D_meas * u;
+        innov = y - y_pred;
+
+        const auto              Ct = C_meas.transpose();
+        const auto              Ht = sys.H.transpose();
+        const Matrix<NY, NY, T> S = C_meas * P * Ct + sys.H * R_meas * Ht;
+
+        const auto K_opt = mat::cholesky_solve(S, C_meas * P);
+        if (!K_opt) {
+            return false;
+        }
+
+        const Matrix<NX, NY, T> K = K_opt.value().transpose();
+        x = x + K * innov;
+
+        const auto I_KC = Matrix<NX, NX, T>::identity() - K * C_meas;
+        const auto KH = K * sys.H;
+        P = I_KC * P * I_KC.t() + KH * R_meas * KH.t();
         return true;
     }
 
