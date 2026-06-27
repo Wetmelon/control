@@ -270,21 +270,26 @@ converter models as Tier-2 `StateSpace`/`TransferFunction` builders.
 
 ### ☐ Motor-drive control & sensorless FOC (#31)
 
-Completes the field-oriented drive stack on top of the shipped FOC core (`power/foc.hpp`
-`FOController` with cross-axis decoupling + back-EMF feedforward, `current_loop_pi_gains`),
-the Clarke/Park family (`power/transforms.hpp`), SVPWM (`power/modulation.hpp`), and the
-encoder/PLL/SOGI-FLL front-ends. Audited against the Motor Control Blockset. Same rule as
-#29: each entry is a thin runtime/`design::` piece reusing the existing transforms, PI loops,
-observers, and `Lut1D`/`Lut2D` — not a parallel framework. On-target embeddable unless noted.
+Completes the field-oriented drive stack. **Much of this is already shipped** — reconciled
+against REFERENCE.md, the `power/` ("servo") module ships: the FOC core (`FOController` +
+`current_loop_pi`, torque/flux constants, voltage-circle/base-speed) and the **full FOC cascade**
+(`PmacServo` {Iabc,Vdc,θ}→duties, `CascadeBandwidths`); Clarke/Park + SVPWM; a **sensorless rotor
+flux/position estimator** (`filters/pll.hpp` `SensorlessEstimator`, with optional fusion); online
+**parameter ID** (`PhaseParameterCalibrator` — R/L via RLS+PRBS) and the **mechanical estimator**
+(`MechanicalEstimator` — position/speed/load-torque, i.e. inertia/damping observation);
+**DC-bus current/power limiting** (`DcBusLimiter`); and a **thermal stack** (`foster_thermal_ss`/
+`cauer_thermal_ss`, `JunctionEstimator`, FET loss models, `ThermalLimiter` derating). Audited
+against the Motor Control Blockset; each remaining entry is a thin runtime/`design::` piece reusing
+those plus `Lut1D`/`Lut2D` — not a parallel framework. On-target embeddable unless noted.
 
-**Sensorless rotor position / speed estimation** (the headline gap — encoderless drives):
+**Sensorless rotor position / speed estimation** — a flux/position estimator (`SensorlessEstimator`)
+is **shipped**; the remaining items are the specific observer variants for the cases it doesn't cover:
 
 | Block | Plan | Reuse |
 |---|---|---|
-| Sliding Mode Observer | Back-EMF SMO → electrical angle/speed for SMPMSM | `smc.hpp` sign law + `atan2`; pairs with a PLL/SOGI angle tracker |
-| Flux Observer | Stator-flux integrator with drift compensation → angle/torque | `transforms.hpp` αβ, `filters.hpp` washout |
-| Extended EMF Observer | Extended-EMF model for salient (I)PMSM angle/speed | observer (`observer.hpp`) + `atan2` |
-| Pulsating-HF (HFI) Observer | Low-/zero-speed initial position via HF injection | `sogi.hpp` demod + injection on the dq command |
+| Sliding Mode Observer | Back-EMF SMO → electrical angle/speed for SMPMSM (alternative to the shipped flux estimator) | `smc.hpp` sign law + `atan2`; pairs with a PLL/SOGI angle tracker |
+| Extended EMF Observer | Extended-EMF model for **salient** (I)PMSM angle/speed | observer (`observer.hpp`) + `atan2` |
+| Pulsating-HF (HFI) Observer | **Low-/zero-speed** initial position via HF injection (where back-EMF methods fail) | `sogi.hpp` demod + injection on the dq command |
 
 **Current references / operating point:**
 
@@ -308,7 +313,7 @@ observers, and `Lut1D`/`Lut2D` — not a parallel framework. On-target embeddabl
 
 **Motor plant models** (Tier-2 builders → `StateSpace`/nonlinear plant for simulation, embeddable per [decisions.md](decisions.md)): PMSM (SMPMSM/IPMSM), BLDC (trapezoidal), three-phase Induction, SynRM, wound-field SM, plus averaged-value inverters (PMSM/BLDC). Construct universal types like the other Tier-2 builders in #3; downstream design/sim never knows it came from a builder.
 
-**Parameter estimation** (`Rs`/`Ld`/`Lq`/`RrL`/`Id0`/mechanical inertia+damping for PMSM/ACIM): motor-specific wrappers over the identification infra in **#3** (RLS / excitation already shipped) — returns named parameters and feeds the model builders above.
+**Parameter estimation** — **PMSM electrical** `Rs`/`Ld`/`Lq` is **shipped** (`PhaseParameterCalibrator`, online R/L via RLS+PRBS) and **mechanical** inertia/damping/load-torque is **shipped** (`MechanicalEstimator`). Remaining: the **ACIM-specific** estimators (`RrL`/`Id0`/slip) and a torque estimator — motor-specific wrappers over the identification infra in **#3**, feeding the model builders above.
 
 **Drive design calculators** (host-side `design::`, audited against the `mcb.*` functions — `base_speed`/`voltage_circle_radius` and `current_loop_pi_gains` already shipped): PMSM/ACIM characteristic curves (torque–speed, current/voltage constraint circles), rated torque, max speed and milestone speeds, steady-state `Vd`/`Vq` from operating point — all closed-form extensions of the existing voltage-circle/base-speed math. Plus a **per-unit / SI base-value** helper (`getPUSystemParameters`/`getSISystemParameters` — not in `scaling.hpp` today) and `generateMotorLUT` to bake the MTPA/field-weakening maps into the `Lut2D` references above (#30). The plot halves and the `mcb.internal.launch*App` GUIs stay out of scope; the frequency-domain analysis reuses the shipped `bode`/`margin`.
 
@@ -342,7 +347,7 @@ abstractions worth planning — each a thin runtime/`design::` piece, embeddable
 | Direct-form FIR filter + `fir1` design | General tapped-delay FIR runtime, plus its light coefficient designer `fir1` (window-based: ideal-response × window, the companion every other filter runtime already has — biquads ship with `lowpass_*`/`notch`/Butterworth) | `filters.hpp` (delay line + dot product; `fir1` reuses a window function) |
 | Integrator with wrapped state | Angle integrator that wraps to (−π, π] | trivial wrapper over the existing integrator |
 | Variable-time-constant LP / variable-frequency 2nd-order filter | Runtime-retunable `filters.hpp` biquads (recompute coefficients each tick) | `filters.hpp` (small extension) |
-| Foster / Cauer thermal models | Junction-temperature RC-ladder estimators for power-semiconductor thermal derating | discrete state-space / biquad chain |
+| ~~Foster / Cauer thermal models~~ | **Shipped** — `power/thermal.hpp` (`foster_thermal_ss`/`cauer_thermal_ss`, `JunctionEstimator`, `ThermalLimiter`). Generalize beyond power-semiconductor derating only if a non-thermal use appears | — |
 | Second-order actuator model (linear + nonlinear) | ω²/(s²+2ζωs+ω²) actuator lag with rate and deflection/position saturation — a realistic actuator for sim/HIL (Aerospace Blockset `*Second-Order Actuator`) | `filters.hpp` 2nd-order core + `SlewLimiter`/bounds; distinct from the `actuator.hpp` command-mapping layer |
 | Quaternion SLERP / log (+ mean, random rotation) | Attitude interpolation for attitude trajectories/commands — `geometry.hpp` has conjugate/inverse/normalize/rotate/axis-angle but no `slerp`/`log`/`meanrot` (the Aerospace/UAV `slerp`/`quatinterp`/`log`/`meanrot`/`randrot`). The exp map is already present as `from_axis_angle` (rotation-vector → quaternion); add a `log` inverse + `slerp` built on the exp/log pair | extends `geometry.hpp` `Quaternion`. (The ESKF does *not* need this — it carries only the error-state vector and the user injects δθ into the nominal quaternion via `from_axis_angle` externally.) |
 | d-q Voltage Limiter | Clamp the dq voltage command to the SVPWM circle | `foc.hpp` `voltage_circle_radius` (→ #31) |
