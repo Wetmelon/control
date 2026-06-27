@@ -23,6 +23,7 @@
 #include "wet/systems/discretization.hpp"
 #include "wet/systems/state_space.hpp"
 #include "wet/systems/transfer_function.hpp"
+#include "wet/systems/zpk.hpp"
 
 namespace wet {
 // MATLAB®-style matrix functions
@@ -59,6 +60,62 @@ tf(const TNum (&num)[Nnum], const TDen (&den)[Nden]) noexcept {
     }
 
     return result;
+}
+
+/**
+ * @brief MATLAB-style state-space model constructor.
+ *
+ * Builds a StateSpace from (A, B, C, D) with an optional sampling period
+ * (Ts = 0 for continuous, > 0 for discrete). Process/measurement noise
+ * channels are omitted (NW = NV = 0); construct StateSpace directly for those.
+ *
+ * @note Compare with MATLAB's sys = ss(A, B, C, D) / ss(A, B, C, D, Ts).
+ */
+template<size_t NX, size_t NU, size_t NY, typename T = double>
+[[nodiscard]] constexpr StateSpace<NX, NU, NY, 0, 0, T> ss(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    const Matrix<NY, NX, T>& C,
+    const Matrix<NY, NU, T>& D = Matrix<NY, NU, T>::zeros(),
+    T                        Ts = T{0}
+) noexcept {
+    StateSpace<NX, NU, NY, 0, 0, T> sys{A, B, C, D};
+    sys.Ts = Ts;
+    return sys;
+}
+
+/**
+ * @brief MATLAB-style zero-pole-gain model constructor.
+ *
+ * @param z Zeros, @param p Poles, @param k Scalar gain.
+ * @note Compare with MATLAB's sys = zpk(z, p, k).
+ */
+template<size_t Nz, size_t Np, typename T = double>
+[[nodiscard]] constexpr ZPK<Nz, Np, T> zpk(
+    const wet::array<wet::complex<T>, Nz>& z,
+    const wet::array<wet::complex<T>, Np>& p,
+    T                                      k
+) noexcept {
+    return ZPK<Nz, Np, T>{z, p, k};
+}
+
+/**
+ * @brief MATLAB-style parallel-form PID controller constructor.
+ *
+ * Returns a parallel PIDController with the given gains; @p Tf is the
+ * derivative filter time constant (0 = unfiltered).
+ *
+ * @note Compare with MATLAB's C = pid(Kp, Ki, Kd, Tf). MATLAB's filter
+ *       coefficient N maps to Tf = 1/N.
+ */
+template<typename T = double>
+[[nodiscard]] constexpr PIDController<T, PIDMode::PID> pid(T Kp, T Ki = T{0}, T Kd = T{0}, T Tf = T{0}) noexcept {
+    PIDController<T, PIDMode::PID> c{};
+    c.Kp = Kp;
+    c.Ki = Ki;
+    c.Kd = Kd;
+    c.Tf = Tf;
+    return c;
 }
 
 /**
@@ -644,6 +701,62 @@ template<size_t NX, size_t NW, size_t NV, typename T>
 template<size_t NX, size_t NW, size_t NV, typename T>
 [[nodiscard]] wet::optional<T> bandwidth(const StateSpace<NX, 1, 1, NW, NV, T>& sys, const std::vector<T>& omega) {
     return analysis::bode(sys, omega).bandwidth();
+}
+
+/**
+ * @brief MATLAB alias for the continuous Lyapunov solve @f$ AX+XA^\top+Q=0 @f$.
+ * @note Compare with MATLAB's @c X=lyap(A,Q). Returns nullopt if no unique solution.
+ */
+template<size_t NX, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NX, NX, T>>
+lyap(const Matrix<NX, NX, T>& A, const Matrix<NX, NX, T>& Q) {
+    return wet::lyap(A, Q);
+}
+
+/**
+ * @brief MATLAB alias for the discrete Lyapunov solve @f$ AXA^\top-X+Q=0 @f$.
+ * @note Compare with MATLAB's @c X=dlyap(A,Q). Returns nullopt if no unique solution.
+ */
+template<size_t NX, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NX, NX, T>>
+dlyap(const Matrix<NX, NX, T>& A, const Matrix<NX, NX, T>& Q) {
+    return wet::dlyap(A, Q);
+}
+
+/**
+ * @brief MATLAB alias for the controllability/observability Gramian of a system.
+ *
+ * @param sys  State-space system (continuous or discrete, dispatched on Ts).
+ * @param kind @c 'c' for the controllability Gramian, @c 'o' for observability.
+ * @return Gramian (NX × NX), or nullopt if the Lyapunov solve fails.
+ * @note Compare with MATLAB's @c gram(sys,'c') / @c gram(sys,'o').
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NX, NX, T>>
+gram(const StateSpace<NX, NU, NY, NW, NV, T>& sys, char kind = 'c') {
+    if (kind == 'o' || kind == 'O') {
+        return stability::observability_gramian(sys.A, sys.C, sys.is_discrete());
+    }
+    return stability::controllability_gramian(sys.A, sys.B, sys.is_discrete());
+}
+
+/**
+ * @brief MATLAB alias for the H2 system norm @c norm(sys,2).
+ * @note Returns nullopt if infinite (non-strictly-proper continuous system) or the
+ *       Gramian solve fails. @see analysis::norm_h2.
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T = double>
+[[nodiscard]] constexpr wet::optional<T> norm(const StateSpace<NX, NU, NY, NW, NV, T>& sys) {
+    return analysis::norm_h2(sys);
+}
+
+/**
+ * @brief MATLAB alias for the H∞ system norm @c norm(sys,Inf) / @c hinfnorm(sys).
+ * @note Frequency-sweep estimate; see analysis::norm_hinf for the accuracy ceiling.
+ */
+template<size_t NX, size_t NU, size_t NY, size_t NW, size_t NV, typename T = double>
+[[nodiscard]] T hinfnorm(const StateSpace<NX, NU, NY, NW, NV, T>& sys, size_t n_points = 1024) {
+    return analysis::norm_hinf(sys, n_points);
 }
 
 } // namespace matlab

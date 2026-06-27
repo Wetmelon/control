@@ -1,6 +1,6 @@
 # API Reference
 
-Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python tools/gen_reference.py`.
+Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python tools/gen_reference.py`. Flat A→Z view: [REFERENCE_INDEX.md](REFERENCE_INDEX.md).
 
 
 - [API Reference](#api-reference)
@@ -233,22 +233,26 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`bandwidth_from_settling_time`](inc/wet/design/pid_design.hpp#L457) | Map settling-time and damping-ratio targets to a bandwidth estimate |
 | [`care`](inc/wet/design/riccati.hpp#L701) | Solve the Continuous-time Algebraic Riccati Equation (CARE) |
 | [`care_schur`](inc/wet/design/riccati.hpp#L492) | Solve CARE via the ordered real-Schur method (Laub's method) |
-| [`closed_loop_poles`](inc/wet/design/stability.hpp#L244) | Compute closed-loop poles (eigenvalues) with state feedback |
+| [`closed_loop_poles`](inc/wet/design/stability.hpp#L303) | Compute closed-loop poles (eigenvalues) with state feedback |
 | [`cohen_coon`](inc/wet/design/pid_design.hpp#L184) | Cohen-Coon tuning from first-order-plus-dead-time model |
-| [`controllability_matrix`](inc/wet/design/stability.hpp#L28) | Compute the controllability matrix [B, AB, A²B, ..., A^(N-1)B] |
+| [`controllability_gramian`](inc/wet/design/stability.hpp#L90) | Continuous/discrete controllability Gramian @f$ W_c @f$ |
+| [`controllability_matrix`](inc/wet/design/stability.hpp#L30) | Compute the controllability matrix [B, AB, A²B, ..., A^(N-1)B] |
 | [`damping_ratio_from_overshoot_percent`](inc/wet/design/pid_design.hpp#L394) | Map percent overshoot target to equivalent damping ratio |
 | [`dare`](inc/wet/design/riccati.hpp#L580) | Solve the Discrete Algebraic Riccati Equation (DARE) |
 | [`dare_rde`](inc/wet/design/riccati.hpp#L169) | Solve DARE via Riccati Difference Equation (RDE) iteration |
 | [`dare_sda`](inc/wet/design/riccati.hpp#L82) | Solve DARE via Structure-Preserving Doubling Algorithm (SDA) |
-| [`is_closed_loop_stable_discrete`](inc/wet/design/stability.hpp#L161) | Check closed-loop stability for discrete system with state feedback |
-| [`is_controllable`](inc/wet/design/stability.hpp#L100) | Check if a system is controllable |
-| [`is_observable`](inc/wet/design/stability.hpp#L117) | Check if a system is observable |
+| [`dlyap`](inc/wet/design/lyapunov.hpp#L101) | Solve the discrete-time Lyapunov (Stein) equation @f$ A X A^\top - X + Q = 0 @f$ |
+| [`is_closed_loop_stable_discrete`](inc/wet/design/stability.hpp#L220) | Check closed-loop stability for discrete system with state feedback |
+| [`is_controllable`](inc/wet/design/stability.hpp#L159) | Check if a system is controllable |
+| [`is_observable`](inc/wet/design/stability.hpp#L176) | Check if a system is observable |
 | [`is_stabilizable`](inc/wet/design/riccati.hpp#L14) | Check if (A, B) is a stabilizable pair |
-| [`is_stable_discrete`](inc/wet/design/stability.hpp#L134) | Check if a discrete-time system matrix A is stable |
+| [`is_stable_discrete`](inc/wet/design/stability.hpp#L193) | Check if a discrete-time system matrix A is stable |
 | [`lambda_tuning`](inc/wet/design/pid_design.hpp#L285) | Lambda tuning for FOPDT model |
 | [`linearize`](inc/wet/design/linearization.hpp#L110) | Linearize nonlinear dynamics and output maps about an operating point |
 | [`lqr_gain`](inc/wet/design/riccati.hpp#L667) | Optimal LQR state-feedback gain from a Riccati solution |
-| [`observability_matrix`](inc/wet/design/stability.hpp#L58) | Compute the observability matrix [C; CA; CA²; ...; CA^(N-1)] |
+| [`lyap`](inc/wet/design/lyapunov.hpp#L74) | Solve the continuous-time Lyapunov equation @f$ A X + X A^\top + Q = 0 @f$ |
+| [`observability_gramian`](inc/wet/design/stability.hpp#L119) | Continuous/discrete observability Gramian @f$ W_o @f$ |
+| [`observability_matrix`](inc/wet/design/stability.hpp#L60) | Compute the observability matrix [C; CA; CA²; ...; CA^(N-1)] |
 | [`phase_margin_from_damping_ratio`](inc/wet/design/pid_design.hpp#L426) | Approximate phase margin from damping ratio |
 | [`pi_pole_placement_first_order`](inc/wet/design/pid_design.hpp#L612) | PI gains that place the closed-loop poles of a first-order plant |
 | [`pid_from_bandwidth`](inc/wet/design/pid_design.hpp#L311) | Design PID from desired bandwidth and phase margin |
@@ -257,12 +261,13 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`place`](inc/wet/design/pole_placement.hpp#L44) | Robust multi-input pole placement (Kautsky–Nichols–Van Dooren, real poles) |
 | [`place_jordan`](inc/wet/design/pole_placement.hpp#L692) | Exact pole placement with an arbitrary Jordan structure (Schmid–Ntogramatzidis–Nguyen–Pandey / Klein–Moore parametric form) |
 | [`place_jordan_optimal`](inc/wet/design/pole_placement.hpp#L779) | Robust / minimum-gain arbitrary pole placement (Schmid et al., Methods 1–2) |
-| [`rank`](inc/wet/design/stability.hpp#L88) | Compute rank of a matrix via Gaussian elimination with partial pivoting |
+| [`rank`](inc/wet/design/stability.hpp#L147) | Compute rank of a matrix via Gaussian elimination with partial pivoting |
 | [`reorder_schur`](inc/wet/design/riccati.hpp#L423) | Reorder a real Schur form so eigenvalues satisfying in_front lead |
 | [`simc`](inc/wet/design/pid_design.hpp#L236) | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |
+| [`solve_lyapunov_kron`](inc/wet/design/lyapunov.hpp#L13) | Solve a linear matrix equation L(X) + Q = 0 by Kronecker vectorization |
 | [`split_real_2x2`](inc/wet/design/riccati.hpp#L299) | Split a real-eigenvalue 2×2 Schur block into two 1×1 blocks |
-| [`stability_margin_continuous`](inc/wet/design/stability.hpp#L185) | Compute stability margin for continuous system |
-| [`stability_margin_discrete`](inc/wet/design/stability.hpp#L214) | Compute stability margin for discrete system |
+| [`stability_margin_continuous`](inc/wet/design/stability.hpp#L244) | Compute stability margin for continuous system |
+| [`stability_margin_discrete`](inc/wet/design/stability.hpp#L273) | Compute stability margin for discrete system |
 | [`swap_schur_blocks`](inc/wet/design/riccati.hpp#L359) | Swap two adjacent diagonal blocks of a real Schur form |
 | [`tyreus_luyben`](inc/wet/design/pid_design.hpp#L143) | Tyreus-Luyben tuning from ultimate gain and ultimate period |
 | [`ziegler_nichols`](inc/wet/design/pid_design.hpp#L51) | Ziegler-Nichols tuning from ultimate gain and ultimate period |
@@ -606,43 +611,45 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | Name | Description |
 | ---- | ----------- |
 | [`GreyBoxIdentificationResult`](inc/wet/analysis/identification.hpp#L177) | Selected model used by downstream model-based controller design |
-| [`ImpedanceResult`](inc/wet/analysis/analysis.hpp#L1289) | Result of impedance frequency response evaluation |
-| [`LoopResponseResult`](inc/wet/analysis/analysis.hpp#L440) | Open-loop and closed-loop frequency response package |
-| [`LoopSummary`](inc/wet/analysis/analysis.hpp#L475) | Compact loop summary metrics for quick stability/robustness checks |
-| [`LsimInfo`](inc/wet/analysis/analysis.hpp#L1131) | Transient characteristics of an arbitrary response signal |
-| [`LsimResult`](inc/wet/analysis/analysis.hpp#L764) | Result of a single-trajectory simulation: time, output, and state history |
-| [`MiddlebrookResult`](inc/wet/analysis/analysis.hpp#L1307) | Result of Middlebrook minor loop gain analysis |
-| [`PoleZeroMap`](inc/wet/analysis/analysis.hpp#L1209) | Poles and zeros of a system, for pole-zero plotting |
-| [`StepInfo`](inc/wet/analysis/analysis.hpp#L1000) | Step-response characteristics of a single output signal |
-| [`TimeResponse`](inc/wet/analysis/analysis.hpp#L748) | Multi-channel time-domain response sampled on a time grid |
+| [`ImpedanceResult`](inc/wet/analysis/analysis.hpp#L1425) | Result of impedance frequency response evaluation |
+| [`LoopResponseResult`](inc/wet/analysis/analysis.hpp#L443) | Open-loop and closed-loop frequency response package |
+| [`LoopSummary`](inc/wet/analysis/analysis.hpp#L478) | Compact loop summary metrics for quick stability/robustness checks |
+| [`LsimInfo`](inc/wet/analysis/analysis.hpp#L1267) | Transient characteristics of an arbitrary response signal |
+| [`LsimResult`](inc/wet/analysis/analysis.hpp#L900) | Result of a single-trajectory simulation: time, output, and state history |
+| [`MiddlebrookResult`](inc/wet/analysis/analysis.hpp#L1443) | Result of Middlebrook minor loop gain analysis |
+| [`PoleZeroMap`](inc/wet/analysis/analysis.hpp#L1345) | Poles and zeros of a system, for pole-zero plotting |
+| [`StepInfo`](inc/wet/analysis/analysis.hpp#L1136) | Step-response characteristics of a single output signal |
+| [`TimeResponse`](inc/wet/analysis/analysis.hpp#L884) | Multi-channel time-domain response sampled on a time grid |
 
 **Functions**
 
 | Name | Description |
 | ---- | ----------- |
-| [`bode`](inc/wet/analysis/analysis.hpp#L285) | Compute Bode plot data for a SISO state-space system |
-| [`bode_discrete`](inc/wet/analysis/analysis.hpp#L380) | Compute Bode plot data for a discrete-time SISO state-space system |
-| [`canonical_phase_margin`](inc/wet/analysis/analysis.hpp#L197) | Normalize phase margin to (-180, 180] |
-| [`damp`](inc/wet/analysis/analysis.hpp#L723) | Compute natural frequency and damping for each pole |
-| [`dcgain`](inc/wet/analysis/analysis.hpp#L650) | Compute DC gain of a continuous-time system |
-| [`gain_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L249) | Find gain margin using unwrapped phase trajectory |
-| [`impedance`](inc/wet/analysis/analysis.hpp#L1392) | Compute impedance frequency response from a SISO admittance system |
-| [`impedance_direct`](inc/wet/analysis/analysis.hpp#L1427) | Compute impedance frequency response from a SISO impedance transfer function |
-| [`impulse`](inc/wet/analysis/analysis.hpp#L855) | Impulse response of a (MIMO) state-space system |
-| [`initial`](inc/wet/analysis/analysis.hpp#L885) | Initial-condition (free) response of a (MIMO) state-space system |
-| [`is_stable_continuous`](inc/wet/analysis/analysis.hpp#L690) | Check continuous-time stability |
-| [`loop_response`](inc/wet/analysis/analysis.hpp#L567) | Compute open-loop L, sensitivity S, complementary sensitivity T, and Nyquist data |
-| [`lsim`](inc/wet/analysis/analysis.hpp#L916) | Forced time response of a (MIMO) state-space system to an input signal |
-| [`lsiminfo`](inc/wet/analysis/analysis.hpp#L1148) | Compute transient characteristics from an output/time signal |
-| [`middlebrook`](inc/wet/analysis/analysis.hpp#L1461) | Middlebrook stability analysis for cascaded source-load systems |
-| [`nyquist`](inc/wet/analysis/analysis.hpp#L522) | Compute Nyquist data for a SISO state-space system |
-| [`phase_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L213) | Find phase margin using unwrapped phase trajectory |
-| [`poles`](inc/wet/analysis/analysis.hpp#L678) | Compute open-loop poles (eigenvalues of A matrix) |
-| [`poly_roots`](inc/wet/analysis/analysis.hpp#L1222) | Roots of a polynomial given in ascending powers (MATLAB `roots`, reversed order) |
-| [`pzmap`](inc/wet/analysis/analysis.hpp#L1250) | Pole-zero map of a SISO transfer function (MATLAB `pzmap(tf)`) |
-| [`step`](inc/wet/analysis/analysis.hpp#L825) | Step response of a (MIMO) state-space system |
-| [`stepinfo`](inc/wet/analysis/analysis.hpp#L1019) | Compute step-response characteristics from an output/time signal |
-| [`unwrap_phase_deg`](inc/wet/analysis/analysis.hpp#L171) | Unwrap phase data in degrees to avoid +/-180 discontinuities |
+| [`bode`](inc/wet/analysis/analysis.hpp#L288) | Compute Bode plot data for a SISO state-space system |
+| [`bode_discrete`](inc/wet/analysis/analysis.hpp#L383) | Compute Bode plot data for a discrete-time SISO state-space system |
+| [`canonical_phase_margin`](inc/wet/analysis/analysis.hpp#L200) | Normalize phase margin to (-180, 180] |
+| [`damp`](inc/wet/analysis/analysis.hpp#L859) | Compute natural frequency and damping for each pole |
+| [`dcgain`](inc/wet/analysis/analysis.hpp#L653) | Compute DC gain of a continuous-time system |
+| [`gain_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L252) | Find gain margin using unwrapped phase trajectory |
+| [`impedance`](inc/wet/analysis/analysis.hpp#L1528) | Compute impedance frequency response from a SISO admittance system |
+| [`impedance_direct`](inc/wet/analysis/analysis.hpp#L1563) | Compute impedance frequency response from a SISO impedance transfer function |
+| [`impulse`](inc/wet/analysis/analysis.hpp#L991) | Impulse response of a (MIMO) state-space system |
+| [`initial`](inc/wet/analysis/analysis.hpp#L1021) | Initial-condition (free) response of a (MIMO) state-space system |
+| [`is_stable_continuous`](inc/wet/analysis/analysis.hpp#L826) | Check continuous-time stability |
+| [`loop_response`](inc/wet/analysis/analysis.hpp#L570) | Compute open-loop L, sensitivity S, complementary sensitivity T, and Nyquist data |
+| [`lsim`](inc/wet/analysis/analysis.hpp#L1052) | Forced time response of a (MIMO) state-space system to an input signal |
+| [`lsiminfo`](inc/wet/analysis/analysis.hpp#L1284) | Compute transient characteristics from an output/time signal |
+| [`middlebrook`](inc/wet/analysis/analysis.hpp#L1597) | Middlebrook stability analysis for cascaded source-load systems |
+| [`norm_h2`](inc/wet/analysis/analysis.hpp#L681) | H2 norm of a state-space system |
+| [`norm_hinf`](inc/wet/analysis/analysis.hpp#L733) | H∞ norm of a state-space system: @f$ \sup_\omega \bar\sigma\,G(j\omega) @f$ |
+| [`nyquist`](inc/wet/analysis/analysis.hpp#L525) | Compute Nyquist data for a SISO state-space system |
+| [`phase_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L216) | Find phase margin using unwrapped phase trajectory |
+| [`poles`](inc/wet/analysis/analysis.hpp#L814) | Compute open-loop poles (eigenvalues of A matrix) |
+| [`poly_roots`](inc/wet/analysis/analysis.hpp#L1358) | Roots of a polynomial given in ascending powers (MATLAB `roots`, reversed order) |
+| [`pzmap`](inc/wet/analysis/analysis.hpp#L1386) | Pole-zero map of a SISO transfer function (MATLAB `pzmap(tf)`) |
+| [`step`](inc/wet/analysis/analysis.hpp#L961) | Step response of a (MIMO) state-space system |
+| [`stepinfo`](inc/wet/analysis/analysis.hpp#L1155) | Compute step-response characteristics from an output/time signal |
+| [`unwrap_phase_deg`](inc/wet/analysis/analysis.hpp#L174) | Unwrap phase data in degrees to avoid +/-180 discontinuities |
 
 ## Simulation (host)
 
@@ -690,37 +697,45 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 
 | Name | Description |
 | ---- | ----------- |
-| [`MarginResult`](inc/wet/matlab.hpp#L592) | Gain/phase margins and their crossover frequencies |
+| [`MarginResult`](inc/wet/matlab.hpp#L649) | Gain/phase margins and their crossover frequencies |
 
 **Functions**
 
 | Name | Description |
 | ---- | ----------- |
-| [`acker`](inc/wet/matlab.hpp#L351) | Pole placement for state-feedback control |
-| [`bandwidth`](inc/wet/matlab.hpp#L635) | -3 dB bandwidth of a SISO system over a frequency grid |
-| [`blkdiag`](inc/wet/matlab.hpp#L148) | Block diagonal matrix construction |
-| [`c2d`](inc/wet/matlab.hpp#L96) | Matlab interface function c2d to discretize a continuous-time state-space system |
-| [`diag`](inc/wet/matlab.hpp#L170) | Returns a square diagonal matrix from the given array |
-| [`dlqr`](inc/wet/matlab.hpp#L420) | Discrete-time Linear-Quadratic Regulator design |
-| [`eig`](inc/wet/matlab.hpp#L270) | MATLAB short alias for the eigenvalues of a square matrix |
-| [`estim`](inc/wet/matlab.hpp#L284) | Form state estimator from system and estimator gain |
-| [`eye`](inc/wet/matlab.hpp#L213) | Create an identity matrix of size n x n |
-| [`linmod`](inc/wet/matlab.hpp#L128) | MATLAB-style nonlinear linearization about an operating point |
-| [`lqg`](inc/wet/matlab.hpp#L479) | Linear-Quadratic-Gaussian regulator design |
-| [`lqgreg`](inc/wet/matlab.hpp#L495) | Combine separate Kalman filter and LQR designs into an LQG controller |
-| [`lqgtrack`](inc/wet/matlab.hpp#L507) | Linear-Quadratic-Gaussian design with integral action for tracking |
-| [`lqi`](inc/wet/matlab.hpp#L466) | Linear-Quadratic Integral design for tracking |
-| [`lqr`](inc/wet/matlab.hpp#L400) | Continuous-time LQR design (MATLAB's lqr) |
-| [`lqrd`](inc/wet/matlab.hpp#L435) | Design discrete LQR from continuous-time system via discretization |
-| [`margin`](inc/wet/matlab.hpp#L606) | Gain and phase margins of a SISO loop over a frequency grid |
-| [`null`](inc/wet/matlab.hpp#L257) | MATLAB short alias for an orthonormal null-space basis |
-| [`pidtune`](inc/wet/matlab.hpp#L522) | PID controller tuning using frequency domain method |
-| [`pinv`](inc/wet/matlab.hpp#L248) | MATLAB short alias for the Moore–Penrose pseudoinverse |
-| [`place`](inc/wet/matlab.hpp#L373) | Robust multi-input pole placement (MATLAB's place) |
-| [`pole`](inc/wet/matlab.hpp#L583) | MATLAB short alias for the open-loop poles of a system |
-| [`reg`](inc/wet/matlab.hpp#L308) | Form dynamic regulator from system, state-feedback gain, and estimator gain |
-| [`svd`](inc/wet/matlab.hpp#L234) | MATLAB short alias for the singular value decomposition |
-| [`tf`](inc/wet/matlab.hpp#L31) | MATLAB-style transfer function constructor |
+| [`acker`](inc/wet/matlab.hpp#L408) | Pole placement for state-feedback control |
+| [`bandwidth`](inc/wet/matlab.hpp#L692) | -3 dB bandwidth of a SISO system over a frequency grid |
+| [`blkdiag`](inc/wet/matlab.hpp#L205) | Block diagonal matrix construction |
+| [`c2d`](inc/wet/matlab.hpp#L153) | Matlab interface function c2d to discretize a continuous-time state-space system |
+| [`diag`](inc/wet/matlab.hpp#L227) | Returns a square diagonal matrix from the given array |
+| [`dlqr`](inc/wet/matlab.hpp#L477) | Discrete-time Linear-Quadratic Regulator design |
+| [`dlyap`](inc/wet/matlab.hpp#L716) | MATLAB alias for the discrete Lyapunov solve @f$ AXA^\top-X+Q=0 @f$ |
+| [`eig`](inc/wet/matlab.hpp#L327) | MATLAB short alias for the eigenvalues of a square matrix |
+| [`estim`](inc/wet/matlab.hpp#L341) | Form state estimator from system and estimator gain |
+| [`eye`](inc/wet/matlab.hpp#L270) | Create an identity matrix of size n x n |
+| [`gram`](inc/wet/matlab.hpp#L726) | MATLAB alias for the controllability/observability Gramian of a system |
+| [`hinfnorm`](inc/wet/matlab.hpp#L753) | MATLAB alias for the H∞ system norm norm(sys,Inf) / hinfnorm(sys) |
+| [`linmod`](inc/wet/matlab.hpp#L185) | MATLAB-style nonlinear linearization about an operating point |
+| [`lqg`](inc/wet/matlab.hpp#L536) | Linear-Quadratic-Gaussian regulator design |
+| [`lqgreg`](inc/wet/matlab.hpp#L552) | Combine separate Kalman filter and LQR designs into an LQG controller |
+| [`lqgtrack`](inc/wet/matlab.hpp#L564) | Linear-Quadratic-Gaussian design with integral action for tracking |
+| [`lqi`](inc/wet/matlab.hpp#L523) | Linear-Quadratic Integral design for tracking |
+| [`lqr`](inc/wet/matlab.hpp#L457) | Continuous-time LQR design (MATLAB's lqr) |
+| [`lqrd`](inc/wet/matlab.hpp#L492) | Design discrete LQR from continuous-time system via discretization |
+| [`lyap`](inc/wet/matlab.hpp#L706) | MATLAB alias for the continuous Lyapunov solve @f$ AX+XA^\top+Q=0 @f$ |
+| [`margin`](inc/wet/matlab.hpp#L663) | Gain and phase margins of a SISO loop over a frequency grid |
+| [`norm`](inc/wet/matlab.hpp#L743) | MATLAB alias for the H2 system norm norm(sys,2) |
+| [`null`](inc/wet/matlab.hpp#L314) | MATLAB short alias for an orthonormal null-space basis |
+| [`pid`](inc/wet/matlab.hpp#L102) | MATLAB-style parallel-form PID controller constructor |
+| [`pidtune`](inc/wet/matlab.hpp#L579) | PID controller tuning using frequency domain method |
+| [`pinv`](inc/wet/matlab.hpp#L305) | MATLAB short alias for the Moore–Penrose pseudoinverse |
+| [`place`](inc/wet/matlab.hpp#L430) | Robust multi-input pole placement (MATLAB's place) |
+| [`pole`](inc/wet/matlab.hpp#L640) | MATLAB short alias for the open-loop poles of a system |
+| [`reg`](inc/wet/matlab.hpp#L365) | Form dynamic regulator from system, state-feedback gain, and estimator gain |
+| [`ss`](inc/wet/matlab.hpp#L65) | MATLAB-style state-space model constructor |
+| [`svd`](inc/wet/matlab.hpp#L291) | MATLAB short alias for the singular value decomposition |
+| [`tf`](inc/wet/matlab.hpp#L32) | MATLAB-style transfer function constructor |
+| [`zpk`](inc/wet/matlab.hpp#L87) | MATLAB-style zero-pole-gain model constructor |
 
 ## Math backends
 

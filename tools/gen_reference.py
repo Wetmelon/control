@@ -82,6 +82,9 @@ def decl(code):
 
 
 def category(path):
+    # TODO(D20): once the namespace migration lands, key grouping on the declared
+    # domain namespace (servo::/control::/filters::…) instead of the folder, so the
+    # grouped reference mirrors the canonical taxonomy regardless of file location.
     if path.name == "matlab.hpp":
         return "matlab"  # all thin wrappers — keep them out of the core tables
     rel = path.relative_to(ROOT)
@@ -114,7 +117,8 @@ for hpp in sorted(ROOT.rglob("*.hpp")):
 
 out = ["# API Reference\n",
        "Auto-generated from `@brief` doc comments in `inc/wet/`. "
-       "Regenerate with `python tools/gen_reference.py`.\n"]
+       "Regenerate with `python tools/gen_reference.py`. "
+       "Flat A→Z view: [REFERENCE_INDEX.md](REFERENCE_INDEX.md).\n"]
 
 
 def table(title, rows):
@@ -192,3 +196,23 @@ print(f"Wrote REFERENCE.md: {total} entries across {len(entries)} categories")
 for key, _ in CATS:
     if entries.get(key):
         print(f"  {CAT_NAME[key]:40s} {len(entries[key])}")
+
+# --- Flat alphabetical index (REFERENCE_INDEX.md) -------------------------
+# Same entries, every public symbol A→Z with its domain, for quick lookup. A name
+# appearing twice with different links flags a possible canonical-implementation
+# violation (D20) — surfaced here on purpose.
+KIND_LABEL = {"fn": "function", "type": "block", "enum": "enum"}
+flat = [(name, KIND_LABEL.get(kind, kind), CAT_NAME[cat], b, link)
+        for cat, rows in entries.items() for kind, name, b, link in rows]
+
+idx = ["# API Reference — Alphabetical Index\n",
+       "Auto-generated from `@brief` doc comments in `inc/wet/`. "
+       "Regenerate with `python tools/gen_reference.py`. "
+       "Grouped-by-domain view: [REFERENCE.md](REFERENCE.md).\n",
+       "| Name | Kind | Domain | Description |",
+       "| ---- | ---- | ------ | ----------- |"]
+for name, kind, domain, b, link in sorted(flat, key=lambda r: (r[0].lower(), r[2])):
+    idx.append(f"| [`{name}`]({link}) | {kind} | {domain} | {b} |")
+
+pathlib.Path("REFERENCE_INDEX.md").write_text("\n".join(idx) + "\n", encoding="utf-8")
+print(f"Wrote REFERENCE_INDEX.md: {len(flat)} entries (flat A-Z)")

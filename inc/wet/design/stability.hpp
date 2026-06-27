@@ -14,6 +14,8 @@
  */
 #include <cstddef>
 
+#include "wet/backend.hpp"
+#include "wet/design/lyapunov.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/eigen.hpp"
 #include "wet/matrix/matrix.hpp"
@@ -83,6 +85,63 @@ observability_matrix(const Matrix<NX, NX, T>& A, const Matrix<NY, NX, T>& C) noe
         }
     }
     return Ob;
+}
+
+/**
+ * @brief Continuous/discrete controllability Gramian @f$ W_c @f$.
+ *
+ * Solves the Lyapunov equation whose solution measures how strongly each state
+ * direction is excited by the input:
+ * - continuous: @f$ A W_c + W_c A^\top + B B^\top = 0 @f$
+ * - discrete:   @f$ A W_c A^\top - W_c + B B^\top = 0 @f$
+ *
+ * @f$ W_c \succ 0 @f$ iff @f$ (A,B) @f$ is controllable. Requires @f$ A @f$ stable
+ * (Hurwitz / Schur) for the Gramian to be finite.
+ *
+ * @note Compare with MATLAB's @c gram(sys,'c').
+ * @see observability_gramian(), wet::lyap(), wet::dlyap().
+ *
+ * @param A        State matrix (NX × NX).
+ * @param B        Input matrix (NX × NU).
+ * @param discrete false → continuous-time, true → discrete-time.
+ * @return @f$ W_c @f$ (NX × NX), or wet::nullopt if the Lyapunov solve is singular.
+ */
+template<size_t NX, size_t NU, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NX, NX, T>> controllability_gramian(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NX, NU, T>& B,
+    bool                     discrete = false
+) {
+    const Matrix<NX, NX, T> BBt = B * B.transpose();
+    return discrete ? dlyap(A, BBt) : lyap(A, BBt);
+}
+
+/**
+ * @brief Continuous/discrete observability Gramian @f$ W_o @f$.
+ *
+ * Solves the dual Lyapunov equation measuring how strongly each state direction
+ * shows up in the output:
+ * - continuous: @f$ A^\top W_o + W_o A + C^\top C = 0 @f$
+ * - discrete:   @f$ A^\top W_o A - W_o + C^\top C = 0 @f$
+ *
+ * @f$ W_o \succ 0 @f$ iff @f$ (A,C) @f$ is observable. Requires @f$ A @f$ stable.
+ *
+ * @note Compare with MATLAB's @c gram(sys,'o').
+ * @see controllability_gramian(), wet::lyap(), wet::dlyap().
+ *
+ * @param A        State matrix (NX × NX).
+ * @param C        Output matrix (NY × NX).
+ * @param discrete false → continuous-time, true → discrete-time.
+ * @return @f$ W_o @f$ (NX × NX), or wet::nullopt if the Lyapunov solve is singular.
+ */
+template<size_t NX, size_t NY, typename T = double>
+[[nodiscard]] constexpr wet::optional<Matrix<NX, NX, T>> observability_gramian(
+    const Matrix<NX, NX, T>& A,
+    const Matrix<NY, NX, T>& C,
+    bool                     discrete = false
+) {
+    const Matrix<NX, NX, T> CtC = C.transpose() * C;
+    return discrete ? dlyap(A.transpose(), CtC) : lyap(A.transpose(), CtC);
 }
 
 /**

@@ -173,6 +173,61 @@ robust `design::place` (roadmap #16).
 **Why:** one documented observer-synthesis entry point; pole-placement robustness is a
 separate concern.
 
+### D20 — Namespace organization: canonical domain namespaces + thin `matlab::` alias facade
+**Status:** Accepted (2026-06) · **Refs:** roadmap #3 (unified block concept), API-naming convention
+
+Two layers, one implementation:
+
+- **Canonical layer.** Every algorithm and runtime block is defined **exactly once**, in a
+  **domain namespace named for its actual scope**, under a descriptive long name and returning
+  a rich result (e.g. `design::lqr` → full result struct, not just `K`). `wet::` *root* holds
+  only **generic, domain-agnostic** vocabulary — scalar/complex math, `wet::mat` linear algebra,
+  the LTI model types, truly common utilities. Domain-specific code must move out of root into
+  its domain namespace; the name must reflect the real scope (a rotational-machine estimator is
+  servo-drive-specific → `wet::servo`, not a generic "mechanical estimator" in `wet::`).
+- **Facade layer.** `wet::matlab` mirrors MATLAB **names and behaviours** (e.g. `matlab::lqr`
+  returns only `K`). It is a thin compatibility skin, **not** a place to group "toolboxes" — the
+  domain namespaces are the grouping. Every facade entry is a `using`-declaration or a one-line
+  forwarder that only reshapes name/args/return — **never a second implementation body**.
+
+**Two orthogonal axes — only the domain axis nests.** *Layer* namespaces are cross-cutting and
+stay **flat**: `design::` (synthesis), `analysis::` (host eval), `matlab::` (aliases), `mat::`
+(linalg). *Domain* namespaces (`servo::`/`control::`/`filters::`/…) name the **runtime blocks**.
+Do **not** nest a layer under a domain (no `servo::design::`) — a synthesis function's domain is
+carried by its name + folder (`design::mechanical_ss` in `servo/mechanical_estimator.hpp`), not by
+nesting. Mirrors the workflow: design-phase → flat `design::`; deploy-phase → a `servo::`/`control::`
+block.
+
+**Header granularity = one feature, not one namespace.** A feature's synthesis (`design::`) and
+its runtime block (the domain namespace) live **together** in one header — `lqr.hpp` holds
+`design::lqr` *and* the LQR runtime; everything about a feature is in one place. This deliberately
+allows two public namespaces per header (the design tier + the runtime tier of D3), because that
+co-location is what a new user wants — not arbitrary namespace mixing. (`detail::` is exempt;
+PID is being unified to this shape — it is currently the lone split.) The **only** split-out is
+heavy host-only synthesis (H∞/MPC/MHE → `toolbox.hpp`, [[D16]]): there the design cannot ship to
+target, so it lives apart from any embeddable runtime. Folder layout tracks the domain but is not
+binding — when migrating a header, re-check both that it sits in the right folder and that its
+contents belong together, and split/move when they don't.
+
+**Single-implementation guarantee.** One canonical symbol per algorithm; all aliases resolve to
+it, so they cannot diverge. This is the structural fix for the MATLAB/Simulink failure mode where
+same-named blocks ship different implementations. Runtime blocks all satisfy the shared
+controller/observer concept (#3) so "block" means one thing everywhere.
+
+**Enforcement:** a build test asserts each facade symbol delegates to its canonical (forwards-only,
+no independent logic) — per the chosen "test + rule" enforcement, not convention alone.
+
+**Target taxonomy** (incremental migration; `design::` and `wet::{estimation,servo,sim,plot,mat,
+plc,io,analysis}` are already in this shape, most runtime code is still flat in `wet::` and moves):
+`design` (synthesis) · `analysis` (host freq/time) · `control` (runtime controllers) ·
+`estimation` · `filters` · `servo` (motor/rotational drive: transforms, modulation, FOC,
+mechanical estimator, encoder) · `power` (converters, if split from servo) · `kinematics` ·
+`trajectory` · `sim`/`plot` (host) · `mat` · `matlab` (aliases) · `plc`/`io` (utility).
+
+**Why:** one canonical impl per name eliminates divergent duplicates; a generic root keeps domain
+assumptions from leaking into common code; the MATLAB layer stays a faithful compatibility skin
+rather than a fork.
+
 ## Per-feature
 
 ### D12 — Repetitive control rollout → SISO first
