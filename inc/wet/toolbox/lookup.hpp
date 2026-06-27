@@ -48,7 +48,9 @@ template<size_t N, typename T>
     }
     size_t lo = 1;
     size_t hi = N - 2;
-    while (hi - lo > 1) {
+    // lo + 1 < hi (not hi - lo > 1): for N == 2, hi = 0 < lo, and the size_t
+    // subtraction would underflow into a phantom in-loop index (GCC -Warray-bounds).
+    while (lo + 1 < hi) {
         const size_t mid = lo + ((hi - lo) / 2);
         if (xs[mid] <= x) {
             lo = mid;
