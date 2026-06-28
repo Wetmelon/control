@@ -186,9 +186,9 @@ struct KalmanFilter {
         const auto y_pred = sys.C * x + sys.D * u;
         innov = y - y_pred;
 
-        const auto              Ct = sys.C.transpose();
-        const auto              Ht = sys.H.transpose();
-        const Matrix<NY, NY, T> S = sys.C * P * Ct + sys.H * R * Ht;
+        const auto Ct = sys.C.transpose();
+        const auto Ht = sys.H.transpose();
+        const auto S = sys.C * P * Ct + sys.H * R * Ht;
 
         // K = PCᵀS⁻¹ → solve S Kᵀ = C P via Cholesky (S is symmetric positive definite)
         const auto K_opt = mat::cholesky_solve(S, sys.C * P);

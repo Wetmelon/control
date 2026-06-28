@@ -136,7 +136,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | Name | Description |
 | ---- | ----------- |
 | [`DiscretizationMethod`](inc/wet/systems/discretization.hpp#L8) | Discretization methods for continuous-time state-space systems |
-| [`StateSpace`](inc/wet/systems/state_space.hpp#L24) | State-space representation for linear time-invariant systems (discrete or continuous) |
+| [`StateSpace`](inc/wet/systems/state_space.hpp#L27) | State-space representation for linear time-invariant systems (discrete or continuous) |
 | [`ZPK`](inc/wet/systems/zpk.hpp#L12) | Zero-pole-gain (ZPK) representation of a SISO LTI system |
 
 **Functions**
@@ -147,11 +147,11 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`discretize_forward_euler_impl`](inc/wet/systems/discretization.hpp#L21) | Discretize using Forward Euler (explicit Euler) |
 | [`discretize_tustin_impl`](inc/wet/systems/discretization.hpp#L127) | Discretize a continuous-time state-space system using Tustin method |
 | [`discretize_zoh_impl`](inc/wet/systems/discretization.hpp#L66) | Discretize using Zero-Order Hold (ZOH) |
-| [`eval_frf`](inc/wet/systems/state_space.hpp#L79) | Evaluate frequency response of state-space system |
-| [`feedback`](inc/wet/systems/state_space.hpp#L251) | Negative feedback connection of two state-space systems |
-| [`parallel`](inc/wet/systems/state_space.hpp#L185) | Parallel connection of two state-space systems |
-| [`series`](inc/wet/systems/state_space.hpp#L118) | Series connection of two state-space systems |
-| [`subtract`](inc/wet/systems/state_space.hpp#L320) | Subtraction/differencing connection of two state-space systems |
+| [`eval_frf`](inc/wet/systems/state_space.hpp#L82) | Evaluate frequency response of state-space system |
+| [`feedback`](inc/wet/systems/state_space.hpp#L254) | Negative feedback connection of two state-space systems |
+| [`parallel`](inc/wet/systems/state_space.hpp#L188) | Parallel connection of two state-space systems |
+| [`series`](inc/wet/systems/state_space.hpp#L121) | Series connection of two state-space systems |
+| [`subtract`](inc/wet/systems/state_space.hpp#L323) | Subtraction/differencing connection of two state-space systems |
 
 ## Runtime controllers
 
@@ -467,9 +467,10 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 
 | Name | Description |
 | ---- | ----------- |
+| [`AdaptivePredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L213) | Self-tuning deadbeat current controller: PredictiveCurrentController plus the online PmsmParameterEstimator |
 | [`AlphaBeta`](inc/wet/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
 | [`AlphaBetaZero`](inc/wet/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
-| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L23) | The three bandwidth knobs of the position/velocity/current cascade |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L25) | The three bandwidth knobs of the position/velocity/current cascade |
 | [`Convention`](inc/wet/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
 | [`DcBusLimiter`](inc/wet/motor/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
 | [`DcBusLimits`](inc/wet/motor/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
@@ -478,19 +479,27 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`DirectQuadratureZero`](inc/wet/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
 | [`DqCommand`](inc/wet/motor/foc.hpp#L261) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
 | [`FetLossModel`](inc/wet/motor/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
+| [`FieldWeakening`](inc/wet/motor/field_weakening.hpp#L91) | Field-weakening current-reference regulator (voltage-feedback or feedforward) |
+| [`FieldWeakeningConfig`](inc/wet/motor/field_weakening.hpp#L77) | Configuration for FieldWeakening |
 | [`FocResult`](inc/wet/motor/foc.hpp#L245) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
 | [`InstantaneousPower`](inc/wet/transforms.hpp#L525) | Instantaneous active and reactive power |
 | [`JunctionEstimator`](inc/wet/motor/thermal.hpp#L176) | FET junction-temperature estimator: case temperature plus a thermal model |
 | [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L84) | Cheap-predict mechanical estimator for position, speed, and load torque |
 | [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L59) | Configuration for MechanicalEstimator |
+| [`MtpaReference`](inc/wet/motor/mtpa.hpp#L100) | Maximum-torque-per-ampere current-reference generator (PMSM / IPMSM / SynRM) |
+| [`NoFieldWeakening`](inc/wet/motor/field_weakening.hpp#L187) | Null field-weakening policy — passes the base reference through unchanged |
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L79) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L44) | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L82) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L46) | Configuration for PmacServo |
+| [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
+| [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |
+| [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | Online PMSM electrical-parameter estimator (linear Kalman filter) |
+| [`PredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L24) | Deadbeat (one-step predictive) dq current controller — an alternative to the PI FOController current loop |
 | [`ResistiveLossModel`](inc/wet/motor/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
 | [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L68) | Sensor feedback for one PmacServo::update tick |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L70) | Sensor feedback for one PmacServo::update tick |
 | [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
 | [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
 | [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
@@ -508,6 +517,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`clarke_zero_transform`](inc/wet/transforms.hpp#L235) | Zero-retaining Clarke transform (abc → αβ0) |
 | [`current_loop_pi`](inc/wet/motor/foc.hpp#L26) | Current-loop PI gains by closed-loop pole placement on the R–L plant |
 | [`derate_window`](inc/wet/motor/thermal.hpp#L14) | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
+| [`field_weakening_id`](inc/wet/motor/field_weakening.hpp#L17) | Feedforward field-weakening d-axis current from the voltage ellipse |
 | [`flux_from_Kv`](inc/wet/motor/foc.hpp#L139) | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
 | [`flux_from_torque_constant`](inc/wet/motor/foc.hpp#L75) | PM flux linkage from a motor's torque constant (amplitude-invariant) |
 | [`foster_thermal_ss`](inc/wet/motor/thermal.hpp#L32) | Continuous state-space model of a Foster RC thermal network |
@@ -521,9 +531,11 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`inverse_symmetrical_components`](inc/wet/transforms.hpp#L646) | Inverse symmetrical-component transform (012 → abc) |
 | [`iq_from_torque`](inc/wet/motor/foc.hpp#L178) | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
 | [`motor_constant`](inc/wet/motor/foc.hpp#L156) | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
+| [`mtpa_id_from_iq`](inc/wet/motor/mtpa.hpp#L11) | MTPA d-axis current on the trajectory for a given q-axis current |
+| [`mtpa_reference`](inc/wet/motor/mtpa.hpp#L50) | MTPA dq current reference for a commanded torque |
 | [`park_transform`](inc/wet/transforms.hpp#L353) | Park transform (αβ → dq) |
 | [`park_zero_transform`](inc/wet/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
-| [`requires`](inc/wet/motor/thermal.hpp#L107) | A loss model usable by JunctionEstimator |
+| [`requires`](inc/wet/motor/field_weakening.hpp#L170) | Concept for a pluggable field-weakening / current-reference policy |
 | [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L13) | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
 | [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
 | [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
@@ -664,7 +676,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`FixedStepSolver`](inc/wet/simulation/solver.hpp#L84) | Fixed-step ODE solver |
 | [`ForwardEuler`](inc/wet/simulation/integrator.hpp#L79) | Forward Euler integrator |
 | [`IntegrationResult`](inc/wet/simulation/integrator.hpp#L11) | Result of an integration step |
-| [`SimulationResult`](inc/wet/simulation/simulate.hpp#L28) | Result of a closed-loop simulation |
+| [`SimulationResult`](inc/wet/simulation/simulate.hpp#L30) | Result of a closed-loop simulation |
 | [`SolveResult`](inc/wet/simulation/solver.hpp#L28) | Result of an ODE solve operation |
 | [`Trapezoidal`](inc/wet/simulation/integrator.hpp#L277) | Trapezoidal (Tustin) integrator |
 
@@ -683,11 +695,12 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | Plot step response data |
 | [`pzplot`](inc/wet/simulation/plot_plotly.hpp#L444) | Plot a pole-zero map on the complex plane (poles as ×, zeros as ○) |
-| [`simulate`](inc/wet/simulation/simulate.hpp#L44) | Simulate a nonlinear plant with a controller in closed loop |
-| [`simulate_discrete`](inc/wet/simulation/simulate.hpp#L261) | Simulate a discrete-time system with a controller |
-| [`simulate_discrete_nonlinear`](inc/wet/simulation/simulate.hpp#L197) | Simulate a discrete-time nonlinear plant with a controller |
-| [`simulate_lti`](inc/wet/simulation/simulate.hpp#L166) | Simulate a continuous LTI system with a controller |
-| [`simulate_state_feedback`](inc/wet/simulation/simulate.hpp#L112) | Simulate a nonlinear plant with state-feedback controller |
+| [`simulate`](inc/wet/simulation/simulate.hpp#L46) | Simulate a nonlinear plant with a controller in closed loop |
+| [`simulate_discrete`](inc/wet/simulation/simulate.hpp#L322) | Simulate a discrete-time system with a controller |
+| [`simulate_discrete_nonlinear`](inc/wet/simulation/simulate.hpp#L258) | Simulate a discrete-time nonlinear plant with a controller |
+| [`simulate_lti`](inc/wet/simulation/simulate.hpp#L227) | Simulate a continuous LTI system with a controller |
+| [`simulate_sampled`](inc/wet/simulation/simulate.hpp#L114) | Simulate a continuous plant under a discrete (sampled) controller — multi-rate |
+| [`simulate_state_feedback`](inc/wet/simulation/simulate.hpp#L173) | Simulate a nonlinear plant with state-feedback controller |
 | [`stepplot`](inc/wet/simulation/plot_plotly.hpp#L311) | Plot a step response, one trace per input/output pair |
 | [`time_response_figure`](inc/wet/simulation/plot_plotly.hpp#L240) | Build a time-response figure with one line per (output, input) pair |
 

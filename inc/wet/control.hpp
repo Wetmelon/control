@@ -105,10 +105,13 @@
 
 // --- Motor drives -----------------------------------------------------------
 #include "wet/motor/calibration.hpp"          // IWYU pragma: export
+#include "wet/motor/field_weakening.hpp"      // IWYU pragma: export
 #include "wet/motor/foc.hpp"                  // IWYU pragma: export
 #include "wet/motor/limits.hpp"               // IWYU pragma: export
 #include "wet/motor/mechanical_estimator.hpp" // IWYU pragma: export
 #include "wet/motor/modulation.hpp"           // IWYU pragma: export
+#include "wet/motor/mtpa.hpp"                 // IWYU pragma: export
+#include "wet/motor/predictive_current.hpp"   // IWYU pragma: export
 #include "wet/motor/servo.hpp"                // IWYU pragma: export
 #include "wet/motor/thermal.hpp"              // IWYU pragma: export
 
