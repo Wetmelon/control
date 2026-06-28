@@ -83,10 +83,10 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ColView`](inc/wet/matrix/views.hpp#L215) | Non-owning column view of a matrix |
 | [`Diagonal`](inc/wet/matrix/views.hpp#L29) | Diagonal view of a square matrix |
 | [`EigenResult`](inc/wet/matrix/eigen.hpp#L13) | Eigenvalue computation result |
-| [`FullQR`](inc/wet/matrix/decomposition.hpp#L249) | Result of a full (complete) QR factorization |
+| [`FullQR`](inc/wet/matrix/decomposition.hpp#L250) | Result of a full (complete) QR factorization |
 | [`LowerTriangle`](inc/wet/matrix/views.hpp#L121) | Lower triangular view of a square matrix |
 | [`Matrix`](inc/wet/matrix/matrix.hpp#L49) | Fixed-size, stack-allocated matrix for linear algebra operations |
-| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L172) | QR decomposition via Gram-Schmidt orthogonalization |
+| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L173) | QR decomposition via Gram-Schmidt orthogonalization |
 | [`RowVec`](inc/wet/matrix/rowvec.hpp#L9) | Row vector specialization of Matrix<1, N, T> |
 | [`RowView`](inc/wet/matrix/views.hpp#L148) | Non-owning row view of a matrix |
 | [`SVDResult`](inc/wet/matrix/svd.hpp#L215) | Result of a full singular value decomposition A = U·Σ·Vᴴ |
@@ -106,21 +106,21 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`forward_substitute`](inc/wet/matrix/solve.hpp#L23) | Forward substitution to solve L x = b |
 | [`francis_qr`](inc/wet/matrix/eigen.hpp#L108) | Francis double-shift QR on an upper Hessenberg matrix |
 | [`frobenius_norm`](inc/wet/matrix/functions.hpp#L55) | Frobenius norm: square root of sum of squares of all elements |
-| [`full_qr`](inc/wet/matrix/decomposition.hpp#L264) | Full QR factorization via Householder reflections (real or complex T) |
+| [`full_qr`](inc/wet/matrix/decomposition.hpp#L265) | Full QR factorization via Householder reflections (real or complex T) |
 | [`hessenberg_reduce`](inc/wet/matrix/eigen.hpp#L32) | Reduce a square matrix to upper Hessenberg form by Householder reflections |
 | [`infinity_norm`](inc/wet/matrix/functions.hpp#L11) | Infinity norm: maximum absolute row sum |
 | [`jacobi_svd_tall`](inc/wet/matrix/svd.hpp#L45) | One-sided Jacobi SVD of a tall/square matrix A (P×Q, P ≥ Q) |
 | [`log`](inc/wet/matrix/functions.hpp#L361) | Matrix logarithm using inverse scaling and squaring |
-| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L110) | LU decomposition with partial pivoting |
+| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L111) | LU decomposition with partial pivoting |
 | [`null_space`](inc/wet/matrix/svd.hpp#L331) | Orthonormal basis for the null space {x : A·x = 0} via SVD |
 | [`one_norm`](inc/wet/matrix/functions.hpp#L33) | One norm: maximum absolute column sum |
 | [`pow`](inc/wet/matrix/functions.hpp#L543) | Matrix power for real exponent |
 | [`power`](inc/wet/matrix/functions.hpp#L500) | Matrix power for integer exponent |
 | [`pseudo_inverse`](inc/wet/matrix/svd.hpp#L282) | Moore–Penrose pseudoinverse A⁺ via SVD |
-| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L197) | Perform QR decomposition on a matrix |
+| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L198) | Perform QR decomposition on a matrix |
 | [`rank`](inc/wet/matrix/functions.hpp#L199) | Matrix rank via Gaussian elimination with partial pivoting |
 | [`rank_from_svd`](inc/wet/matrix/svd.hpp#L260) | Numerical rank from a precomputed SVD result |
-| [`requires`](inc/wet/matrix/matrix_traits.hpp#L41) | Concept for any type that provides 2D matrix-like element access |
+| [`requires`](inc/wet/matrix/matrix.hpp#L864) | Symmetric congruence (quadratic) form  S = M X Mᵀ |
 | [`sin`](inc/wet/matrix/functions.hpp#L647) | Matrix sine via scaling and double-angle reconstruction |
 | [`sincos`](inc/wet/matrix/functions.hpp#L567) | Compute sin(A) and cos(A) together via scaling and double-angle reconstruction |
 | [`sinh`](inc/wet/matrix/functions.hpp#L717) | Matrix hyperbolic sine |

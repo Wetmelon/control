@@ -165,8 +165,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`foster_thermal_ss`](inc/wet/motor/thermal.hpp#L32) | function | Motor control | Continuous state-space model of a Foster RC thermal network |
 | [`francis_qr`](inc/wet/matrix/eigen.hpp#L108) | function | Linear algebra | Francis double-shift QR on an upper Hessenberg matrix |
 | [`frobenius_norm`](inc/wet/matrix/functions.hpp#L55) | function | Linear algebra | Frobenius norm: square root of sum of squares of all elements |
-| [`full_qr`](inc/wet/matrix/decomposition.hpp#L264) | function | Linear algebra | Full QR factorization via Householder reflections (real or complex T) |
-| [`FullQR`](inc/wet/matrix/decomposition.hpp#L249) | block | Linear algebra | Result of a full (complete) QR factorization |
+| [`full_qr`](inc/wet/matrix/decomposition.hpp#L265) | function | Linear algebra | Full QR factorization via Householder reflections (real or complex T) |
+| [`FullQR`](inc/wet/matrix/decomposition.hpp#L250) | block | Linear algebra | Result of a full (complete) QR factorization |
 | [`gain_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L252) | function | Frequency-domain analysis (host) | Find gain margin using unwrapped phase trajectory |
 | [`Goertzel`](inc/wet/filters/spectral.hpp#L29) | block | Filters & signal conditioning | Generalized Goertzel single-bin DFT — amplitude/phase at one frequency |
 | [`gram`](inc/wet/matlab.hpp#L726) | function | MATLAB-style aliases (host) | MATLAB alias for the controllability/observability Gramian of a system |
@@ -265,7 +265,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`lsiminfo`](inc/wet/analysis/analysis.hpp#L1284) | function | Frequency-domain analysis (host) | Compute transient characteristics from an output/time signal |
 | [`lsimplot`](inc/wet/simulation/plot_plotly.hpp#L343) | function | Simulation (host) | Plot a forced (lsim) simulation, one trace per output |
 | [`LsimResult`](inc/wet/analysis/analysis.hpp#L900) | block | Frequency-domain analysis (host) | Result of a single-trajectory simulation: time, output, and state history |
-| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L110) | function | Linear algebra | LU decomposition with partial pivoting |
+| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L111) | function | Linear algebra | LU decomposition with partial pivoting |
 | [`Lut1D`](inc/wet/toolbox/lookup.hpp#L64) | block | Utilities & toolbox | 1-D interpolating lookup table over monotonic breakpoints |
 | [`Lut2D`](inc/wet/toolbox/lookup.hpp#L122) | block | Utilities & toolbox | 2-D bilinear interpolating lookup table over a regular grid |
 | [`lut_segment`](inc/wet/toolbox/lookup.hpp#L31) | function | Utilities & toolbox | Index of the interpolation segment containing x |
@@ -376,8 +376,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PulseTimer`](inc/wet/toolbox/logic.hpp#L159) | block | Utilities & toolbox | Pulse timer (non-retriggerable): a rising edge of in emits a fixed |
 | [`pzmap`](inc/wet/analysis/analysis.hpp#L1386) | function | Frequency-domain analysis (host) | Pole-zero map of a SISO transfer function (MATLAB `pzmap(tf)`) |
 | [`pzplot`](inc/wet/simulation/plot_plotly.hpp#L444) | function | Simulation (host) | Plot a pole-zero map on the complex plane (poles as ×, zeros as ○) |
-| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L197) | function | Linear algebra | Perform QR decomposition on a matrix |
-| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L172) | block | Linear algebra | QR decomposition via Gram-Schmidt orthogonalization |
+| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L198) | function | Linear algebra | Perform QR decomposition on a matrix |
+| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L173) | block | Linear algebra | QR decomposition via Gram-Schmidt orthogonalization |
 | [`QuadratureDecoder`](inc/wet/toolbox/encoder.hpp#L47) | block | Utilities & toolbox | Software A/B quadrature decoder with optional index |
 | [`R_TRIG`](inc/wet/toolbox/iec61131.hpp#L103) | block | Utilities & toolbox | R_TRIG (Rising Edge Trigger) |
 | [`rad2deg`](inc/wet/math/math.hpp#L426) | function | Scalar math & complex | Radians to degrees, rad·180/π |
@@ -399,7 +399,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`RepetitiveConfig`](inc/wet/controllers/repetitive.hpp#L54) | block | Runtime controllers | Repetitive-controller tuning + period (with optional zero-phase FIR Q) |
 | [`RepetitiveController`](inc/wet/controllers/repetitive.hpp#L248) | block | Runtime controllers | Plug-in repetitive controller runtime (fixed-size internal model) |
 | [`requires`](inc/wet/filters/filters.hpp#L203) | function | Filters & signal conditioning | Butterworth low-pass filter design |
-| [`requires`](inc/wet/matrix/matrix_traits.hpp#L41) | function | Linear algebra | Concept for any type that provides 2D matrix-like element access |
+| [`requires`](inc/wet/matrix/matrix.hpp#L864) | function | Linear algebra | Symmetric congruence (quadratic) form  S = M X Mᵀ |
 | [`requires`](inc/wet/motor/field_weakening.hpp#L170) | function | Motor control | Concept for a pluggable field-weakening / current-reference policy |
 | [`requires`](inc/wet/estimation/ekf.hpp#L42) | function | Observers & estimators | Concept for EKF state functions |
 | [`rescale`](inc/wet/toolbox/scaling.hpp#L45) | function | Utilities & toolbox | Affine map of x from the input range to the output range |
