@@ -4,13 +4,11 @@
 #include <limits>
 
 #include "wet/controllers/pid.hpp"
-#include "wet/design/pid_design.hpp" // pi_pole_placement_first_order
+#include "wet/design/pid_design.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/motor/field_weakening.hpp" // FieldWeakeningPolicy, NoFieldWeakening
 #include "wet/motor/foc.hpp"
 #include "wet/motor/limits.hpp"
 #include "wet/motor/mechanical_estimator.hpp"
-#include "wet/motor/mtpa.hpp" // design::mtpa_reference
 #include "wet/transforms.hpp"
 
 namespace wet::motor {
@@ -60,7 +58,7 @@ struct PmacServoConfig {
     T iq_max{std::numeric_limits<T>::max()}; //!< [A] q-axis current ceiling
     T zeta{T{1}};                            //!< closed-loop damping
 
-    DcBusLimits<T>               bus{};        //!< DC-bus limits
+    DcBusLimits<T>               bus_limits{}; //!< DC-bus limits
     CascadeBandwidths<T>         bandwidths{}; //!< loop bandwidths (rad/s)
     MechanicalEstimatorConfig<T> estimator{};  //!< estimator tuning (J/b/Kt/Ts are taken from above)
 
@@ -106,18 +104,16 @@ struct ServoFeedback {
  * @see PmacServoConfig, ServoFeedback, FieldWeakeningPolicy.
  *
  * @tparam T  Scalar type.
- * @tparam Fw Field-weakening policy (default @ref NoFieldWeakening).
  */
-template<typename T = float, FieldWeakeningPolicy<T> Fw = NoFieldWeakening<T>>
+template<typename T = float>
 class PmacServo {
 public:
-    PmacServo() = default;
+    constexpr PmacServo() = default;
 
-    explicit PmacServo(const PmacServoConfig<T>& config, Fw fw = {})
+    constexpr explicit PmacServo(const PmacServoConfig<T>& config)
         : config_(config),
           foc_(FOController<T>(config.Ldq, config.R, config.lambda, T{0})),
-          bus_(config.bus),
-          fw_(fw),
+          bus_(config.bus_limits),
           Kt_(design::torque_constant_from_flux(config.pole_pairs, config.lambda)) {
 
         MechanicalEstimatorConfig<T> ec = config.estimator;
@@ -133,9 +129,8 @@ public:
     /// Synthesize every loop's gains from three bandwidths (rad/s).
     constexpr void tune(const CascadeBandwidths<T>& bw, T zeta = T{1}) {
         foc_.tune(bw.omega_current, zeta, T{0}); // I-P current loop (no proportional step-kick)
-        vel_pid_ = PIDController<T, PIDMode::PID>(design::pi_pole_placement_first_order(config_.J, config_.b, bw.omega_velocity, zeta));
-        pos_pid_ = PIDController<T, PIDMode::PID>{};
-        pos_pid_.Kp = bw.omega_position; // P on the 1/s position plant: bandwidth = Kp
+        vel_pid_ = PIController<T>(design::pi_pole_placement_first_order(config_.J, config_.b, bw.omega_velocity, zeta));
+        pos_pid_ = PController<T>{bw.omega_position}; // P on the 1/s position plant: bandwidth = Kp
     }
 
     constexpr void set_mode(ControlMode mode) { mode_ = mode; }
@@ -158,7 +153,7 @@ public:
      *           (@ref PmacServoConfig::Ts), since the KF predict is discretized at it.
      * @return @ref FocResult with the SVPWM duties and saturation status.
      */
-    [[nodiscard]] constexpr FocResult<T> update_current(const ServoFeedback<T>& fb, T dt) {
+    [[nodiscard]] constexpr FocResult<T> update_current(const float torque_ref, const ServoFeedback<T>& fb, T dt) {
         const T theta_elec = config_.pole_pairs * fb.theta_mech;
         Idq_ = clarke_park_transform(fb.Iabc, theta_elec);
         Vdc_ = fb.Vdc;
@@ -169,9 +164,8 @@ public:
 
         const T Vmax = foc_.max_modulation * fb.Vdc * wet::numbers::inv_sqrt3_v<T>;
 
-        // Torque → MTPA current reference (id=0 for surface-PM), then field weakening.
-        const DirectQuadrature<T> base = design::mtpa_reference(torque_ref_, config_.lambda, config_.Ldq, config_.pole_pairs);
-        const DirectQuadrature<T> Idq_ref = fw_.update(base, prev_vdq_, foc_.omega, fb.Vdc, dt);
+        // Currently assumes surface mount permanent magnet motors only (Ld = Lq, id = 0)
+        const DirectQuadrature<T> Idq_ref = {.d = T{0}, .q = torque_ref / Kt_};
 
         const auto cmd = foc_.current_controller(Idq_ref, Idq_, dt, Vmax);
         const auto Vab = inverse_park_transform(cmd.Vdq, theta_elec);
@@ -246,7 +240,7 @@ public:
     [[nodiscard]] constexpr FocResult<T> update(const ServoFeedback<T>& fb) {
         update_position(config_.Ts);
         update_velocity(config_.Ts);
-        return update_current(fb, config_.Ts);
+        return update_current(torque_ref_, fb, config_.Ts);
     }
 
     constexpr void reset() {
@@ -254,9 +248,6 @@ public:
         vel_pid_.reset();
         pos_pid_.reset();
         estimator_.reset();
-        if constexpr (requires { fw_.reset(); }) {
-            fw_.reset(); // not every policy is stateful (NoFieldWeakening isn't)
-        }
         prev_vdq_ = {};
         Idq_ = {};
         torque_ref_ = T{0};
@@ -264,22 +255,24 @@ public:
     }
 
 private:
-    PmacServoConfig<T>             config_{};
-    FOController<T>                foc_{};
-    PIDController<T, PIDMode::PID> vel_pid_{};
-    PIDController<T, PIDMode::PID> pos_pid_{};
-    MechanicalEstimator<T>         estimator_{};
-    DcBusLimiter<T>                bus_{};
-    Fw                             fw_{};
+    PmacServoConfig<T> config_{};
+
+    PController<T>  pos_pid_{}; // Position controller
+    PIController<T> vel_pid_{}; // Velocity controller
+    FOController<T> foc_{};     // Current Controller
+
+    MechanicalEstimator<T> estimator_{}; // Estimates theta, omega, and load torque
+
+    DcBusLimiter<T> bus_{};
 
     ControlMode mode_{ControlMode::Torque};
 
-    T                   target_{T{0}};
-    T                   thermal_scale_{T{1}};
-    T                   Kt_{T{1}};
-    DirectQuadrature<T> prev_vdq_{};
+    T target_{T{0}};
+    T thermal_scale_{T{1}};
+    T Kt_{T{1}}; //!< Torque Constant
 
     // Cross-rate state: written by the fast loop, read by the slower ones (and back).
+    DirectQuadrature<T> prev_vdq_{};
     DirectQuadrature<T> Idq_{}; //!< latched measured dq current (ISR → velocity)
 
     T Vdc_{T{0}};        //!< latched bus voltage (ISR → velocity)

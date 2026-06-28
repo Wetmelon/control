@@ -154,7 +154,7 @@ struct KalmanFilter {
         const Matrix<NX, NX, T>&                 P0 = Matrix<NX, NX, T>::identity()
     ) : sys(sys_), x(x0), P(P0), Q(Q_), R(R_) {}
 
-    // Construct directly from a design result (Tier 2 → Tier 3). The result's
+    // Construct directly from a design result. The result's
     // `sys` already carries A/B/C/D/G/H, so the runtime filter is fully described
     // by it — no separate matrices needed. The steady-state covariance P seeds
     // P0 (falls back to identity if the design did not converge).

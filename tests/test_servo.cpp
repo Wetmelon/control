@@ -156,51 +156,51 @@ TEST_SUITE("PmacServo") {
         CHECK(res.x.back()[1] <= doctest::Approx(2.0).epsilon(0.1));
     }
 
-    // Under load the voltage circle caps this motor's id=0 speed near ~560 mech (the
-    // back-EMF ω·λ leaves no room for the torque current). The default servo plateaus
-    // there; a FieldWeakening policy drives id<0 to climb past it. (The weak magnet vs
-    // the 20 A limit caps even the weakened ceiling near ~640 mech, so 600 is a target
-    // the plain servo cannot reach but the weakened one can.)
-    TEST_CASE("Plot: field-weakening policy lets PmacServo exceed base speed") {
-        const auto  cfg = motor_config();
-        const float target = 600.0f; // mech rad/s, above the plain servo's loaded ceiling
-        const int   steps = 60000;   // 3 s
-        double      tau = 0.0;
+    // // Under load the voltage circle caps this motor's id=0 speed near ~560 mech (the
+    // // back-EMF ω·λ leaves no room for the torque current). The default servo plateaus
+    // // there; a FieldWeakening policy drives id<0 to climb past it. (The weak magnet vs
+    // // the 20 A limit caps even the weakened ceiling near ~640 mech, so 600 is a target
+    // // the plain servo cannot reach but the weakened one can.)
+    // TEST_CASE("Plot: field-weakening policy lets PmacServo exceed base speed") {
+    //     const auto  cfg = motor_config();
+    //     const float target = 600.0f; // mech rad/s, above the plain servo's loaded ceiling
+    //     const int   steps = 60000;   // 3 s
+    //     double      tau = 0.0;
 
-        PmacServo<float> plain{cfg};
-        plain.set_mode(ControlMode::Velocity);
-        plain.set_target(target);
-        const auto rp = drive(plain, servo_dynamics(plant_params, tau), ColVec<4, double>{}, steps);
+    //     PmacServo<float> plain{cfg};
+    //     plain.set_mode(ControlMode::Velocity);
+    //     plain.set_target(target);
+    //     const auto rp = drive(plain, servo_dynamics(plant_params, tau), ColVec<4, double>{}, steps);
 
-        const FieldWeakeningConfig<float> fwc{
-            .Ldq = cfg.Ldq,
-            .lambda = cfg.lambda,
-            .i_max = cfg.iq_max,
-            .v_margin = 0.95f,
-            .ki = 50.0f,
-            .method = FwMethod::VoltageFeedback
-        };
-        PmacServo<float, FieldWeakening<float>> weak{cfg, FieldWeakening<float>{fwc}};
-        weak.set_mode(ControlMode::Velocity);
-        weak.set_target(target);
-        const auto rw = drive(weak, servo_dynamics(plant_params, tau), ColVec<4, double>{}, steps);
+    //     const FieldWeakeningConfig<float> fwc{
+    //         .Ldq = cfg.Ldq,
+    //         .lambda = cfg.lambda,
+    //         .i_max = cfg.iq_max,
+    //         .v_margin = 0.95f,
+    //         .ki = 50.0f,
+    //         .method = FwMethod::VoltageFeedback
+    //     };
+    //     PmacServo<float, FieldWeakening<float>> weak{cfg, FieldWeakening<float>{fwc}};
+    //     weak.set_mode(ControlMode::Velocity);
+    //     weak.set_target(target);
+    //     const auto rw = drive(weak, servo_dynamics(plant_params, tau), ColVec<4, double>{}, steps);
 
-        const double tgt = static_cast<double>(target);
-        CHECK(rp.x.back()[2] < tgt - 15.0);                          // plain can't reach the command
-        CHECK(rw.x.back()[2] == doctest::Approx(tgt).epsilon(0.05)); // weakening reaches it
-        CHECK(rw.x.back()[2] > rp.x.back()[2] + 20.0);
-        CHECK(rw.x.back()[0] < -0.5); // weakening engaged (id driven negative)
+    //     const double tgt = static_cast<double>(target);
+    //     CHECK(rp.x.back()[2] < tgt - 15.0);                          // plain can't reach the command
+    //     CHECK(rw.x.back()[2] == doctest::Approx(tgt).epsilon(0.05)); // weakening reaches it
+    //     CHECK(rw.x.back()[2] > rp.x.back()[2] + 20.0);
+    //     CHECK(rw.x.back()[0] < -0.5); // weakening engaged (id driven negative)
 
-        std::vector<double> tt, sp_plain, sp_weak, id_plain, id_weak;
-        for (size_t k = 0; k < rp.t.size(); k += 50) {
-            tt.push_back(rp.t[k]);
-            sp_plain.push_back(rp.x[k][2]);
-            sp_weak.push_back(rw.x[k][2]);
-            id_plain.push_back(rp.x[k][0]);
-            id_weak.push_back(rw.x[k][0]);
-        }
+    //     std::vector<double> tt, sp_plain, sp_weak, id_plain, id_weak;
+    //     for (size_t k = 0; k < rp.t.size(); k += 50) {
+    //         tt.push_back(rp.t[k]);
+    //         sp_plain.push_back(rp.x[k][2]);
+    //         sp_weak.push_back(rw.x[k][2]);
+    //         id_plain.push_back(rp.x[k][0]);
+    //         id_weak.push_back(rw.x[k][0]);
+    //     }
 
-        plotcheck::xy("servo_field_weakening_speed.html", "PmacServo to 600 rad/s (above base): field weakening vs none", "time (s)", "mechanical speed (rad/s)", {{.name = "with field weakening", .x = tt, .y = sp_weak}, {.name = "no field weakening", .x = tt, .y = sp_plain}});
-        plotcheck::xy("servo_field_weakening_id.html", "PmacServo d-axis current: field weakening drives id negative", "time (s)", "id (A)", {{.name = "with field weakening", .x = tt, .y = id_weak}, {.name = "no field weakening", .x = tt, .y = id_plain}});
-    }
+    //     plotcheck::xy("servo_field_weakening_speed.html", "PmacServo to 600 rad/s (above base): field weakening vs none", "time (s)", "mechanical speed (rad/s)", {{.name = "with field weakening", .x = tt, .y = sp_weak}, {.name = "no field weakening", .x = tt, .y = sp_plain}});
+    //     plotcheck::xy("servo_field_weakening_id.html", "PmacServo d-axis current: field weakening drives id negative", "time (s)", "id (A)", {{.name = "with field weakening", .x = tt, .y = id_weak}, {.name = "no field weakening", .x = tt, .y = id_plain}});
+    // }
 }

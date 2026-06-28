@@ -470,7 +470,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`AdaptivePredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L213) | Self-tuning deadbeat current controller: PredictiveCurrentController plus the online PmsmParameterEstimator |
 | [`AlphaBeta`](inc/wet/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
 | [`AlphaBetaZero`](inc/wet/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
-| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L25) | The three bandwidth knobs of the position/velocity/current cascade |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L23) | The three bandwidth knobs of the position/velocity/current cascade |
 | [`Convention`](inc/wet/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
 | [`DcBusLimiter`](inc/wet/motor/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
 | [`DcBusLimits`](inc/wet/motor/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
@@ -484,22 +484,22 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`FocResult`](inc/wet/motor/foc.hpp#L245) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
 | [`InstantaneousPower`](inc/wet/transforms.hpp#L525) | Instantaneous active and reactive power |
 | [`JunctionEstimator`](inc/wet/motor/thermal.hpp#L176) | FET junction-temperature estimator: case temperature plus a thermal model |
-| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L84) | Cheap-predict mechanical estimator for position, speed, and load torque |
-| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L59) | Configuration for MechanicalEstimator |
+| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L97) | Cheap-predict mechanical estimator for position, speed, and load torque |
+| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L70) | Configuration for MechanicalEstimator |
 | [`MtpaReference`](inc/wet/motor/mtpa.hpp#L100) | Maximum-torque-per-ampere current-reference generator (PMSM / IPMSM / SynRM) |
 | [`NoFieldWeakening`](inc/wet/motor/field_weakening.hpp#L187) | Null field-weakening policy — passes the base reference through unchanged |
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L82) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L46) | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L80) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L44) | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |
 | [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | Online PMSM electrical-parameter estimator (linear Kalman filter) |
 | [`PredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L24) | Deadbeat (one-step predictive) dq current controller — an alternative to the PI FOController current loop |
 | [`ResistiveLossModel`](inc/wet/motor/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
 | [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L70) | Sensor feedback for one PmacServo::update tick |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L68) | Sensor feedback for one PmacServo::update tick |
 | [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
 | [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
 | [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |

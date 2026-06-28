@@ -41,14 +41,25 @@ namespace design {
  */
 template<typename T = double>
 [[nodiscard]] constexpr StateSpace<3, 1, 1, 3, 1, T> rotational_load_ss(T J, T b, T Kt) {
-    StateSpace<3, 1, 1, 3, 1, T> sys{};
-    sys.A(0, 1) = T{1};
-    sys.A(1, 1) = -b / J;
-    sys.A(1, 2) = -T{1} / J;
-    sys.B(1, 0) = Kt / J;
-    sys.C(0, 0) = T{1};
-    sys.G = Matrix<3, 3, T>::identity(); // per-state process noise
-    sys.H = Matrix<1, 1, T>{{T{1}}};     // angle-measurement noise
+    StateSpace<3, 1, 1, 3, 1, T> sys{
+        .A = {
+            {0, T{1}, 0},
+            {0, -b / J, -T{1} / J},
+            {0, 0, 0},
+        },
+
+        .B = {
+            {0},
+            {Kt / J},
+            {0},
+        },
+
+        .C = {{T{1}, 0, 0}},
+        .D = {},
+
+        .G = Matrix<3, 3, T>::identity(), // per-state process noise
+        .H = Matrix<1, 1, T>{{T{1}}},     // angle-measurement noise
+    };
     return sys;
 }
 
@@ -69,15 +80,17 @@ namespace motor {
  */
 template<typename T = double>
 struct MechanicalEstimatorConfig {
-    T               J{T{1}};                                                     //!< [kg·m²] reflected inertia (> 0)
-    T               b{T{0}};                                                     //!< [Nm·s] viscous friction (≥ 0)
-    T               Kt{T{1}};                                                    //!< [Nm/A] torque constant
-    T               Ts{T{1} / T{10000}};                                         //!< [s] predict step period (the fast rate)
-    Matrix<3, 3, T> Q = Matrix<3, 3, T>::diagonal({T{1e-12}, T{1e-6}, T{1e-8}}); //!< per-step process-noise covariance [θ, ω, τ_load]
-    T               r_encoder{T{1e-8}};                                          //!< [rad²] encoder angle measurement variance
-    T               r_sensorless{T{1e-3}};                                       //!< [rad²] sensorless angle measurement variance
-    T               r_accel{T{1e-1}};                                            //!< [(rad/s²)²] load angular-acceleration measurement variance
+    T J{T{1}};             //!< [kg·m²] reflected inertia (> 0)
+    T b{T{0}};             //!< [Nm·s] viscous friction (≥ 0)
+    T Kt{T{1}};            //!< [Nm/A] torque constant
+    T Ts{T{1} / T{10000}}; //!< [s] predict step period (the fast rate)
+
+    T r_encoder{T{1e-8}};    //!< [rad²] encoder angle measurement variance
+    T r_sensorless{T{1e-3}}; //!< [rad²] sensorless angle measurement variance
+    T r_accel{T{1e-1}};      //!< [(rad/s²)²] load angular-acceleration measurement variance
+
     ColVec<3, T>    x0{};                                                        //!< initial state estimate
+    Matrix<3, 3, T> Q = Matrix<3, 3, T>::diagonal({T{1e-12}, T{1e-6}, T{1e-8}}); //!< per-step process-noise covariance [θ, ω, τ_load]
     Matrix<3, 3, T> P0 = Matrix<3, 3, T>::identity();                            //!< initial covariance
 };
 
@@ -118,9 +131,6 @@ public:
           r_sensorless_(config.r_sensorless),
           r_accel_(config.r_accel) {
         auto sys = discretize(design::rotational_load_ss(config.J, config.b, config.Kt), config.Ts, DiscretizationMethod::ZOH);
-        // Run the covariance with G = I so Q is the discrete process-noise covariance.
-        sys.G = Matrix<3, 3, T>::identity();
-        sys.H = Matrix<1, 1, T>{{T{1}}};
         kf_ = KalmanFilter<3, 1, 1, 3, 1, T>{sys, config.Q, Matrix<1, 1, T>{{config.r_encoder}}, config.x0, config.P0};
     }
 
