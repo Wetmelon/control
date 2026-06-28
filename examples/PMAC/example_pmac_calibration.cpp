@@ -18,7 +18,7 @@
 #include "plotlypp/layout/layout.hpp"
 #include "plotlypp/traces/scatter.hpp"
 #include "wet/backend.hpp"
-#include "wet/power/calibration.hpp"
+#include "wet/motor/calibration.hpp"
 
 using namespace wet;
 

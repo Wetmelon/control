@@ -3,7 +3,7 @@
 
 #include "doctest.h"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/thermal.hpp"
+#include "wet/motor/thermal.hpp"
 #include "wet/systems/discretization.hpp"
 
 using namespace wet;

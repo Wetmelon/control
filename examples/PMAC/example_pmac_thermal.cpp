@@ -18,7 +18,7 @@
 #include "plotlypp/layout/layout.hpp"
 #include "plotlypp/traces/scatter.hpp"
 #include "wet/backend.hpp"
-#include "wet/power/thermal.hpp"
+#include "wet/motor/thermal.hpp"
 #include "wet/systems/discretization.hpp"
 
 using namespace wet;

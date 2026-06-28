@@ -1,7 +1,7 @@
 
 #include "doctest.h"
-#include "wet/power/limits.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/limits.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
 

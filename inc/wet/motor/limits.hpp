@@ -2,8 +2,8 @@
 
 #include <limits>
 
-#include "wet/power/transforms.hpp" // DirectQuadrature, instantaneous_power
-#include "wet/toolbox/bounds.hpp"   // Bounds (interval limits + contains gate)
+#include "wet/toolbox/bounds.hpp" // Bounds (interval limits + contains gate)
+#include "wet/transforms.hpp"     // DirectQuadrature, instantaneous_power
 
 namespace wet {
 

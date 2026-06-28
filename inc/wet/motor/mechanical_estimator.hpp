@@ -11,7 +11,8 @@ namespace wet {
 namespace design {
 
 /**
- * @brief Continuous state-space model of a 1-DOF mechanical drivetrain.
+ * @brief Continuous state-space model of a 1-DOF rotational drivetrain with an
+ *        augmented load-torque state.
  * @ingroup foc_design
  *
  * State @f$ x = [\theta_m,\ \omega_m,\ \tau_{load}]^\top @f$ (mechanical angle,
@@ -39,7 +40,7 @@ namespace design {
  * @return Continuous @ref StateSpace<3,1,1,3,1>.
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<3, 1, 1, 3, 1, T> mechanical_ss(T J, T b, T Kt) {
+[[nodiscard]] constexpr StateSpace<3, 1, 1, 3, 1, T> rotational_load_ss(T J, T b, T Kt) {
     StateSpace<3, 1, 1, 3, 1, T> sys{};
     sys.A(0, 1) = T{1};
     sys.A(1, 1) = -b / J;
@@ -52,6 +53,8 @@ template<typename T = double>
 }
 
 } // namespace design
+
+namespace motor {
 
 /**
  * @brief Configuration for @ref MechanicalEstimator.
@@ -114,7 +117,7 @@ public:
           r_encoder_(config.r_encoder),
           r_sensorless_(config.r_sensorless),
           r_accel_(config.r_accel) {
-        auto sys = discretize(design::mechanical_ss(config.J, config.b, config.Kt), config.Ts, DiscretizationMethod::ZOH);
+        auto sys = discretize(design::rotational_load_ss(config.J, config.b, config.Kt), config.Ts, DiscretizationMethod::ZOH);
         // Run the covariance with G = I so Q is the discrete process-noise covariance.
         sys.G = Matrix<3, 3, T>::identity();
         sys.H = Matrix<1, 1, T>{{T{1}}};
@@ -168,4 +171,5 @@ private:
     T r_accel_{T{1e-1}};
 };
 
+} // namespace motor
 } // namespace wet

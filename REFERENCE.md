@@ -467,70 +467,70 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 
 | Name | Description |
 | ---- | ----------- |
-| [`AlphaBeta`](inc/wet/power/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
-| [`AlphaBetaZero`](inc/wet/power/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
-| [`CascadeBandwidths`](inc/wet/power/servo.hpp#L23) | The three bandwidth knobs of the position/velocity/current cascade |
-| [`Convention`](inc/wet/power/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
-| [`DcBusLimiter`](inc/wet/power/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
-| [`DcBusLimits`](inc/wet/power/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
-| [`DcBusState`](inc/wet/power/limits.hpp#L27) | DC-bus state and the torque-current derate it implies |
-| [`DirectQuadrature`](inc/wet/power/transforms.hpp#L62) | Direct-quadrature (rotor-frame) component pair |
-| [`DirectQuadratureZero`](inc/wet/power/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
-| [`DqCommand`](inc/wet/power/foc.hpp#L261) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
-| [`FetLossModel`](inc/wet/power/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
-| [`FocResult`](inc/wet/power/foc.hpp#L245) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
-| [`InstantaneousPower`](inc/wet/power/transforms.hpp#L525) | Instantaneous active and reactive power |
-| [`JunctionEstimator`](inc/wet/power/thermal.hpp#L176) | FET junction-temperature estimator: case temperature plus a thermal model |
-| [`MechanicalEstimator`](inc/wet/power/mechanical_estimator.hpp#L81) | Cheap-predict mechanical estimator for position, speed, and load torque |
-| [`MechanicalEstimatorConfig`](inc/wet/power/mechanical_estimator.hpp#L56) | Configuration for MechanicalEstimator |
-| [`PhaseCalibrationCommand`](inc/wet/power/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
-| [`PhaseCalibrationConfig`](inc/wet/power/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
-| [`PhaseParameterCalibrator`](inc/wet/power/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/power/servo.hpp#L79) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/power/servo.hpp#L44) | Configuration for PmacServo |
-| [`ResistiveLossModel`](inc/wet/power/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
-| [`SequenceComponents`](inc/wet/power/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`ServoFeedback`](inc/wet/power/servo.hpp#L68) | Sensor feedback for one PmacServo::update tick |
-| [`SvmDuties`](inc/wet/power/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
-| [`ThermalLimiter`](inc/wet/power/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
-| [`ThermalLimits`](inc/wet/power/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
-| [`ThermalState`](inc/wet/power/thermal.hpp#L259) | State from a ThermalLimiter evaluation |
+| [`AlphaBeta`](inc/wet/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
+| [`AlphaBetaZero`](inc/wet/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L23) | The three bandwidth knobs of the position/velocity/current cascade |
+| [`Convention`](inc/wet/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
+| [`DcBusLimiter`](inc/wet/motor/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
+| [`DcBusLimits`](inc/wet/motor/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
+| [`DcBusState`](inc/wet/motor/limits.hpp#L27) | DC-bus state and the torque-current derate it implies |
+| [`DirectQuadrature`](inc/wet/transforms.hpp#L62) | Direct-quadrature (rotor-frame) component pair |
+| [`DirectQuadratureZero`](inc/wet/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
+| [`DqCommand`](inc/wet/motor/foc.hpp#L261) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
+| [`FetLossModel`](inc/wet/motor/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
+| [`FocResult`](inc/wet/motor/foc.hpp#L245) | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
+| [`InstantaneousPower`](inc/wet/transforms.hpp#L525) | Instantaneous active and reactive power |
+| [`JunctionEstimator`](inc/wet/motor/thermal.hpp#L176) | FET junction-temperature estimator: case temperature plus a thermal model |
+| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L84) | Cheap-predict mechanical estimator for position, speed, and load torque |
+| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L59) | Configuration for MechanicalEstimator |
+| [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
+| [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
+| [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L79) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L44) | Configuration for PmacServo |
+| [`ResistiveLossModel`](inc/wet/motor/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
+| [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L68) | Sensor feedback for one PmacServo::update tick |
+| [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
+| [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
+| [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
+| [`ThermalState`](inc/wet/motor/thermal.hpp#L259) | State from a ThermalLimiter evaluation |
 
 **Functions**
 
 | Name | Description |
 | ---- | ----------- |
-| [`base_speed`](inc/wet/power/foc.hpp#L215) | Base (corner) electrical speed where the voltage circle is first hit |
-| [`cauer_thermal_ss`](inc/wet/power/thermal.hpp#L66) | Continuous state-space model of a physical Cauer RC thermal ladder |
-| [`clarke_park_transform`](inc/wet/power/transforms.hpp#L405) | Fused Clarke-Park transform (abc → dq) |
-| [`clarke_park_zero_transform`](inc/wet/power/transforms.hpp#L494) | Fused Clarke-Park transform with zero (abc → dq0) |
-| [`clarke_transform`](inc/wet/power/transforms.hpp#L314) | Clarke transform (abc → αβ) |
-| [`clarke_zero_transform`](inc/wet/power/transforms.hpp#L235) | Zero-retaining Clarke transform (abc → αβ0) |
-| [`current_loop_pi`](inc/wet/power/foc.hpp#L26) | Current-loop PI gains by closed-loop pole placement on the R–L plant |
-| [`derate_window`](inc/wet/power/thermal.hpp#L14) | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
-| [`flux_from_Kv`](inc/wet/power/foc.hpp#L139) | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
-| [`flux_from_torque_constant`](inc/wet/power/foc.hpp#L75) | PM flux linkage from a motor's torque constant (amplitude-invariant) |
-| [`foster_thermal_ss`](inc/wet/power/thermal.hpp#L32) | Continuous state-space model of a Foster RC thermal network |
-| [`instantaneous_power`](inc/wet/power/transforms.hpp#L573) | Instantaneous active and reactive power from dq quantities |
-| [`inverse_clarke_transform`](inc/wet/power/transforms.hpp#L336) | Inverse Clarke transform (αβ → abc) |
-| [`inverse_clarke_zero_transform`](inc/wet/power/transforms.hpp#L280) | Inverse zero-retaining Clarke transform (αβ0 → abc) |
-| [`inverse_park_clarke_transform`](inc/wet/power/transforms.hpp#L433) | Fused inverse Park-Clarke transform (dq → abc) |
-| [`inverse_park_clarke_zero_transform`](inc/wet/power/transforms.hpp#L512) | Fused inverse Park-Clarke transform with zero (dq0 → abc) |
-| [`inverse_park_transform`](inc/wet/power/transforms.hpp#L380) | Inverse Park transform (dq → αβ) |
-| [`inverse_park_zero_transform`](inc/wet/power/transforms.hpp#L480) | Inverse Park transform with zero passthrough (dq0 → αβ0) |
-| [`inverse_symmetrical_components`](inc/wet/power/transforms.hpp#L646) | Inverse symmetrical-component transform (012 → abc) |
-| [`iq_from_torque`](inc/wet/power/foc.hpp#L178) | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
-| [`mechanical_ss`](inc/wet/power/mechanical_estimator.hpp#L13) | Continuous state-space model of a 1-DOF mechanical drivetrain |
-| [`motor_constant`](inc/wet/power/foc.hpp#L156) | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
-| [`park_transform`](inc/wet/power/transforms.hpp#L353) | Park transform (αβ → dq) |
-| [`park_zero_transform`](inc/wet/power/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
-| [`requires`](inc/wet/power/thermal.hpp#L107) | A loss model usable by JunctionEstimator |
-| [`svm_duty_cycles`](inc/wet/power/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
-| [`svpwm_zero_sequence`](inc/wet/power/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
-| [`symmetrical_components`](inc/wet/power/transforms.hpp#L610) | Forward symmetrical-component (Fortescue) transform (abc → 012) |
-| [`torque_constant_from_flux`](inc/wet/power/foc.hpp#L56) | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
-| [`torque_constant_from_Kv`](inc/wet/power/foc.hpp#L99) | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
-| [`voltage_circle_radius`](inc/wet/power/foc.hpp#L195) | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
+| [`base_speed`](inc/wet/motor/foc.hpp#L215) | Base (corner) electrical speed where the voltage circle is first hit |
+| [`cauer_thermal_ss`](inc/wet/motor/thermal.hpp#L66) | Continuous state-space model of a physical Cauer RC thermal ladder |
+| [`clarke_park_transform`](inc/wet/transforms.hpp#L405) | Fused Clarke-Park transform (abc → dq) |
+| [`clarke_park_zero_transform`](inc/wet/transforms.hpp#L494) | Fused Clarke-Park transform with zero (abc → dq0) |
+| [`clarke_transform`](inc/wet/transforms.hpp#L314) | Clarke transform (abc → αβ) |
+| [`clarke_zero_transform`](inc/wet/transforms.hpp#L235) | Zero-retaining Clarke transform (abc → αβ0) |
+| [`current_loop_pi`](inc/wet/motor/foc.hpp#L26) | Current-loop PI gains by closed-loop pole placement on the R–L plant |
+| [`derate_window`](inc/wet/motor/thermal.hpp#L14) | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
+| [`flux_from_Kv`](inc/wet/motor/foc.hpp#L139) | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
+| [`flux_from_torque_constant`](inc/wet/motor/foc.hpp#L75) | PM flux linkage from a motor's torque constant (amplitude-invariant) |
+| [`foster_thermal_ss`](inc/wet/motor/thermal.hpp#L32) | Continuous state-space model of a Foster RC thermal network |
+| [`instantaneous_power`](inc/wet/transforms.hpp#L573) | Instantaneous active and reactive power from dq quantities |
+| [`inverse_clarke_transform`](inc/wet/transforms.hpp#L336) | Inverse Clarke transform (αβ → abc) |
+| [`inverse_clarke_zero_transform`](inc/wet/transforms.hpp#L280) | Inverse zero-retaining Clarke transform (αβ0 → abc) |
+| [`inverse_park_clarke_transform`](inc/wet/transforms.hpp#L433) | Fused inverse Park-Clarke transform (dq → abc) |
+| [`inverse_park_clarke_zero_transform`](inc/wet/transforms.hpp#L512) | Fused inverse Park-Clarke transform with zero (dq0 → abc) |
+| [`inverse_park_transform`](inc/wet/transforms.hpp#L380) | Inverse Park transform (dq → αβ) |
+| [`inverse_park_zero_transform`](inc/wet/transforms.hpp#L480) | Inverse Park transform with zero passthrough (dq0 → αβ0) |
+| [`inverse_symmetrical_components`](inc/wet/transforms.hpp#L646) | Inverse symmetrical-component transform (012 → abc) |
+| [`iq_from_torque`](inc/wet/motor/foc.hpp#L178) | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
+| [`motor_constant`](inc/wet/motor/foc.hpp#L156) | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
+| [`park_transform`](inc/wet/transforms.hpp#L353) | Park transform (αβ → dq) |
+| [`park_zero_transform`](inc/wet/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
+| [`requires`](inc/wet/motor/thermal.hpp#L107) | A loss model usable by JunctionEstimator |
+| [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L13) | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
+| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
+| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
+| [`symmetrical_components`](inc/wet/transforms.hpp#L610) | Forward symmetrical-component (Fortescue) transform (abc → 012) |
+| [`torque_constant_from_flux`](inc/wet/motor/foc.hpp#L56) | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
+| [`torque_constant_from_Kv`](inc/wet/motor/foc.hpp#L99) | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
+| [`voltage_circle_radius`](inc/wet/motor/foc.hpp#L195) | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
 
 ## Utilities & toolbox
 

@@ -2,7 +2,7 @@
 
 #include "wet/math/math.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/transforms.hpp"
 
 namespace wet {
 

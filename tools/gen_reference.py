@@ -17,7 +17,7 @@ CATS = [
     ("filters",     "Filters & signal conditioning"),
     ("trajectory",  "Trajectory & motion planning"),
     ("kinematics",  "Kinematics"),
-    ("power",       "Motor control"),
+    ("motor",       "Motor control"),
     ("toolbox",     "Utilities & toolbox"),
     ("analysis",    "Frequency-domain analysis (host)"),
     ("simulation",  "Simulation (host)"),
@@ -87,6 +87,10 @@ def category(path):
     # grouped reference mirrors the canonical taxonomy regardless of file location.
     if path.name == "matlab.hpp":
         return "matlab"  # all thin wrappers — keep them out of the core tables
+    if path.name == "transforms.hpp":
+        return "motor"  # generic three-phase (wet:: root) but readers expect
+                        # Clarke/Park grouped next to FOC; regrouped by namespace later
+    # ponytail: special-cases until grouping keys on namespace (D20 TODO below)
     rel = path.relative_to(ROOT)
     top = rel.parts[0] if len(rel.parts) > 1 else ""
     return top if top in CAT_NAME else "toolbox"

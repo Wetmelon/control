@@ -6,12 +6,12 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp" // pi_pole_placement_first_order
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/foc.hpp"
-#include "wet/power/limits.hpp"
-#include "wet/power/mechanical_estimator.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/foc.hpp"
+#include "wet/motor/limits.hpp"
+#include "wet/motor/mechanical_estimator.hpp"
+#include "wet/transforms.hpp"
 
-namespace wet::servo {
+namespace wet::motor {
 
 /// Servo control mode: which outer loops are active.
 enum class ControlMode : std::uint8_t {
@@ -268,4 +268,4 @@ private:
     T                   omega_cmd_{T{0}}; //!< velocity command (position → velocity)
 };
 
-} // namespace wet::servo
+} // namespace wet::motor

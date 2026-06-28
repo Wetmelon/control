@@ -3,7 +3,7 @@
  * @brief End-to-end PMAC servo: bandwidth tuning, R/L calibration, and the three
  *        control modes on an average dq + mechanical plant.
  *
- * Drives wet::PmacServo through commissioning and Torque / Velocity / Position
+ * Drives wet::motor::PmacServo through commissioning and Torque / Velocity / Position
  * modes, plus a thermal-derate event, on a simulated PMSM. Shows the full
  * "set bandwidths → calibrate → run" workflow with no raw control gains.
  */
@@ -20,14 +20,14 @@
 #include "wet/backend.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/calibration.hpp"
-#include "wet/power/foc.hpp"
-#include "wet/power/servo.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/calibration.hpp"
+#include "wet/motor/foc.hpp"
+#include "wet/motor/servo.hpp"
 #include "wet/simulation/integrator.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
-using namespace wet::servo;
+using namespace wet::motor;
 
 namespace {
 

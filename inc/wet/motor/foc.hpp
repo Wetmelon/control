@@ -6,8 +6,8 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp" // design::pi_pole_placement_first_order
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/modulation.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/modulation.hpp"
+#include "wet/transforms.hpp"
 
 namespace wet {
 

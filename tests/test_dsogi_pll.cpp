@@ -4,7 +4,7 @@
 #include "wet/backend.hpp"
 #include "wet/filters/pll.hpp"
 #include "wet/matrix/matrix.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -1,12 +1,12 @@
 
 #include "doctest.h"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/servo.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/servo.hpp"
 #include "wet/simulation/integrator.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
-using namespace wet::servo;
+using namespace wet::motor;
 
 namespace {
 

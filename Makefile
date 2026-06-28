@@ -6,7 +6,7 @@
 include tup.config
 GXX := $(CONFIG_COMPILER_PATH)/$(CONFIG_COMPILER_PREFIX)g++
 
-all: format build
+all: format build refs
 	@./tests/build/test_runner.exe
 	@./tests/wet_backend/build/test_wet_backend.exe
 	@./tests/etl_backend/build/test_etl_backend.exe
@@ -31,7 +31,7 @@ tests: format compiledb
 	@./tests/wet_backend/build/test_wet_backend.exe
 	@./tests/etl_backend/build/test_etl_backend.exe
 
-docs:
+docs: refs
 	@mkdir -p docs/html
 	@doxygen Doxyfile
 

@@ -3,7 +3,7 @@
 #include <cstdint>
 
 #include "doctest.h"
-#include "wet/power/calibration.hpp"
+#include "wet/motor/calibration.hpp"
 
 using namespace wet;
 

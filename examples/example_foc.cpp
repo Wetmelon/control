@@ -33,8 +33,8 @@
 #include "plotlypp/layout/layout.hpp"
 #include "plotlypp/traces/scatter.hpp"
 #include "wet/backend.hpp"
-#include "wet/power/foc.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/foc.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
 

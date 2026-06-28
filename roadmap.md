@@ -78,7 +78,7 @@ method (relay autotuner) is done with the Tyreus-Luyben default + shared safety 
 
 - **Biased / asymmetric relay + AMIGO.** Run the relay with asymmetric magnitudes so the limit cycle is asymmetric; track average `u`/`y` to recover static gain `Kₛ ≈ ū/ȳ`, returning `(Kᵤ, Tᵤ, Kₛ)`. Pairs with `design::amigo_kappa_tau(Ku, Tu, Ks, Ts)` (constrained to Ms ≤ ~1.4), which out-performs ZN/Tyreus-Luyben across the FOPDT family. ~30-line extension to `RelayAutotuner` plus the AMIGO formula. Refs: Åström & Hägglund, "Revisiting the Ziegler-Nichols step response method for PID control," J. Process Control 14(6), 2004, https://doi.org/10.1016/j.jprocont.2004.01.002; *Advanced PID Control*, ISA, 2006, ch. 6 & 8.
 - **IFT (iterative feedback tuning).** Gradient-based model-free tuning; perturbs the closed-loop gains and estimates the tracking-cost gradient from 2–3 experiments per iteration. `design::synthesize_ift(reference, cost_weights, learning_rate)` → `IFTResult`/`IFTRuntime` with bumpless transfer between iterations. Refs: Åström & Hägglund, Automatica 20(5), 1984, https://doi.org/10.1016/0005-1098(84)90014-1; Hjalmarsson et al., "Iterative feedback tuning," IEEE CSM 18(4), 1998, https://doi.org/10.1109/37.710876.
-- **Frequency-response PID autotuners** (the Simulink Control Design Closed-Loop / Open-Loop / Gain-Scheduled PID Autotuner blocks): inject a perturbation (sinestream/PRBS from `excitation.hpp`), estimate the loop FRF at a few frequencies (`frfest`, #3), and set gains for a target bandwidth + phase margin — the online, real-time cousin of the host `pidtune`. The gain-scheduled variant tunes at several operating points and fills a `PID Gain Scheduler` table (→ #10/#30).
+- **Frequency-response PID autotuners**: inject a perturbation (sinestream/PRBS from `excitation.hpp`), estimate the loop FRF at a few frequencies (`frfest`, #3), and set gains for a target bandwidth + phase margin — the online, real-time cousin of the host `pidtune`. The gain-scheduled variant tunes at several operating points and fills a `PID Gain Scheduler` table (→ #10/#30).
 - **VRFT (Virtual Reference Feedback Tuning).** One-shot data-driven tuning of a linearly-parameterized controller from a single input/output record — no plant model, no iteration (unlike IFT). `design::synthesize_vrft(io_data, reference_model, controller_basis)`. Ref: Campi, Lecchini & Savaresi, "Virtual reference feedback tuning," Automatica 38(8), 2002, https://doi.org/10.1016/S0005-1098(02)00032-8.
 - **Safety policy (shared, every tuning runtime):** command-amplitude clamps, slew limits, output-saturation passthrough, bumpless transfer, rollback to pre-tuning gains on degraded measurement / timeout.
 - Acceptance (remaining): IFT convergence with bounded excitation; safety-policy tests (clamps, rate limits, bumpless transfer, rollback) for both runtimes.
@@ -243,7 +243,7 @@ converter models as Tier-2 `StateSpace`/`TransferFunction` builders.
 
 - **Cross-cutting modulator primitives:** trailing/leading/center-aligned PWM carrier comparison; complementary gating + dead-time insertion and compensation; N-phase interleaving (360°/N carrier offsets).
 - **Three-phase VSI schemes:** SPWM (baseline), THIPWM (closed-form 1/6 injection), the DPWM family (DPWMMAX/MIN, DPWM0–3, GDPWM — clamp 60° windows, ~33% switching-loss cut), overmodulation (Mode I/II → six-step), random/spread-spectrum PWM (low priority).
-- **DC-DC converter abstractions** (audited against the Simscape Electrical converter blocks — make these first-class named pieces, not loose control laws). Two layers, each a thin reuse:
+- **DC-DC converter abstractions** Two layers, each a thin reuse:
 
   *Averaged plant models* (Tier-2 → `StateSpace`/`TransferFunction`, CCM state-space-averaged, embeddable):
 
@@ -263,7 +263,7 @@ converter models as Tier-2 `StateSpace`/`TransferFunction` builders.
 
   The **d-q Voltage Limiter** (clamp the dq command to the SVPWM circle) is the AC/inverter-side analog and lives with FOC in **#31** (`voltage_circle_radius`), not here.
 - **PFC / AC-DC:** boost PFC with average-current-mode (inner current shapes inductor current to a rectified-sine reference, outer DC-bus loop); totem-pole bridgeless PFC (HF GaN/SiC leg + line-frequency unfolding leg, zero-cross commutation sequencer).
-- **Grid-tie / renewables** (the Simscape "Renewables Control" + droop blocks): grid-following inverter control (SOGI/DSOGI-PLL synchronization + dq current control + DC-bus loop — reuses the shipped PLL/SOGI and FOC current loop), the Solar PV grid-following controller (PFC-style current shaping + MPPT from the DC-DC group), frequency/voltage **droop** (incl. SM Governor with Droop — a speed-droop genset loop), and an impedance-scan stability probe (extends `analysis::impedance`). Grid-forming and full power-system gear stay out of scope.
+- **Grid-tie / renewables**: grid-following inverter control (SOGI/DSOGI-PLL synchronization + dq current control + DC-bus loop — reuses the shipped PLL/SOGI and FOC current loop), the Solar PV grid-following controller (PFC-style current shaping + MPPT from the DC-DC group), frequency/voltage **droop** (incl. SM Governor with Droop — a speed-droop genset loop), and an impedance-scan stability probe (extends `analysis::impedance`). Grid-forming and full power-system gear stay out of scope.
 - **Multilevel:** 3-level NPC (phase-disposition carriers or 3-level SVM + neutral-point balancing); ANPC as the loss-balancing extension (do NPC first).
 - References: Erickson & Maksimović, *Fundamentals of Power Electronics*, 3rd ed., 2020 (DC-DC, PFC, current-mode); Holmes & Lipo, *Pulse Width Modulation for Power Converters*, IEEE Press, 2003 (inverter PWM, multilevel); Hava et al., IEEE T-PEL 14(1), 1999 (CPWM/DPWM/GDPWM).
 - Acceptance (per piece): duty feedforward matches the CCM conversion ratio; center-aligned/interleaved carriers give the expected phase/ripple relationships; MPPT converges to the true MPP under irradiance steps (matches ESC on a smooth P-V curve); boost-PFC current tracks the rectified-sine template at unity displacement factor; NPC neutral-point stays balanced; ANPC switch-state selection equalizes per-device loss.
@@ -324,15 +324,9 @@ is **shipped**; the remaining items are the specific observer variants for the c
 - Acceptance (per piece): each sensorless observer reconstructs rotor angle within tolerance on a simulated PMSM and the closed FOC loop runs encoderless above its valid speed; MTPA reference minimizes current magnitude for a commanded torque on a salient model and stays inside the voltage circle under field weakening; LUT references match the closed-form law at the breakpoints; commutation blocks energize the correct sequence vs. Hall/back-EMF; motor builders round-trip their physical parameters; `make embedded-check` stays green for the on-target pieces.
 - References: Sul, *Control of Electric Machine Drive Systems*, IEEE/Wiley, 2011; Krishnan, *Permanent Magnet Synchronous and Brushless DC Motor Drives*, CRC, 2010; Holtz, "Sensorless Control of Induction Machines," Proc. IEEE 90(8), 2002, https://doi.org/10.1109/JPROC.2002.800726; Jung, Kim & Sul, HF-injection sensorless, IEEE T-IA, where applicable.
 
-### ☐ Control & signal-processing abstractions (Simscape Electrical control library) (#32)
+### ☐ Control & signal-processing abstractions (#32)
 
-Simscape Electrical is acausal physical modeling (out of scope), but its **Control** and
-**Sensors/Measurements** sublibraries are causal runtime/design blocks — and most already
-map to shipped modules (transforms, `PIDController`, `lead_lag`, `smc`, filters, `pll`/`sogi`,
-`spectral`, `encoder`, `thermistor`, `iec61131`) or to the motor/converter items in **#31**
-(machine controllers, FOC, DTC, field-weakening, commutation) and **#24** (converter
-controllers, multilevel PWM, hysteresis current control). The genuinely-new, *generic*
-abstractions worth planning — each a thin runtime/`design::` piece, embeddable:
+The genuinely-new, *generic* abstractions worth planning — each a thin runtime/`design::` piece, embeddable:
 
 | Block | Plan | Reuse |
 |---|---|---|
@@ -353,7 +347,7 @@ abstractions worth planning — each a thin runtime/`design::` piece, embeddable
 | d-q Voltage Limiter | Clamp the dq voltage command to the SVPWM circle | `foc.hpp` `voltage_circle_radius` (→ #31) |
 
 - Lower priority / niche: multiphase (5-/6-phase) Clarke-Park & decoupled transforms; PMU (three-phase phasor) and impedance-scan measurements (the SOGI-FLL/`analysis::impedance` already cover most of this).
-- Out of scope (the bulk of Simscape Electrical): every acausal device model — semiconductors (diode/MOSFET/IGBT/BJT/JFET/thyristor/GTO/SPICE\*), op-amps/comparators/gate-drivers/optocouplers, CMOS logic-gate *device* models, passives (R/L/C/transformers/cables/transmission lines/magnetic cores), sources (V/I/programmable), switches/relays/breakers/fuses, machines-as-acausal-plants, energy storage (battery/fuel-cell/solar-cell/supercap/electrolyzer), power-system gear (SM AC/DC/ST excitation systems, governors, PSS, busbars, load-flow, harmonic filters), and sensor/MEMS/piezo/solenoid *device* models. (The machine models overlap **#31**'s Tier-2 motor plant builders where a simulation plant is actually wanted.)
+- Out of scope: every acausal device model — semiconductors (diode/MOSFET/IGBT/BJT/JFET/thyristor/GTO/SPICE\*), op-amps/comparators/gate-drivers/optocouplers, CMOS logic-gate *device* models, passives (R/L/C/transformers/cables/transmission lines/magnetic cores), sources (V/I/programmable), switches/relays/breakers/fuses, machines-as-acausal-plants, energy storage (battery/fuel-cell/solar-cell/supercap/electrolyzer), power-system gear (SM AC/DC/ST excitation systems, governors, PSS, busbars, load-flow, harmonic filters), and sensor/MEMS/piezo/solenoid *device* models. (The machine models overlap **#31**'s Tier-2 motor plant builders where a simulation plant is actually wanted.)
 - Acceptance (per planned piece): Smith predictor restores the delay-free loop's margin on a dead-time plant; MRAC converges the tracking error to zero on a first-order reference; RST reproduces a `place`-equivalent closed loop; RMS/moving-average match closed-form values on test signals; thermal RC ladder matches its step response; all embeddable pieces keep `make embedded-check` green.
 
 ### ☐ Fuzzy logic control (#33)
@@ -523,7 +517,7 @@ Two gaps worth closing — both thin reuse, not new math:
 - **`Lut2D` extrapolation policy.** `Lut2D` currently hard-clamps out-of-grid queries; give it
   the same `Extrapolation` (clamp / linear) knob `Lut1D` already exposes, applied per axis.
   ~10 lines mirroring the `Lut1D` out-of-bounds branch.
-- **Adaptive lookup table** (the Simulink Design Optimization "Adaptive Lookup Table" blocks): a `Lut1D`/`Lut2D` whose cell values update online from `(x, measured)` samples (running-mean / stair-fit per cell) — for self-calibrating maps (sensor drift, motor LUT refinement). Mutable cells on top of the existing table; the breakpoints stay fixed.
+- **Adaptive lookup table**: a `Lut1D`/`Lut2D` whose cell values update online from `(x, measured)` samples (running-mean / stair-fit per cell) — for self-calibrating maps (sensor drift, motor LUT refinement). Mutable cells on top of the existing table; the breakpoints stay fixed.
 - Acceptance: cubic LUT matches `design::cubic_spline` at and between breakpoints and stays C²;
   `Lut2D` with linear extrapolation reproduces the edge gradient outside the grid and clamp mode
   is unchanged; adaptive cells converge to the sampled surface; all stay `constexpr`-constructible / allocation-free. (Bicubic `Lut2D` and n-D (≥3) tables
