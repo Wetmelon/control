@@ -175,10 +175,10 @@ struct KalmanFilter {
           R(other.measurement_noise_covariance()),
           innov(other.innovation()) {}
 
-    // Predict: x[k+1|k] = A*x[k|k] + B*u[k], P[k+1|k] = A*P*A' + G*Q*G'
+    // Predict: x[k+1|k] = A*x[k|k] + B*u[k], P[k+1|k] = APAᵀ + GQGᵀ
     constexpr void predict(const ColVec<NU, T>& u = ColVec<NU, T>{}) {
         x = sys.A * x + sys.B * u;
-        P = sys.A * P * sys.A.t() + sys.G * Q * sys.G.t();
+        P = quadratic_form(sys.A, P) + quadratic_form(sys.G, Q);
     }
 
     // Measurement update: returns false if innovation covariance is singular
@@ -186,9 +186,8 @@ struct KalmanFilter {
         const auto y_pred = sys.C * x + sys.D * u;
         innov = y - y_pred;
 
-        const auto Ct = sys.C.transpose();
-        const auto Ht = sys.H.transpose();
-        const auto S = sys.C * P * Ct + sys.H * R * Ht;
+        // S = CPCᵀ + HRHᵀ
+        const auto S = quadratic_form(sys.C, P) + quadratic_form(sys.H, R);
 
         // K = PCᵀS⁻¹ → solve S Kᵀ = C P via Cholesky (S is symmetric positive definite)
         const auto K_opt = mat::cholesky_solve(S, sys.C * P);
@@ -199,10 +198,12 @@ struct KalmanFilter {
         const Matrix<NX, NY, T> K = K_opt.value().transpose();
         x = x + K * innov;
 
-        // Joseph form: P = (I - K*C) * P * (I - K*C)' + K*H*R*H'*K'
-        const auto I_KC = Matrix<NX, NX, T>::identity() - K * sys.C;
+        // Joseph form: P = (I - KC) * P * (I - KC)ᵀ + K HRHᵀ Kᵀ
+        const auto I_KC = Matrix<NX, NX, T>::identity() - (K * sys.C);
+
         const auto KH = K * sys.H;
-        P = I_KC * P * I_KC.t() + KH * R * KH.t();
+        P = quadratic_form(I_KC, P) + quadratic_form(KH, R);
+
         return true;
     }
 
@@ -220,9 +221,7 @@ struct KalmanFilter {
         const auto y_pred = C_meas * x + D_meas * u;
         innov = y - y_pred;
 
-        const auto              Ct = C_meas.transpose();
-        const auto              Ht = sys.H.transpose();
-        const Matrix<NY, NY, T> S = C_meas * P * Ct + sys.H * R_meas * Ht;
+        const auto S = quadratic_form(C_meas, P) + quadratic_form(sys.H, R_meas);
 
         const auto K_opt = mat::cholesky_solve(S, C_meas * P);
         if (!K_opt) {
@@ -234,7 +233,8 @@ struct KalmanFilter {
 
         const auto I_KC = Matrix<NX, NX, T>::identity() - K * C_meas;
         const auto KH = K * sys.H;
-        P = I_KC * P * I_KC.t() + KH * R_meas * KH.t();
+        P = quadratic_form(I_KC, P) + quadratic_form(KH, R_meas);
+
         return true;
     }
 
@@ -267,12 +267,13 @@ struct KalmanFilter {
     }
 
 private:
-    StateSpace<NX, NU, NY, NW, NV, T> sys{};
-    ColVec<NX, T>                     x{};
-    Matrix<NX, NX, T>                 P{};
-    Matrix<NW, NW, T>                 Q{};
-    Matrix<NV, NV, T>                 R{};
-    ColVec<NY, T>                     innov{};
+    StateSpace<NX, NU, NY, NW, NV, T> sys{}; //< System Model (discrete)
+
+    ColVec<NX, T>     x{};     //< System state (predicted)
+    Matrix<NX, NX, T> P{};     //< State estimate error covariance
+    Matrix<NW, NW, T> Q{};     //< Process noise covariance
+    Matrix<NV, NV, T> R{};     //< Measurement noise covariance
+    ColVec<NY, T>     innov{}; //< Residual between measurements and estimated measurements
 };
 
 } // namespace wet
