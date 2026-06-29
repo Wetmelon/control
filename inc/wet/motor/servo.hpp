@@ -264,9 +264,9 @@ public:
      */
     constexpr void velocity_control_step(T vel_target, T dt) {
         if (mode_ >= ControlMode::Velocity) {
-            // Velocity feedforward sums onto the position loop's velocity command, limited to the ceiling
-            vel_cmd_ = wet::clamp(vel_cmd_ + vel_target, -config_.vel_max, config_.vel_max);
-            torque_cmd_ = vel_ctrl.control(vel_cmd_, estimator_.omega(), dt);
+            // Velocity feedforward sums onto the position loop's held velocity command, limited to the ceiling.
+            const T vel_cmd = wet::clamp(pos_vel_cmd_ + vel_target, -config_.vel_max, config_.vel_max);
+            torque_cmd_ = vel_ctrl.control(vel_cmd, estimator_.omega(), dt);
         } else {
             // Hold the velocity loop in tracking mode following the applied torque, so a
             // switch back to Velocity/Position resumes from the right integrator with no bump.
@@ -285,9 +285,9 @@ public:
      */
     constexpr void position_control_step(T pos_target) {
         if (mode_ == ControlMode::Position) {
-            vel_cmd_ = pos_ctrl.control(pos_target, estimator_.position());
+            pos_vel_cmd_ = pos_ctrl.control(pos_target, estimator_.position());
         } else {
-            vel_cmd_ = T{0};
+            pos_vel_cmd_ = T{0};
         }
     }
 
@@ -333,9 +333,11 @@ public:
         estimator_.reset();
         prev_vdq_ = {};
         Idq_ = {};
-        vel_cmd_ = T{0};
+        pos_vel_cmd_ = T{0};
         enc_angle_ = T{0};
     }
+
+    DirectQuadrature<T> Idq_ref_ = {}; //!< DQ current reference after torque controller / MTPA
 
 private:
     static constexpr T pi = wet::numbers::pi_v<T>;
@@ -359,13 +361,12 @@ private:
     // Cross-rate state: written by the fast loop, read by the slower ones (and back).
     DirectQuadrature<T> prev_vdq_ = {}; //!< latched Vdq being applied
     DirectQuadrature<T> Idq_ = {};      //!< latched measured dq current (ISR → velocity)
-    DirectQuadrature<T> Idq_ref_ = {};  //!< DQ current reference after torque controller / MTPA
 
     T Vdc_ = T{0};       //!< latched bus voltage (ISR → velocity)
     T enc_angle_ = T{0}; //!< [turns] wrapped mechanical angle accumulated from encoder feedback
     T iq_lim_ = T{0};    //!< [A] Current ceiling held by the velocity loop
 
-    T vel_cmd_ = T{0}; //!< [turn/sec] Velocity command (position → velocity)
+    T pos_vel_cmd_ = T{0}; //!< [turn/sec] Velocity command held by the position loop (position → velocity)
 
     T torque_cmd_ = T{0};                          //!< [Nm] Torque command (velocity → torque)
     T torque_lim_ = std::numeric_limits<T>::max(); //!< [Nm] Runtime calculated torque limit

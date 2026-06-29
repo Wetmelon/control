@@ -55,11 +55,15 @@ LSM_ALIASES = {
 CONDITIONS = ["eq", "ne", "cs", "cc", "mi", "pl", "vs", "vc",
               "hi", "ls", "ge", "lt", "gt", "le", "al", "hs", "lo"]
 
-# Lines we don't count: an instruction line is "  <hex addr>:\t<opcode bytes>\t<mnemonic>...".
+# An instruction line is "  <hex addr>:\t<opcode bytes>\t<mnemonic>...".
 INSN_RE = re.compile(r"^\s*[0-9a-fA-F]+:\t")
-# A bl/blx target like "bl  1234 <sinf>" — capture the callee name for the report
-# (greedy to the last '>', since demangled C++ names contain their own '<...>').
-CALL_RE = re.compile(r"<(.+)>")
+# A function symbol label: "00000000 <wet::sincos(float)>:".
+LABEL_RE = re.compile(r"^[0-9a-fA-F]+ <(.+)>:\s*$")
+# A new function section starts here; the next label line names it.
+SECTION_RE = re.compile(r"^Disassembly of section ")
+# Branch-and-link relocation carrying the *real* callee (the bl operand in a .o is bogus).
+# "\t\t\t 3a: R_ARM_THM_CALL\twet::detail::sin_poly(float)"
+RELOC_CALL_RE = re.compile(r"R_ARM\S*CALL\s+(.+?)\s*$")
 
 
 def base_mnemonic(mnemonic):
@@ -95,78 +99,192 @@ def count_reglist(operands):
     return max(n, 1)
 
 
-def estimate_cycles(objdump_text):
-    total_cycles = 0
-    total_instructions = 0
-    by_mnemonic = defaultdict(lambda: [0, 0])  # base -> [count, cycles]
-    unknown = defaultdict(int)
-    calls = defaultdict(int)
+def insn_cost(mnemonic, operands):
+    """(cycles, base) for one instruction; base is None for unknown mnemonics."""
+    base = base_mnemonic(mnemonic)
+    if base is None:
+        return 1, None
+    cycles = CYCLE_LOOKUP[base]
+    if base in ("ldm", "stm", "push", "pop", "vldm", "vstm", "vpush", "vpop"):
+        cycles = 1 + count_reglist(operands)
+    return cycles, base
 
-    for line in objdump_text.splitlines():
-        if not INSN_RE.match(line):
+
+def simplify(name):
+    """Drop template args, parameter lists, and the wet:: prefix for a readable label."""
+    out, depth = [], 0
+    for ch in name:
+        if ch in "<(":
+            depth += 1
+        elif ch in ">)":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            out.append(ch)
+    return " ".join("".join(out).replace("wet::", "").split())
+
+
+def parse_functions(text):
+    """Split objdump -drC into per-function bodies with self cost and call edges.
+
+    Returns {name: {'cyc','instr','vdiv','callees':[name,...]}}. Falls back to a single
+    synthetic '<input>' function when there are no section/label markers (piped raw blob).
+    """
+    funcs = {}
+
+    def get(name):
+        return funcs.setdefault(name, {"cyc": 0, "instr": 0, "vdiv": 0, "callees": []})
+
+    cur = None
+    expect_label = False
+    for line in text.splitlines():
+        if SECTION_RE.match(line):
+            expect_label = True
             continue
-        # Tab-delimited: ['  addr:', 'opcode bytes', 'mnemonic', 'operands', ...]
-        fields = line.split("\t")
-        if len(fields) < 3:
+        m = LABEL_RE.match(line)
+        if m and expect_label:
+            cur = m.group(1)
+            get(cur)
+            expect_label = False
             continue
-        mnemonic = fields[2].strip()
-        if not mnemonic or mnemonic.startswith("."):
-            continue  # skip assembler directives / constant-pool data (.word, .short, ...)
-        operands = fields[3] if len(fields) > 3 else ""
+        rm = RELOC_CALL_RE.search(line)
+        if rm:
+            get(cur if cur is not None else "<input>")["callees"].append(rm.group(1))
+            continue
+        if INSN_RE.match(line):
+            fields = line.split("\t")
+            if len(fields) < 3:
+                continue
+            mnemonic = fields[2].strip()
+            if not mnemonic or mnemonic.startswith("."):
+                continue  # assembler directive / constant-pool data
+            operands = fields[3] if len(fields) > 3 else ""
+            cycles, base = insn_cost(mnemonic, operands)
+            f = get(cur if cur is not None else "<input>")
+            f["cyc"] += cycles
+            f["instr"] += 1
+            if base in ("vdiv", "vsqrt"):
+                f["vdiv"] += 1
+    return funcs
 
-        total_instructions += 1
-        base = base_mnemonic(mnemonic)
 
-        if base is None:
-            cycles = 1  # fallback for genuinely unknown mnemonics
-            unknown[mnemonic] += 1
-        else:
-            cycles = CYCLE_LOOKUP[base]
-            if base in ("ldm", "stm", "push", "pop", "vldm", "vstm", "vpush", "vpop"):
-                cycles = 1 + count_reglist(operands)
-            if base in ("bl", "blx"):
-                cm = CALL_RE.search(operands)
-                if cm:
-                    calls[cm.group(1)] += 1
+def inclusive(funcs):
+    """Inclusive (self + callees) cost per function. External callees (no body in this
+    TU) are skipped — their cost runs in code we can't see. Recursion is broken at the
+    back edge (self counted once) and flagged."""
+    memo = {}
 
-        total_cycles += cycles
-        key = base if base is not None else mnemonic + " (?)"
-        by_mnemonic[key][0] += 1
-        by_mnemonic[key][1] += cycles
+    def rec(name, stack):
+        f = funcs.get(name)
+        if f is None:
+            return None  # external: body not in this translation unit
+        if name in stack:
+            return f["cyc"], f["vdiv"], True  # recursion back edge: self only
+        if name in memo:
+            return memo[name]
+        cyc, vdiv, recursive = f["cyc"], f["vdiv"], False
+        for callee in f["callees"]:
+            r = rec(callee, stack | {name})
+            if r is None:
+                continue
+            cyc += r[0]
+            vdiv += r[1]
+            recursive = recursive or r[2]
+        result = (cyc, vdiv, recursive)
+        if not recursive:
+            memo[name] = result
+        return result
 
-    return total_instructions, total_cycles, by_mnemonic, unknown, calls
+    return {n: rec(n, frozenset()) for n in funcs}
 
 
 def report(text):
-    count, cycles, by_mnemonic, unknown, calls = estimate_cycles(text)
+    funcs = parse_functions(text)
+    if not funcs:
+        print("No instructions found.")
+        return
 
-    print("By mnemonic (sorted by total cycles):")
-    for key, (n, cyc) in sorted(by_mnemonic.items(), key=lambda kv: -kv[1][1]):
-        print(f"  {key:<10} x{n:<4} -> ~{cyc} cycle(s)")
+    incl = inclusive(funcs)
+    called = {c for f in funcs.values() for c in f["callees"]}
+    externals = sorted(c for c in called if c not in funcs)
 
-    if calls:
-        print("\nLibrary / external calls (cost NOT included — runs in the callee):")
-        for name, n in sorted(calls.items(), key=lambda kv: -kv[1]):
-            print(f"  {name} x{n}")
+    rows = sorted(funcs, key=lambda n: -incl[n][0])
+    name_w = min(54, max(len(simplify(n)) for n in rows))
 
-    if unknown:
-        print("\nUnknown mnemonics (counted as 1 cycle — add to CYCLE_LOOKUP if they matter):")
-        for name, n in sorted(unknown.items(), key=lambda kv: -kv[1]):
-            print(f"  {name} x{n}")
+    print(f"Per-function cycle estimate ({len(funcs)} functions).")
+    print("  *  = entry point (never called within this TU)   r = recurses\n")
+    print(f"  {'function':<{name_w}}  {'self':>6} {'incl':>7}  {'div(s/i)':>9}  calls")
+    print(f"  {'-' * name_w}  {'-'*6} {'-'*7}  {'-'*9}  -----")
+    for n in rows:
+        self_c, incl_c = funcs[n]["cyc"], incl[n][0]
+        self_v, incl_v = funcs[n]["vdiv"], incl[n][1]
+        root = "*" if n not in called else " "
+        rflag = "r" if incl[n][2] else " "
+        ncalls = len(funcs[n]["callees"])
+        print(f"{root} {simplify(n):<{name_w}}  {self_c:>6} {incl_c:>7}  "
+              f"{self_v:>3}/{incl_v:<3}{rflag:>2}  {ncalls}")
+
+    if externals:
+        print("\nExternal calls (cost NOT included — body not in this TU):")
+        for name in externals:
+            print(f"  {simplify(name)}")
 
     print("-" * 50)
-    print(f"Total Instructions: {count}")
-    print(f"Rough Estimate:     ~{cycles} clock cycles (excludes bl/blx callees)")
+    total = sum(f["instr"] for f in funcs.values())
+    print(f"Total instructions across all functions: {total}")
+    print("Entry points (*) carry the per-call cost; multiply by each loop's rate.")
+
+
+def _selftest():
+    """Exercise the call-graph composition: a multi-call edge (A->B twice), an external
+    callee (skipped), and a recursive back edge (broken, flagged). Run: --selftest."""
+    sample = "\n".join([
+        "Disassembly of section .text.A:",
+        "",
+        "00000000 <A>:",
+        "   0:\tbf00      \tnop",
+        "   4:\tf7ff fffe \tbl\t0 <B>",
+        "\t\t\t4: R_ARM_THM_CALL\tB",
+        "   8:\tf7ff fffe \tbl\t0 <B>",
+        "\t\t\t8: R_ARM_THM_CALL\tB",
+        "   c:\tf7ff fffe \tbl\t0 <ext>",
+        "\t\t\tc: R_ARM_THM_CALL\text",
+        "",
+        "Disassembly of section .text.B:",
+        "",
+        "00000000 <B>:",
+        "   0:\tee80 0a00 \tvdiv.f32\ts0, s0, s0",
+        "   4:\tf7ff fffe \tbl\t0 <B>",
+        "\t\t\t4: R_ARM_THM_CALL\tB",
+    ])
+    funcs = parse_functions(sample)
+    assert funcs["A"]["cyc"] == 10, funcs["A"]                       # nop(1) + 3*bl(3)
+    assert funcs["A"]["callees"] == ["B", "B", "ext"], funcs["A"]
+    assert funcs["B"]["cyc"] == 17 and funcs["B"]["vdiv"] == 1, funcs["B"]  # vdiv(14)+bl(3)
+
+    incl = inclusive(funcs)
+    # B expands to self(17) + recursion back-edge self(17) = 34; A = self(10) + 2*34; ext skipped.
+    assert incl["A"] == (78, 4, True), incl["A"]
+    assert incl["B"] == (34, 2, True), incl["B"]
+
+    called = {c for f in funcs.values() for c in f["callees"]}
+    assert "ext" in called and "ext" not in funcs, "external not detected"
+    assert "A" not in called, "A should be an entry point"
+    print("selftest OK")
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--selftest":
+        _selftest()
+        sys.exit(0)
+
     if len(sys.argv) > 1:
-        with open(sys.argv[1], "r") as f:
+        with open(sys.argv[1], "r", encoding="utf-8", errors="replace") as f:
             text = f.read()
     elif not sys.stdin.isatty():
         text = sys.stdin.read()
     else:
-        print("Usage: python cycle_guesser.py <objdump.asm>   (or pipe objdump output in)")
+        print("Usage: python cycle_guesser.py <objdump -drC output>   (or pipe it in)")
+        print("       objdump must be run with -r so bl targets resolve.")
         sys.exit(1)
 
     print(f"Analyzing {sys.argv[1] if len(sys.argv) > 1 else 'stdin'}...\n")
