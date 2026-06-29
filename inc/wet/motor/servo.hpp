@@ -128,6 +128,28 @@ public:
     [[nodiscard]] constexpr T position() const { return estimator_.theta_unwrapped(); } //!< [rad] continuous (multi-turn)
 
     /**
+     * @brief Update estimator with a new encoder reading (absolute)
+     *
+     * @param turns Absolute angle in turns [0 .. 1)
+     * @param dt    Time since last update
+     */
+    constexpr void encoder_update_abs(const T turns, T dt) {
+        enc_angle_ = wrap(turns * two_pi, -pi, pi);
+        estimator_.update(enc_angle_, dt);
+    }
+
+    /**
+     * @brief Update estimator with a new encoder reading (incremental turns)
+     *
+     * @param turns Number of terms since last encoder update
+     * @param dt    Time since last update
+     */
+    constexpr void encoder_update_inc(const T turns, T dt) {
+        enc_angle_ = wrap(enc_angle_ + (turns * two_pi), -pi, pi);
+        estimator_.update(enc_angle_, dt);
+    }
+
+    /**
      * @brief Electrical loop — call from the PWM/ADC ISR (current-loop rate).
      *
      * Clarke/Park the measured phases on the tracker's own predicted rotor angle, run the
@@ -154,13 +176,16 @@ public:
         // TODO:  Add MTPA and motor model to support other motor types (currently assumes surface mount PMAC)
         const DirectQuadrature<T> Idq_ref = {.d = T{0}, .q = torque_ref / Kt_};
 
+        // Run standard dual PI FOC with plant cancellation --> SVM Duty control
         const auto Vmax = foc_.max_modulation * Vdc * wet::numbers::inv_sqrt3_v<T>;
         const auto cmd = foc_.current_controller(Idq_ref, Idq_, dt, Vmax);
         const auto Vab = inverse_park_transform(cmd.Vdq, theta_elec);
         const auto svm = svm_duty_cycles(Vab, Vdc);
 
-        prev_vdq_ = cmd.Vdq;    // bus power uses the applied voltage on the next evaluate
-        estimator_.predict(dt); // kinematic tracker: extrapolate θ by ω·Ts for the next tick
+        // Extrapolate θ by ω·Ts for the next tick
+        estimator_.predict(dt);
+
+        prev_vdq_ = cmd.Vdq; // bus power uses the applied voltage on the next evaluate
 
         return FocResult<T>{
             .duties = svm.duties,
@@ -169,18 +194,6 @@ public:
             .svm_clipped = svm.is_clipped,
             .v_excess = cmd.v_excess,
         };
-    }
-
-    /**
-     * @brief Encoder correction — call whenever a rotor-angle sample is available.
-     *
-     * Decoupled from the control loops: encoders may sample slower than the current
-     * loop, so the correction runs at its own rate. Wraps/unrolls the @ref
-     * EncoderFeedback to the wrapped mechanical angle and fuses it into the estimator.
-     */
-    constexpr void update_encoder(const T turns, T dt) {
-        enc_angle_ = wrap(turns * two_pi, -pi, pi);
-        estimator_.update(enc_angle_, dt);
     }
 
     /**
@@ -195,7 +208,7 @@ public:
      *
      * @param dt this task's period [s].
      */
-    constexpr void update_velocity(T dt) {
+    constexpr void velocity_control_step(T dt) {
         const T omega_mech = estimator_.omega();
 
         // Effective q-current ceiling: configured limit derated by bus and thermal.
@@ -230,7 +243,7 @@ public:
      *
      * @param dt this task's period [s].
      */
-    constexpr void update_position(T dt) {
+    constexpr void position_control_step(T dt) {
         if (mode_ == ControlMode::Position) {
             omega_cmd_ = pos_pid_.control(target_, estimator_.theta_unwrapped(), dt);
         }
@@ -238,9 +251,9 @@ public:
 
     /// Single-rate convenience (tests / a single-task port): run the full cascade at Ts.
     [[nodiscard]] constexpr FocResult<T> update(const ColVec<3, T>& Iabc, T Vdc, T delta_turns) {
-        update_encoder(delta_turns, config_.Ts);
-        update_position(config_.Ts);
-        update_velocity(config_.Ts);
+        encoder_update_abs(delta_turns, config_.Ts);
+        position_control_step(config_.Ts);
+        velocity_control_step(config_.Ts);
 
         return current_control_step(torque_ref_, Iabc, Vdc, config_.Ts);
     }
