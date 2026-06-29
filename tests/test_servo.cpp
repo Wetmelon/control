@@ -69,7 +69,10 @@ auto servo_controller(Servo& servo) {
         const auto  Iabc = inverse_park_clarke_transform(
             DirectQuadrature<float>{static_cast<float>(y[0]), static_cast<float>(y[1])}, theta_e
         );
-        const auto             res = servo.update(ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc, .theta_mech = theta});
+        const auto res = servo.update(
+            ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc},
+            EncoderFeedback<float>{.value = theta / (2.0f * wet::numbers::pi_v<float>)}
+        );
         const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
         const auto             Vdq = clarke_park_transform(Vabc, theta_e);
         return ColVec<2, double>{static_cast<double>(Vdq.d), static_cast<double>(Vdq.q)};

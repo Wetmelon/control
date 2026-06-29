@@ -45,7 +45,7 @@ struct Plant {
 
 motor::MechanicalEstimator<double> make_estimator() {
     return motor::MechanicalEstimator<double>{
-        motor::MechanicalEstimatorConfig<double>{.J = J, .b = b, .Kt = Kt, .Ts = Ts}
+        motor::MechanicalEstimatorConfig<double>{.J = J, .b = b, .Ts = Ts}
     };
 }
 
@@ -64,13 +64,14 @@ int main() {
         p_enc.step(tau);
         p_acc.step(tau);
 
-        enc.predict(iq);
-        acc.predict(iq);
+        const double tau_em = Kt * iq; // surface-PM: torque = Kt·iq
+        enc.predict(tau_em);
+        acc.predict(tau_em);
         if (k % enc_decim == 0) {
             enc.update_encoder(p_enc.th);
             acc.update_encoder(p_acc.th);
-            const double alpha = ((Kt * iq) - (b * p_acc.w) - tau) / J; // measured load accel
-            acc.update_load_accel(alpha, iq);
+            const double alpha = (tau_em - (b * p_acc.w) - tau) / J; // measured load accel
+            acc.update_load_accel(alpha, tau_em);
         }
 
         t.push_back(k * Ts);

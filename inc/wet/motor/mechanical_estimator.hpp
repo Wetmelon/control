@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wet/estimation/kalman.hpp" // KalmanFilter (full-covariance, multirate)
+#include "wet/math/math.hpp"         // wrap, numbers::pi_v
 #include "wet/matrix/colvec.hpp"
 #include "wet/matrix/matrix.hpp"
 #include "wet/systems/discretization.hpp" // discretize (ZOH)
@@ -16,31 +17,33 @@ namespace design {
  * @ingroup foc_design
  *
  * State @f$ x = [\theta_m,\ \omega_m,\ \tau_{load}]^\top @f$ (mechanical angle,
- * speed, and an unknown load torque modelled as a random walk), input @f$ u = i_q @f$
- * [A], output @f$ y = \theta_m @f$ (a measured angle):
+ * speed, and an unknown load torque modelled as a random walk), input @f$ u =
+ * \tau_{em} @f$ [Nm] (electromagnetic torque), output @f$ y = \theta_m @f$ (a measured
+ * angle):
  * @f[
  *   \dot\theta = \omega, \quad
- *   \dot\omega = \frac{K_t i_q - \tau_{load} - b\,\omega}{J}, \quad
+ *   \dot\omega = \frac{\tau_{em} - \tau_{load} - b\,\omega}{J}, \quad
  *   \dot\tau_{load} = 0,
  * @f]
  * giving
  * @f[
  *   A = \begin{bmatrix} 0 & 1 & 0\\ 0 & -b/J & -1/J\\ 0 & 0 & 0\end{bmatrix},\
- *   B = \begin{bmatrix} 0\\ K_t/J\\ 0\end{bmatrix},\ C = [1\ 0\ 0].
+ *   B = \begin{bmatrix} 0\\ 1/J\\ 0\end{bmatrix},\ C = [1\ 0\ 0].
  * @f]
- * The dynamics are linear in the state, so a linear Kalman filter (not an EKF)
- * estimates @f$ [\theta,\omega,\tau_{load}] @f$ from angle measurements and the
- * known @f$ i_q @f$ — see @ref MechanicalEstimator. Noise inputs are @f$ G = I_3 @f$
- * (per-state process noise) and @f$ H = 1 @f$ (angle-measurement noise). Continuous
- * (Ts = 0); discretize with @ref discretize.
+ * Taking torque (not @f$ i_q @f$) as the input keeps the model linear and
+ * machine-agnostic: the caller maps current to torque with the appropriate magnetic
+ * model (@ref electromagnetic_torque, including reluctance for a salient machine), so a
+ * linear Kalman filter (not an EKF) estimates @f$ [\theta,\omega,\tau_{load}] @f$ — see
+ * @ref MechanicalEstimator. Noise inputs are @f$ G = I_3 @f$ (per-state process noise)
+ * and @f$ H = 1 @f$ (angle-measurement noise). Continuous (Ts = 0); discretize with
+ * @ref discretize.
  *
  * @param J  [kg·m²] reflected inertia (> 0).
  * @param b  [Nm·s]  viscous friction (≥ 0).
- * @param Kt [Nm/A]  torque constant.
  * @return Continuous @ref StateSpace<3,1,1,3,1>.
  */
 template<typename T = double>
-[[nodiscard]] constexpr StateSpace<3, 1, 1, 3, 1, T> rotational_load_ss(T J, T b, T Kt) {
+[[nodiscard]] constexpr StateSpace<3, 1, 1, 3, 1, T> rotational_load_ss(T J, T b) {
     StateSpace<3, 1, 1, 3, 1, T> sys{
         .A = {
             {0, T{1}, 0},
@@ -50,7 +53,7 @@ template<typename T = double>
 
         .B = {
             {0},
-            {Kt / J},
+            {T{1} / J},
             {0},
         },
 
@@ -82,10 +85,9 @@ template<typename T = double>
 struct MechanicalEstimatorConfig {
     T J{T{1}};             //!< [kg·m²] reflected inertia (> 0)
     T b{T{0}};             //!< [Nm·s] viscous friction (≥ 0)
-    T Kt{T{1}};            //!< [Nm/A] torque constant
     T Ts{T{1} / T{10000}}; //!< [s] predict step period (the fast rate)
 
-    T r_encoder{T{1e-8}};    //!< [rad²] encoder angle measurement variance
+    T r_encoder{T{1e-10}};   //!< [rad²] encoder angle measurement variance (high-trust: gain≈1, angle tracks the encoder tightly)
     T r_sensorless{T{1e-3}}; //!< [rad²] sensorless angle measurement variance
     T r_accel{T{1e-1}};      //!< [(rad/s²)²] load angular-acceleration measurement variance
 
@@ -97,20 +99,18 @@ struct MechanicalEstimatorConfig {
 /**
  * @brief Cheap-predict mechanical estimator for position, speed, and load torque.
  *
- * A linear Kalman filter over @f$ [\theta_m,\ \omega_m,\ \tau_{load}] @f$ built on
- * @ref design::mechanical_ss. The predict step is a 3×3 covariance propagation, cheap
- * enough to run at the current-loop rate (e.g. 24 kHz) from the commanded @f$ i_q @f$;
- * measurement updates from a sensor run at a slower rate, multirate — skipping updates
- * simply lets the covariance grow until the next one. Optional measurement channels feed
- * the same filter, each with its own noise: a motor-encoder angle (low noise), a
- * sensorless angle (higher noise), and a load angular-acceleration measurement (which
- * observes the load torque directly through the dynamics). Apply whichever the hardware
- * provides; the sensorless and accelerometer channels are mixed into the same estimate.
+ * A linear Kalman filter over @f$ [\theta_m,\ \omega_m,\ \tau_{load}] @f$. The predict
+ * step (from the electromagnetic torque @f$ \tau_{em} @f$) is cheap enough for the current-loop rate (e.g.
+ * 24 kHz); measurement updates run slower and multirate — a skipped update just lets the
+ * covariance grow. Three optional channels fuse into the same estimate, each with its own
+ * noise: encoder angle (low noise), sensorless angle (higher noise), and load angular
+ * acceleration (which observes @f$ \tau_{load} @f$ through the dynamics).
  *
- * The angle state is continuous (multi-turn): feed continuous, unwrapped mechanical
- * angle to the updates (accumulate encoder counts; unwrap a sensorless electrical
- * phase to mechanical before passing it). The Kalman innovation is @f$ y - C\hat x @f$,
- * so measurements must be pre-unwrapped to agree with the continuous state.
+ * The angle state stays wrapped to @f$ [-\pi,\pi) @f$ forever, so control is numerically
+ * bounded however long the shaft spins. Feed a wrapped angle; the innovation is the
+ * shortest arc @f$ \mathrm{wrap}(y-\hat\theta) @f$, so measurement and estimate fuse
+ * correctly across the @f$ \pm\pi @f$ seam. Multi-turn position is a turn counter (@ref
+ * turns) bumped on each seam crossing; @ref theta_unwrapped is the continuous angle.
  *
  * @see KalmanFilter — the full-covariance runtime filter.
  * @see Simon, "Optimal State Estimation" (2006), §5 — the linear Kalman filter.
@@ -123,62 +123,103 @@ public:
     constexpr MechanicalEstimator() = default;
 
     constexpr explicit MechanicalEstimator(const MechanicalEstimatorConfig<T>& config)
-        // Load-acceleration measurement model: α = (Kt·iq − b·ω − τ_load)/J, i.e.
-        // C_accel·x + D_accel·iq, linear in the same state.
+        // Load-acceleration measurement model: α = (τ_em − b·ω − τ_load)/J, i.e.
+        // C_accel·x + D_accel·τ_em, linear in the same state.
         : C_accel_(Matrix<1, 3, T>{{T{0}, -config.b / config.J, -T{1} / config.J}}),
-          D_accel_(Matrix<1, 1, T>{{config.Kt / config.J}}),
+          D_accel_(Matrix<1, 1, T>{{T{1} / config.J}}),
           r_encoder_(config.r_encoder),
           r_sensorless_(config.r_sensorless),
-          r_accel_(config.r_accel) {
-        auto sys = discretize(design::rotational_load_ss(config.J, config.b, config.Kt), config.Ts, DiscretizationMethod::ZOH);
+          r_accel_(config.r_accel),
+          theta_prev_(T{0}) {
+        auto sys = discretize(design::rotational_load_ss(config.J, config.b), config.Ts, DiscretizationMethod::ZOH);
         kf_ = KalmanFilter<3, 1, 1, 3, 1, T>{sys, config.Q, Matrix<1, 1, T>{{config.r_encoder}}, config.x0, config.P0};
+        theta_prev_ = wrap(kf_.state()[0], -pi(), pi());
+        kf_.set_state(0, theta_prev_);
     }
 
-    /// Predict one step from the commanded q-axis current [A] (cheap; run every tick).
-    constexpr void predict(T iq) { kf_.predict(ColVec<1, T>{iq}); }
+    /// Predict one step from the electromagnetic torque [Nm] (cheap; run every tick).
+    constexpr void predict(T tau_em) {
+        kf_.predict(ColVec<1, T>{tau_em}); // dead-reckons θ forward by ω·Ts between measurements
+        wrap_and_count();                  // roll θ into [-π,π) and tally turn seam crossings
+    }
 
-    /// Correct from an encoder angle [rad] (continuous/unwrapped). Returns false if singular.
+    /// Correct from a wrapped encoder angle in [-π,π) [rad]. Returns false if singular.
     constexpr bool update_encoder(T theta_mech) { return update_angle(theta_mech, r_encoder_); }
 
-    /// Correct from a sensorless angle [rad] (continuous/unwrapped, higher noise).
+    /// Correct from a wrapped sensorless angle in [-π,π) [rad] (higher noise).
     constexpr bool update_sensorless(T theta_mech) { return update_angle(theta_mech, r_sensorless_); }
 
     /**
      * @brief Correct from a load angular-acceleration measurement [rad/s²].
      *
-     * Uses the dynamics as the measurement model — @f$ \alpha = (K_t i_q - b\omega -
+     * Uses the dynamics as the measurement model — @f$ \alpha = (\tau_{em} - b\omega -
      * \tau_{load})/J @f$ — so an accelerometer on the (rigidly-coupled) load directly
      * observes the load torque, sharpening @f$ \tau_{load} @f$ and @f$ \omega @f$ even
-     * with only a motor encoder. Pass the same @p iq used in @ref predict. For a linear
-     * accelerometer, convert to angular acceleration and remove gravity first.
+     * with only a motor encoder. Pass the same @p tau_em used in @ref predict. For a
+     * linear accelerometer, convert to angular acceleration and remove gravity first.
      */
-    constexpr bool update_load_accel(T alpha, T iq) {
-        return kf_.update(ColVec<1, T>{alpha}, C_accel_, D_accel_, Matrix<1, 1, T>{{r_accel_}}, ColVec<1, T>{iq});
+    constexpr bool update_load_accel(T alpha, T tau_em) {
+        const bool ok = kf_.update(ColVec<1, T>{alpha}, C_accel_, D_accel_, Matrix<1, 1, T>{{r_accel_}}, ColVec<1, T>{tau_em});
+        wrap_and_count();
+        return ok;
     }
 
-    [[nodiscard]] constexpr T theta() const { return kf_.state()[0]; }       //!< [rad] mechanical angle
-    [[nodiscard]] constexpr T omega() const { return kf_.state()[1]; }       //!< [rad/s] mechanical speed
-    [[nodiscard]] constexpr T load_torque() const { return kf_.state()[2]; } //!< [Nm] estimated load torque
+    [[nodiscard]] constexpr T theta() const { return kf_.state()[0]; }                                 //!< [rad] mechanical angle, [-π,π)
+    [[nodiscard]] constexpr T turns() const { return turns_; }                                         //!< [turns] whole mechanical turns
+    [[nodiscard]] constexpr T theta_unwrapped() const { return (turns_ * two_pi()) + kf_.state()[0]; } //!< [rad] continuous angle
+    [[nodiscard]] constexpr T omega() const { return kf_.state()[1]; }                                 //!< [rad/s] mechanical speed
+    [[nodiscard]] constexpr T load_torque() const { return kf_.state()[2]; }                           //!< [Nm] estimated load torque
 
     [[nodiscard]] constexpr const Matrix<3, 3, T>& covariance() const { return kf_.covariance(); }
 
     constexpr void reset(const ColVec<3, T>& x0 = ColVec<3, T>{}, const Matrix<3, 3, T>& P0 = Matrix<3, 3, T>::identity()) {
         kf_.reset(x0, P0);
+        theta_prev_ = wrap(kf_.state()[0], -pi(), pi());
+        kf_.set_state(0, theta_prev_);
+        turns_ = T{0};
     }
 
 private:
+    static constexpr T pi() { return wet::numbers::pi_v<T>; }
+    static constexpr T two_pi() { return T{2} * wet::numbers::pi_v<T>; }
+
     // Angle channels share the model's nominal C = [1 0 0], D = 0; only R differs.
-    constexpr bool update_angle(T theta_mech, T r) {
-        return kf_.update(ColVec<1, T>{theta_mech}, kf_.model().C, kf_.model().D, Matrix<1, 1, T>{{r}});
+    // The measurement is placed next to the current estimate so the KF's innovation
+    // (z' − θ̂) equals the shortest arc wrap(z − θ̂) across the ±π seam. A small encoder
+    // R makes the gain ≈ 1, so the angle tracks the encoder tightly (good commutation)
+    // while the innovation still sharpens ω and τ_load through the cross-covariance.
+    constexpr bool update_angle(T theta_meas, T r) {
+        const T    z_adj = kf_.state()[0] + wrap(theta_meas - kf_.state()[0], -pi(), pi());
+        const bool ok = kf_.update(ColVec<1, T>{z_adj}, kf_.model().C, kf_.model().D, Matrix<1, 1, T>{{r}});
+        wrap_and_count();
+        return ok;
+    }
+
+    // Re-wrap θ into [-π,π) and count a turn when it crosses the ±π seam (the wrapped
+    // angle's motion is realized partly in predict and partly in the measurement update,
+    // so both call this).
+    constexpr void wrap_and_count() {
+        const T theta_w = wrap(kf_.state()[0], -pi(), pi());
+        const T delta = theta_w - theta_prev_;
+        if (delta < -pi()) {
+            turns_ += T{1}; // crossed +π → −π (forward)
+        } else if (delta > pi()) {
+            turns_ -= T{1}; // crossed −π → +π (reverse)
+        }
+        kf_.set_state(0, theta_w);
+        theta_prev_ = theta_w;
     }
 
     KalmanFilter<3, 1, 1, 3, 1, T> kf_{};
     Matrix<1, 3, T>                C_accel_{}; // load-acceleration measurement model
     Matrix<1, 1, T>                D_accel_{}; // its iq feedthrough
 
-    T r_encoder_{T{1e-8}};
+    T r_encoder_{T{1e-10}};
     T r_sensorless_{T{1e-3}};
     T r_accel_{T{1e-1}};
+
+    T turns_{T{0}};      //!< whole mechanical turns accumulated from seam crossings
+    T theta_prev_{T{0}}; //!< previous wrapped θ, for turn-crossing detection
 };
 
 } // namespace motor

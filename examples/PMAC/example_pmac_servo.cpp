@@ -82,7 +82,10 @@ void tick(PmacServo<float>& servo, Plant& p) {
     const auto  Iabc = inverse_park_clarke_transform(
         DirectQuadrature<float>{static_cast<float>(p.id()), static_cast<float>(p.iq())}, theta_e
     );
-    const auto             res = servo.update(ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc, .theta_mech = static_cast<float>(p.th())});
+    const auto res = servo.update(
+        ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc},
+        EncoderFeedback<float>{.value = static_cast<float>(p.th() / (2.0 * std::numbers::pi))}
+    );
     const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
     const auto             Vdq = clarke_park_transform(Vabc, theta_e);
     p.step(Vdq.d, Vdq.q, Ts);
@@ -176,9 +179,9 @@ int main() {
         p.tau_load = 0.06; // Nm load step
         run(servo, p, 0.4, &rec_vel, 0.4);
         fmt::print(
-            "Velocity mode: cmd 150 rad/s -> {:.1f} (no load), {:.1f} (after 0.06 Nm load step); "
-            "estimated load {:.3f} Nm\n",
-            w_noload, p.w(), servo.load_torque()
+            "Velocity mode: cmd 150 rad/s -> {:.1f} (no load), {:.1f} (after 0.06 Nm load step, "
+            "rejected by the velocity PI)\n",
+            w_noload, p.w()
         );
     }
 

@@ -193,6 +193,31 @@ template<typename T = double>
 }
 
 /**
+ * @brief Electromagnetic torque produced by a dq current (salient PMSM)
+ * @ingroup foc_design
+ *
+ * The full PMSM torque, magnet plus reluctance:
+ * @f[
+ *   T_e = \tfrac{3}{2}\,p\,\bigl[\lambda\, i_q + (L_d - L_q)\,i_d\,i_q\bigr] ,
+ * @f]
+ * the forward map of @ref iq_from_torque. For a non-salient machine
+ * (@f$ L_d = L_q @f$) the reluctance term vanishes and this collapses to
+ * @f$ T_e = K_t i_q @f$. Use it to feed a measured current into a torque-driven model
+ * (e.g. @ref motor::MechanicalEstimator), keeping the machine's magnetics out of the
+ * estimator.
+ *
+ * @param Idq        [A]  Measured dq current (amplitude convention)
+ * @param pole_pairs @f$ p @f$ Number of pole pairs
+ * @param Ldq        [H]  dq inductances
+ * @param lambda     [Wb] Permanent-magnet flux linkage
+ * @return @f$ T_e @f$ [Nm]
+ */
+template<typename T = double>
+[[nodiscard]] constexpr T electromagnetic_torque(const DirectQuadrature<T>& Idq, T pole_pairs, const DirectQuadrature<T>& Ldq, T lambda) {
+    return T{1.5} * pole_pairs * ((lambda * Idq.q) + ((Ldq.d - Ldq.q) * Idq.d * Idq.q));
+}
+
+/**
  * @brief Radius of the SVPWM voltage circle (max synthesizable @f$ |V_{dq}| @f$)
  * @ingroup foc_design
  *

@@ -27,7 +27,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`bandpass`](inc/wet/filters/filters.hpp#L480) | function | Filters & signal conditioning | Second-order band-pass filter (constant 0 dB peak gain) |
 | [`bandwidth`](inc/wet/matlab.hpp#L692) | function | MATLAB-style aliases (host) | -3 dB bandwidth of a SISO system over a frequency grid |
 | [`bandwidth_from_settling_time`](inc/wet/design/pid_design.hpp#L457) | function | Design & synthesis | Map settling-time and damping-ratio targets to a bandwidth estimate |
-| [`base_speed`](inc/wet/motor/foc.hpp#L215) | function | Motor control | Base (corner) electrical speed where the voltage circle is first hit |
+| [`base_speed`](inc/wet/motor/foc.hpp#L240) | function | Motor control | Base (corner) electrical speed where the voltage circle is first hit |
 | [`BDF2`](inc/wet/simulation/integrator.hpp#L182) | block | Simulation (host) | Backward Differentiation Formula 2 (BDF2) integrator |
 | [`beta`](inc/wet/toolbox/thermistor.hpp#L50) | function | Utilities & toolbox | Fit NTC coefficients from the Beta-parameter model |
 | [`Biquad`](inc/wet/filters/filters.hpp#L720) | block | Filters & signal conditioning | Second-order IIR (biquad) section runtime |
@@ -47,7 +47,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`care_schur`](inc/wet/design/riccati.hpp#L492) | function | Design & synthesis | Solve CARE via the ordered real-Schur method (Laub's method) |
 | [`CartesianMap`](inc/wet/kinematics/motion_maps.hpp#L31) | block | Kinematics | Cartesian gantry: independent per-axis affine map `task = scale·act + offset` (the "kinematics" is the identity, exposed for a uniform forward/inverse interface) |
 | [`CartesianMove`](inc/wet/trajectory/cartesian_move.hpp#L97) | block | Trajectory & motion planning | Path-preserving task-space move (Pipeline B / LIN) |
-| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L23) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L24) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
 | [`cauer_thermal_ss`](inc/wet/motor/thermal.hpp#L66) | function | Motor control | Continuous state-space model of a physical Cauer RC thermal ladder |
 | [`cbrt`](inc/wet/math/math.hpp#L78) | function | Scalar math & complex | Cube root (preserves sign for negative x) |
 | [`ceil`](inc/wet/math/math.hpp#L304) | function | Scalar math & complex | Ceiling — smallest integer ≥ x |
@@ -126,9 +126,11 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`dlqr`](inc/wet/matlab.hpp#L477) | function | MATLAB-style aliases (host) | Discrete-time Linear-Quadratic Regulator design |
 | [`dlyap`](inc/wet/design/lyapunov.hpp#L101) | function | Design & synthesis | Solve the discrete-time Lyapunov (Stein) equation @f$ A X A^\top - X + Q = 0 @f$ |
 | [`dlyap`](inc/wet/matlab.hpp#L716) | function | MATLAB-style aliases (host) | MATLAB alias for the discrete Lyapunov solve @f$ AXA^\top-X+Q=0 @f$ |
-| [`DqCommand`](inc/wet/motor/foc.hpp#L261) | block | Motor control | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
+| [`DqCommand`](inc/wet/motor/foc.hpp#L286) | block | Motor control | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
 | [`eig`](inc/wet/matlab.hpp#L327) | function | MATLAB-style aliases (host) | MATLAB short alias for the eigenvalues of a square matrix |
 | [`EigenResult`](inc/wet/matrix/eigen.hpp#L13) | block | Linear algebra | Eigenvalue computation result |
+| [`electromagnetic_torque`](inc/wet/motor/foc.hpp#L195) | function | Motor control | Electromagnetic torque produced by a dq current (salient PMSM) |
+| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L84) | block | Motor control | Rotor-angle feedback for PmacServo::update_encoder |
 | [`ErrorStateJacobian`](inc/wet/estimation/eskf.hpp#L118) | block | Observers & estimators | Error-state prediction Jacobians (nominal state updated externally) |
 | [`ErrorStateKalmanFilter`](inc/wet/estimation/eskf.hpp#L153) | block | Observers & estimators | Error-State Kalman Filter for attitude estimation |
 | [`ESCConfig`](inc/wet/controllers/esc.hpp#L49) | block | Runtime controllers | Extremum-seeking controller configuration (discrete realization) |
@@ -159,7 +161,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`flux_from_Kv`](inc/wet/motor/foc.hpp#L139) | function | Motor control | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
 | [`flux_from_torque_constant`](inc/wet/motor/foc.hpp#L75) | function | Motor control | PM flux linkage from a motor's torque constant (amplitude-invariant) |
 | [`fmod`](inc/wet/math/math.hpp#L330) | function | Scalar math & complex | Floating-point remainder, x − y·trunc(x/y) (sign of x), matching std::fmod's truncated-quotient convention |
-| [`FocResult`](inc/wet/motor/foc.hpp#L245) | block | Motor control | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
+| [`FocResult`](inc/wet/motor/foc.hpp#L270) | block | Motor control | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
 | [`forward_substitute`](inc/wet/matrix/solve.hpp#L23) | function | Linear algebra | Forward substitution to solve L x = b |
 | [`ForwardEuler`](inc/wet/simulation/integrator.hpp#L79) | block | Simulation (host) | Forward Euler integrator |
 | [`foster_thermal_ss`](inc/wet/motor/thermal.hpp#L32) | function | Motor control | Continuous state-space model of a Foster RC thermal network |
@@ -278,8 +280,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`MarginResult`](inc/wet/matlab.hpp#L649) | block | MATLAB-style aliases (host) | Gain/phase margins and their crossover frequencies |
 | [`Matrix`](inc/wet/matrix/matrix.hpp#L49) | block | Linear algebra | Fixed-size, stack-allocated matrix for linear algebra operations |
 | [`MeasJacobian`](inc/wet/estimation/ekf.hpp#L53) | block | Observers & estimators | Measurement prediction result from the user's observation function |
-| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L97) | block | Motor control | Cheap-predict mechanical estimator for position, speed, and load torque |
-| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L70) | block | Motor control | Configuration for MechanicalEstimator |
+| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L99) | block | Motor control | Cheap-predict mechanical estimator for position, speed, and load torque |
+| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L73) | block | Motor control | Configuration for MechanicalEstimator |
 | [`MedianFilter`](inc/wet/filters/filters.hpp#L1026) | block | Filters & signal conditioning | Sliding-window median filter — nonlinear spike/outlier rejection |
 | [`middlebrook`](inc/wet/analysis/analysis.hpp#L1597) | function | Frequency-domain analysis (host) | Middlebrook stability analysis for cascaded source-load systems |
 | [`MiddlebrookResult`](inc/wet/analysis/analysis.hpp#L1443) | block | Frequency-domain analysis (host) | Result of Middlebrook minor loop gain analysis |
@@ -347,8 +349,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L80) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L44) | block | Motor control | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L99) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L45) | block | Motor control | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |
 | [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | block | Motor control | Online PMSM electrical-parameter estimator (linear Kalman filter) |
@@ -409,7 +411,10 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`rotary_gearbox`](inc/wet/toolbox/actuator.hpp#L131) | function | Utilities & toolbox | Build a ServoAxis for a rotary joint behind a gearbox |
 | [`RotaryDelta`](inc/wet/kinematics/motion_maps.hpp#L146) | block | Kinematics | Rotary delta robot — closed-form inverse, quadratic-intersection forward |
 | [`RotaryDeltaGeometry`](inc/wet/kinematics/motion_maps.hpp#L129) | block | Kinematics | Rotary delta geometry (three base servos, parallelogram arms) |
-| [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L13) | function | Motor control | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
+| [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L14) | function | Motor control | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
+| [`rotor_ss`](inc/wet/motor/rotor_observer.hpp#L14) | function | Motor control | Continuous constant-velocity (kinematic) model of a rotor |
+| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L73) | block | Motor control | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
+| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L51) | block | Motor control | Configuration for RotorObserver |
 | [`RowVec`](inc/wet/matrix/rowvec.hpp#L9) | block | Linear algebra | Row vector specialization of Matrix<1, N, T> |
 | [`RowView`](inc/wet/matrix/views.hpp#L148) | block | Linear algebra | Non-owning row view of a matrix |
 | [`RS`](inc/wet/toolbox/iec61131.hpp#L75) | block | Utilities & toolbox | RS Latch (Reset-Set Latch) |
@@ -426,7 +431,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ServoAxis`](inc/wet/toolbox/actuator.hpp#L90) | block | Utilities & toolbox | One servoactuator transmission: SI joint unit ⟷ drive (motor) units |
 | [`ServoBank`](inc/wet/toolbox/actuator.hpp#L203) | block | Utilities & toolbox | A bank of ServoAxis transmissions: maps a synchronized multi-axis |
 | [`ServoCommand`](inc/wet/toolbox/actuator.hpp#L68) | block | Utilities & toolbox | A drive-native servoactuator setpoint: position, velocity, torque |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L68) | block | Motor control | Sensor feedback for one PmacServo::update tick |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L69) | block | Motor control | Per-ISR electrical feedback for PmacServo::update_current |
 | [`sgn`](inc/wet/math/math.hpp#L364) | function | Scalar math & complex | Sign function — −1 if val < 0, 1 if val > 0, 0 if val == 0 |
 | [`SignalStatus`](inc/wet/toolbox/conditioning.hpp#L217) | block | Utilities & toolbox | Classification of an analog input against its valid/fault bands |
 | [`simc`](inc/wet/design/pid_design.hpp#L236) | function | Design & synthesis | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |
@@ -550,7 +555,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`UnscentedParams`](inc/wet/estimation/ukf.hpp#L64) | block | Observers & estimators | Tuning parameters for the scaled unscented transform |
 | [`unwrap_phase_deg`](inc/wet/analysis/analysis.hpp#L174) | function | Frequency-domain analysis (host) | Unwrap phase data in degrees to avoid +/-180 discontinuities |
 | [`UpperTriangle`](inc/wet/matrix/views.hpp#L94) | block | Linear algebra | Upper triangular view of a square matrix |
-| [`voltage_circle_radius`](inc/wet/motor/foc.hpp#L195) | function | Motor control | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
+| [`voltage_circle_radius`](inc/wet/motor/foc.hpp#L220) | function | Motor control | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
 | [`wrap`](inc/wet/math/math.hpp#L448) | function | Scalar math & complex | Wrap x into the half-open interval [min, max) (period max − min) |
 | [`wrapped_delta`](inc/wet/toolbox/encoder.hpp#L23) | function | Utilities & toolbox | Signed difference between two unsigned counter readings, wrap-safe |
 | [`ziegler_nichols`](inc/wet/design/pid_design.hpp#L51) | function | Design & synthesis | Ziegler-Nichols tuning from ultimate gain and ultimate period |

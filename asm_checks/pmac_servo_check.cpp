@@ -4,7 +4,7 @@
 
 constinit static wet::motor::PmacServo motor;
 
-auto test(const float ref, const wet::motor::ServoFeedback<float> y) {
+auto test(const float ref, const wet::motor::ServoFeedback<float> y, const wet::motor::EncoderFeedback<float> enc) {
     motor.set_target(ref);
-    return motor.update(y);
+    return motor.update(y, enc);
 }
