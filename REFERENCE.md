@@ -491,7 +491,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L73) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |
@@ -501,7 +501,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L19) | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
 | [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L9) | Configuration for RotorObserver |
 | [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
+| [`SvmDuties`](inc/wet/motor/modulation.hpp#L58) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
 | [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
 | [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
 | [`ThermalState`](inc/wet/motor/thermal.hpp#L259) | State from a ThermalLimiter evaluation |
@@ -539,8 +539,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`park_zero_transform`](inc/wet/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
 | [`requires`](inc/wet/motor/field_weakening.hpp#L170) | Concept for a pluggable field-weakening / current-reference policy |
 | [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L14) | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
-| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
-| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
+| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L76) | Space-vector PWM duty cycles from an αβ voltage command |
+| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L27) | Min-max zero-sequence injection for space-vector PWM |
 | [`symmetrical_components`](inc/wet/transforms.hpp#L610) | Forward symmetrical-component (Fortescue) transform (abc → 012) |
 | [`torque_constant_from_flux`](inc/wet/motor/foc.hpp#L56) | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
 | [`torque_constant_from_Kv`](inc/wet/motor/foc.hpp#L99) | Torque constant from the datasheet velocity constant @f$ K_v @f$ |

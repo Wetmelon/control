@@ -348,7 +348,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L73) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | block | Motor control | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |
@@ -486,9 +486,9 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`svd`](inc/wet/matrix/svd.hpp#L230) | function | Linear algebra | Full singular value decomposition A = U·Σ·Vᴴ (one-sided Jacobi) |
 | [`svd`](inc/wet/matlab.hpp#L291) | function | MATLAB-style aliases (host) | MATLAB short alias for the singular value decomposition |
 | [`SVDResult`](inc/wet/matrix/svd.hpp#L215) | block | Linear algebra | Result of a full singular value decomposition A = U·Σ·Vᴴ |
-| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L75) | function | Motor control | Space-vector PWM duty cycles from an αβ voltage command |
-| [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | block | Motor control | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
-| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L26) | function | Motor control | Min-max zero-sequence injection for space-vector PWM |
+| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L76) | function | Motor control | Space-vector PWM duty cycles from an αβ voltage command |
+| [`SvmDuties`](inc/wet/motor/modulation.hpp#L58) | block | Motor control | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
+| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L27) | function | Motor control | Min-max zero-sequence injection for space-vector PWM |
 | [`swap_schur_blocks`](inc/wet/design/riccati.hpp#L359) | function | Design & synthesis | Swap two adjacent diagonal blocks of a real Schur form |
 | [`Switch`](inc/wet/toolbox/io.hpp#L162) | block | Utilities & toolbox | Debounced maintained switch (toggle/selector contact) with change flag |
 | [`symmetrical_components`](inc/wet/transforms.hpp#L610) | function | Motor control | Forward symmetrical-component (Fortescue) transform (abc → 012) |

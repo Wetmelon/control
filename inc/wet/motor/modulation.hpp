@@ -1,6 +1,7 @@
 #pragma once
 
-#include "wet/math/math.hpp"
+#include <cstddef>
+
 #include "wet/matrix/colvec.hpp"
 #include "wet/transforms.hpp"
 
@@ -105,9 +106,11 @@ template<typename T = float>
     const ColVec<3, T> v_phase = inverse_clarke_transform(v_ab);
     const T            v_0 = svpwm_zero_sequence(v_phase);
 
+    const T inv_vdc = T{1} / v_dc;
+
     SvmDuties<T> result;
     for (size_t i = 0; i < 3; ++i) {
-        const T raw = T{0.5} + ((v_phase[i] + v_0) / v_dc);
+        const T raw = T{0.5} + ((v_phase[i] + v_0) * inv_vdc);
         const T sat = wet::clamp(raw, T{0}, T{1});
         result.is_clipped = result.is_clipped || (sat != raw);
         result.duties[i] = sat;

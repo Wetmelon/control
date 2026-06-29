@@ -5,7 +5,6 @@
 
 constinit static wet::motor::PmacServo motor;
 
-auto test(const float ref, const wet::ColVec<3, float>& Iabc, float Vdc, float delta_enc) {
-    motor.set_target(ref);
-    return motor.update(Iabc, Vdc, delta_enc);
+auto test(float pos, float vel, float tau, const wet::ColVec<3, float>& Iabc, float Vdc, float delta_enc) {
+    return motor.update(pos, vel, tau, Iabc, Vdc, delta_enc);
 }

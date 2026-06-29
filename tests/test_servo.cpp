@@ -18,6 +18,9 @@ constexpr float  Vdc = 48.0f;
 constexpr double Ts = 1.0 / 20000.0;
 constexpr double P = 4.0; // pole pairs (matches motor_config)
 
+// The servo commands speed/angle in turns; the plant lives in SI (rad). Convert at the boundary.
+constexpr float to_turns = 1.0f / (2.0f * wet::numbers::pi_v<float>);
+
 PmacServoConfig<float> motor_config() {
     return PmacServoConfig<float>{
         .Ldq = {200e-6f, 200e-6f},
@@ -61,15 +64,15 @@ constexpr auto full_state = [](const ColVec<4, double>& x) { return x; };
 // Wrap a PmacServo as a sampled controller (t,x) -> Vdq: rebuild the phase-current
 // feedback, run the servo, convert its duties back to an applied dq voltage.
 template<class Servo>
-auto servo_controller(Servo& servo) {
-    return [&servo](double /*t*/, const ColVec<4, double>& y) {
+auto servo_controller(Servo& servo, float pos_cmd, float vel_cmd, float trq_cmd) {
+    return [&servo, pos_cmd, vel_cmd, trq_cmd](double /*t*/, const ColVec<4, double>& y) {
         const float theta = static_cast<float>(y[3]);
         const float theta_e = static_cast<float>(P) * theta;
         const auto  Iabc = inverse_park_clarke_transform(
             DirectQuadrature<float>{static_cast<float>(y[0]), static_cast<float>(y[1])}, theta_e
         );
         const auto res = servo.update(
-            Iabc, Vdc, theta / (2.0f * wet::numbers::pi_v<float>)
+            pos_cmd, vel_cmd, trq_cmd, Iabc, Vdc, theta / (2.0f * wet::numbers::pi_v<float>)
         );
         const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
         const auto             Vdq = clarke_park_transform(Vabc, theta_e);
@@ -79,11 +82,13 @@ auto servo_controller(Servo& servo) {
 
 // Closed-loop run: servo at the control rate Ts, plant integrated with RK4 (one step per
 // period — the servo's cascade is designed at Ts). Returns the full state history.
+// pos/vel/trq are the per-mode command channels (unused channels passed as 0).
 template<class Servo, class Dyn>
-sim::SimulationResult<4, 2, 4, double> drive(Servo& servo, Dyn&& dyn, const ColVec<4, double>& x0, int steps) {
+sim::SimulationResult<4, 2, 4, double>
+drive(Servo& servo, Dyn&& dyn, const ColVec<4, double>& x0, int steps, float pos = 0, float vel = 0, float trq = 0) {
     const sim::FixedStepSolver fine{sim::RK4<4, double>{}, Ts};
     return sim::simulate_sampled<4, 2, 4, double>(
-        dyn, full_state, servo_controller(servo), fine, Ts, x0, {0.0, static_cast<double>(steps) * Ts}
+        dyn, full_state, servo_controller(servo, pos, vel, trq), fine, Ts, x0, {0.0, static_cast<double>(steps) * Ts}
     );
 }
 
@@ -99,35 +104,35 @@ TEST_SUITE("PmacServo") {
     TEST_CASE("torque mode drives iq to the commanded torque") {
         PmacServo<float> servo{motor_config()};
         servo.set_mode(ControlMode::Torque);
-        servo.set_target(0.1f); // Nm; Kt = 1.5*4*0.01 = 0.06 -> iq ~ 1.667 A
 
-        double     tau = 0.0;
-        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 4000); // 0.2 s
+        double tau = 0.0;
+        // Nm; Kt = 1.5*4*0.01 = 0.06 -> iq ~ 1.667 A
+        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 4000, 0, 0, 0.1f); // 0.2 s
         CHECK(res.x.back()[1] == doctest::Approx(0.1 / 0.06).epsilon(0.05));
     }
 
     TEST_CASE("velocity mode tracks the speed command and rejects a load") {
         PmacServo<float> servo{motor_config()};
         servo.set_mode(ControlMode::Velocity);
-        servo.set_target(100.0f); // rad/s
+        const float vel_cmd = 100.0f * to_turns; // 100 rad/s
 
         double     tau = 0.0;
         const auto dyn = servo_dynamics(plant_params, tau);
-        const auto r1 = drive(servo, dyn, ColVec<4, double>{}, 10000); // 0.5 s
+        const auto r1 = drive(servo, dyn, ColVec<4, double>{}, 10000, 0, vel_cmd); // 0.5 s
         CHECK(r1.x.back()[2] == doctest::Approx(100.0).epsilon(0.02));
 
         tau = 0.05; // Nm load step
-        const auto r2 = drive(servo, dyn, r1.x.back(), 10000);
+        const auto r2 = drive(servo, dyn, r1.x.back(), 10000, 0, vel_cmd);
         CHECK(r2.x.back()[2] == doctest::Approx(100.0).epsilon(0.02)); // integral action rejects it
     }
 
     TEST_CASE("position mode settles at the commanded angle") {
         PmacServo<float> servo{motor_config()};
         servo.set_mode(ControlMode::Position);
-        servo.set_target(5.0f); // rad
+        const float pos_cmd = 5.0f * to_turns; // 5 rad
 
         double     tau = 0.0;
-        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 40000); // 2 s
+        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 40000, pos_cmd); // 2 s
         CHECK(res.x.back()[3] == doctest::Approx(5.0).epsilon(0.02));
         CHECK(res.x.back()[2] == doctest::Approx(0.0).epsilon(0.05)); // at rest
     }
@@ -137,10 +142,10 @@ TEST_SUITE("PmacServo") {
         cfg.iq_max = 3.0f;
         PmacServo<float> servo{cfg};
         servo.set_mode(ControlMode::Torque);
-        servo.set_target(5.0f); // 5 Nm -> iq ~ 83 A demanded, must clamp to 3 A
 
-        double     tau = 0.0;
-        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 2000);
+        double tau = 0.0;
+        // 5 Nm -> iq ~ 83 A demanded, must clamp to 3 A
+        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 2000, 0, 0, 5.0f);
         CHECK(res.x.back()[1] <= doctest::Approx(3.0).epsilon(0.05));
     }
 
@@ -149,11 +154,11 @@ TEST_SUITE("PmacServo") {
         cfg.iq_max = 10.0f;
         PmacServo<float> servo{cfg};
         servo.set_mode(ControlMode::Torque);
-        servo.set_target(5.0f);        // demands far more than the ceiling
         servo.set_thermal_scale(0.2f); // 20% derate -> ceiling 2 A
 
-        double     tau = 0.0;
-        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 2000);
+        double tau = 0.0;
+        // demands far more than the ceiling
+        const auto res = drive(servo, servo_dynamics(plant_params, tau), ColVec<4, double>{}, 2000, 0, 0, 5.0f);
         CHECK(res.x.back()[1] <= doctest::Approx(2.0).epsilon(0.1));
     }
 
