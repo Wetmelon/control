@@ -30,6 +30,7 @@ using namespace wet;
 using namespace wet::motor;
 
 namespace {
+using std::numbers::pi_v;
 
 // True motor parameters (unknown to the controller until calibration / config).
 constexpr double Ld = 200e-6, Lq = 200e-6, R = 0.5, lambda = 0.01;
@@ -82,10 +83,9 @@ void tick(PmacServo<float>& servo, Plant& p) {
     const auto  Iabc = inverse_park_clarke_transform(
         DirectQuadrature<float>{static_cast<float>(p.id()), static_cast<float>(p.iq())}, theta_e
     );
-    const auto res = servo.update(
-        ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc},
-        EncoderFeedback<float>{.value = static_cast<float>(p.th() / (2.0 * std::numbers::pi))}
-    );
+
+    const auto res = servo.update(Iabc, Vdc, ((float)p.th() / (2.0f * pi_v<float>)));
+
     const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
     const auto             Vdq = clarke_park_transform(Vabc, theta_e);
     p.step(Vdq.d, Vdq.q, Ts);

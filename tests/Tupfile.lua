@@ -15,11 +15,11 @@ INCLUDES += '-I../libs/json/single_include'
 TEST_CXXFLAGS = CXXFLAGS..' -ffast-math'
 
 -- Compile all .cpp files in the tests directory
-objs = tup.foreach_rule('*.cpp', '^j^'..CXX..' '..TEST_CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/objs/%B.o')
+objs = tup.foreach_rule('*.cpp', '^j^'..CXX..' -c %f '..TEST_CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -o %o', 'build/objs/%B.o')
 
 -- Compile all fmt source files
 fmt_sources = {'../libs/fmt/src/format.cc', '../libs/fmt/src/os.cc'}
-objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' '..TEST_CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -c %f -o %o', 'build/objs/fmt/%B.o')
+objs += tup.foreach_rule(fmt_sources, '^j^'..CXX..' -c %f '..TEST_CXXFLAGS..' '..INCLUDES..' '..WARNINGS..' -o %o', 'build/objs/fmt/%B.o')
 
 -- Link with g++
 tup.rule(objs, CXX..' '..TEST_CXXFLAGS..' '..LDFLAGS..' -static %f -o %o', 'build/test_runner.exe')

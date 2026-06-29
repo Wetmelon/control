@@ -478,7 +478,6 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`DirectQuadrature`](inc/wet/transforms.hpp#L62) | Direct-quadrature (rotor-frame) component pair |
 | [`DirectQuadratureZero`](inc/wet/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
 | [`DqCommand`](inc/wet/motor/foc.hpp#L286) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
-| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L86) | Rotor-angle feedback for PmacServo::update_encoder |
 | [`FetLossModel`](inc/wet/motor/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
 | [`FieldWeakening`](inc/wet/motor/field_weakening.hpp#L91) | Field-weakening current-reference regulator (voltage-feedback or feedforward) |
 | [`FieldWeakeningConfig`](inc/wet/motor/field_weakening.hpp#L77) | Configuration for FieldWeakening |
@@ -492,7 +491,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L101) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |
@@ -502,7 +501,6 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L19) | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
 | [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L9) | Configuration for RotorObserver |
 | [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L71) | Per-ISR electrical feedback for PmacServo::update_current |
 | [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
 | [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
 | [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |

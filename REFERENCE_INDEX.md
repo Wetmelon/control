@@ -130,7 +130,6 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`eig`](inc/wet/matlab.hpp#L327) | function | MATLAB-style aliases (host) | MATLAB short alias for the eigenvalues of a square matrix |
 | [`EigenResult`](inc/wet/matrix/eigen.hpp#L13) | block | Linear algebra | Eigenvalue computation result |
 | [`electromagnetic_torque`](inc/wet/motor/foc.hpp#L195) | function | Motor control | Electromagnetic torque produced by a dq current (salient PMSM) |
-| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L86) | block | Motor control | Rotor-angle feedback for PmacServo::update_encoder |
 | [`ErrorStateJacobian`](inc/wet/estimation/eskf.hpp#L118) | block | Observers & estimators | Error-state prediction Jacobians (nominal state updated externally) |
 | [`ErrorStateKalmanFilter`](inc/wet/estimation/eskf.hpp#L153) | block | Observers & estimators | Error-State Kalman Filter for attitude estimation |
 | [`ESCConfig`](inc/wet/controllers/esc.hpp#L49) | block | Runtime controllers | Extremum-seeking controller configuration (discrete realization) |
@@ -349,7 +348,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L101) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | block | Motor control | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |
@@ -430,7 +429,6 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ServoAxis`](inc/wet/toolbox/actuator.hpp#L90) | block | Utilities & toolbox | One servoactuator transmission: SI joint unit ⟷ drive (motor) units |
 | [`ServoBank`](inc/wet/toolbox/actuator.hpp#L203) | block | Utilities & toolbox | A bank of ServoAxis transmissions: maps a synchronized multi-axis |
 | [`ServoCommand`](inc/wet/toolbox/actuator.hpp#L68) | block | Utilities & toolbox | A drive-native servoactuator setpoint: position, velocity, torque |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Per-ISR electrical feedback for PmacServo::update_current |
 | [`sgn`](inc/wet/math/math.hpp#L364) | function | Scalar math & complex | Sign function — −1 if val < 0, 1 if val > 0, 0 if val == 0 |
 | [`SignalStatus`](inc/wet/toolbox/conditioning.hpp#L217) | block | Utilities & toolbox | Classification of an analog input against its valid/fault bands |
 | [`simc`](inc/wet/design/pid_design.hpp#L236) | function | Design & synthesis | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |

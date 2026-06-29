@@ -69,36 +69,6 @@ struct PmacServoConfig {
 };
 
 /**
- * @brief Per-ISR electrical feedback for @ref PmacServo::update_current.
- *
- * No rotor angle: the current loop uses the estimator's own predicted angle (the point
- * of the predict step). Encoder feedback arrives separately via @ref EncoderFeedback on
- * the slower estimation step.
- *
- * @tparam T Scalar type.
- */
-template<typename T = float>
-struct ServoFeedback {
-    ColVec<3, T> Iabc{}; //!< [A] measured phase currents
-    T            Vdc{};  //!< [V] DC bus voltage
-};
-
-/**
- * @brief Rotor-angle feedback for @ref PmacServo::update_encoder.
- *
- * The angle is given in turns of one mechanical revolution, either as an absolute
- * fraction in [0,1) or as an incremental delta to accumulate. The servo wraps/unrolls
- * it to the wrapped mechanical angle the estimator fuses.
- *
- * @tparam T Scalar type.
- */
-template<typename T = float>
-struct EncoderFeedback {
-    T    value{};       //!< absolute fraction of a turn [0,1), or Δturns since last sample if @ref incremental
-    bool incremental{}; //!< false: @ref value is an absolute fraction; true: @ref value is an increment
-};
-
-/**
  * @brief Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out.
  *
  * Orchestrates the library primitives without adding control math of its own:
@@ -154,10 +124,6 @@ public:
     constexpr void set_target(T target) { target_ = target; }             //!< torque[Nm]/speed[rad/s]/angle[rad] per mode
     constexpr void set_thermal_scale(T scale) { thermal_scale_ = scale; } //!< [0,1] derate from an external thermal model
 
-    /// Torque feedforward [Nm] from a higher-level load/friction estimator (e.g. a momentum
-    /// observer or task-space dynamics), added to the commanded torque to cancel the load.
-    constexpr void set_torque_feedforward(T tau_ff) { tau_ff_ = tau_ff; }
-
     [[nodiscard]] constexpr T speed() const { return estimator_.omega(); }
     [[nodiscard]] constexpr T position() const { return estimator_.theta_unwrapped(); } //!< [rad] continuous (multi-turn)
 
@@ -174,23 +140,24 @@ public:
      *           (@ref PmacServoConfig::Ts), since the KF predict is discretized at it.
      * @return @ref FocResult with the SVPWM duties and saturation status.
      */
-    [[nodiscard]] constexpr FocResult<T> update_current(const float torque_ref, const ServoFeedback<T>& fb, T dt) {
+    [[nodiscard]] constexpr FocResult<T> current_control_step(float torque_ref, const ColVec<3, T>& Iabc, T Vdc, T dt) {
+
+        // Mechanical -> Electrical angle / omega conversion
         const T theta_elec = wrap(config_.pole_pairs * estimator_.theta(), -pi, pi);
-        Idq_ = clarke_park_transform(fb.Iabc, theta_elec);
-        Vdc_ = fb.Vdc;
+        foc_.omega = config_.pole_pairs * estimator_.omega();
 
-        foc_.omega = config_.pole_pairs * estimator_.omega(); // electrical speed feedforward
+        // Convert from raw 3ph current measurements to DQ frame
+        Idq_ = clarke_park_transform(Iabc, theta_elec);
+        Vdc_ = Vdc;
 
-        const T Vmax = foc_.max_modulation * fb.Vdc * wet::numbers::inv_sqrt3_v<T>;
+        // Compute a DQ current reference from torque target and torque constant
+        // TODO:  Add MTPA and motor model to support other motor types (currently assumes surface mount PMAC)
+        const DirectQuadrature<T> Idq_ref = {.d = T{0}, .q = torque_ref / Kt_};
 
-        // Currently assumes surface mount permanent magnet motors only (Ld = Lq, id = 0).
-        // Add the external torque feedforward so a load/friction estimate cancels the load.
-        // ponytail: feedforward isn't separately current-limited; the voltage circle clamps it.
-        const DirectQuadrature<T> Idq_ref = {.d = T{0}, .q = (torque_ref + tau_ff_) / Kt_};
-
+        const auto Vmax = foc_.max_modulation * Vdc * wet::numbers::inv_sqrt3_v<T>;
         const auto cmd = foc_.current_controller(Idq_ref, Idq_, dt, Vmax);
         const auto Vab = inverse_park_transform(cmd.Vdq, theta_elec);
-        const auto svm = svm_duty_cycles(Vab, fb.Vdc);
+        const auto svm = svm_duty_cycles(Vab, Vdc);
 
         prev_vdq_ = cmd.Vdq;    // bus power uses the applied voltage on the next evaluate
         estimator_.predict(dt); // kinematic tracker: extrapolate θ by ω·Ts for the next tick
@@ -211,12 +178,8 @@ public:
      * loop, so the correction runs at its own rate. Wraps/unrolls the @ref
      * EncoderFeedback to the wrapped mechanical angle and fuses it into the estimator.
      */
-    constexpr void update_encoder(const EncoderFeedback<T>& enc, T dt) {
-        if (enc.incremental) {
-            enc_angle_ = wrap(enc_angle_ + (enc.value * two_pi), -pi, pi);
-        } else {
-            enc_angle_ = wrap(enc.value * two_pi, -pi, pi);
-        }
+    constexpr void update_encoder(const T turns, T dt) {
+        enc_angle_ = wrap(turns * two_pi, -pi, pi);
         estimator_.update(enc_angle_, dt);
     }
 
@@ -274,12 +237,12 @@ public:
     }
 
     /// Single-rate convenience (tests / a single-task port): run the full cascade at Ts.
-    [[nodiscard]] constexpr FocResult<T> update(const ServoFeedback<T>& fb, const EncoderFeedback<T>& enc) {
-        update_encoder(enc, config_.Ts);
+    [[nodiscard]] constexpr FocResult<T> update(const ColVec<3, T>& Iabc, T Vdc, T delta_turns) {
+        update_encoder(delta_turns, config_.Ts);
         update_position(config_.Ts);
         update_velocity(config_.Ts);
 
-        return update_current(torque_ref_, fb, config_.Ts);
+        return current_control_step(torque_ref_, Iabc, Vdc, config_.Ts);
     }
 
     constexpr void reset() {
@@ -312,8 +275,7 @@ private:
 
     T target_{T{0}};
     T thermal_scale_{T{1}};
-    T tau_ff_{T{0}}; //!< external torque feedforward [Nm], added to the commanded torque
-    T Kt_{T{1}};     //!< Torque Constant
+    T Kt_{T{1}}; //!< Torque Constant
 
     // Cross-rate state: written by the fast loop, read by the slower ones (and back).
     DirectQuadrature<T> prev_vdq_{};

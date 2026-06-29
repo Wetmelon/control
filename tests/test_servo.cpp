@@ -1,8 +1,7 @@
-#include <cstddef>
 #include <vector>
 
 #include "doctest.h"
-#include "plot_check.hpp"
+#include "wet/backend.hpp"
 #include "wet/matrix/colvec.hpp"
 #include "wet/motor/servo.hpp"
 #include "wet/simulation/integrator.hpp"
@@ -70,8 +69,7 @@ auto servo_controller(Servo& servo) {
             DirectQuadrature<float>{static_cast<float>(y[0]), static_cast<float>(y[1])}, theta_e
         );
         const auto res = servo.update(
-            ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc},
-            EncoderFeedback<float>{.value = theta / (2.0f * wet::numbers::pi_v<float>)}
+            Iabc, Vdc, theta / (2.0f * wet::numbers::pi_v<float>)
         );
         const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
         const auto             Vdq = clarke_park_transform(Vabc, theta_e);
