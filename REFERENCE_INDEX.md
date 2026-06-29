@@ -47,7 +47,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`care_schur`](inc/wet/design/riccati.hpp#L492) | function | Design & synthesis | Solve CARE via the ordered real-Schur method (Laub's method) |
 | [`CartesianMap`](inc/wet/kinematics/motion_maps.hpp#L31) | block | Kinematics | Cartesian gantry: independent per-axis affine map `task = scale·act + offset` (the "kinematics" is the identity, exposed for a uniform forward/inverse interface) |
 | [`CartesianMove`](inc/wet/trajectory/cartesian_move.hpp#L97) | block | Trajectory & motion planning | Path-preserving task-space move (Pipeline B / LIN) |
-| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L24) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L26) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
 | [`cauer_thermal_ss`](inc/wet/motor/thermal.hpp#L66) | function | Motor control | Continuous state-space model of a physical Cauer RC thermal ladder |
 | [`cbrt`](inc/wet/math/math.hpp#L78) | function | Scalar math & complex | Cube root (preserves sign for negative x) |
 | [`ceil`](inc/wet/math/math.hpp#L304) | function | Scalar math & complex | Ceiling — smallest integer ≥ x |
@@ -130,7 +130,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`eig`](inc/wet/matlab.hpp#L327) | function | MATLAB-style aliases (host) | MATLAB short alias for the eigenvalues of a square matrix |
 | [`EigenResult`](inc/wet/matrix/eigen.hpp#L13) | block | Linear algebra | Eigenvalue computation result |
 | [`electromagnetic_torque`](inc/wet/motor/foc.hpp#L195) | function | Motor control | Electromagnetic torque produced by a dq current (salient PMSM) |
-| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L84) | block | Motor control | Rotor-angle feedback for PmacServo::update_encoder |
+| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L86) | block | Motor control | Rotor-angle feedback for PmacServo::update_encoder |
 | [`ErrorStateJacobian`](inc/wet/estimation/eskf.hpp#L118) | block | Observers & estimators | Error-state prediction Jacobians (nominal state updated externally) |
 | [`ErrorStateKalmanFilter`](inc/wet/estimation/eskf.hpp#L153) | block | Observers & estimators | Error-State Kalman Filter for attitude estimation |
 | [`ESCConfig`](inc/wet/controllers/esc.hpp#L49) | block | Runtime controllers | Extremum-seeking controller configuration (discrete realization) |
@@ -349,8 +349,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L99) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L45) | block | Motor control | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L101) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | block | Motor control | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |
 | [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | block | Motor control | Online PMSM electrical-parameter estimator (linear Kalman filter) |
@@ -412,9 +412,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`RotaryDelta`](inc/wet/kinematics/motion_maps.hpp#L146) | block | Kinematics | Rotary delta robot — closed-form inverse, quadratic-intersection forward |
 | [`RotaryDeltaGeometry`](inc/wet/kinematics/motion_maps.hpp#L129) | block | Kinematics | Rotary delta geometry (three base servos, parallelogram arms) |
 | [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L14) | function | Motor control | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
-| [`rotor_ss`](inc/wet/motor/rotor_observer.hpp#L14) | function | Motor control | Continuous constant-velocity (kinematic) model of a rotor |
-| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L73) | block | Motor control | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
-| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L51) | block | Motor control | Configuration for RotorObserver |
+| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L19) | block | Motor control | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
+| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L9) | block | Motor control | Configuration for RotorObserver |
 | [`RowVec`](inc/wet/matrix/rowvec.hpp#L9) | block | Linear algebra | Row vector specialization of Matrix<1, N, T> |
 | [`RowView`](inc/wet/matrix/views.hpp#L148) | block | Linear algebra | Non-owning row view of a matrix |
 | [`RS`](inc/wet/toolbox/iec61131.hpp#L75) | block | Utilities & toolbox | RS Latch (Reset-Set Latch) |
@@ -431,7 +430,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ServoAxis`](inc/wet/toolbox/actuator.hpp#L90) | block | Utilities & toolbox | One servoactuator transmission: SI joint unit ⟷ drive (motor) units |
 | [`ServoBank`](inc/wet/toolbox/actuator.hpp#L203) | block | Utilities & toolbox | A bank of ServoAxis transmissions: maps a synchronized multi-axis |
 | [`ServoCommand`](inc/wet/toolbox/actuator.hpp#L68) | block | Utilities & toolbox | A drive-native servoactuator setpoint: position, velocity, torque |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L69) | block | Motor control | Per-ISR electrical feedback for PmacServo::update_current |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Per-ISR electrical feedback for PmacServo::update_current |
 | [`sgn`](inc/wet/math/math.hpp#L364) | function | Scalar math & complex | Sign function — −1 if val < 0, 1 if val > 0, 0 if val == 0 |
 | [`SignalStatus`](inc/wet/toolbox/conditioning.hpp#L217) | block | Utilities & toolbox | Classification of an analog input against its valid/fault bands |
 | [`simc`](inc/wet/design/pid_design.hpp#L236) | function | Design & synthesis | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |

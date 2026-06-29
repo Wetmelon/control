@@ -3,12 +3,14 @@
 #include <cstdint>
 #include <limits>
 
+#include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/math/math.hpp" // wrap, numbers::pi_v
 #include "wet/matrix/colvec.hpp"
 #include "wet/motor/foc.hpp"
 #include "wet/motor/limits.hpp"
+#include "wet/motor/modulation.hpp"
 #include "wet/motor/rotor_observer.hpp"
 #include "wet/transforms.hpp"
 
@@ -136,7 +138,6 @@ public:
           Kt_(design::torque_constant_from_flux(config.pole_pairs, config.lambda)) {
 
         RotorObserverConfig<T> oc = config.observer;
-        oc.Ts = config.Ts; // kinematic tracker: no J/b — those are only for the velocity-loop design
         estimator_ = RotorObserver<T>(oc);
 
         tune(config.bandwidths, config.zeta);
@@ -174,7 +175,7 @@ public:
      * @return @ref FocResult with the SVPWM duties and saturation status.
      */
     [[nodiscard]] constexpr FocResult<T> update_current(const float torque_ref, const ServoFeedback<T>& fb, T dt) {
-        const T theta_elec = wrap(config_.pole_pairs * estimator_.theta(), -pi(), pi());
+        const T theta_elec = wrap(config_.pole_pairs * estimator_.theta(), -pi, pi);
         Idq_ = clarke_park_transform(fb.Iabc, theta_elec);
         Vdc_ = fb.Vdc;
 
@@ -191,16 +192,16 @@ public:
         const auto Vab = inverse_park_transform(cmd.Vdq, theta_elec);
         const auto svm = svm_duty_cycles(Vab, fb.Vdc);
 
-        prev_vdq_ = cmd.Vdq;  // bus power uses the applied voltage on the next evaluate
-        estimator_.predict(); // kinematic tracker: extrapolate θ by ω·Ts for the next tick
+        prev_vdq_ = cmd.Vdq;    // bus power uses the applied voltage on the next evaluate
+        estimator_.predict(dt); // kinematic tracker: extrapolate θ by ω·Ts for the next tick
 
-        FocResult<T> result;
-        result.duties = svm.duties;
-        result.Idq = Idq_;
-        result.v_saturated = cmd.is_saturated;
-        result.v_excess = cmd.v_excess;
-        result.svm_clipped = svm.is_clipped;
-        return result;
+        return FocResult<T>{
+            .duties = svm.duties,
+            .Idq = Idq_,
+            .v_saturated = cmd.is_saturated,
+            .svm_clipped = svm.is_clipped,
+            .v_excess = cmd.v_excess,
+        };
     }
 
     /**
@@ -210,13 +211,13 @@ public:
      * loop, so the correction runs at its own rate. Wraps/unrolls the @ref
      * EncoderFeedback to the wrapped mechanical angle and fuses it into the estimator.
      */
-    constexpr void update_encoder(const EncoderFeedback<T>& enc) {
+    constexpr void update_encoder(const EncoderFeedback<T>& enc, T dt) {
         if (enc.incremental) {
-            enc_angle_ = wrap(enc_angle_ + (enc.value * two_pi()), -pi(), pi());
+            enc_angle_ = wrap(enc_angle_ + (enc.value * two_pi), -pi, pi);
         } else {
-            enc_angle_ = wrap(enc.value * two_pi(), -pi(), pi());
+            enc_angle_ = wrap(enc.value * two_pi, -pi, pi);
         }
-        estimator_.update_encoder(enc_angle_);
+        estimator_.update(enc_angle_, dt);
     }
 
     /**
@@ -274,10 +275,11 @@ public:
 
     /// Single-rate convenience (tests / a single-task port): run the full cascade at Ts.
     [[nodiscard]] constexpr FocResult<T> update(const ServoFeedback<T>& fb, const EncoderFeedback<T>& enc) {
-        update_encoder(enc); // correct
+        update_encoder(enc, config_.Ts);
         update_position(config_.Ts);
         update_velocity(config_.Ts);
-        return update_current(torque_ref_, fb, config_.Ts); // control, then predict
+
+        return update_current(torque_ref_, fb, config_.Ts);
     }
 
     constexpr void reset() {
@@ -293,8 +295,8 @@ public:
     }
 
 private:
-    static constexpr T pi() { return wet::numbers::pi_v<T>; }
-    static constexpr T two_pi() { return T{2} * wet::numbers::pi_v<T>; }
+    static constexpr T pi = wet::numbers::pi_v<T>;
+    static constexpr T two_pi = T{2} * wet::numbers::pi_v<T>;
 
     PmacServoConfig<T> config_{};
 

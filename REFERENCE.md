@@ -470,7 +470,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`AdaptivePredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L213) | Self-tuning deadbeat current controller: PredictiveCurrentController plus the online PmsmParameterEstimator |
 | [`AlphaBeta`](inc/wet/transforms.hpp#L130) | Alpha-beta (stationary-frame) component pair |
 | [`AlphaBetaZero`](inc/wet/transforms.hpp#L195) | Alpha-beta-zero (stationary-frame) component triple |
-| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L24) | The three bandwidth knobs of the position/velocity/current cascade |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L26) | The three bandwidth knobs of the position/velocity/current cascade |
 | [`Convention`](inc/wet/transforms.hpp#L43) | Scaling convention for the Clarke/Park family |
 | [`DcBusLimiter`](inc/wet/motor/limits.hpp#L39) | Holds the inverter's torque current within DC-bus current/power limits |
 | [`DcBusLimits`](inc/wet/motor/limits.hpp#L10) | DC-bus current and voltage limits for an inverter |
@@ -478,7 +478,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`DirectQuadrature`](inc/wet/transforms.hpp#L62) | Direct-quadrature (rotor-frame) component pair |
 | [`DirectQuadratureZero`](inc/wet/transforms.hpp#L215) | Direct-quadrature-zero (rotor-frame) component triple |
 | [`DqCommand`](inc/wet/motor/foc.hpp#L286) | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
-| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L84) | Rotor-angle feedback for PmacServo::update_encoder |
+| [`EncoderFeedback`](inc/wet/motor/servo.hpp#L86) | Rotor-angle feedback for PmacServo::update_encoder |
 | [`FetLossModel`](inc/wet/motor/thermal.hpp#L116) | First-order inverter FET loss model (conduction + switching) |
 | [`FieldWeakening`](inc/wet/motor/field_weakening.hpp#L91) | Field-weakening current-reference regulator (voltage-feedback or feedforward) |
 | [`FieldWeakeningConfig`](inc/wet/motor/field_weakening.hpp#L77) | Configuration for FieldWeakening |
@@ -492,17 +492,17 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L99) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L45) | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L101) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |
 | [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | Online PMSM electrical-parameter estimator (linear Kalman filter) |
 | [`PredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L24) | Deadbeat (one-step predictive) dq current controller — an alternative to the PI FOController current loop |
 | [`ResistiveLossModel`](inc/wet/motor/thermal.hpp#L158) | Minimal conduction-only loss model for a weak datasheet |
-| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L73) | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
-| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L51) | Configuration for RotorObserver |
+| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L19) | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
+| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L9) | Configuration for RotorObserver |
 | [`SequenceComponents`](inc/wet/transforms.hpp#L593) | Symmetrical (sequence) components of a three-phase phasor set |
-| [`ServoFeedback`](inc/wet/motor/servo.hpp#L69) | Per-ISR electrical feedback for PmacServo::update_current |
+| [`ServoFeedback`](inc/wet/motor/servo.hpp#L71) | Per-ISR electrical feedback for PmacServo::update_current |
 | [`SvmDuties`](inc/wet/motor/modulation.hpp#L57) | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
 | [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
 | [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | A derating curve plus a hard fault threshold |
@@ -541,7 +541,6 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`park_zero_transform`](inc/wet/transforms.hpp#L463) | Park transform with zero passthrough (αβ0 → dq0) |
 | [`requires`](inc/wet/motor/field_weakening.hpp#L170) | Concept for a pluggable field-weakening / current-reference policy |
 | [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L14) | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
-| [`rotor_ss`](inc/wet/motor/rotor_observer.hpp#L14) | Continuous constant-velocity (kinematic) model of a rotor |
 | [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L75) | Space-vector PWM duty cycles from an αβ voltage command |
 | [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L26) | Min-max zero-sequence injection for space-vector PWM |
 | [`symmetrical_components`](inc/wet/transforms.hpp#L610) | Forward symmetrical-component (Fortescue) transform (abc → 012) |
