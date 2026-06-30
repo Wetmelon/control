@@ -8,13 +8,14 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`acker`](inc/wet/matlab.hpp#L408) | function | MATLAB-style aliases (host) | Pole placement for state-feedback control |
 | [`ackermann`](inc/wet/design/pole_placement.hpp#L1146) | function | Design & synthesis | Single-input pole placement via Ackermann's formula |
 | [`acos`](inc/wet/math/math.hpp#L136) | function | Scalar math & complex | Arccosine ∈ [0, π]. Input is clamped to [−1, 1] in both paths |
+| [`AdaptivePredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L213) | block | Motor control | Self-tuning deadbeat current controller: PredictiveCurrentController plus the online PmsmParameterEstimator |
 | [`AdaptiveStepSolver`](inc/wet/simulation/solver.hpp#L209) | block | Simulation (host) | Adaptive-step ODE solver |
 | [`adrc`](inc/wet/controllers/adrc.hpp#L39) | function | Runtime controllers | Active Disturbance Rejection Control design |
 | [`ADRCController`](inc/wet/controllers/adrc.hpp#L89) | block | Runtime controllers | Active Disturbance Rejection Control (ADRC) |
 | [`ADRCResult`](inc/wet/controllers/adrc.hpp#L13) | block | Runtime controllers | Active Disturbance Rejection Control design result |
 | [`AffineCal`](inc/wet/toolbox/scaling.hpp#L62) | block | Utilities & toolbox | Affine sensor calibration `y = gain·x + offset` |
-| [`AlphaBeta`](inc/wet/power/transforms.hpp#L130) | block | Motor control | Alpha-beta (stationary-frame) component pair |
-| [`AlphaBetaZero`](inc/wet/power/transforms.hpp#L195) | block | Motor control | Alpha-beta-zero (stationary-frame) component triple |
+| [`AlphaBeta`](inc/wet/transforms.hpp#L130) | block | Motor control | Alpha-beta (stationary-frame) component pair |
+| [`AlphaBetaZero`](inc/wet/transforms.hpp#L195) | block | Motor control | Alpha-beta-zero (stationary-frame) component triple |
 | [`AnalogInput`](inc/wet/toolbox/io.hpp#L23) | block | Utilities & toolbox | A single analog input: range/fault check on the raw reading, then affine calibration to engineering units |
 | [`arg`](inc/wet/math/complex.hpp#L364) | function | Scalar math & complex | Compute argument (phase angle) of a complex number |
 | [`arm_spherical_wrist`](inc/wet/kinematics/serial_arm.hpp#L466) | function | Kinematics | Tier-2 builder for a standard 6R elbow arm with a spherical wrist |
@@ -26,7 +27,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`bandpass`](inc/wet/filters/filters.hpp#L480) | function | Filters & signal conditioning | Second-order band-pass filter (constant 0 dB peak gain) |
 | [`bandwidth`](inc/wet/matlab.hpp#L692) | function | MATLAB-style aliases (host) | -3 dB bandwidth of a SISO system over a frequency grid |
 | [`bandwidth_from_settling_time`](inc/wet/design/pid_design.hpp#L457) | function | Design & synthesis | Map settling-time and damping-ratio targets to a bandwidth estimate |
-| [`base_speed`](inc/wet/power/foc.hpp#L215) | function | Motor control | Base (corner) electrical speed where the voltage circle is first hit |
+| [`base_speed`](inc/wet/motor/foc.hpp#L240) | function | Motor control | Base (corner) electrical speed where the voltage circle is first hit |
 | [`BDF2`](inc/wet/simulation/integrator.hpp#L182) | block | Simulation (host) | Backward Differentiation Formula 2 (BDF2) integrator |
 | [`beta`](inc/wet/toolbox/thermistor.hpp#L50) | function | Utilities & toolbox | Fit NTC coefficients from the Beta-parameter model |
 | [`Biquad`](inc/wet/filters/filters.hpp#L720) | block | Filters & signal conditioning | Second-order IIR (biquad) section runtime |
@@ -46,18 +47,18 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`care_schur`](inc/wet/design/riccati.hpp#L492) | function | Design & synthesis | Solve CARE via the ordered real-Schur method (Laub's method) |
 | [`CartesianMap`](inc/wet/kinematics/motion_maps.hpp#L31) | block | Kinematics | Cartesian gantry: independent per-axis affine map `task = scale·act + offset` (the "kinematics" is the identity, exposed for a uniform forward/inverse interface) |
 | [`CartesianMove`](inc/wet/trajectory/cartesian_move.hpp#L97) | block | Trajectory & motion planning | Path-preserving task-space move (Pipeline B / LIN) |
-| [`CascadeBandwidths`](inc/wet/power/servo.hpp#L23) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
-| [`cauer_thermal_ss`](inc/wet/power/thermal.hpp#L66) | function | Motor control | Continuous state-space model of a physical Cauer RC thermal ladder |
+| [`CascadeBandwidths`](inc/wet/motor/servo.hpp#L26) | block | Motor control | The three bandwidth knobs of the position/velocity/current cascade |
+| [`cauer_thermal_ss`](inc/wet/motor/thermal.hpp#L66) | function | Motor control | Continuous state-space model of a physical Cauer RC thermal ladder |
 | [`cbrt`](inc/wet/math/math.hpp#L78) | function | Scalar math & complex | Cube root (preserves sign for negative x) |
 | [`ceil`](inc/wet/math/math.hpp#L304) | function | Scalar math & complex | Ceiling — smallest integer ≥ x |
 | [`Chirp`](inc/wet/estimation/excitation.hpp#L611) | block | Observers & estimators | Linear or logarithmic chirp runtime generator |
 | [`ChirpConfig`](inc/wet/estimation/excitation.hpp#L159) | block | Observers & estimators | Configuration for a sine chirp excitation |
 | [`ChirpResult`](inc/wet/estimation/excitation.hpp#L201) | block | Observers & estimators | Chirp design payload |
 | [`cholesky`](inc/wet/matrix/decomposition.hpp#L59) | function | Linear algebra | Cholesky decomposition for positive-definite matrices |
-| [`clarke_park_transform`](inc/wet/power/transforms.hpp#L405) | function | Motor control | Fused Clarke-Park transform (abc → dq) |
-| [`clarke_park_zero_transform`](inc/wet/power/transforms.hpp#L494) | function | Motor control | Fused Clarke-Park transform with zero (abc → dq0) |
-| [`clarke_transform`](inc/wet/power/transforms.hpp#L314) | function | Motor control | Clarke transform (abc → αβ) |
-| [`clarke_zero_transform`](inc/wet/power/transforms.hpp#L235) | function | Motor control | Zero-retaining Clarke transform (abc → αβ0) |
+| [`clarke_park_transform`](inc/wet/transforms.hpp#L405) | function | Motor control | Fused Clarke-Park transform (abc → dq) |
+| [`clarke_park_zero_transform`](inc/wet/transforms.hpp#L494) | function | Motor control | Fused Clarke-Park transform with zero (abc → dq0) |
+| [`clarke_transform`](inc/wet/transforms.hpp#L314) | function | Motor control | Clarke transform (abc → αβ) |
+| [`clarke_zero_transform`](inc/wet/transforms.hpp#L235) | function | Motor control | Zero-retaining Clarke transform (abc → αβ0) |
 | [`ClassicalDisturbanceObserver`](inc/wet/estimation/disturbance_observer.hpp#L357) | block | Observers & estimators | Classical Pn^-1·Q disturbance observer runtime (bolt-on compensator) |
 | [`ClassicalDobResult`](inc/wet/estimation/disturbance_observer.hpp#L284) | block | Observers & estimators | Design result for the classical Pn^-1·Q disturbance observer |
 | [`classify_range`](inc/wet/toolbox/conditioning.hpp#L242) | function | Utilities & toolbox | Classify x against the four band edges `[fault_lo (valid_lo, valid_hi) fault_hi]` (assumed ordered, non-decreasing) |
@@ -75,7 +76,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`continuous_lqr`](inc/wet/controllers/lqr.hpp#L265) | function | Runtime controllers | Continuous-time Linear-Quadratic Regulator design |
 | [`controllability_gramian`](inc/wet/design/stability.hpp#L90) | function | Design & synthesis | Continuous/discrete controllability Gramian @f$ W_c @f$ |
 | [`controllability_matrix`](inc/wet/design/stability.hpp#L30) | function | Design & synthesis | Compute the controllability matrix [B, AB, A²B, ..., A^(N-1)B] |
-| [`Convention`](inc/wet/power/transforms.hpp#L43) | block | Motor control | Scaling convention for the Clarke/Park family |
+| [`Convention`](inc/wet/transforms.hpp#L43) | block | Motor control | Scaling convention for the Clarke/Park family |
 | [`copysign`](inc/wet/math/math.hpp#L375) | function | Scalar math & complex | Copy sign — magnitude of mag with the sign of sgn_src |
 | [`CoreXY`](inc/wet/kinematics/motion_maps.hpp#L59) | block | Kinematics | CoreXY belt mapping (2 motors A/B → Cartesian X/Y) |
 | [`cos`](inc/wet/matrix/functions.hpp#L662) | function | Linear algebra | Matrix cosine via scaling and double-angle reconstruction |
@@ -85,30 +86,30 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`CTD`](inc/wet/toolbox/iec61131.hpp#L348) | block | Utilities & toolbox | CTD Counter (Count Down) |
 | [`CTU`](inc/wet/toolbox/iec61131.hpp#L308) | block | Utilities & toolbox | CTU Counter (Count Up) |
 | [`CTUD`](inc/wet/toolbox/iec61131.hpp#L388) | block | Utilities & toolbox | CTUD Counter (Count Up Down) |
-| [`current_loop_pi`](inc/wet/power/foc.hpp#L26) | function | Motor control | Current-loop PI gains by closed-loop pole placement on the R–L plant |
+| [`current_loop_pi`](inc/wet/motor/foc.hpp#L26) | function | Motor control | Current-loop PI gains by closed-loop pole placement on the R–L plant |
 | [`damp`](inc/wet/analysis/analysis.hpp#L859) | function | Frequency-domain analysis (host) | Compute natural frequency and damping for each pole |
 | [`damping_ratio_from_overshoot_percent`](inc/wet/design/pid_design.hpp#L394) | function | Design & synthesis | Map percent overshoot target to equivalent damping ratio |
 | [`dare`](inc/wet/design/riccati.hpp#L580) | function | Design & synthesis | Solve the Discrete Algebraic Riccati Equation (DARE) |
 | [`dare_rde`](inc/wet/design/riccati.hpp#L169) | function | Design & synthesis | Solve DARE via Riccati Difference Equation (RDE) iteration |
 | [`dare_sda`](inc/wet/design/riccati.hpp#L82) | function | Design & synthesis | Solve DARE via Structure-Preserving Doubling Algorithm (SDA) |
 | [`db2mag`](inc/wet/math/math.hpp#L415) | function | Scalar math & complex | Decibels to magnitude, 10^(db/20) |
-| [`DcBusLimiter`](inc/wet/power/limits.hpp#L39) | block | Motor control | Holds the inverter's torque current within DC-bus current/power limits |
-| [`DcBusLimits`](inc/wet/power/limits.hpp#L10) | block | Motor control | DC-bus current and voltage limits for an inverter |
-| [`DcBusState`](inc/wet/power/limits.hpp#L27) | block | Motor control | DC-bus state and the torque-current derate it implies |
+| [`DcBusLimiter`](inc/wet/motor/limits.hpp#L39) | block | Motor control | Holds the inverter's torque current within DC-bus current/power limits |
+| [`DcBusLimits`](inc/wet/motor/limits.hpp#L10) | block | Motor control | DC-bus current and voltage limits for an inverter |
+| [`DcBusState`](inc/wet/motor/limits.hpp#L27) | block | Motor control | DC-bus state and the torque-current derate it implies |
 | [`dcgain`](inc/wet/analysis/analysis.hpp#L653) | function | Frequency-domain analysis (host) | Compute DC gain of a continuous-time system |
 | [`deadband`](inc/wet/toolbox/conditioning.hpp#L23) | function | Utilities & toolbox | Dead zone over `[lower, upper]`, matching Simulink's Dead Zone block |
 | [`Debounce`](inc/wet/toolbox/logic.hpp#L201) | block | Utilities & toolbox | Debounce: the output adopts in only after in differs from the current output continuously for stable_time. Rejects contact bounce and brief glitches. (Not an IEC block — the one everyone hand-rolls.) |
 | [`deg2rad`](inc/wet/math/math.hpp#L437) | function | Scalar math & complex | Degrees to radians, deg·π/180 |
 | [`Delay`](inc/wet/filters/filters.hpp#L831) | block | Filters & signal conditioning | Discrete-time delay buffer |
-| [`derate_window`](inc/wet/power/thermal.hpp#L14) | function | Motor control | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
+| [`derate_window`](inc/wet/motor/thermal.hpp#L14) | function | Motor control | A two-breakpoint derating curve: 1 below derate_start, 0 at cutoff |
 | [`det`](inc/wet/matrix/functions.hpp#L126) | function | Linear algebra | Matrix determinant |
 | [`DFF`](inc/wet/toolbox/iec61131.hpp#L445) | block | Utilities & toolbox | D Flip-Flop (edge-triggered data latch) |
 | [`DhChain`](inc/wet/kinematics/serial_arm.hpp#L90) | block | Kinematics | An N-joint DH chain (the arm geometry) |
 | [`DhJoint`](inc/wet/kinematics/serial_arm.hpp#L67) | block | Kinematics | One joint's standard (distal) DH parameters and motion limits |
 | [`diag`](inc/wet/matlab.hpp#L227) | function | MATLAB-style aliases (host) | Returns a square diagonal matrix from the given array |
 | [`Diagonal`](inc/wet/matrix/views.hpp#L29) | block | Linear algebra | Diagonal view of a square matrix |
-| [`DirectQuadrature`](inc/wet/power/transforms.hpp#L62) | block | Motor control | Direct-quadrature (rotor-frame) component pair |
-| [`DirectQuadratureZero`](inc/wet/power/transforms.hpp#L215) | block | Motor control | Direct-quadrature-zero (rotor-frame) component triple |
+| [`DirectQuadrature`](inc/wet/transforms.hpp#L62) | block | Motor control | Direct-quadrature (rotor-frame) component pair |
+| [`DirectQuadratureZero`](inc/wet/transforms.hpp#L215) | block | Motor control | Direct-quadrature-zero (rotor-frame) component triple |
 | [`discrete_lqg`](inc/wet/controllers/lqg.hpp#L67) | function | Runtime controllers | Linear-Quadratic-Gaussian regulator design combining LQR and Kalman filter |
 | [`discrete_lqgi`](inc/wet/controllers/lqgi.hpp#L80) | function | Runtime controllers | Linear-Quadratic-Gaussian with integral action for tracking |
 | [`discrete_lqi`](inc/wet/controllers/lqi.hpp#L39) | function | Runtime controllers | Linear-Quadratic Integral design for tracking with servo action |
@@ -125,9 +126,10 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`dlqr`](inc/wet/matlab.hpp#L477) | function | MATLAB-style aliases (host) | Discrete-time Linear-Quadratic Regulator design |
 | [`dlyap`](inc/wet/design/lyapunov.hpp#L101) | function | Design & synthesis | Solve the discrete-time Lyapunov (Stein) equation @f$ A X A^\top - X + Q = 0 @f$ |
 | [`dlyap`](inc/wet/matlab.hpp#L716) | function | MATLAB-style aliases (host) | MATLAB alias for the discrete Lyapunov solve @f$ AXA^\top-X+Q=0 @f$ |
-| [`DqCommand`](inc/wet/power/foc.hpp#L261) | block | Motor control | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
+| [`DqCommand`](inc/wet/motor/foc.hpp#L286) | block | Motor control | Result of FOController::current_controller(): the dq voltage command plus its saturation signals |
 | [`eig`](inc/wet/matlab.hpp#L327) | function | MATLAB-style aliases (host) | MATLAB short alias for the eigenvalues of a square matrix |
 | [`EigenResult`](inc/wet/matrix/eigen.hpp#L13) | block | Linear algebra | Eigenvalue computation result |
+| [`electromagnetic_torque`](inc/wet/motor/foc.hpp#L195) | function | Motor control | Electromagnetic torque produced by a dq current (salient PMSM) |
 | [`ErrorStateJacobian`](inc/wet/estimation/eskf.hpp#L118) | block | Observers & estimators | Error-state prediction Jacobians (nominal state updated externally) |
 | [`ErrorStateKalmanFilter`](inc/wet/estimation/eskf.hpp#L153) | block | Observers & estimators | Error-State Kalman Filter for attitude estimation |
 | [`ESCConfig`](inc/wet/controllers/esc.hpp#L49) | block | Runtime controllers | Extremum-seeking controller configuration (discrete realization) |
@@ -136,7 +138,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ESKFOrientationFilter`](inc/wet/estimation/sensor_fusion.hpp#L312) | block | Observers & estimators | ESKF-based orientation estimator (convenience wrapper) |
 | [`ESKFResult`](inc/wet/estimation/eskf.hpp#L23) | block | Observers & estimators | Error-State Kalman Filter design result |
 | [`estim`](inc/wet/matlab.hpp#L341) | function | MATLAB-style aliases (host) | Form state estimator from system and estimator gain |
-| [`eval_frf`](inc/wet/systems/state_space.hpp#L79) | function | LTI models | Evaluate frequency response of state-space system |
+| [`eval_frf`](inc/wet/systems/state_space.hpp#L82) | function | LTI models | Evaluate frequency response of state-space system |
 | [`Exact`](inc/wet/simulation/integrator.hpp#L35) | block | Simulation (host) | Exact integrator for LTI systems |
 | [`exp`](inc/wet/math/math.hpp#L212) | function | Scalar math & complex | Exponential function |
 | [`expm`](inc/wet/matrix/functions.hpp#L247) | function | Linear algebra | Matrix exponential using scaling and squaring with Padé approximation |
@@ -145,24 +147,27 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ExtremumSeekingController`](inc/wet/controllers/esc.hpp#L206) | block | Runtime controllers | Extremum-seeking controller runtime (model-free online optimizer) |
 | [`eye`](inc/wet/matlab.hpp#L270) | function | MATLAB-style aliases (host) | Create an identity matrix of size n x n |
 | [`F_TRIG`](inc/wet/toolbox/iec61131.hpp#L132) | block | Utilities & toolbox | F_TRIG (Falling Edge Trigger) |
-| [`feedback`](inc/wet/systems/state_space.hpp#L251) | function | LTI models | Negative feedback connection of two state-space systems |
-| [`FetLossModel`](inc/wet/power/thermal.hpp#L116) | block | Motor control | First-order inverter FET loss model (conduction + switching) |
+| [`feedback`](inc/wet/systems/state_space.hpp#L254) | function | LTI models | Negative feedback connection of two state-space systems |
+| [`FetLossModel`](inc/wet/motor/thermal.hpp#L116) | block | Motor control | First-order inverter FET loss model (conduction + switching) |
+| [`field_weakening_id`](inc/wet/motor/field_weakening.hpp#L17) | function | Motor control | Feedforward field-weakening d-axis current from the voltage ellipse |
+| [`FieldWeakening`](inc/wet/motor/field_weakening.hpp#L91) | block | Motor control | Field-weakening current-reference regulator (voltage-feedback or feedforward) |
+| [`FieldWeakeningConfig`](inc/wet/motor/field_weakening.hpp#L77) | block | Motor control | Configuration for FieldWeakening |
 | [`five_bar_symmetric`](inc/wet/kinematics/scara.hpp#L231) | function | Kinematics | Build a symmetric five-bar parallel SCARA |
 | [`FiveBar`](inc/wet/kinematics/scara.hpp#L76) | block | Kinematics | Planar five-bar parallel manipulator (parallel SCARA) |
 | [`FiveBarGeometry`](inc/wet/kinematics/scara.hpp#L41) | block | Kinematics | Symmetric five-bar geometry (two base motors, equal proximal/distal links) |
 | [`FixedStepSolver`](inc/wet/simulation/solver.hpp#L84) | block | Simulation (host) | Fixed-step ODE solver |
 | [`floor`](inc/wet/math/math.hpp#L292) | function | Scalar math & complex | Floor — largest integer ≤ x |
-| [`flux_from_Kv`](inc/wet/power/foc.hpp#L139) | function | Motor control | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
-| [`flux_from_torque_constant`](inc/wet/power/foc.hpp#L75) | function | Motor control | PM flux linkage from a motor's torque constant (amplitude-invariant) |
+| [`flux_from_Kv`](inc/wet/motor/foc.hpp#L139) | function | Motor control | PM flux linkage from the datasheet velocity constant @f$ K_v @f$ |
+| [`flux_from_torque_constant`](inc/wet/motor/foc.hpp#L75) | function | Motor control | PM flux linkage from a motor's torque constant (amplitude-invariant) |
 | [`fmod`](inc/wet/math/math.hpp#L330) | function | Scalar math & complex | Floating-point remainder, x − y·trunc(x/y) (sign of x), matching std::fmod's truncated-quotient convention |
-| [`FocResult`](inc/wet/power/foc.hpp#L245) | block | Motor control | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
+| [`FocResult`](inc/wet/motor/foc.hpp#L270) | block | Motor control | Result of one FOController::step(), carrying the actuator command plus the saturation/measurement signals an outer (velocity/position) loop needs to propagate anti-windup back up a cascade |
 | [`forward_substitute`](inc/wet/matrix/solve.hpp#L23) | function | Linear algebra | Forward substitution to solve L x = b |
 | [`ForwardEuler`](inc/wet/simulation/integrator.hpp#L79) | block | Simulation (host) | Forward Euler integrator |
-| [`foster_thermal_ss`](inc/wet/power/thermal.hpp#L32) | function | Motor control | Continuous state-space model of a Foster RC thermal network |
+| [`foster_thermal_ss`](inc/wet/motor/thermal.hpp#L32) | function | Motor control | Continuous state-space model of a Foster RC thermal network |
 | [`francis_qr`](inc/wet/matrix/eigen.hpp#L108) | function | Linear algebra | Francis double-shift QR on an upper Hessenberg matrix |
 | [`frobenius_norm`](inc/wet/matrix/functions.hpp#L55) | function | Linear algebra | Frobenius norm: square root of sum of squares of all elements |
-| [`full_qr`](inc/wet/matrix/decomposition.hpp#L264) | function | Linear algebra | Full QR factorization via Householder reflections (real or complex T) |
-| [`FullQR`](inc/wet/matrix/decomposition.hpp#L249) | block | Linear algebra | Result of a full (complete) QR factorization |
+| [`full_qr`](inc/wet/matrix/decomposition.hpp#L265) | function | Linear algebra | Full QR factorization via Householder reflections (real or complex T) |
+| [`FullQR`](inc/wet/matrix/decomposition.hpp#L250) | block | Linear algebra | Result of a full (complete) QR factorization |
 | [`gain_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L252) | function | Frequency-domain analysis (host) | Find gain margin using unwrapped phase trajectory |
 | [`Goertzel`](inc/wet/filters/spectral.hpp#L29) | block | Filters & signal conditioning | Generalized Goertzel single-bin DFT — amplitude/phase at one frequency |
 | [`gram`](inc/wet/matlab.hpp#L726) | function | MATLAB-style aliases (host) | MATLAB alias for the controllability/observability Gramian of a system |
@@ -187,19 +192,19 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`InputShaper`](inc/wet/trajectory/input_shaper.hpp#L176) | block | Trajectory & motion planning | Input-shaper runtime — convolves a command stream with the shaper impulses |
 | [`InputShaperBank`](inc/wet/trajectory/input_shaper.hpp#L239) | block | Trajectory & motion planning | Multi-axis input-shaper bank — one shaper per axis, shared buffer length |
 | [`InputShaperResult`](inc/wet/trajectory/input_shaper.hpp#L60) | block | Trajectory & motion planning | Input-shaper design result: impulse amplitudes and sample delays |
-| [`instantaneous_power`](inc/wet/power/transforms.hpp#L573) | function | Motor control | Instantaneous active and reactive power from dq quantities |
-| [`InstantaneousPower`](inc/wet/power/transforms.hpp#L525) | block | Motor control | Instantaneous active and reactive power |
+| [`instantaneous_power`](inc/wet/transforms.hpp#L573) | function | Motor control | Instantaneous active and reactive power from dq quantities |
+| [`InstantaneousPower`](inc/wet/transforms.hpp#L525) | block | Motor control | Instantaneous active and reactive power |
 | [`IntegrationResult`](inc/wet/simulation/integrator.hpp#L11) | block | Simulation (host) | Result of an integration step |
-| [`inverse_clarke_transform`](inc/wet/power/transforms.hpp#L336) | function | Motor control | Inverse Clarke transform (αβ → abc) |
-| [`inverse_clarke_zero_transform`](inc/wet/power/transforms.hpp#L280) | function | Motor control | Inverse zero-retaining Clarke transform (αβ0 → abc) |
+| [`inverse_clarke_transform`](inc/wet/transforms.hpp#L336) | function | Motor control | Inverse Clarke transform (αβ → abc) |
+| [`inverse_clarke_zero_transform`](inc/wet/transforms.hpp#L280) | function | Motor control | Inverse zero-retaining Clarke transform (αβ0 → abc) |
 | [`inverse_deadband`](inc/wet/toolbox/conditioning.hpp#L53) | function | Utilities & toolbox | Inverse dead zone: add an offset to overcome a physical dead zone (valve overlap, static friction, motor stiction), with independent negative/positive offsets |
 | [`inverse_lerp`](inc/wet/toolbox/scaling.hpp#L34) | function | Utilities & toolbox | Inverse of lerp: the fraction t such that `lerp(a, b, t) == x` |
-| [`inverse_park_clarke_transform`](inc/wet/power/transforms.hpp#L433) | function | Motor control | Fused inverse Park-Clarke transform (dq → abc) |
-| [`inverse_park_clarke_zero_transform`](inc/wet/power/transforms.hpp#L512) | function | Motor control | Fused inverse Park-Clarke transform with zero (dq0 → abc) |
-| [`inverse_park_transform`](inc/wet/power/transforms.hpp#L380) | function | Motor control | Inverse Park transform (dq → αβ) |
-| [`inverse_park_zero_transform`](inc/wet/power/transforms.hpp#L480) | function | Motor control | Inverse Park transform with zero passthrough (dq0 → αβ0) |
-| [`inverse_symmetrical_components`](inc/wet/power/transforms.hpp#L646) | function | Motor control | Inverse symmetrical-component transform (012 → abc) |
-| [`iq_from_torque`](inc/wet/power/foc.hpp#L178) | function | Motor control | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
+| [`inverse_park_clarke_transform`](inc/wet/transforms.hpp#L433) | function | Motor control | Fused inverse Park-Clarke transform (dq → abc) |
+| [`inverse_park_clarke_zero_transform`](inc/wet/transforms.hpp#L512) | function | Motor control | Fused inverse Park-Clarke transform with zero (dq0 → abc) |
+| [`inverse_park_transform`](inc/wet/transforms.hpp#L380) | function | Motor control | Inverse Park transform (dq → αβ) |
+| [`inverse_park_zero_transform`](inc/wet/transforms.hpp#L480) | function | Motor control | Inverse Park transform with zero passthrough (dq0 → αβ0) |
+| [`inverse_symmetrical_components`](inc/wet/transforms.hpp#L646) | function | Motor control | Inverse symmetrical-component transform (012 → abc) |
+| [`iq_from_torque`](inc/wet/motor/foc.hpp#L178) | function | Motor control | q-axis current command for a requested torque (non-salient PMSM, Id=0) |
 | [`is_closed_loop_stable_discrete`](inc/wet/design/stability.hpp#L220) | function | Design & synthesis | Check closed-loop stability for discrete system with state feedback |
 | [`is_controllable`](inc/wet/design/stability.hpp#L159) | function | Design & synthesis | Check if a system is controllable |
 | [`is_observable`](inc/wet/design/stability.hpp#L176) | function | Design & synthesis | Check if a system is observable |
@@ -211,7 +216,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`JointLimits`](inc/wet/trajectory/cartesian_move.hpp#L77) | block | Trajectory & motion planning | Per-joint velocity and acceleration limits for a task-space move |
 | [`JordanBlock`](inc/wet/design/pole_placement.hpp#L420) | block | Design & synthesis | One Jordan mini-block of a desired closed-loop spectrum |
 | [`JordanPlan`](inc/wet/design/pole_placement.hpp#L437) | block | Design & synthesis | Precomputed, K-independent data for the Klein–Moore construction |
-| [`JunctionEstimator`](inc/wet/power/thermal.hpp#L176) | block | Motor control | FET junction-temperature estimator: case temperature plus a thermal model |
+| [`JunctionEstimator`](inc/wet/motor/thermal.hpp#L176) | block | Motor control | FET junction-temperature estimator: case temperature plus a thermal model |
 | [`kalman`](inc/wet/estimation/kalman.hpp#L44) | function | Observers & estimators | Steady-state Kalman filter design |
 | [`KalmanFilter`](inc/wet/estimation/kalman.hpp#L121) | block | Observers & estimators | Runtime Kalman filter for embedded systems |
 | [`KalmanResult`](inc/wet/estimation/kalman.hpp#L12) | block | Observers & estimators | Steady-state Kalman filter design result |
@@ -261,7 +266,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`lsiminfo`](inc/wet/analysis/analysis.hpp#L1284) | function | Frequency-domain analysis (host) | Compute transient characteristics from an output/time signal |
 | [`lsimplot`](inc/wet/simulation/plot_plotly.hpp#L343) | function | Simulation (host) | Plot a forced (lsim) simulation, one trace per output |
 | [`LsimResult`](inc/wet/analysis/analysis.hpp#L900) | block | Frequency-domain analysis (host) | Result of a single-trajectory simulation: time, output, and state history |
-| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L110) | function | Linear algebra | LU decomposition with partial pivoting |
+| [`lu_decomposition`](inc/wet/matrix/decomposition.hpp#L111) | function | Linear algebra | LU decomposition with partial pivoting |
 | [`Lut1D`](inc/wet/toolbox/lookup.hpp#L64) | block | Utilities & toolbox | 1-D interpolating lookup table over monotonic breakpoints |
 | [`Lut2D`](inc/wet/toolbox/lookup.hpp#L122) | block | Utilities & toolbox | 2-D bilinear interpolating lookup table over a regular grid |
 | [`lut_segment`](inc/wet/toolbox/lookup.hpp#L31) | function | Utilities & toolbox | Index of the interpolation segment containing x |
@@ -274,17 +279,19 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`MarginResult`](inc/wet/matlab.hpp#L649) | block | MATLAB-style aliases (host) | Gain/phase margins and their crossover frequencies |
 | [`Matrix`](inc/wet/matrix/matrix.hpp#L49) | block | Linear algebra | Fixed-size, stack-allocated matrix for linear algebra operations |
 | [`MeasJacobian`](inc/wet/estimation/ekf.hpp#L53) | block | Observers & estimators | Measurement prediction result from the user's observation function |
-| [`mechanical_ss`](inc/wet/power/mechanical_estimator.hpp#L13) | function | Motor control | Continuous state-space model of a 1-DOF mechanical drivetrain |
-| [`MechanicalEstimator`](inc/wet/power/mechanical_estimator.hpp#L81) | block | Motor control | Cheap-predict mechanical estimator for position, speed, and load torque |
-| [`MechanicalEstimatorConfig`](inc/wet/power/mechanical_estimator.hpp#L56) | block | Motor control | Configuration for MechanicalEstimator |
+| [`MechanicalEstimator`](inc/wet/motor/mechanical_estimator.hpp#L99) | block | Motor control | Cheap-predict mechanical estimator for position, speed, and load torque |
+| [`MechanicalEstimatorConfig`](inc/wet/motor/mechanical_estimator.hpp#L73) | block | Motor control | Configuration for MechanicalEstimator |
 | [`MedianFilter`](inc/wet/filters/filters.hpp#L1026) | block | Filters & signal conditioning | Sliding-window median filter — nonlinear spike/outlier rejection |
 | [`middlebrook`](inc/wet/analysis/analysis.hpp#L1597) | function | Frequency-domain analysis (host) | Middlebrook stability analysis for cascaded source-load systems |
 | [`MiddlebrookResult`](inc/wet/analysis/analysis.hpp#L1443) | block | Frequency-domain analysis (host) | Result of Middlebrook minor loop gain analysis |
 | [`minmax`](inc/wet/backend.hpp#L139) | function | Core, configuration & backend vocabulary | Ordered {min, max} pair returned by value |
-| [`motor_constant`](inc/wet/power/foc.hpp#L156) | function | Motor control | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
+| [`motor_constant`](inc/wet/motor/foc.hpp#L156) | function | Motor control | Motor constant @f$ K_m @f$ (torque per √copper-loss) — a figure of merit |
 | [`MovingAverage`](inc/wet/filters/filters.hpp#L913) | block | Filters & signal conditioning | Moving-average (boxcar) filter — also a DC-preserving harmonic-notch comb |
 | [`mstogi`](inc/wet/filters/sogi.hpp#L69) | function | Filters & signal conditioning | Mixed Second/Third-Order Generalized Integrator (MSTOGI) |
 | [`MSTOGI`](inc/wet/filters/sogi.hpp#L211) | block | Filters & signal conditioning | Runtime MSTOGI with exact resonator and forward-Euler washout |
+| [`mtpa_id_from_iq`](inc/wet/motor/mtpa.hpp#L11) | function | Motor control | MTPA d-axis current on the trajectory for a given q-axis current |
+| [`mtpa_reference`](inc/wet/motor/mtpa.hpp#L50) | function | Motor control | MTPA dq current reference for a commanded torque |
+| [`MtpaReference`](inc/wet/motor/mtpa.hpp#L100) | block | Motor control | Maximum-torque-per-ampere current-reference generator (PMSM / IPMSM / SynRM) |
 | [`MultiPRController`](inc/wet/controllers/pr.hpp#L298) | block | Runtime controllers | Multi-harmonic PR Controller |
 | [`MultiSine`](inc/wet/estimation/excitation.hpp#L1065) | block | Observers & estimators | Sum-of-tones multi-sine runtime generator |
 | [`MultiSineConfig`](inc/wet/estimation/excitation.hpp#L521) | block | Observers & estimators | Configuration for fixed-component multi-sine excitation |
@@ -292,6 +299,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`MUX`](inc/wet/toolbox/iec61131.hpp#L600) | function | Utilities & toolbox | MUX (IEC 61131-3 multiplexer): select input k of N (0-based) |
 | [`nearbyint`](inc/wet/math/math.hpp#L316) | function | Scalar math & complex | Round to nearest integer. Runtime follows the backend (round half to even); the compile-time path rounds ties away from zero — immaterial for range reduction |
 | [`negative_sequence_ab`](inc/wet/filters/pll.hpp#L378) | function | Filters & signal conditioning | Instantaneous negative-sequence αβ from a quadrature signal pair |
+| [`NoFieldWeakening`](inc/wet/motor/field_weakening.hpp#L187) | block | Motor control | Null field-weakening policy — passes the base reference through unchanged |
 | [`norm`](inc/wet/matlab.hpp#L743) | function | MATLAB-style aliases (host) | MATLAB alias for the H2 system norm norm(sys,2) |
 | [`norm_h2`](inc/wet/analysis/analysis.hpp#L681) | function | Frequency-domain analysis (host) | H2 norm of a state-space system |
 | [`norm_hinf`](inc/wet/analysis/analysis.hpp#L733) | function | Frequency-domain analysis (host) | H∞ norm of a state-space system: @f$ \sup_\omega \bar\sigma\,G(j\omega) @f$ |
@@ -309,16 +317,16 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`one_norm`](inc/wet/matrix/functions.hpp#L33) | function | Linear algebra | One norm: maximum absolute column sum |
 | [`pade_delay_1st`](inc/wet/filters/filters.hpp#L258) | function | Filters & signal conditioning | First-order Pade approximation of time delay |
 | [`pade_delay_2nd`](inc/wet/filters/filters.hpp#L296) | function | Filters & signal conditioning | Second-order Pade approximation of time delay |
-| [`parallel`](inc/wet/systems/state_space.hpp#L185) | function | LTI models | Parallel connection of two state-space systems |
-| [`park_transform`](inc/wet/power/transforms.hpp#L353) | function | Motor control | Park transform (αβ → dq) |
-| [`park_zero_transform`](inc/wet/power/transforms.hpp#L463) | function | Motor control | Park transform with zero passthrough (αβ0 → dq0) |
+| [`parallel`](inc/wet/systems/state_space.hpp#L188) | function | LTI models | Parallel connection of two state-space systems |
+| [`park_transform`](inc/wet/transforms.hpp#L353) | function | Motor control | Park transform (αβ → dq) |
+| [`park_zero_transform`](inc/wet/transforms.hpp#L463) | function | Motor control | Park transform with zero passthrough (αβ0 → dq0) |
 | [`peaking`](inc/wet/filters/filters.hpp#L520) | function | Filters & signal conditioning | Peaking (bell) EQ filter: boost or cut a band around f0 |
 | [`Periodic`](inc/wet/toolbox/timing.hpp#L102) | block | Utilities & toolbox | Periodic trigger — fires once per elapsed period |
 | [`phase_margin_from_damping_ratio`](inc/wet/design/pid_design.hpp#L426) | function | Design & synthesis | Approximate phase margin from damping ratio |
 | [`phase_margin_unwrapped`](inc/wet/analysis/analysis.hpp#L216) | function | Frequency-domain analysis (host) | Find phase margin using unwrapped phase trajectory |
-| [`PhaseCalibrationCommand`](inc/wet/power/calibration.hpp#L39) | block | Motor control | One step's output from PhaseParameterCalibrator |
-| [`PhaseCalibrationConfig`](inc/wet/power/calibration.hpp#L13) | block | Motor control | Configuration for online phase resistance/inductance commissioning |
-| [`PhaseParameterCalibrator`](inc/wet/power/calibration.hpp#L49) | block | Motor control | Online phase R/L identification by recursive least squares (PRBS injected) |
+| [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | block | Motor control | One step's output from PhaseParameterCalibrator |
+| [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | block | Motor control | Configuration for online phase resistance/inductance commissioning |
+| [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | block | Motor control | Online phase R/L identification by recursive least squares (PRBS injected) |
 | [`pi_pole_placement_first_order`](inc/wet/design/pid_design.hpp#L612) | function | Design & synthesis | PI gains that place the closed-loop poles of a first-order plant |
 | [`pid`](inc/wet/matlab.hpp#L102) | function | MATLAB-style aliases (host) | MATLAB-style parallel-form PID controller constructor |
 | [`pid`](inc/wet/controllers/pid.hpp#L66) | function | Runtime controllers | 2-DOF PID controller design |
@@ -340,8 +348,11 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/power/servo.hpp#L79) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
-| [`PmacServoConfig`](inc/wet/power/servo.hpp#L44) | block | Motor control | Configuration for PmacServo |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | block | Motor control | Configuration for PmacServo |
+| [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
+| [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |
+| [`PmsmParameterEstimator`](inc/wet/motor/predictive_current.hpp#L125) | block | Motor control | Online PMSM electrical-parameter estimator (linear Kalman filter) |
 | [`PolarMap`](inc/wet/kinematics/motion_maps.hpp#L85) | block | Kinematics | Polar / R-θ mapping (radius + angle ↔ Cartesian X/Y) |
 | [`pole`](inc/wet/matlab.hpp#L640) | function | MATLAB-style aliases (host) | MATLAB short alias for the open-loop poles of a system |
 | [`poles`](inc/wet/analysis/analysis.hpp#L814) | function | Frequency-domain analysis (host) | Compute open-loop poles (eigenvalues of A matrix) |
@@ -361,12 +372,13 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PRBSConfig`](inc/wet/estimation/excitation.hpp#L247) | block | Observers & estimators | Configuration for maximal-length pseudo-random binary excitation |
 | [`PRBSResult`](inc/wet/estimation/excitation.hpp#L291) | block | Observers & estimators | PRBS design payload |
 | [`PRController`](inc/wet/controllers/pr.hpp#L159) | block | Runtime controllers | Discrete Proportional-Resonant Controller |
+| [`PredictiveCurrentController`](inc/wet/motor/predictive_current.hpp#L24) | block | Motor control | Deadbeat (one-step predictive) dq current controller — an alternative to the PI FOController current loop |
 | [`pseudo_inverse`](inc/wet/matrix/svd.hpp#L282) | function | Linear algebra | Moore–Penrose pseudoinverse A⁺ via SVD |
 | [`PulseTimer`](inc/wet/toolbox/logic.hpp#L159) | block | Utilities & toolbox | Pulse timer (non-retriggerable): a rising edge of in emits a fixed |
 | [`pzmap`](inc/wet/analysis/analysis.hpp#L1386) | function | Frequency-domain analysis (host) | Pole-zero map of a SISO transfer function (MATLAB `pzmap(tf)`) |
 | [`pzplot`](inc/wet/simulation/plot_plotly.hpp#L444) | function | Simulation (host) | Plot a pole-zero map on the complex plane (poles as ×, zeros as ○) |
-| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L197) | function | Linear algebra | Perform QR decomposition on a matrix |
-| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L172) | block | Linear algebra | QR decomposition via Gram-Schmidt orthogonalization |
+| [`qr_decompose`](inc/wet/matrix/decomposition.hpp#L198) | function | Linear algebra | Perform QR decomposition on a matrix |
+| [`QRDecomposition`](inc/wet/matrix/decomposition.hpp#L173) | block | Linear algebra | QR decomposition via Gram-Schmidt orthogonalization |
 | [`QuadratureDecoder`](inc/wet/toolbox/encoder.hpp#L47) | block | Utilities & toolbox | Software A/B quadrature decoder with optional index |
 | [`R_TRIG`](inc/wet/toolbox/iec61131.hpp#L103) | block | Utilities & toolbox | R_TRIG (Rising Edge Trigger) |
 | [`rad2deg`](inc/wet/math/math.hpp#L426) | function | Scalar math & complex | Radians to degrees, rad·180/π |
@@ -388,16 +400,19 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`RepetitiveConfig`](inc/wet/controllers/repetitive.hpp#L54) | block | Runtime controllers | Repetitive-controller tuning + period (with optional zero-phase FIR Q) |
 | [`RepetitiveController`](inc/wet/controllers/repetitive.hpp#L248) | block | Runtime controllers | Plug-in repetitive controller runtime (fixed-size internal model) |
 | [`requires`](inc/wet/filters/filters.hpp#L203) | function | Filters & signal conditioning | Butterworth low-pass filter design |
-| [`requires`](inc/wet/matrix/matrix_traits.hpp#L41) | function | Linear algebra | Concept for any type that provides 2D matrix-like element access |
-| [`requires`](inc/wet/power/thermal.hpp#L107) | function | Motor control | A loss model usable by JunctionEstimator |
+| [`requires`](inc/wet/matrix/matrix.hpp#L864) | function | Linear algebra | Symmetric congruence (quadratic) form  S = M X Mᵀ |
+| [`requires`](inc/wet/motor/field_weakening.hpp#L170) | function | Motor control | Concept for a pluggable field-weakening / current-reference policy |
 | [`requires`](inc/wet/estimation/ekf.hpp#L42) | function | Observers & estimators | Concept for EKF state functions |
 | [`rescale`](inc/wet/toolbox/scaling.hpp#L45) | function | Utilities & toolbox | Affine map of x from the input range to the output range |
-| [`ResistiveLossModel`](inc/wet/power/thermal.hpp#L158) | block | Motor control | Minimal conduction-only loss model for a weak datasheet |
+| [`ResistiveLossModel`](inc/wet/motor/thermal.hpp#L158) | block | Motor control | Minimal conduction-only loss model for a weak datasheet |
 | [`Resonator`](inc/wet/filters/pll.hpp#L399) | block | Filters & signal conditioning | Dual-SOGI three-phase positive-sequence PLL (DSOGI-PLL) |
 | [`RobustExactDifferentiator`](inc/wet/filters/differentiator.hpp#L49) | block | Filters & signal conditioning | First-order robust exact differentiator (super-twisting differentiator) |
 | [`rotary_gearbox`](inc/wet/toolbox/actuator.hpp#L131) | function | Utilities & toolbox | Build a ServoAxis for a rotary joint behind a gearbox |
 | [`RotaryDelta`](inc/wet/kinematics/motion_maps.hpp#L146) | block | Kinematics | Rotary delta robot — closed-form inverse, quadratic-intersection forward |
 | [`RotaryDeltaGeometry`](inc/wet/kinematics/motion_maps.hpp#L129) | block | Kinematics | Rotary delta geometry (three base servos, parallelogram arms) |
+| [`rotational_load_ss`](inc/wet/motor/mechanical_estimator.hpp#L14) | function | Motor control | Continuous state-space model of a 1-DOF rotational drivetrain with an augmented load-torque state |
+| [`RotorObserver`](inc/wet/motor/rotor_observer.hpp#L19) | block | Motor control | Kinematic rotor angle/speed tracker (PLL) for motor commutation |
+| [`RotorObserverConfig`](inc/wet/motor/rotor_observer.hpp#L9) | block | Motor control | Configuration for RotorObserver |
 | [`RowVec`](inc/wet/matrix/rowvec.hpp#L9) | block | Linear algebra | Row vector specialization of Matrix<1, N, T> |
 | [`RowView`](inc/wet/matrix/views.hpp#L148) | block | Linear algebra | Non-owning row view of a matrix |
 | [`RS`](inc/wet/toolbox/iec61131.hpp#L75) | block | Utilities & toolbox | RS Latch (Reset-Set Latch) |
@@ -407,23 +422,23 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`ScurveTrajectory`](inc/wet/trajectory/scurve.hpp#L283) | block | Trajectory & motion planning | Runtime evaluator for a precomputed jerk-limited (double-S) profile |
 | [`select_nearest`](inc/wet/kinematics/serial_arm.hpp#L411) | function | Kinematics | Pick the solution branch nearest a reference configuration |
 | [`SensorlessEstimator`](inc/wet/filters/pll.hpp#L189) | block | Filters & signal conditioning | Sensorless rotor flux/position estimator for a PMSM, with optional sensor fusion |
-| [`SequenceComponents`](inc/wet/power/transforms.hpp#L593) | block | Motor control | Symmetrical (sequence) components of a three-phase phasor set |
+| [`SequenceComponents`](inc/wet/transforms.hpp#L593) | block | Motor control | Symmetrical (sequence) components of a three-phase phasor set |
 | [`SerialArm`](inc/wet/kinematics/serial_arm.hpp#L168) | block | Kinematics | Serial N-DOF revolute manipulator runtime |
 | [`SerialArmConfig`](inc/wet/kinematics/serial_arm.hpp#L151) | block | Kinematics | Validated serial-arm configuration (the design payload) |
-| [`series`](inc/wet/systems/state_space.hpp#L118) | function | LTI models | Series connection of two state-space systems |
+| [`series`](inc/wet/systems/state_space.hpp#L121) | function | LTI models | Series connection of two state-space systems |
 | [`ServoAxis`](inc/wet/toolbox/actuator.hpp#L90) | block | Utilities & toolbox | One servoactuator transmission: SI joint unit ⟷ drive (motor) units |
 | [`ServoBank`](inc/wet/toolbox/actuator.hpp#L203) | block | Utilities & toolbox | A bank of ServoAxis transmissions: maps a synchronized multi-axis |
 | [`ServoCommand`](inc/wet/toolbox/actuator.hpp#L68) | block | Utilities & toolbox | A drive-native servoactuator setpoint: position, velocity, torque |
-| [`ServoFeedback`](inc/wet/power/servo.hpp#L68) | block | Motor control | Sensor feedback for one PmacServo::update tick |
 | [`sgn`](inc/wet/math/math.hpp#L364) | function | Scalar math & complex | Sign function — −1 if val < 0, 1 if val > 0, 0 if val == 0 |
 | [`SignalStatus`](inc/wet/toolbox/conditioning.hpp#L217) | block | Utilities & toolbox | Classification of an analog input against its valid/fault bands |
 | [`simc`](inc/wet/design/pid_design.hpp#L236) | function | Design & synthesis | SIMC (Skogestad Internal Model Control) tuning for FOPDT models |
-| [`simulate`](inc/wet/simulation/simulate.hpp#L44) | function | Simulation (host) | Simulate a nonlinear plant with a controller in closed loop |
-| [`simulate_discrete`](inc/wet/simulation/simulate.hpp#L261) | function | Simulation (host) | Simulate a discrete-time system with a controller |
-| [`simulate_discrete_nonlinear`](inc/wet/simulation/simulate.hpp#L197) | function | Simulation (host) | Simulate a discrete-time nonlinear plant with a controller |
-| [`simulate_lti`](inc/wet/simulation/simulate.hpp#L166) | function | Simulation (host) | Simulate a continuous LTI system with a controller |
-| [`simulate_state_feedback`](inc/wet/simulation/simulate.hpp#L112) | function | Simulation (host) | Simulate a nonlinear plant with state-feedback controller |
-| [`SimulationResult`](inc/wet/simulation/simulate.hpp#L28) | block | Simulation (host) | Result of a closed-loop simulation |
+| [`simulate`](inc/wet/simulation/simulate.hpp#L46) | function | Simulation (host) | Simulate a nonlinear plant with a controller in closed loop |
+| [`simulate_discrete`](inc/wet/simulation/simulate.hpp#L322) | function | Simulation (host) | Simulate a discrete-time system with a controller |
+| [`simulate_discrete_nonlinear`](inc/wet/simulation/simulate.hpp#L258) | function | Simulation (host) | Simulate a discrete-time nonlinear plant with a controller |
+| [`simulate_lti`](inc/wet/simulation/simulate.hpp#L227) | function | Simulation (host) | Simulate a continuous LTI system with a controller |
+| [`simulate_sampled`](inc/wet/simulation/simulate.hpp#L114) | function | Simulation (host) | Simulate a continuous plant under a discrete (sampled) controller — multi-rate |
+| [`simulate_state_feedback`](inc/wet/simulation/simulate.hpp#L173) | function | Simulation (host) | Simulate a nonlinear plant with state-feedback controller |
+| [`SimulationResult`](inc/wet/simulation/simulate.hpp#L30) | block | Simulation (host) | Result of a closed-loop simulation |
 | [`sin`](inc/wet/matrix/functions.hpp#L647) | function | Linear algebra | Matrix sine via scaling and double-angle reconstruction |
 | [`sin`](inc/wet/math/math.hpp#L167) | function | Scalar math & complex | Sine |
 | [`sincos`](inc/wet/matrix/functions.hpp#L567) | function | Linear algebra | Compute sin(A) and cos(A) together via scaling and double-angle reconstruction |
@@ -450,7 +465,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`stability_margin_continuous`](inc/wet/design/stability.hpp#L244) | function | Design & synthesis | Compute stability margin for continuous system |
 | [`stability_margin_discrete`](inc/wet/design/stability.hpp#L273) | function | Design & synthesis | Compute stability margin for discrete system |
 | [`StateJacobian`](inc/wet/estimation/ekf.hpp#L26) | block | Observers & estimators | State prediction result from the user's dynamics function |
-| [`StateSpace`](inc/wet/systems/state_space.hpp#L24) | block | LTI models | State-space representation for linear time-invariant systems (discrete or continuous) |
+| [`StateSpace`](inc/wet/systems/state_space.hpp#L27) | block | LTI models | State-space representation for linear time-invariant systems (discrete or continuous) |
 | [`steinhart_hart`](inc/wet/toolbox/thermistor.hpp#L81) | function | Utilities & toolbox | Fit the Steinhart-Hart coefficients from three calibration points |
 | [`step`](inc/wet/analysis/analysis.hpp#L961) | function | Frequency-domain analysis (host) | Step response of a (MIMO) state-space system |
 | [`StepInfo`](inc/wet/analysis/analysis.hpp#L1136) | block | Frequency-domain analysis (host) | Step-response characteristics of a single output signal |
@@ -466,17 +481,17 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`Stopwatch`](inc/wet/toolbox/timing.hpp#L26) | block | Utilities & toolbox | Free-running elapsed-time accumulator |
 | [`stsmc`](inc/wet/controllers/stsmc.hpp#L103) | function | Runtime controllers | Super-twisting controller from gains you specify directly |
 | [`STSMCResult`](inc/wet/controllers/stsmc.hpp#L14) | block | Runtime controllers | Super-twisting (second-order sliding-mode) controller design result |
-| [`subtract`](inc/wet/systems/state_space.hpp#L320) | function | LTI models | Subtraction/differencing connection of two state-space systems |
+| [`subtract`](inc/wet/systems/state_space.hpp#L323) | function | LTI models | Subtraction/differencing connection of two state-space systems |
 | [`SuperTwistingController`](inc/wet/controllers/stsmc.hpp#L132) | block | Runtime controllers | Super-twisting controller (second-order sliding mode) |
 | [`svd`](inc/wet/matrix/svd.hpp#L230) | function | Linear algebra | Full singular value decomposition A = U·Σ·Vᴴ (one-sided Jacobi) |
 | [`svd`](inc/wet/matlab.hpp#L291) | function | MATLAB-style aliases (host) | MATLAB short alias for the singular value decomposition |
 | [`SVDResult`](inc/wet/matrix/svd.hpp#L215) | block | Linear algebra | Result of a full singular value decomposition A = U·Σ·Vᴴ |
-| [`svm_duty_cycles`](inc/wet/power/modulation.hpp#L75) | function | Motor control | Space-vector PWM duty cycles from an αβ voltage command |
-| [`SvmDuties`](inc/wet/power/modulation.hpp#L57) | block | Motor control | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
-| [`svpwm_zero_sequence`](inc/wet/power/modulation.hpp#L26) | function | Motor control | Min-max zero-sequence injection for space-vector PWM |
+| [`svm_duty_cycles`](inc/wet/motor/modulation.hpp#L76) | function | Motor control | Space-vector PWM duty cycles from an αβ voltage command |
+| [`SvmDuties`](inc/wet/motor/modulation.hpp#L58) | block | Motor control | Result of svm_duty_cycles(): the half-bridge duties plus an over-modulation flag |
+| [`svpwm_zero_sequence`](inc/wet/motor/modulation.hpp#L27) | function | Motor control | Min-max zero-sequence injection for space-vector PWM |
 | [`swap_schur_blocks`](inc/wet/design/riccati.hpp#L359) | function | Design & synthesis | Swap two adjacent diagonal blocks of a real Schur form |
 | [`Switch`](inc/wet/toolbox/io.hpp#L162) | block | Utilities & toolbox | Debounced maintained switch (toggle/selector contact) with change flag |
-| [`symmetrical_components`](inc/wet/power/transforms.hpp#L610) | function | Motor control | Forward symmetrical-component (Fortescue) transform (abc → 012) |
+| [`symmetrical_components`](inc/wet/transforms.hpp#L610) | function | Motor control | Forward symmetrical-component (Fortescue) transform (abc → 012) |
 | [`synthesize_chirp`](inc/wet/estimation/excitation.hpp#L235) | function | Observers & estimators | Build a chirp design payload from a configuration |
 | [`synthesize_classical_dob`](inc/wet/estimation/disturbance_observer.hpp#L327) | function | Observers & estimators | Synthesize a classical disturbance observer from a nominal plant and Q-filter |
 | [`synthesize_esc`](inc/wet/controllers/esc.hpp#L133) | function | Runtime controllers | Synthesize an extremum-seeking controller |
@@ -503,9 +518,9 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`tan`](inc/wet/math/math.hpp#L198) | function | Scalar math & complex | Tangent |
 | [`tf`](inc/wet/matlab.hpp#L32) | function | MATLAB-style aliases (host) | MATLAB-style transfer function constructor |
 | [`TFF`](inc/wet/toolbox/iec61131.hpp#L501) | block | Utilities & toolbox | T Flip-Flop (toggle on rising edge) |
-| [`ThermalLimiter`](inc/wet/power/thermal.hpp#L269) | block | Motor control | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
-| [`ThermalLimits`](inc/wet/power/thermal.hpp#L233) | block | Motor control | A derating curve plus a hard fault threshold |
-| [`ThermalState`](inc/wet/power/thermal.hpp#L259) | block | Motor control | State from a ThermalLimiter evaluation |
+| [`ThermalLimiter`](inc/wet/motor/thermal.hpp#L269) | block | Motor control | Derates the current command from a temperature (Tj for FETs, winding for the motor) |
+| [`ThermalLimits`](inc/wet/motor/thermal.hpp#L233) | block | Motor control | A derating curve plus a hard fault threshold |
+| [`ThermalState`](inc/wet/motor/thermal.hpp#L259) | block | Motor control | State from a ThermalLimiter evaluation |
 | [`Thermistor`](inc/wet/toolbox/thermistor.hpp#L138) | block | Utilities & toolbox | NTC thermistor linearization (resistance → temperature) |
 | [`ThermistorCoeffs`](inc/wet/toolbox/thermistor.hpp#L25) | block | Utilities & toolbox | Fitted NTC coefficients in Steinhart-Hart form |
 | [`ThreePhasePLL`](inc/wet/filters/pll.hpp#L113) | block | Filters & signal conditioning | Synchronous-reference-frame (SRF) PLL for balanced three-phase input |
@@ -518,8 +533,8 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`Tone`](inc/wet/estimation/excitation.hpp#L494) | block | Observers & estimators | One sinusoidal component in a multi-sine excitation |
 | [`ToppMove`](inc/wet/trajectory/topp.hpp#L103) | block | Trajectory & motion planning | Time-optimal task-space move (path-preserving, pointwise minimum-time) |
 | [`ToppProfile`](inc/wet/trajectory/topp.hpp#L50) | block | Trajectory & motion planning | The scalar time-optimal path-timing produced by TOPP |
-| [`torque_constant_from_flux`](inc/wet/power/foc.hpp#L56) | function | Motor control | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
-| [`torque_constant_from_Kv`](inc/wet/power/foc.hpp#L99) | function | Motor control | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
+| [`torque_constant_from_flux`](inc/wet/motor/foc.hpp#L56) | function | Motor control | Torque constant @f$ K_t @f$ of a PMSM (amplitude-invariant convention) |
+| [`torque_constant_from_Kv`](inc/wet/motor/foc.hpp#L99) | function | Motor control | Torque constant from the datasheet velocity constant @f$ K_v @f$ |
 | [`TP`](inc/wet/toolbox/iec61131.hpp#L255) | block | Utilities & toolbox | TP Timer (Timer Pulse) |
 | [`TrajectoryBank`](inc/wet/trajectory/polynomial.hpp#L253) | block | Trajectory & motion planning | Multi-axis coordination: time-scale each axis's profile to the slowest so a multi-DOF move starts and finishes synchronized ("linear" / coordinated joint moves — the feedforward reference for a manipulator) |
 | [`TrajectoryBoundary`](inc/wet/trajectory/trajectory_types.hpp#L61) | block | Trajectory & motion planning | Boundary conditions at one endpoint of a polynomial trajectory: a position and its time derivatives |
@@ -537,7 +552,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`UnscentedParams`](inc/wet/estimation/ukf.hpp#L64) | block | Observers & estimators | Tuning parameters for the scaled unscented transform |
 | [`unwrap_phase_deg`](inc/wet/analysis/analysis.hpp#L174) | function | Frequency-domain analysis (host) | Unwrap phase data in degrees to avoid +/-180 discontinuities |
 | [`UpperTriangle`](inc/wet/matrix/views.hpp#L94) | block | Linear algebra | Upper triangular view of a square matrix |
-| [`voltage_circle_radius`](inc/wet/power/foc.hpp#L195) | function | Motor control | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
+| [`voltage_circle_radius`](inc/wet/motor/foc.hpp#L220) | function | Motor control | Radius of the SVPWM voltage circle (max synthesizable @f$ \|V_{dq}\| @f$) |
 | [`wrap`](inc/wet/math/math.hpp#L448) | function | Scalar math & complex | Wrap x into the half-open interval [min, max) (period max − min) |
 | [`wrapped_delta`](inc/wet/toolbox/encoder.hpp#L23) | function | Utilities & toolbox | Signed difference between two unsigned counter readings, wrap-safe |
 | [`ziegler_nichols`](inc/wet/design/pid_design.hpp#L51) | function | Design & synthesis | Ziegler-Nichols tuning from ultimate gain and ultimate period |

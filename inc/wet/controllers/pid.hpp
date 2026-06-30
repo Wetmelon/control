@@ -452,7 +452,17 @@ struct PIDController<T, PIDMode::PI> {
         runtime_mode = PIDRuntimeMode::Tracking;
         u_track = track;
     }
-    [[nodiscard]] constexpr bool is_enabled() const { return runtime_mode == PIDRuntimeMode::Auto; }
+
+    /**
+     * @brief Hold in Tracking mode, preloading the integrator to emit @p u_track bumplessly.
+     * @param u_track Output value to follow (e.g. the torque actually applied downstream)
+     * @param y       Current measurement, so the preload assumes zero error (r = y)
+     * @param Ts      Loop period
+     */
+    constexpr void track(T u_track_, T y, T Ts) {
+        disable(u_track_);       // runtime_mode = Tracking, u_track = u_track_
+        (void)control(y, y, Ts); // Tracking-mode tick preloads integral for u_track
+    }
 
     /**
      * @brief Anti-windup hook driven by a downstream stage.
@@ -466,6 +476,8 @@ struct PIDController<T, PIDMode::PI> {
         integral += Ts * ((u_sat - u_unsat) / Kbc);
         integral = wet::clamp(integral, i_min, i_max);
     }
+
+    [[nodiscard]] constexpr bool is_enabled() const { return runtime_mode == PIDRuntimeMode::Auto; }
 };
 
 /**

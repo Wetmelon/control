@@ -16,9 +16,9 @@
 #include "plotlypp/layout/layout.hpp"
 #include "plotlypp/traces/scatter.hpp"
 #include "wet/backend.hpp"
-#include "wet/power/limits.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/limits.hpp"
 #include "wet/toolbox/bounds.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
 

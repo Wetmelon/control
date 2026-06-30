@@ -62,18 +62,19 @@ constexpr bool is_symmetric_or_hermitian(const Matrix<N, N, T>& A) {
  * For real matrices, computes L such that A = LLᵀ (A must be symmetric).
  * For complex matrices, computes L such that A = LLᴴ (A must be Hermitian).
  *
+ * Reads only the lower triangle and assumes the upper mirrors it; symmetry is
+ * not checked. Callers that may pass a non-symmetric matrix should gate on
+ * is_symmetric_or_hermitian() first, as solve() does. The pivot-positivity test
+ * is the PD guard, so non-PD input is still rejected via nullopt.
+ *
  * @note Compare with MATLAB's chol(A, 'lower').
  * @see Golub & Van Loan, "Matrix Computations" (4th ed., 2013), §4.2
  *
  * @param A Symmetric positive-definite (real) or Hermitian positive-definite (complex) matrix
- * @return Lower-triangular L, or wet::nullopt if A is not PD or not symmetric/Hermitian
+ * @return Lower-triangular L, or wet::nullopt if A is not positive definite
  */
 template<size_t N, typename T>
 constexpr wet::optional<Matrix<N, N, T>> cholesky(const Matrix<N, N, T>& A) {
-    if (!is_symmetric_or_hermitian(A)) {
-        return wet::nullopt;
-    }
-
     Matrix<N, N, T> L = Matrix<N, N, T>::zeros();
 
     for (size_t i = 0; i < N; ++i) {

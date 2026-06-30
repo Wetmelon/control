@@ -72,7 +72,7 @@ constexpr T hypot(T x, T y) {
         return T{0};
     }
     const T r = lo / hi;
-    return hi * wet::sqrt(T{1} + (r * r));
+    return hi * wet::sqrt<T>(T{1} + (r * r)); // <T>: dispatcher, not trig.hpp's non-constexpr sqrt(float)
 }
 
 /**
@@ -461,7 +461,11 @@ template<typename T>
 constexpr T wrap(T x, T min, T max) {
     const T range = max - min;
     const T midpoint = min + (range / T{2});
-    return x - (range * wet::nearbyint((x - midpoint) / range));
+
+    // Explicit <T>: force the constexpr dispatcher here. A bare wet::nearbyint(float) would bind
+    // to the non-template fast-float overload in trig.hpp (when visible) and break constexpr eval;
+    // the dispatcher still reaches that fast path at runtime via MathBackend<float>.
+    return x - (range * wet::nearbyint<T>((x - midpoint) / range));
 }
 
 } // namespace wet

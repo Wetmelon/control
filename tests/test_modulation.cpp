@@ -5,8 +5,8 @@
 #include "wet/backend.hpp"
 #include "wet/math/complex.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/modulation.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/modulation.hpp"
+#include "wet/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

@@ -551,18 +551,6 @@ TEST_SUITE("cholesky") {
         }
     }
 
-    TEST_CASE("Cholesky decomposition - complex non-Hermitian rejected") {
-        using Cplx = complex<double>;
-        // Non-Hermitian: diagonal has imaginary component
-        Matrix<2, 2, Cplx> A{
-            {Cplx{2.0, 0.5}, Cplx{1.0, -1.0}},
-            {Cplx{1.0, 1.0}, Cplx{3.0, 0.0}}
-        };
-
-        auto L_opt = cholesky(A);
-        CHECK_FALSE(L_opt.has_value());
-    }
-
     TEST_CASE("Cholesky solve - complex Hermitian system") {
         using Cplx = complex<double>;
         Matrix<2, 2, Cplx> A{

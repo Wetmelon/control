@@ -18,9 +18,11 @@
  * @endcode
  */
 
+#include <cstddef>
 #include <vector>
 
 #include "wet/backend.hpp"
+#include "wet/matrix/colvec.hpp"
 #include "wet/systems/state_space.hpp"
 
 namespace wet::sim {
@@ -106,6 +108,65 @@ SimulationResult<NX, NU, NY, T> simulate(
 
     sim_solver.solve(f, x0, t_span);
 
+    return sim;
+}
+
+/**
+ * @brief Simulate a continuous plant under a discrete (sampled) controller — multi-rate.
+ *
+ * The closed loop runs at two rates: the controller is evaluated once per control
+ * period @p Ts and its output **held** (zero-order hold) while @p fine_solver
+ * integrates the continuous plant across that period, recording every sub-step. So the
+ * trajectory keeps full resolution between control updates (smooth, accurate continuous
+ * response) even though the controller only ticks at @p Ts. This is the digital-control
+ * pattern — a current loop or servo updating at @p Ts while the physical plant evolves
+ * continuously — and it decouples the integration rate from the control rate, unlike
+ * @ref simulate where the controller fires on every solver step.
+ *
+ * @tparam Plant      (T t, ColVec<NX> x, ColVec<NU> u) -> ColVec<NX>   (dx/dt)
+ * @tparam Output     (ColVec<NX> x) -> ColVec<NY>
+ * @tparam Controller (T t, ColVec<NY> y) -> ColVec<NU>   (held across each period)
+ * @tparam Solver     a FixedStepSolver whose step is the (fine) integration step
+ *
+ * @param Ts control period [s]; the solver's step is the finer integration step.
+ */
+template<size_t NX, size_t NU, size_t NY, typename T, typename Plant, typename Output, typename Controller, typename Solver>
+SimulationResult<NX, NU, NY, T> simulate_sampled(
+    Plant&&                plant,
+    Output&&               output,
+    Controller&&           controller,
+    const Solver&          fine_solver,
+    T                      Ts,
+    const ColVec<NX, T>&   x0,
+    const wet::pair<T, T>& t_span
+) {
+    SimulationResult<NX, NU, NY, T> sim;
+    ColVec<NX, T>                   x = x0;
+    T                               t = t_span.first;
+
+    while (t < t_span.second - T(1e-12)) {
+        const T             t_next = (t + Ts < t_span.second) ? t + Ts : t_span.second;
+        const ColVec<NY, T> y = output(x);
+        const ColVec<NU, T> u = controller(t, y); // zero-order hold across this period
+
+        if (sim.t.empty()) { // record the initial sample once
+            sim.t.push_back(t);
+            sim.x.push_back(x);
+            sim.y.push_back(y);
+            sim.u.push_back(u);
+        }
+
+        const auto f = [&](T tt, const ColVec<NX, T>& xx) { return plant(tt, xx, u); };
+        const auto seg = fine_solver.solve(f, x, {t, t_next});
+        for (size_t j = 1; j < seg.size(); ++j) { // skip seg[0] (== current sample)
+            sim.t.push_back(seg.t[j]);
+            sim.x.push_back(seg.x[j]);
+            sim.y.push_back(output(seg.x[j]));
+            sim.u.push_back(u);
+        }
+        x = seg.x.back();
+        t = t_next;
+    }
     return sim;
 }
 

@@ -3,7 +3,7 @@
 
 #include "doctest.h"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/mechanical_estimator.hpp"
+#include "wet/motor/mechanical_estimator.hpp"
 #include "wet/systems/discretization.hpp"
 
 using namespace wet;
@@ -27,67 +27,65 @@ struct Noise {
 TEST_SUITE("Mechanical Estimator") {
 
     TEST_CASE("predict-only follows the open-loop discretized model") {
-        const auto truth = discretize(design::mechanical_ss(J, b, Kt), Ts, DiscretizationMethod::ZOH);
+        const auto truth = discretize(design::rotational_load_ss(J, b), Ts, DiscretizationMethod::ZOH);
 
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{.J = J, .b = b, .Kt = Kt, .Ts = Ts}};
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{.J = J, .b = b, .Ts = Ts}};
 
         ColVec<3, double> x{}; // [theta, omega, tau_load], zero load
-        const double      iq = 1.5;
+        const double      tau = Kt * 1.5;
         for (int k = 0; k < 500; ++k) {
-            x = truth.A * x + truth.B * ColVec<1, double>{iq};
-            est.predict(iq);
+            x = truth.A * x + truth.B * ColVec<1, double>{tau};
+            est.predict(tau);
         }
         // No measurement noise, matched model -> estimator tracks the model exactly.
-        CHECK(est.theta() == doctest::Approx(x[0]).epsilon(1e-9));
+        CHECK(est.theta_unwrapped() == doctest::Approx(x[0]).epsilon(1e-9));
         CHECK(est.omega() == doctest::Approx(x[1]).epsilon(1e-9));
     }
 
     TEST_CASE("estimates speed and an unknown load torque from noisy angle updates") {
-        const auto truth = discretize(design::mechanical_ss(J, b, Kt), Ts, DiscretizationMethod::ZOH);
+        const auto truth = discretize(design::rotational_load_ss(J, b), Ts, DiscretizationMethod::ZOH);
 
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{
             .J = J,
             .b = b,
-            .Kt = Kt,
             .Ts = Ts,
             .r_encoder = 1e-6
         }};
 
         ColVec<3, double> x{};
-        x[2] = 0.4;            // true (unknown to the estimator) load torque [Nm]
-        const double iq = 3.0; // constant current command
+        x[2] = 0.4;                  // true (unknown to the estimator) load torque [Nm]
+        const double tau = Kt * 3.0; // constant torque command
         Noise        noise;
 
         for (int k = 0; k < 40000; ++k) { // 4 s
-            x = truth.A * x + truth.B * ColVec<1, double>{iq};
-            est.predict(iq);
+            x = truth.A * x + truth.B * ColVec<1, double>{tau};
+            est.predict(tau);
             if (k % 10 == 0) { // angle update at 1/10 the predict rate (multirate)
                 est.update_encoder(x[0] + noise(1e-3));
             }
         }
 
-        CHECK(est.theta() == doctest::Approx(x[0]).epsilon(1e-3));
+        CHECK(est.theta_unwrapped() == doctest::Approx(x[0]).epsilon(1e-3));
         CHECK(est.omega() == doctest::Approx(x[1]).epsilon(1e-2));
         CHECK(est.load_torque() == doctest::Approx(0.4).epsilon(0.05)); // load recovered within 5%
     }
 
     TEST_CASE("sensorless channel uses its own (higher) measurement noise") {
-        const auto truth = discretize(design::mechanical_ss(J, b, Kt), Ts, DiscretizationMethod::ZOH);
+        const auto truth = discretize(design::rotational_load_ss(J, b), Ts, DiscretizationMethod::ZOH);
 
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{
             .J = J,
             .b = b,
-            .Kt = Kt,
             .Ts = Ts,
             .r_sensorless = 1e-4
         }};
 
         ColVec<3, double> x{};
-        const double      iq = 2.0;
+        const double      tau = Kt * 2.0;
         Noise             noise;
         for (int k = 0; k < 40000; ++k) {
-            x = truth.A * x + truth.B * ColVec<1, double>{iq};
-            est.predict(iq);
+            x = truth.A * x + truth.B * ColVec<1, double>{tau};
+            est.predict(tau);
             if (k % 10 == 0) {
                 est.update_sensorless(x[0] + noise(1e-2)); // noisier sensorless angle
             }
@@ -96,36 +94,35 @@ TEST_SUITE("Mechanical Estimator") {
     }
 
     TEST_CASE("load accelerometer observes load torque directly") {
-        const auto truth = discretize(design::mechanical_ss(J, b, Kt), Ts, DiscretizationMethod::ZOH);
+        const auto truth = discretize(design::rotational_load_ss(J, b), Ts, DiscretizationMethod::ZOH);
 
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{
             .J = J,
             .b = b,
-            .Kt = Kt,
             .Ts = Ts,
             .r_accel = 1e-2
         }};
 
         ColVec<3, double> x{};
         x[2] = 0.3; // true load torque [Nm]
-        const double iq = 2.0;
+        const double tau = Kt * 2.0;
         Noise        noise;
         for (int k = 0; k < 40000; ++k) {
-            x = truth.A * x + truth.B * ColVec<1, double>{iq};
-            est.predict(iq);
+            x = truth.A * x + truth.B * ColVec<1, double>{tau};
+            est.predict(tau);
             if (k % 10 == 0) {
-                const double alpha = ((Kt * iq) - (b * x[1]) - x[2]) / J; // true load angular accel
-                est.update_load_accel(alpha + noise(0.5), iq);
+                const double alpha = (tau - (b * x[1]) - x[2]) / J; // true load angular accel
+                est.update_load_accel(alpha + noise(0.5), tau);
             }
         }
         CHECK(est.load_torque() == doctest::Approx(0.3).epsilon(0.05));
     }
 
     TEST_CASE("multirate: skipping updates keeps the covariance bounded") {
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{.J = J, .b = b, .Kt = Kt, .Ts = Ts}};
-        ColVec<3, double>           x{};
-        const auto                  truth = discretize(design::mechanical_ss(J, b, Kt), Ts, DiscretizationMethod::ZOH);
-        Noise                       noise;
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{.J = J, .b = b, .Ts = Ts}};
+        ColVec<3, double>                  x{};
+        const auto                         truth = discretize(design::rotational_load_ss(J, b), Ts, DiscretizationMethod::ZOH);
+        Noise                              noise;
 
         for (int k = 0; k < 20000; ++k) {
             x = truth.A * x + truth.B * ColVec<1, double>{1.0};
@@ -140,7 +137,7 @@ TEST_SUITE("Mechanical Estimator") {
     }
 
     TEST_CASE("reset clears the estimate") {
-        MechanicalEstimator<double> est{MechanicalEstimatorConfig<double>{.J = J, .b = b, .Kt = Kt, .Ts = Ts}};
+        motor::MechanicalEstimator<double> est{motor::MechanicalEstimatorConfig<double>{.J = J, .b = b, .Ts = Ts}};
         for (int k = 0; k < 100; ++k) {
             est.predict(5.0);
         }

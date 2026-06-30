@@ -100,15 +100,20 @@
 // --- 3D math types ----------------------------------------------------------
 #include "wet/math/geometry.hpp" // IWYU pragma: export
 
-// --- Motor / power-electronics drives ---------------------------------------
-#include "wet/power/calibration.hpp"          // IWYU pragma: export
-#include "wet/power/foc.hpp"                  // IWYU pragma: export
-#include "wet/power/limits.hpp"               // IWYU pragma: export
-#include "wet/power/mechanical_estimator.hpp" // IWYU pragma: export
-#include "wet/power/modulation.hpp"           // IWYU pragma: export
-#include "wet/power/servo.hpp"                // IWYU pragma: export
-#include "wet/power/thermal.hpp"              // IWYU pragma: export
-#include "wet/power/transforms.hpp"           // IWYU pragma: export
+// --- Three-phase AC vocabulary (shared by motor + power-electronics) ---------
+#include "wet/transforms.hpp" // IWYU pragma: export
+
+// --- Motor drives -----------------------------------------------------------
+#include "wet/motor/calibration.hpp"          // IWYU pragma: export
+#include "wet/motor/field_weakening.hpp"      // IWYU pragma: export
+#include "wet/motor/foc.hpp"                  // IWYU pragma: export
+#include "wet/motor/limits.hpp"               // IWYU pragma: export
+#include "wet/motor/mechanical_estimator.hpp" // IWYU pragma: export
+#include "wet/motor/modulation.hpp"           // IWYU pragma: export
+#include "wet/motor/mtpa.hpp"                 // IWYU pragma: export
+#include "wet/motor/predictive_current.hpp"   // IWYU pragma: export
+#include "wet/motor/servo.hpp"                // IWYU pragma: export
+#include "wet/motor/thermal.hpp"              // IWYU pragma: export
 
 // --- Toolbox: allocation-free embedded primitives every controls project ----
 // reaches for. Controls/DSP-specific helpers only; generic plumbing

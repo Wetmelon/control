@@ -6,8 +6,8 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp" // design::pi_pole_placement_first_order
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/modulation.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/modulation.hpp"
+#include "wet/transforms.hpp"
 
 namespace wet {
 
@@ -190,6 +190,31 @@ template<typename T = double>
 template<typename T = double>
 [[nodiscard]] constexpr T iq_from_torque(T Te, T pole_pairs, T lambda) {
     return Te / torque_constant_from_flux(pole_pairs, lambda);
+}
+
+/**
+ * @brief Electromagnetic torque produced by a dq current (salient PMSM)
+ * @ingroup foc_design
+ *
+ * The full PMSM torque, magnet plus reluctance:
+ * @f[
+ *   T_e = \tfrac{3}{2}\,p\,\bigl[\lambda\, i_q + (L_d - L_q)\,i_d\,i_q\bigr] ,
+ * @f]
+ * the forward map of @ref iq_from_torque. For a non-salient machine
+ * (@f$ L_d = L_q @f$) the reluctance term vanishes and this collapses to
+ * @f$ T_e = K_t i_q @f$. Use it to feed a measured current into a torque-driven model
+ * (e.g. @ref motor::MechanicalEstimator), keeping the machine's magnetics out of the
+ * estimator.
+ *
+ * @param Idq        [A]  Measured dq current (amplitude convention)
+ * @param pole_pairs @f$ p @f$ Number of pole pairs
+ * @param Ldq        [H]  dq inductances
+ * @param lambda     [Wb] Permanent-magnet flux linkage
+ * @return @f$ T_e @f$ [Nm]
+ */
+template<typename T = double>
+[[nodiscard]] constexpr T electromagnetic_torque(const DirectQuadrature<T>& Idq, T pole_pairs, const DirectQuadrature<T>& Ldq, T lambda) {
+    return T{1.5} * pole_pairs * ((lambda * Idq.q) + ((Ldq.d - Ldq.q) * Idq.d * Idq.q));
 }
 
 /**

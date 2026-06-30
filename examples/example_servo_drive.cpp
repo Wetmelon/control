@@ -12,7 +12,7 @@
 #include "wet/backend.hpp"
 #include "wet/controllers/pid.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/foc.hpp"
+#include "wet/motor/foc.hpp"
 #include "wet/simulation/integrator.hpp"
 #include "wet/simulation/plot_plotly.hpp"
 #include "wet/simulation/simulate.hpp"

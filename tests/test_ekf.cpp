@@ -1,9 +1,11 @@
 #include <algorithm>
 
-#include "doctest.h"
 #include "wet/estimation/ekf.hpp"
 #include "wet/math/math.hpp"
 #include "wet/matrix/matrix.hpp"
+
+#define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
+#include "doctest.h"
 
 using namespace wet;
 

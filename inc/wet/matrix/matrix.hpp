@@ -862,6 +862,46 @@ template<MatrixLike A, MatrixLike B>
 }
 
 /**
+ * @brief Symmetric congruence (quadratic) form  S = M X Mᵀ
+ *
+ * Computes the congruence transform of a symmetric matrix X by M. Because X is
+ * symmetric the result is symmetric, so only the lower triangle is evaluated and
+ * mirrored: the output is symmetric to the last bit (no rounding-induced
+ * asymmetry) and the outer product costs ~half a general triple product. This is
+ * the standard building block for covariance propagation — A P Aᵀ, C P Cᵀ, the
+ * Joseph-form update — where keeping the covariance exactly symmetric is what
+ * preserves its positive-definiteness across iterations.
+ *
+ * Precondition: X is symmetric. If it is not, the result is built from the lower
+ * triangle of M X Mᵀ and is therefore not the true product. (For complex T this
+ * computes M X Mᵀ with the plain transpose, not the Hermitian adjoint.)
+ *
+ * @tparam Mat MatrixLike, p×n
+ * @tparam Sym MatrixLike, n×n (symmetric)
+ * @return p×p symmetric Matrix  M X Mᵀ
+ */
+template<MatrixLike Mat, MatrixLike Sym>
+    requires(Mat::cols() == Sym::rows() && Sym::rows() == Sym::cols())
+[[nodiscard]] constexpr auto quadratic_form(const Mat& m, const Sym& x) {
+    using T = typename Mat::value_type;
+    constexpr size_t P = Mat::rows();
+    constexpr size_t N = Mat::cols();
+    const auto       mx = m * x; // p×n
+    Matrix<P, P, T>  result{};
+    for (size_t i = 0; i < P; ++i) {
+        for (size_t j = 0; j <= i; ++j) {
+            T acc{};
+            for (size_t k = 0; k < N; ++k) {
+                acc += static_cast<T>(mx(i, k)) * static_cast<T>(m(j, k));
+            }
+            result(i, j) = acc;
+            result(j, i) = acc; // mirror → exact symmetry
+        }
+    }
+    return result;
+}
+
+/**
  * @brief Unary negation for any MatrixLike type
  */
 template<MatrixLike A>

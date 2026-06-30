@@ -48,7 +48,7 @@
 #include <numbers>
 
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
 

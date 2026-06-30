@@ -3,7 +3,7 @@
  * @brief End-to-end PMAC servo: bandwidth tuning, R/L calibration, and the three
  *        control modes on an average dq + mechanical plant.
  *
- * Drives wet::PmacServo through commissioning and Torque / Velocity / Position
+ * Drives wet::motor::PmacServo through commissioning and Torque / Velocity / Position
  * modes, plus a thermal-derate event, on a simulated PMSM. Shows the full
  * "set bandwidths → calibrate → run" workflow with no raw control gains.
  */
@@ -20,16 +20,17 @@
 #include "wet/backend.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/calibration.hpp"
-#include "wet/power/foc.hpp"
-#include "wet/power/servo.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/calibration.hpp"
+#include "wet/motor/foc.hpp"
+#include "wet/motor/servo.hpp"
 #include "wet/simulation/integrator.hpp"
+#include "wet/transforms.hpp"
 
 using namespace wet;
-using namespace wet::servo;
+using namespace wet::motor;
 
 namespace {
+using std::numbers::pi_v;
 
 // True motor parameters (unknown to the controller until calibration / config).
 constexpr double Ld = 200e-6, Lq = 200e-6, R = 0.5, lambda = 0.01;
@@ -77,22 +78,24 @@ struct Recorder {
 };
 
 // One closed-loop tick: plant currents → abc feedback → servo → duties → dq voltage.
-void tick(PmacServo<float>& servo, Plant& p) {
+void tick(PmacServo<float>& servo, Plant& p, float pos, float vel, float trq) {
     const float theta_e = static_cast<float>(pole_pairs * p.th());
     const auto  Iabc = inverse_park_clarke_transform(
         DirectQuadrature<float>{static_cast<float>(p.id()), static_cast<float>(p.iq())}, theta_e
     );
-    const auto             res = servo.update(ServoFeedback<float>{.Iabc = Iabc, .Vdc = Vdc, .theta_mech = static_cast<float>(p.th())});
+
+    const auto res = servo.update(pos, vel, trq, Iabc, Vdc, ((float)p.th() / (2.0f * pi_v<float>)), Ts);
+
     const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
     const auto             Vdq = clarke_park_transform(Vabc, theta_e);
     p.step(Vdq.d, Vdq.q, Ts);
 }
 
 // Run for `seconds`, optionally logging every `dec`-th tick into `rec` at absolute time t0+k*Ts.
-void run(PmacServo<float>& servo, Plant& p, double seconds, Recorder* rec = nullptr, double t0 = 0.0, int dec = 10) {
+void run(PmacServo<float>& servo, Plant& p, double seconds, float pos, float vel, float trq, Recorder* rec = nullptr, double t0 = 0.0, int dec = 10) {
     const int steps = static_cast<int>(seconds / Ts);
     for (int k = 0; k < steps; ++k) {
-        tick(servo, p);
+        tick(servo, p, pos, vel, trq);
         if (rec != nullptr && k % dec == 0) {
             rec->sample(t0 + (k * Ts), p);
         }
@@ -144,7 +147,6 @@ int main() {
         .b = static_cast<float>(b),
         .iq_max = 20.0f,
         .bandwidths = bw,
-        .Ts = Ts,
     };
 
     Recorder rec_torque;
@@ -160,8 +162,7 @@ int main() {
         PmacServo<float> servo{cfg};
         Plant            p;
         servo.set_mode(ControlMode::Torque);
-        servo.set_target(torque_cmd); // Nm
-        run(servo, p, 0.2, &rec_torque);
+        run(servo, p, 0.2, 0.0f, 0.0f, torque_cmd, &rec_torque); // Nm
         fmt::print("Torque mode:   cmd 0.12 Nm -> iq {:.3f} A (target {:.3f}),  speed {:.1f} rad/s\n", p.iq(), 0.12 / Kt, p.w());
     }
 
@@ -170,15 +171,15 @@ int main() {
         PmacServo<float> servo{cfg};
         Plant            p;
         servo.set_mode(ControlMode::Velocity);
-        servo.set_target(vel_cmd); // rad/s
-        run(servo, p, 0.4, &rec_vel);
+        const float vel_turns = vel_cmd / (2.0f * pi_v<float>); // 150 rad/s -> turns/s
+        run(servo, p, 0.4, 0.0f, vel_turns, 0.0f, &rec_vel);
         const double w_noload = p.w();
         p.tau_load = 0.06; // Nm load step
-        run(servo, p, 0.4, &rec_vel, 0.4);
+        run(servo, p, 0.4, 0.0f, vel_turns, 0.0f, &rec_vel, 0.4);
         fmt::print(
-            "Velocity mode: cmd 150 rad/s -> {:.1f} (no load), {:.1f} (after 0.06 Nm load step); "
-            "estimated load {:.3f} Nm\n",
-            w_noload, p.w(), servo.load_torque()
+            "Velocity mode: cmd 150 rad/s -> {:.1f} (no load), {:.1f} (after 0.06 Nm load step, "
+            "rejected by the velocity PI)\n",
+            w_noload, p.w()
         );
     }
 
@@ -187,8 +188,8 @@ int main() {
         PmacServo<float> servo{cfg};
         Plant            p;
         servo.set_mode(ControlMode::Position);
-        servo.set_target(pos_cmd); // rad
-        run(servo, p, 2.0, &rec_pos);
+        const float pos_turns = pos_cmd / (2.0f * pi_v<float>); // 10 rad -> turns
+        run(servo, p, 2.0, pos_turns, 0.0f, 0.0f, &rec_pos);
         fmt::print("Position mode: cmd 10 rad -> {:.3f} rad,  speed {:.3f} rad/s (settled)\n", p.th(), p.w());
     }
 
@@ -197,9 +198,8 @@ int main() {
         PmacServo<float> servo{cfg};
         Plant            p;
         servo.set_mode(ControlMode::Torque);
-        servo.set_target(5.0f);        // demands far more current than allowed
-        servo.set_thermal_scale(0.2f); // 20% derate -> ceiling 4 A
-        run(servo, p, 0.1);
+        servo.set_thermal_scale(0.2f);        // 20% derate -> ceiling 4 A
+        run(servo, p, 0.1, 0.0f, 0.0f, 5.0f); // demands far more current than allowed
         fmt::print("Thermal derate: 20%% scale on iq_max=20 -> iq held to {:.2f} A (ceiling 4 A)\n", p.iq());
     }
 

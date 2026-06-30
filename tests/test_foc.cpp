@@ -6,8 +6,8 @@
 #include "wet/controllers/pid.hpp"
 #include "wet/design/pid_design.hpp"
 #include "wet/matrix/colvec.hpp"
-#include "wet/power/foc.hpp"
-#include "wet/power/transforms.hpp"
+#include "wet/motor/foc.hpp"
+#include "wet/transforms.hpp"
 
 #define DOCTEST_CONFIG_INCLUDE_TYPE_TRAITS
 #include "doctest.h"

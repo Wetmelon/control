@@ -173,60 +173,63 @@ robust `design::place` (roadmap #16).
 **Why:** one documented observer-synthesis entry point; pole-placement robustness is a
 separate concern.
 
-### D20 — Namespace organization: canonical domain namespaces + thin `matlab::` alias facade
-**Status:** Accepted (2026-06) · **Refs:** roadmap #3 (unified block concept), API-naming convention
+### D20 — Namespace organization: a horizontal `wet::` core + a few vertical domains
+**Status:** Accepted (2026-06) · **Refs:** roadmap #3 (unified block concept), #31/#37/#38, API-naming convention
 
-Two layers, one implementation:
+**`wet::` is the horizontal library.** The general-purpose control-engineering surface —
+scalar/complex math, LTI models, controllers (PID/LQR/LQG/lead-lag/SMC/PR/ADRC/ESC/…),
+estimators (Kalman/EKF/UKF/observers/disturbance), filters, trajectory profiling, and the
+embedded toolbox primitives — all live directly in `wet::`. This is the product; do **not**
+carve it into `control::`/`estimation::`/`filters::` sub-namespaces — that splits the core
+along academic lines for no caller benefit. Namespaces break out only for two reasons below.
 
-- **Canonical layer.** Every algorithm and runtime block is defined **exactly once**, in a
-  **domain namespace named for its actual scope**, under a descriptive long name and returning
-  a rich result (e.g. `design::lqr` → full result struct, not just `K`). `wet::` *root* holds
-  only **generic, domain-agnostic** vocabulary — scalar/complex math, `wet::mat` linear algebra,
-  the LTI model types, truly common utilities. Domain-specific code must move out of root into
-  its domain namespace; the name must reflect the real scope (a rotational-machine estimator is
-  servo-drive-specific → `wet::servo`, not a generic "mechanical estimator" in `wet::`).
-- **Facade layer.** `wet::matlab` mirrors MATLAB **names and behaviours** (e.g. `matlab::lqr`
-  returns only `K`). It is a thin compatibility skin, **not** a place to group "toolboxes" — the
-  domain namespaces are the grouping. Every facade entry is a `using`-declaration or a one-line
-  forwarder that only reshapes name/args/return — **never a second implementation body**.
+**Vertical domains** name an application area whose blocks are not general-purpose:
 
-**Two orthogonal axes — only the domain axis nests.** *Layer* namespaces are cross-cutting and
-stay **flat**: `design::` (synthesis), `analysis::` (host eval), `matlab::` (aliases), `mat::`
-(linalg). *Domain* namespaces (`servo::`/`control::`/`filters::`/…) name the **runtime blocks**.
-Do **not** nest a layer under a domain (no `servo::design::`) — a synthesis function's domain is
-carried by its name + folder (`design::mechanical_ss` in `servo/mechanical_estimator.hpp`), not by
-nesting. Mirrors the workflow: design-phase → flat `design::`; deploy-phase → a `servo::`/`control::`
-block.
+| Namespace | Scope |
+| --------- | ----- |
+| `motor::` | motor drive: FOC, SVPWM modulation, thermal, mechanical/parameter estimators, `PmacServo`, DC-bus limiting, encoder, actuator (roadmap #31) |
+| `power::` | grid-tied power electronics: sync/PLL control use, droop/VSM, sequence control, islanding/LVRT, battery SOC/SOH + energy management (roadmap #38) |
+| `hydraulic::` | valve flow-linearization + deadband comp, load-sensing pump, hydrostatic dual-path drive (roadmap #37) |
+| `robotics::` | manipulator kinematics: serial-arm DH/IK, SCARA, delta, Stewart (geometry only) |
 
-**Header granularity = one feature, not one namespace.** A feature's synthesis (`design::`) and
-its runtime block (the domain namespace) live **together** in one header — `lqr.hpp` holds
-`design::lqr` *and* the LQR runtime; everything about a feature is in one place. This deliberately
-allows two public namespaces per header (the design tier + the runtime tier of D3), because that
-co-location is what a new user wants — not arbitrary namespace mixing. (`detail::` is exempt;
-PID is being unified to this shape — it is currently the lone split.) The **only** split-out is
-heavy host-only synthesis (H∞/MPC/MHE → `toolbox.hpp`, [[D16]]): there the design cannot ship to
-target, so it lives apart from any embeddable runtime. Folder layout tracks the domain but is not
-binding — when migrating a header, re-check both that it sits in the right folder and that its
-contents belong together, and split/move when they don't.
+**Cross-cutting layers** stay flat and never nest under a domain:
 
-**Single-implementation guarantee.** One canonical symbol per algorithm; all aliases resolve to
-it, so they cannot diverge. This is the structural fix for the MATLAB/Simulink failure mode where
-same-named blocks ship different implementations. Runtime blocks all satisfy the shared
-controller/observer concept (#3) so "block" means one thing everywhere.
+| Namespace | Role |
+| --------- | ---- |
+| `mat::` | linear algebra |
+| `design::` | all offline synthesis — Riccati, pole placement, PID tuning, **and** sysid excitation/identification — returning rich result structs (`design::lqr` → full result, not just `K`) |
+| `analysis::` | host-side frequency/time evaluation (bode/nyquist/step/margins/norms) |
+| `sim::` / `plot::` | host simulation + plotting |
+| `matlab::` | MATLAB name+behaviour aliases — a thin compatibility skin (`matlab::lqr` returns only `K`); every entry is a `using` or one-line forwarder, **never** a second implementation body |
 
-**Enforcement:** a build test asserts each facade symbol delegates to its canonical (forwards-only,
-no independent logic) — per the chosen "test + rule" enforcement, not convention alone.
+**Boundary calls (settled):**
+- **Shared three-phase math stays in `wet::`** (`wet/transforms.hpp`: Clarke/Park, symmetrical
+  components, instantaneous power, plus the SOGI/PLL family). Both `motor::` and `power::` depend
+  on it; parking it under either creates a wrong-way dependency — it is generic AC vocabulary, like
+  `mat::` is to everyone.
+- **Trajectory stays in `wet::`** — trapezoidal/S-curve/spline profiling is general motion (a motor
+  axis uses it too); only manipulator geometry is `robotics::`.
+- **No `dsp::`/`sysid::` (yet).** DSP overlaps the `wet::` filters with no seam; sysid is a
+  design-time activity → its excitation/identification code lands in `design::`. Carve either out
+  only if it grows its own runtime surface. (ponytail: YAGNI — don't pre-split.)
 
-**Target taxonomy** (incremental migration; `design::` and `wet::{estimation,servo,sim,plot,mat,
-plc,io,analysis}` are already in this shape, most runtime code is still flat in `wet::` and moves):
-`design` (synthesis) · `analysis` (host freq/time) · `control` (runtime controllers) ·
-`estimation` · `filters` · `servo` (motor/rotational drive: transforms, modulation, FOC,
-mechanical estimator, encoder) · `power` (converters, if split from servo) · `kinematics` ·
-`trajectory` · `sim`/`plot` (host) · `mat` · `matlab` (aliases) · `plc`/`io` (utility).
+**Header granularity = one feature, not one namespace.** A feature's synthesis (`design::`) and its
+runtime block (`wet::` or its domain) live **together** in one header — `lqr.hpp` holds `design::lqr`
+*and* the LQR runtime. Two public namespaces per header (design tier + runtime tier of D3) is the
+intended shape, not arbitrary mixing. (`detail::` is exempt; PID is being unified to this shape — the
+lone split.) The **only** forced split-out is heavy host-only synthesis (H∞/MPC/MHE → `toolbox.hpp`,
+[[D16]]), which cannot ship to target. Folder layout tracks the namespace but is not binding — on each
+migrated header re-check that file location and contents still belong.
 
-**Why:** one canonical impl per name eliminates divergent duplicates; a generic root keeps domain
-assumptions from leaking into common code; the MATLAB layer stays a faithful compatibility skin
-rather than a fork.
+**Single-implementation guarantee.** One canonical symbol per algorithm; all aliases resolve to it,
+so they cannot diverge. This is the structural fix for the MATLAB/Simulink failure mode where
+same-named blocks ship different implementations. Enforced by a build test asserting each facade
+symbol forwards to its canonical (no independent logic) — "test + rule", not convention alone.
+
+**Why:** `wet::` is one coherent control library, not a pile of toolboxes; splitting it by academic
+category would fragment the core for no caller gain. Vertical domains isolate application-specific
+blocks (and the user's deep domains — motor/power/hydraulic); a generic root keeps domain assumptions
+from leaking into common code; the MATLAB layer stays a faithful compatibility skin rather than a fork.
 
 ## Per-feature
 
