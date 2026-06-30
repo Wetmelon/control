@@ -14,6 +14,7 @@ Usage:
 """
 
 import ctypes
+import math
 import os
 import sys
 import time
@@ -43,14 +44,11 @@ class ServoMotorParams(ctypes.Structure):
 
 class ServoControlParams(ctypes.Structure):
     _fields_ = [
+        ("bw_position", ctypes.c_double),
+        ("bw_velocity", ctypes.c_double),
         ("bw_current", ctypes.c_double),
-        ("Kp_speed", ctypes.c_double),
-        ("Ki_speed", ctypes.c_double),
-        ("Kp_position", ctypes.c_double),
         ("i_max", ctypes.c_double),
         ("speed_max", ctypes.c_double),
-        ("speed_ratio", ctypes.c_int),
-        ("position_ratio", ctypes.c_int),
         ("position_mode", ctypes.c_int),
         ("ref_filter_bw", ctypes.c_double),
     ]
@@ -174,12 +172,12 @@ class ServoSimDLL:
 # ===== Application =====
 
 # Simulation rate: 8 kHz control loop
-_TWO_PI = 2.0 * 3.14159265358979323846
+_TWO_PI = 2.0 * math.pi
 DT = 125e-6          # 125 µs control period
-STEPS_PER_FRAME = 10  # steps per frame (used when RT lock is off)
-HISTORY_SECONDS = 1.0
+TIME_SCALE = 1.0     # sim-time per wall-time (1.0 = real time, 0.5 = half speed)
+HISTORY_SECONDS = 5.0
 MAX_SAMPLE_RATE = 300 # max expected GUI frame rate (one sample per frame)
-HISTORY_LEN = int(HISTORY_SECONDS * MAX_SAMPLE_RATE)
+HISTORY_LEN = MAX_SAMPLE_RATE * 60  # hard buffer cap (~60 s); visible window is pruned by sim-time
 
 # All ring buffers in a list for easy resizing
 t_hist = collections.deque(maxlen=HISTORY_LEN)
@@ -200,7 +198,7 @@ ALL_HISTS = [t_hist, omega_m_hist, omega_L_hist, omega_ref_hist,
              theta_L_hist, theta_ref_hist]
 
 running = False
-sim: ServoSimDLL = None
+sim: ServoSimDLL
 
 # FPS tracking
 _fps_last_time = 0.0
@@ -212,8 +210,7 @@ _rt_last_wall = 0.0
 _rt_last_sim = 0.0
 _rt_ratio = 0.0
 
-# Real-time lock (on by default)
-_realtime_lock = True
+# Real-time wall-clock stepping state
 _rt_lock_wall = 0.0
 _rt_lock_residual = 0.0
 
@@ -224,30 +221,19 @@ def clear_history():
 
 
 def resize_history(new_seconds: float):
-    """Resize all ring buffers to hold new_seconds of data."""
-    global HISTORY_SECONDS, HISTORY_LEN, ALL_HISTS
+    """Set the visible window (seconds of simulation time). Pruning in update_frame
+    enforces it; the ring buffers keep a fixed hard cap regardless."""
+    global HISTORY_SECONDS
     HISTORY_SECONDS = new_seconds
-    HISTORY_LEN = max(2, int(HISTORY_SECONDS * MAX_SAMPLE_RATE))
-    new_hists = []
-    for old in ALL_HISTS:
-        h = collections.deque(old, maxlen=HISTORY_LEN)
-        new_hists.append(h)
-    ALL_HISTS[:] = new_hists
-    # Rebind module-level names
-    g = globals()
-    names = ['t_hist', 'omega_m_hist', 'omega_L_hist', 'omega_ref_hist',
-             'id_hist', 'iq_hist', 'vd_hist', 'vq_hist', 'Te_hist', 'Tshaft_hist', 'twist_hist',
-             'theta_L_hist', 'theta_ref_hist']
-    for i, name in enumerate(names):
-        g[name] = ALL_HISTS[i]
 
 
 def default_motor_params() -> ServoMotorParams:
+    # ODrive D5065 270KV outrunner — datasheet electrical; mechanical/load is a test rig.
     p = ServoMotorParams()
-    p.Rs = 1.2
-    p.Ls = 4.7e-3
-    p.lambda_pm = 0.1
-    p.pole_pairs = 4
+    p.Rs = 0.039             # 39 mOhm phase-to-neutral
+    p.Ls = 16e-6             # 16 uH phase-to-neutral (Ld = Lq)
+    p.lambda_pm = 0.031 / (1.5 * 7)  # lambda = Kt/(1.5*pp), Kt = 0.031 Nm/A -> 2.95 mWb
+    p.pole_pairs = 7
     p.Jm = 5e-5
     p.Bm = 1e-4
     p.Ks = 5000.0
@@ -261,26 +247,24 @@ def default_motor_params() -> ServoMotorParams:
 
 def default_control_params() -> ServoControlParams:
     c = ServoControlParams()
+    c.bw_position = 1.0
+    c.bw_velocity = 10.0
     c.bw_current = 1000.0
-    c.Kp_speed = 0.3
-    c.Ki_speed = 18.0
-    c.Kp_position = 60.0
-    c.i_max = 10.0
-    c.speed_max = 500.0
-    c.speed_ratio = 1
-    c.position_ratio = 1
-    c.position_mode = 1
-    c.ref_filter_bw = 5.0
+    c.i_max = 65.0        # continuous (peak 85 A)
+    c.speed_max = 1300.0  # [rad/s] velocity-command ceiling (~207 rev/s)
+    c.position_mode = 2   # ControlMode::Position
+    c.ref_filter_bw = 1.0
     return c
 
 
 def push_motor_params():
     """Read GUI sliders and push motor params to the DLL."""
     p = ServoMotorParams()
-    p.Rs = dpg.get_value("sl_Rs")
-    p.Ls = dpg.get_value("sl_Ls") * 1e-3
-    p.lambda_pm = dpg.get_value("sl_lambda")
+    p.Rs = dpg.get_value("sl_Rs") / 1000.0  # mOhm -> Ohm
+    p.Ls = dpg.get_value("sl_Ls") * 1e-6     # µH -> H
     p.pole_pairs = int(dpg.get_value("sl_poles"))
+    # GUI exposes Kt (Nm/A); the plant uses PM flux: Kt = 1.5*pp*lambda
+    p.lambda_pm = dpg.get_value("sl_Kt") / (1.5 * p.pole_pairs)
     p.Jm = dpg.get_value("sl_Jm")
     p.Bm = dpg.get_value("sl_Bm")
     p.Ks = dpg.get_value("sl_Ks")
@@ -295,15 +279,12 @@ def push_motor_params():
 def push_control_params():
     """Read GUI sliders and push control params to the DLL."""
     c = ServoControlParams()
+    c.bw_position = dpg.get_value("sl_bw_position")
+    c.bw_velocity = dpg.get_value("sl_bw_velocity")
     c.bw_current = dpg.get_value("sl_bw_current")
-    c.Kp_speed = dpg.get_value("sl_Kp_speed")
-    c.Ki_speed = dpg.get_value("sl_Ki_speed")
-    c.Kp_position = dpg.get_value("sl_Kp_position")
     c.i_max = dpg.get_value("sl_i_max")
     c.speed_max = dpg.get_value("sl_speed_max") * _TWO_PI
-    c.speed_ratio = int(dpg.get_value("sl_speed_ratio"))
-    c.position_ratio = int(dpg.get_value("sl_pos_ratio"))
-    c.position_mode = 1 if dpg.get_value("cb_pos_mode") else 0
+    c.position_mode = 2 if dpg.get_value("cb_pos_mode") else 1
     c.ref_filter_bw = dpg.get_value("sl_ref_filter_bw")
     sim.set_control_params(c)
 
@@ -350,28 +331,14 @@ def on_reset_load_torque(sender, app_data):
     dpg.set_value("sl_T_load", 0.0)
     sim.set_load_torque(0.0)
 
-def on_reset_load_torque(sender, app_data):
-    dpg.set_value("sl_T_load", 0.0)
-    sim.set_load_torque(0.0)
-
-def on_sim_speed_change(sender, app_data):
-    global STEPS_PER_FRAME
-    STEPS_PER_FRAME = int(dpg.get_value("sl_sim_speed"))
-
-def on_realtime_lock_change(sender, app_data):
-    global _realtime_lock, _rt_lock_wall, _rt_lock_residual
-    _realtime_lock = dpg.get_value("cb_rt_lock")
-    _rt_lock_wall = time.perf_counter()
-    _rt_lock_residual = 0.0
-    dpg.configure_item("sl_sim_speed", enabled=not _realtime_lock)
-
-def on_dt_change(sender, app_data):
-    global DT
-    DT = int(dpg.get_value("sl_dt")) * 1e-6
-    resize_history(HISTORY_SECONDS)
-
 def on_window_change(sender, app_data):
-    resize_history(dpg.get_value("sl_window"))
+    v = round(dpg.get_value("sl_window"), 1)  # snap to 0.1 s
+    dpg.set_value("sl_window", v)
+    resize_history(v)
+
+def on_time_scale_change(sender, app_data):
+    global TIME_SCALE
+    TIME_SCALE = dpg.get_value("sl_time_scale") / 100.0
 
 
 def _fit_y_padded(axis_tag: str, *series, margin: float = 0.1):
@@ -434,19 +401,16 @@ def update_frame():
     if not running:
         return
 
-    # Advance simulation
+    # Advance simulation: accrue sim-time at TIME_SCALE × wall-clock since the last frame.
     global _rt_lock_wall, _rt_lock_residual
-    if _realtime_lock:
-        wall_now = time.perf_counter()
-        wall_elapsed = wall_now - _rt_lock_wall + _rt_lock_residual
-        _rt_lock_wall = wall_now
-        steps = int(wall_elapsed / DT)
-        _rt_lock_residual = wall_elapsed - steps * DT
-        steps = max(steps, 0)
-        if steps == 0:
-            return
-    else:
-        steps = STEPS_PER_FRAME
+    wall_now = time.perf_counter()
+    sim_elapsed = (wall_now - _rt_lock_wall) * TIME_SCALE + _rt_lock_residual
+    _rt_lock_wall = wall_now
+    steps = int(sim_elapsed / DT)
+    _rt_lock_residual = sim_elapsed - steps * DT
+    steps = max(steps, 0)
+    if steps == 0:
+        return
 
     wall_before = time.perf_counter()
     sim.step(DT, steps)
@@ -474,52 +438,62 @@ def update_frame():
     theta_L_hist.append(s.theta_L / _TWO_PI)
     theta_ref_hist.append(s.theta_ref / _TWO_PI)
 
+    # Drop samples older than the selected window of simulation time
+    t_cut = t_hist[-1] - HISTORY_SECONDS
+    while len(t_hist) > 2 and t_hist[0] < t_cut:
+        for h in ALL_HISTS:
+            h.popleft()
+
     # Convert to lists for plotting
     t = list(t_hist)
     if len(t) < 2:
         return
 
+    # Lock every time axis to the same [t-window, t] simulation-time window
+    hi = t[-1]
+    lo = hi - HISTORY_SECONDS
+    if lo < 0:
+        lo, hi = 0.0, HISTORY_SECONDS  # before the window fills, show [0, window]
+    for ax in ("ax_position_x", "ax_speed_x", "ax_torque_x", "ax_current_x", "ax_voltage_x"):
+        dpg.set_axis_limits(ax, lo, hi)
+
     # Update speed plot
     dpg.set_value("ser_omega_m", [t, list(omega_m_hist)])
     dpg.set_value("ser_omega_L", [t, list(omega_L_hist)])
     dpg.set_value("ser_omega_ref", [t, list(omega_ref_hist)])
-    dpg.fit_axis_data("ax_speed_x")
     _fit_y_padded("ax_speed_y", omega_m_hist, omega_L_hist, omega_ref_hist)
 
     # Update position plot
     dpg.set_value("ser_theta_L", [t, list(theta_L_hist)])
     dpg.set_value("ser_theta_ref", [t, list(theta_ref_hist)])
-    dpg.fit_axis_data("ax_position_x")
     _fit_y_padded("ax_position_y", theta_L_hist, theta_ref_hist)
 
     # Update current plot
     dpg.set_value("ser_id", [t, list(id_hist)])
     dpg.set_value("ser_iq", [t, list(iq_hist)])
-    dpg.fit_axis_data("ax_current_x")
     _fit_y_padded("ax_current_y", id_hist, iq_hist)
 
     # Update torque plot
     dpg.set_value("ser_Te", [t, list(Te_hist)])
     dpg.set_value("ser_Tshaft", [t, list(Tshaft_hist)])
-    dpg.fit_axis_data("ax_torque_x")
     _fit_y_padded("ax_torque_y", Te_hist, Tshaft_hist)
 
     # Update voltage plot
     dpg.set_value("ser_vd", [t, list(vd_hist)])
     dpg.set_value("ser_vq", [t, list(vq_hist)])
-    dpg.fit_axis_data("ax_voltage_x")
     _fit_y_padded("ax_voltage_y", vd_hist, vq_hist)
 
     # Status text
     revs_m = s.omega_m / _TWO_PI
     revs_L = s.omega_L / _TWO_PI
-    dpg.set_value("txt_status",
-        f"t = {s.t:7.3f} s  |  Motor: {revs_m:+8.2f} rev/s  |  "
-        f"Load: {revs_L:+8.2f} rev/s  |  "
-        f"i_q = {s.iq:+7.2f} A  |  Te = {s.Te:+7.3f} Nm")
+    # dpg.set_value("txt_status",
+    #     f"t = {s.t:7.3f} s  |  Motor: {revs_m:+8.2f} rev/s  |  "
+    #     f"Load: {revs_L:+8.2f} rev/s  |  "
+    #     f"i_q = {s.iq:+7.2f} A  |  Te = {s.Te:+7.3f} Nm")
 
     # Solver stats
-    dpg.set_value("txt_dt", f"dt: {s.dt_used*1e6:.0f} µs")
+    plant_step_us = s.dt_used * 1e6 / s.plant_substeps if s.plant_substeps else s.dt_used * 1e6
+    dpg.set_value("txt_dt", f"dt: {s.dt_used*1e6:.0f} µs control  |  {plant_step_us:.0f} µs plant")
     dpg.set_value("txt_steps", f"Steps: {s.step_count}  (×{s.plant_substeps} substeps)")
     margin_str = f"RK4 margin: {s.rk4_margin:.2f}x"
     if s.rk4_margin < 1.0:
@@ -583,10 +557,7 @@ def build_gui():
     if font_path:
         with dpg.font_registry():
             with dpg.font(font_path, 16) as default_font:
-                dpg.add_font_range_hint(dpg.mvFontRangeHint_Default)
-                dpg.add_font_range(0x0370, 0x03FF)  # Greek and Coptic
-                dpg.add_font_range(0x00B0, 0x00FF)  # Latin-1 Supplement (µ, ·, etc.)
-                dpg.add_font_range(0x2200, 0x22FF)  # Mathematical Operators (∞, √, etc.)
+                pass
         dpg.bind_font(default_font)
 
     mp = default_motor_params()
@@ -616,21 +587,16 @@ def build_gui():
                     dpg.add_button(label="Start", tag="btn_toggle", callback=on_toggle, width=80)
                     dpg.add_button(label="Reset", callback=on_reset, width=80)
 
-                dpg.add_slider_int(label="Steps/frame", tag="sl_sim_speed",
-                    default_value=STEPS_PER_FRAME, min_value=1, max_value=200,
-                    callback=on_sim_speed_change, width=200, enabled=False)
-                dpg.add_checkbox(label="Real-time lock", tag="cb_rt_lock",
-                    default_value=True, callback=on_realtime_lock_change)
-                dpg.add_slider_int(label="dt (µs)", tag="sl_dt",
-                    default_value=int(DT * 1e6), min_value=10, max_value=500,
-                    callback=on_dt_change, width=200)
+                dpg.add_slider_int(label="Time scale (%)", tag="sl_time_scale",
+                    default_value=int(TIME_SCALE * 100), min_value=1, max_value=100,
+                    callback=on_time_scale_change, width=200)
                 dpg.add_slider_float(label="Window (s)", tag="sl_window",
                     default_value=HISTORY_SECONDS, min_value=0.1, max_value=10.0,
-                    callback=on_window_change, width=200)
+                    format="%.1f", callback=on_window_change, width=200)
 
                 # ---- Solver Stats ----
                 with dpg.collapsing_header(label="Solver Stats", default_open=False):
-                    dpg.add_text("dt: --", tag="txt_dt")
+                    dpg.add_text("dt: -- control  |  -- plant", tag="txt_dt")
                     dpg.add_text("Steps: --", tag="txt_steps")
                     dpg.add_text("", tag="txt_sep1")
                     dpg.add_text("RK4 margin: --", tag="txt_rk4_margin")
@@ -655,12 +621,12 @@ def build_gui():
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="x", callback=on_reset_pos_ref, width=20)
                         dpg.add_slider_float(label="Position ref (rev)", tag="sl_theta_ref",
-                            default_value=2.0, min_value=-10.0, max_value=10.0,
+                            default_value=2.0, min_value=-20.0, max_value=20.0,
                             callback=on_position_ref_change, width=180)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="x", callback=on_reset_speed_ref, width=20)
                         dpg.add_slider_float(label="Speed ref (rev/s)", tag="sl_omega_ref",
-                            default_value=0.0, min_value=-80.0, max_value=80.0,
+                            default_value=0.0, min_value=-220.0, max_value=220.0,
                             callback=on_speed_ref_change, width=180)
                     with dpg.group(horizontal=True):
                         dpg.add_button(label="x", callback=on_reset_load_torque, width=20)
@@ -670,20 +636,20 @@ def build_gui():
 
                 # ---- Motor Electrical ----
                 with dpg.collapsing_header(label="Motor Electrical", default_open=True):
-                    dpg.add_slider_float(label="Rs (Ohm)", tag="sl_Rs",
-                        default_value=mp.Rs, min_value=0.1, max_value=10.0,
+                    dpg.add_slider_int(label="Rs (mOhm)", tag="sl_Rs",
+                        default_value=int(mp.Rs * 1000), min_value=1, max_value=100,
                         callback=on_motor_change, width=200)
-                    dpg.add_slider_float(label="Ls (mH)", tag="sl_Ls",
-                        default_value=mp.Ls*1e3, min_value=0.1, max_value=50.0,
+                    dpg.add_slider_int(label="Ls (µH)", tag="sl_Ls",
+                        default_value=int(mp.Ls*1e6), min_value=1, max_value=200,
                         callback=on_motor_change, width=200)
-                    dpg.add_slider_float(label="λ_pm (Wb)", tag="sl_lambda",
-                        default_value=mp.lambda_pm, min_value=0.01, max_value=1.0,
-                        callback=on_motor_change, width=200)
+                    dpg.add_slider_float(label="Kt (Nm/A)", tag="sl_Kt",
+                        default_value=(1.5 * mp.pole_pairs * mp.lambda_pm), min_value=0.005, max_value=0.1,
+                        callback=on_motor_change, width=200, format="%.3f")
                     dpg.add_slider_int(label="Pole pairs", tag="sl_poles",
                         default_value=mp.pole_pairs, min_value=1, max_value=12,
                         callback=on_motor_change, width=200)
-                    dpg.add_slider_float(label="Vdc (V)", tag="sl_Vdc",
-                        default_value=mp.Vdc, min_value=12.0, max_value=400.0,
+                    dpg.add_slider_int(label="Vdc (V)", tag="sl_Vdc",
+                        default_value=int(mp.Vdc), min_value=12, max_value=60,
                         callback=on_motor_change, width=200)
 
                 # ---- Motor Mechanical ----
@@ -722,34 +688,27 @@ def build_gui():
                 dpg.add_text("Controller")
                 dpg.add_separator()
 
+                # PmacServo is bandwidth-tuned (never raw gains); the whole cascade
+                # runs at one unified rate (8 kHz) via PmacServo::update().
                 with dpg.collapsing_header(label="Position Loop", default_open=True):
                     dpg.add_checkbox(label="Position mode", tag="cb_pos_mode",
                         default_value=True, callback=on_control_change)
-                    dpg.add_slider_float(label="Kp", tag="sl_Kp_position",
-                        default_value=cp.Kp_position, min_value=1.0, max_value=500.0,
-                        callback=on_control_change, width=200)
+                    dpg.add_slider_float(label="BW (Hz)", tag="sl_bw_position",
+                        default_value=cp.bw_position, min_value=0.5, max_value=10.0,
+                        callback=on_control_change, width=200, format="%0.1f")
                     dpg.add_slider_float(label="Ref filter BW (Hz)", tag="sl_ref_filter_bw",
-                        default_value=cp.ref_filter_bw, min_value=0.0, max_value=100.0,
-                        callback=on_control_change, width=200)
+                        default_value=cp.ref_filter_bw, min_value=0.1, max_value=1.0,
+                        callback=on_control_change, width=200, format="%0.1f")
                     dpg.add_slider_float(label="Speed limit (rev/s)", tag="sl_speed_max",
                         default_value=cp.speed_max / _TWO_PI, min_value=1.0, max_value=300.0,
                         callback=on_control_change, width=200)
-                    dpg.add_slider_int(label="Position decimation", tag="sl_pos_ratio",
-                        default_value=cp.position_ratio, min_value=1, max_value=100,
-                        callback=on_control_change, width=200)
 
                 with dpg.collapsing_header(label="Speed Loop", default_open=True):
-                    dpg.add_slider_float(label="Kp", tag="sl_Kp_speed",
-                        default_value=cp.Kp_speed, min_value=0.01, max_value=10.0,
-                        callback=on_control_change, width=200)
-                    dpg.add_slider_float(label="Ki", tag="sl_Ki_speed",
-                        default_value=cp.Ki_speed, min_value=0.1, max_value=500.0,
+                    dpg.add_slider_float(label="BW (Hz)", tag="sl_bw_velocity",
+                        default_value=cp.bw_velocity, min_value=1.0, max_value=500.0,
                         callback=on_control_change, width=200)
                     dpg.add_slider_float(label="I_max (A)", tag="sl_i_max",
-                        default_value=cp.i_max, min_value=1.0, max_value=50.0,
-                        callback=on_control_change, width=200)
-                    dpg.add_slider_int(label="Speed decimation", tag="sl_speed_ratio",
-                        default_value=cp.speed_ratio, min_value=1, max_value=100,
+                        default_value=cp.i_max, min_value=1.0, max_value=100.0,
                         callback=on_control_change, width=200)
 
                 with dpg.collapsing_header(label="Current Loop", default_open=True):

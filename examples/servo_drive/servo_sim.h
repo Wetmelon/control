@@ -62,35 +62,27 @@ typedef struct {
 } ServoMotorParams;
 
 /**
- * Controller gains and limits.
+ * Cascade bandwidths and limits.
+ *
+ * PmacServo is tuned by three loop bandwidths (never raw gains); the whole cascade
+ * runs at a single rate (unified 8 kHz) via PmacServo::update().
  */
 typedef struct {
-    /* Current loop bandwidth [Hz] — PI gains computed as Kp = wc*Ls, Ki = wc*Rs */
-    double bw_current;
-
-    /* Speed loop PI gains */
-    double Kp_speed;
-    double Ki_speed;
-
-    /* Position loop P gain */
-    double Kp_position;
+    /* Cascade bandwidths [Hz] — must be loop-separated (~5x per stage) */
+    double bw_position;  /* Position loop bandwidth [Hz] */
+    double bw_velocity;  /* Velocity loop bandwidth [Hz] */
+    double bw_current;   /* Current loop bandwidth [Hz]  */
 
     /* Current limit [A]              */
     double i_max;
 
-    /* Speed limit [rad/s] for position mode */
+    /* Velocity-command ceiling [rad/s] */
     double speed_max;
 
-    /* Speed loop decimation ratio    */
-    int speed_ratio;
-
-    /* Position loop decimation ratio (relative to speed loop) */
-    int position_ratio;
-
-    /* 1 = position mode (P-PI-PI), 0 = speed mode (PI-PI) */
+    /* Control mode: 0 = torque, 1 = velocity, 2 = position (wet::motor::ControlMode) */
     int position_mode;
 
-    /* Position reference filter bandwidth [Hz] (2nd order, critically damped) */
+    /* Position reference filter bandwidth [Hz] (2nd order, critically damped; 0 = off) */
     double ref_filter_bw;
 } ServoControlParams;
 

@@ -50,11 +50,12 @@ def brief_text(body):
 
 
 def decl(code):
-    """Return (kind, name) for the declaration following a doc block, or None."""
+    """Return (kind, name, line_offset) for the declaration following a doc block,
+    or None. line_offset is the 0-based line index (within code) of the declaration."""
     lines = [l for l in code.split("\n")]
     # skip blank/attribute/template prefix lines to reach the named declaration
     buf = []
-    for l in lines:
+    for i, l in enumerate(lines):
         s = l.strip()
         if not s:
             continue
@@ -64,10 +65,10 @@ def decl(code):
         joined = " ".join(buf)
         m = re.search(r"\b(struct|class)\s+(\w+)", joined)
         if m and "{" in joined or (m and ";" not in joined and len(buf) <= 3):
-            return ("type", m.group(2))
+            return ("type", m.group(2), i)
         m = re.search(r"\benum\s+(?:class\s+)?(\w+)", joined)
         if m:
-            return ("enum", m.group(1))
+            return ("enum", m.group(1), i)
         # function: identifier immediately before '(' once we've cleared prefixes
         if "(" in joined and not s.startswith(SKIP_PREFIX[:1]):
             fm = re.search(r"(\w+)\s*\(", joined)
@@ -75,7 +76,7 @@ def decl(code):
                 # require it looks like a free function decl (has a return-type token)
                 if re.search(r"\b(struct|class|enum)\b", joined):
                     continue
-                return ("fn", fm.group(1))
+                return ("fn", fm.group(1), i)
         if len(buf) > 4:
             break
     return None
@@ -112,11 +113,12 @@ for hpp in sorted(ROOT.rglob("*.hpp")):
         d = decl(m.group(2))
         if not d:
             continue
-        kind, name = d
+        kind, name, off = d
         if name in seen[cat]:
             continue
         seen[cat].add(name)
-        line = text.count("\n", 0, m.start()) + 1  # line of the @brief comment
+        # line of the declaration itself: first line of the code block + its offset
+        line = text.count("\n", 0, m.start(2)) + 1 + off
         entries[cat].append((kind, name, b, f"inc/{header}#L{line}"))
 
 out = ["# API Reference\n",

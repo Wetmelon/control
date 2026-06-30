@@ -143,6 +143,27 @@ public:
         return true;
     }
 
+    /**
+     * @brief Update plant model, limits, and bandwidths in place, preserving live state.
+     *
+     * Re-applies @p config to the current loop's plant, the bus limiter, the commutation
+     * observer's bandwidth, the torque constant, and re-tunes every loop — without resetting
+     * the rotor estimator (multi-turn position, speed) or any integrator. This is the bumpless
+     * path for changing parameters mid-run; constructing a fresh @ref PmacServo instead would
+     * zero the estimator and lose the multi-turn position count, jumping the position feedback.
+     * Mode is left unchanged; call @ref set_mode separately if it must change.
+     */
+    constexpr void reconfigure(const PmacServoConfig<T>& config) {
+        config_ = config;
+        foc_.Ldq = config.Ldq;
+        foc_.R = config.R;
+        foc_.lambda = config.lambda;
+        bus_.set_limits(config.bus_limits);
+        estimator_.set_bandwidth(config.observer.bandwidth);
+        Kt_ = design::torque_constant_from_flux(config.pole_pairs, config.lambda);
+        tuned_ = tune(config.bandwidths, config.zeta);
+    }
+
     constexpr void set_mode(ControlMode mode) {
         mode_ = mode;
 
@@ -159,6 +180,7 @@ public:
 
     [[nodiscard]] constexpr T speed() const { return estimator_.omega(); }       //!< [turns/s] mechanical speed
     [[nodiscard]] constexpr T position() const { return estimator_.position(); } //!< [turns] continuous (multi-turn)
+    [[nodiscard]] constexpr T velocity_command() const { return pos_vel_cmd_; }  //!< [turns/s] velocity command held by the position loop
 
     /**
      * @brief Update commutation estimator with a new encoder reading (absolute)
