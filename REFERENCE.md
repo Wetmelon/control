@@ -491,7 +491,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`PhaseCalibrationCommand`](inc/wet/motor/calibration.hpp#L39) | One step's output from PhaseParameterCalibrator |
 | [`PhaseCalibrationConfig`](inc/wet/motor/calibration.hpp#L13) | Configuration for online phase resistance/inductance commissioning |
 | [`PhaseParameterCalibrator`](inc/wet/motor/calibration.hpp#L49) | Online phase R/L identification by recursive least squares (PRBS injected) |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L73) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | PMSM electrical nameplate the predictive controller inverts |

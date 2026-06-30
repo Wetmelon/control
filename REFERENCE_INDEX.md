@@ -348,7 +348,7 @@ Auto-generated from `@brief` doc comments in `inc/wet/`. Regenerate with `python
 | [`plot_line`](inc/wet/simulation/plot_plotly.hpp#L191) | function | Simulation (host) | Simple line plot of time vs value |
 | [`plot_simulation`](inc/wet/simulation/plot_plotly.hpp#L71) | function | Simulation (host) | Plot simulation results with subplots for states, outputs, and inputs |
 | [`plot_step`](inc/wet/simulation/plot_plotly.hpp#L220) | function | Simulation (host) | Plot step response data |
-| [`PmacServo`](inc/wet/motor/servo.hpp#L73) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
+| [`PmacServo`](inc/wet/motor/servo.hpp#L71) | block | Motor control | Thin field-oriented PMAC servo: {Iabc, Vdc, θ} in, duties out |
 | [`PmacServoConfig`](inc/wet/motor/servo.hpp#L47) | block | Motor control | Configuration for PmacServo |
 | [`PmsmEstimatorConfig`](inc/wet/motor/predictive_current.hpp#L105) | block | Motor control | Configuration for PmsmParameterEstimator |
 | [`PmsmModel`](inc/wet/motor/predictive_current.hpp#L13) | block | Motor control | PMSM electrical nameplate the predictive controller inverts |

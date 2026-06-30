@@ -35,7 +35,6 @@ PmacServoConfig<float> motor_config() {
             .omega_velocity = 314.0f,
             .omega_current = 6283.0f,
         },
-        .Ts = static_cast<float>(Ts),
     };
 }
 
@@ -71,10 +70,9 @@ auto servo_controller(Servo& servo, float pos_cmd, float vel_cmd, float trq_cmd)
         const auto  Iabc = inverse_park_clarke_transform(
             DirectQuadrature<float>{static_cast<float>(y[0]), static_cast<float>(y[1])}, theta_e
         );
-        const auto res = servo.update(
-            pos_cmd, vel_cmd, trq_cmd, Iabc, Vdc, theta / (2.0f * wet::numbers::pi_v<float>)
-        );
-        const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
+        const auto svm = servo.update(pos_cmd, vel_cmd, trq_cmd, Iabc, Vdc, theta / (2.0f * wet::numbers::pi_v<float>), Ts);
+
+        const ColVec<3, float> Vabc{(svm.duties[0] - 0.5f) * Vdc, (svm.duties[1] - 0.5f) * Vdc, (svm.duties[2] - 0.5f) * Vdc};
         const auto             Vdq = clarke_park_transform(Vabc, theta_e);
         return ColVec<2, double>{static_cast<double>(Vdq.d), static_cast<double>(Vdq.q)};
     };

@@ -84,7 +84,7 @@ void tick(PmacServo<float>& servo, Plant& p, float pos, float vel, float trq) {
         DirectQuadrature<float>{static_cast<float>(p.id()), static_cast<float>(p.iq())}, theta_e
     );
 
-    const auto res = servo.update(pos, vel, trq, Iabc, Vdc, ((float)p.th() / (2.0f * pi_v<float>)));
+    const auto res = servo.update(pos, vel, trq, Iabc, Vdc, ((float)p.th() / (2.0f * pi_v<float>)), Ts);
 
     const ColVec<3, float> Vabc{(res.duties[0] - 0.5f) * Vdc, (res.duties[1] - 0.5f) * Vdc, (res.duties[2] - 0.5f) * Vdc};
     const auto             Vdq = clarke_park_transform(Vabc, theta_e);
@@ -147,7 +147,6 @@ int main() {
         .b = static_cast<float>(b),
         .iq_max = 20.0f,
         .bandwidths = bw,
-        .Ts = Ts,
     };
 
     Recorder rec_torque;

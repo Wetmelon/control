@@ -65,9 +65,7 @@ struct PmacServoConfig {
 
     DcBusLimits<T>         bus_limits{}; //!< DC-bus limits
     CascadeBandwidths<T>   bandwidths{}; //!< loop bandwidths (rad/s)
-    RotorObserverConfig<T> observer{};   //!< rotor observer tuning (J/b/Ts are taken from above)
-
-    T Ts{T{1} / T{24000}}; //!< [s] electrical/estimator design rate (KF discretization); pass each loop's period to its update_*
+    RotorObserverConfig<T> observer{};   //!< rotor observer tuning (bandwidth)
 };
 
 /**
@@ -193,8 +191,7 @@ public:
      * q-current reference last produced by @ref update_velocity, plus any torque
      * feedforward; the feedback needed by the slower loops (Idq, Vdc) is latched here.
      *
-     * @param dt this loop's period [s]. Should match the estimator's design rate
-     *           (@ref PmacServoConfig::Ts), since the KF predict is discretized at it.
+     * @param dt this loop's period [s], used directly for the observer predict step.
      * @return @ref FocResult with the SVPWM duties and saturation status.
      */
     [[nodiscard]] constexpr FocResult<T> current_control_step(const DirectQuadrature<T>& Idq_ref, const ColVec<3, T>& Iabc, T Vdc, T dt) {
@@ -315,15 +312,15 @@ public:
      *
      * @return Half-bridge duty cycles
      */
-    [[nodiscard]] constexpr FocResult<T> update(T pos_target, T vel_target, T torque_target, const ColVec<3, T>& Iabc, T Vdc, T encoder_meas) {
-        encoder_update_abs(encoder_meas, config_.Ts);
+    [[nodiscard]] constexpr FocResult<T> update(T pos_target, T vel_target, T torque_target, const ColVec<3, T>& Iabc, T Vdc, T encoder_meas, T dt) {
+        encoder_update_abs(encoder_meas, dt);
 
         recalculate_limits();
         position_control_step(pos_target);
-        velocity_control_step(vel_target, config_.Ts);
-        torque_control_step(torque_target, config_.Ts);
+        velocity_control_step(vel_target, dt);
+        torque_control_step(torque_target, dt);
 
-        return current_control_step(Idq_ref_, Iabc, Vdc, config_.Ts);
+        return current_control_step(Idq_ref_, Iabc, Vdc, dt);
     }
 
     constexpr void reset() {
