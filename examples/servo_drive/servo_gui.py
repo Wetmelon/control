@@ -249,7 +249,7 @@ def default_control_params() -> ServoControlParams:
     c = ServoControlParams()
     c.bw_position = 1.0
     c.bw_velocity = 10.0
-    c.bw_current = 1000.0
+    c.bw_current = 159.0
     c.i_max = 65.0        # continuous (peak 85 A)
     c.speed_max = 1300.0  # [rad/s] velocity-command ceiling (~207 rev/s)
     c.position_mode = 2   # ControlMode::Position
@@ -713,7 +713,7 @@ def build_gui():
 
                 with dpg.collapsing_header(label="Current Loop", default_open=True):
                     dpg.add_slider_float(label="BW (Hz)", tag="sl_bw_current",
-                        default_value=cp.bw_current, min_value=100.0, max_value=5000.0,
+                        default_value=cp.bw_current, min_value=10.0, max_value=400.0,
                         callback=on_control_change, width=200)
 
             # ===== Right panel: plots =====

@@ -245,9 +245,9 @@ struct ServoSim {
         cfg.vel_max = cp.speed_max / two_pi; // rad/s -> turns/s
         cfg.zeta = 1.0;
         cfg.bandwidths = CascadeBandwidths<double>{
-            .omega_position = two_pi * cp.bw_position,
-            .omega_velocity = two_pi * cp.bw_velocity,
-            .omega_current = two_pi * cp.bw_current,
+            .omega_position = two_pi * cp.bw_position, // [rad/s]
+            .omega_velocity = two_pi * cp.bw_velocity, // [rad/s]
+            .omega_current = two_pi * cp.bw_current,   // [rad/s]
         };
         cfg.observer.bandwidth = two_pi * cp.bw_current; // commutation tracker ~ current-loop rate
         return cfg;
